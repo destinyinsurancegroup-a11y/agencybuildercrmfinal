@@ -1,40 +1,19 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\BookOfBusinessController;
+use App\Http\Controllers\MyNumbersController;
+use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\SettingsController;
 
 // ---------------------------------------------
-// MODULE 1 — SAFE ROUTING FOUNDATION
-// ---------------------------------------------
-// These routes DO NOT depend on controllers yet.
-// They prevent 403 errors during early deployment.
+// MODULE 2 — ROUTES USING REAL CONTROLLERS
 // ---------------------------------------------
 
-// Home page (temporary placeholder)
-Route::get('/', function () {
-    return "CRM Home Loaded Successfully (Module 1)";
-});
-
-// Dashboard placeholder
-Route::get('/dashboard', function () {
-    return "Dashboard Placeholder — Module 1";
-});
-
-// Book of Business placeholder
-Route::get('/book-of-business', function () {
-    return "Book of Business Placeholder — Module 1";
-});
-
-// My Numbers placeholder
-Route::get('/my-numbers', function () {
-    return "My Numbers Placeholder — Module 1";
-});
-
-// Service page placeholder
-Route::get('/service', function () {
-    return "Service Placeholder — Module 1";
-});
-
-// Settings placeholder
-Route::get('/settings', function () {
-    return "Settings Placeholder — Module 1";
-});
+Route::get('/', [DashboardController::class, 'index']);
+Route::get('/dashboard', [DashboardController::class, 'index']);
+Route::get('/book-of-business', [BookOfBusinessController::class, 'index']);
+Route::get('/my-numbers', [MyNumbersController::class, 'index']);
+Route::get('/service', [ServiceController::class, 'index']);
+Route::get('/settings', [SettingsController::class, 'index']);
