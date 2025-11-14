@@ -3,13 +3,12 @@
 # Works on DigitalOcean App Platform
 # ============================================
 
-# Base image
 FROM php:8.2-apache
 
-# Enable Apache rewrite
+# Enable rewrite
 RUN a2enmod rewrite
 
-# Install system dependencies
+# Install required system packages
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -25,33 +24,35 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install gd pdo pdo_mysql zip opcache \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Composer (official safe method)
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Set working directory
+# Working directory
 WORKDIR /var/www/html
 
-# Copy application source
+# Copy app files
 COPY . .
 
-# Install Laravel vendor dependencies
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Fix permissions AFTER vendor install
+# Fix permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
-# Configure Apache VirtualHost
-RUN echo '<VirtualHost *:80>
-    ServerName localhost
-    DocumentRoot /var/www/html/public
-    <Directory /var/www/html/public>
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+# Apache virtual host (properly escaped)
+RUN printf "%s\n" \
+    "<VirtualHost *:80>" \
+    "    ServerName localhost" \
+    "    DocumentRoot /var/www/html/public" \
+    "    <Directory /var/www/html/public>" \
+    "        AllowOverride All" \
+    "        Require all granted" \
+    "    </Directory>" \
+    "</VirtualHost>" \
+    > /etc/apache2/sites-available/000-default.conf
 
-# Expose port 80
+# Expose HTTP
 EXPOSE 80
 
 # Start Apache
