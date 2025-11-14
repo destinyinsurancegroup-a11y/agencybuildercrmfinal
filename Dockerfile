@@ -1,4 +1,9 @@
-# Use the official PHP + Apache image
+# ============================================
+# Agency Builder CRM - Dockerfile (FINAL FIXED)
+# Works on DigitalOcean App Platform
+# ============================================
+
+# Base image
 FROM php:8.2-apache
 
 # Enable Apache rewrite
@@ -14,35 +19,36 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
-    libicu-dev \
     libonig-dev \
     libxml2-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd intl pdo pdo_mysql zip opcache \
+    && docker-php-ext-install gd pdo pdo_mysql zip opcache \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Install Composer (official safe method)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy project files
+# Copy application source
 COPY . .
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
-
-# Install Laravel dependencies
+# Install Laravel vendor dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Configure Apache to use public/ as the web root
-RUN echo '<VirtualHost *:80>\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-    </Directory>\n\
+# Fix permissions AFTER vendor install
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html
+
+# Configure Apache VirtualHost
+RUN echo '<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html/public
+    <Directory /var/www/html/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 # Expose port 80
