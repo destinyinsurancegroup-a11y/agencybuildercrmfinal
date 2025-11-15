@@ -33,12 +33,11 @@
 
         /* LOGO */
         .sidebar-logo img {
-            width: 140px;   /* Increased 400% from your original small render */
+            width: 200px;   /* 200% Larger */
             height: auto;
             margin-bottom: 15px;
         }
 
-        /* Removed the text below the logo */
         .sidebar h2 {
             display: none;
         }
@@ -65,6 +64,25 @@
             padding: 25px;
         }
 
+        /* TAB BUTTONS (Day/Week/Month/Quarter/Year) */
+        .tab-button {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            color: #333;
+            background: #f2f2f2;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .tab-button.active {
+            background-color: #D4AF37 !important;
+            color: #000 !important;
+            border-color: #D4AF37;
+            font-weight: 600;
+        }
+
+        /* Cards stay the same */
         .content-box {
             background: #fff;
             padding: 25px;
@@ -72,22 +90,8 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
 
-        /* REMOVE TOP BLACK BAR */
         .header {
             display: none;
-        }
-
-        /* GOLD THEME FOR BUTTONS & HIGHLIGHTED ELEMENTS */
-        .btn-gold,
-        button,
-        .tab.active {
-            background-color: #D4AF37 !important;
-            color: #000 !important;
-        }
-
-        /* Fix gold text accents */
-        .gold-text {
-            color: #D4AF37 !important;
         }
     </style>
 </head>
@@ -96,13 +100,10 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-
-        <!-- LOGO -->
         <div class="sidebar-logo">
             <img src="/images/agency-builder-logo.png" alt="Agency Builder CRM Logo">
         </div>
 
-        <!-- NAVIGATION -->
         <a class="nav-item" href="/dashboard">Dashboard</a>
         <a class="nav-item" href="/all-contacts">All Contacts</a>
         <a class="nav-item" href="/book-of-business">Book of Business</a>
@@ -115,10 +116,34 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- MAIN CONTENT WRAPPER -->
+    <!-- MAIN CONTENT AREA -->
     <div class="main-content">
         @yield('content')
     </div>
+
+    <!-- AUTO USER TIMEZONE FIX -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const elements = document.querySelectorAll(".local-time");
+
+            elements.forEach(el => {
+                const serverTime = el.getAttribute("data-server-time");
+
+                if (serverTime) {
+                    const localDate = new Date(serverTime + " UTC");
+                    el.innerText = localDate.toLocaleString();
+                }
+            });
+        });
+
+        // TAB LOGIC
+        document.addEventListener("click", (e) => {
+            if (e.target.classList.contains("tab-button")) {
+                document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+                e.target.classList.add("active");
+            }
+        });
+    </script>
 
 </body>
 </html>
