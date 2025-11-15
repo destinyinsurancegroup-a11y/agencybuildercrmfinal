@@ -2,9 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-// ------------------------------
-// DASHBOARD
-// ------------------------------
+// Dashboard
 Route::get('/', function () {
     return view('dashboard');
 });
@@ -13,9 +11,7 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 });
 
-// ------------------------------
-// ALL CONTACTS (NO AUTH)
-// ------------------------------
+// Contacts (NO AUTH, SAFE, SIMPLE)
 Route::get('/contacts', function () {
     return view('contacts.index');
 });
