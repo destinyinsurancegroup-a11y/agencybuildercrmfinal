@@ -11,17 +11,14 @@ return new class extends Migration
         Schema::create('events', function (Blueprint $table) {
             $table->id();
 
-            // Multi-tenant support
-            $table->unsignedBigInteger('tenant_id')->index();
-
-            // Calendar event info
-            $table->string('title');
-            $table->dateTime('start');
-            $table->dateTime('end')->nullable();
-            $table->string('color')->nullable();
-
-            // Optional: who created the event
+            // Multi-tenant safe (temporary default tenant)
+            $table->unsignedBigInteger('tenant_id')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
+
+            $table->string('title');
+            $table->datetime('start');
+            $table->datetime('end')->nullable();
+            $table->string('color')->nullable();
 
             $table->timestamps();
         });
