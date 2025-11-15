@@ -188,19 +188,6 @@
         box-shadow:0 3px 6px rgba(0,0,0,0.25);
     }
 
-    /* TABLE */
-    .production-label {
-        color:#4b5563;
-        font-size:18px;
-        font-weight:500;
-    }
-    .production-value {
-        text-align:right;
-        font-weight:700;
-        color:#111827;
-        font-size:28px;
-    }
-
     .production-range { display:none; }
     .production-range-active { display:block; }
 
@@ -224,7 +211,9 @@
     <div class="dashboard-header">
         <div class="dashboard-title">Dashboard</div>
         <div class="dashboard-subtitle">Good {{ $greeting }} — here’s your daily overview.</div>
-        <div class="dashboard-datetime">{{ $now->format('l, F j, Y • g:i A') }}</div>
+
+        {{-- FIXED LOCAL USER TIME --}}
+        <div class="dashboard-datetime" id="local-time"></div>
 
         <div class="dashboard-search-row">
             <div class="dashboard-search-wrapper">
@@ -237,13 +226,11 @@
     {{-- Cards Row --}}
     <div class="dashboard-grid">
 
-        {{-- CURRENT PRODUCTION (FIXED) --}}
+        {{-- CURRENT PRODUCTION --}}
         <div class="dashboard-card" id="production-card">
 
-            {{-- CENTERED TITLE / NO CHECKMARK --}}
             <div class="production-title">Current Production</div>
 
-            {{-- CENTERED TABS --}}
             <div class="production-tabs-wrapper">
                 <div class="production-tabs">
                     <button class="production-tab production-tab-active" data-production-tab="day">Day</button>
@@ -254,10 +241,8 @@
                 </div>
             </div>
 
-            {{-- TABLE CONTENT (UNCHANGED) --}}
             <div class="dashboard-card-body production-stats">
-
-                {{-- DAY --}}
+                {{-- Day --}}
                 <div class="production-range production-range-active" data-production-range="day">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -270,7 +255,7 @@
                     </table>
                 </div>
 
-                {{-- WEEK --}}
+                {{-- Week --}}
                 <div class="production-range" data-production-range="week">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -283,7 +268,7 @@
                     </table>
                 </div>
 
-                {{-- MONTH --}}
+                {{-- Month --}}
                 <div class="production-range" data-production-range="month">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -296,7 +281,7 @@
                     </table>
                 </div>
 
-                {{-- QUARTER --}}
+                {{-- Quarter --}}
                 <div class="production-range" data-production-range="quarter">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -309,7 +294,7 @@
                     </table>
                 </div>
 
-                {{-- YEAR --}}
+                {{-- Year --}}
                 <div class="production-range" data-production-range="year">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -383,6 +368,7 @@
     </div>
 </div>
 
+{{-- PRODUCTION TAB SWITCHER --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const tabs = document.querySelectorAll('.production-tab');
@@ -405,6 +391,26 @@
             });
         });
     });
+</script>
+
+{{-- REAL LOCAL TIME SCRIPT --}}
+<script>
+function updateLocalTime() {
+    const el = document.getElementById('local-time');
+    const now = new Date();
+
+    el.innerText = now.toLocaleString([], {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+    });
+}
+updateLocalTime();
+setInterval(updateLocalTime, 60000); // update every minute
 </script>
 
 @endsection
