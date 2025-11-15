@@ -22,6 +22,11 @@ Route::get('/contacts', function () {
     return view('contacts.index');
 });
 
+// Calendar (NEW)
+Route::get('/calendar', function () {
+    return view('calendar.index');
+});
+
 // TEMPORARY CLEAR CACHE ROUTE
 Route::get('/clear-cache', function () {
     Artisan::call('route:clear');
