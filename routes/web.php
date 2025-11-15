@@ -4,15 +4,28 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes — Agency Builder CRM
+| Authentication Routes (Laravel Breeze / Fortify / Jetstream)
 |--------------------------------------------------------------------------
 |
-| All UI routes for authenticated users.
-| Public routes (login, forgot password) are provided by Laravel Breeze/Fortify.
+| This loads all login, logout, password reset, and register routes.
+| It also defines the route('login') that Laravel needs.
 |
 */
 
-// 🔐 All CRM pages require authentication
+require __DIR__ . '/auth.php';
+
+
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes — Agency Builder CRM
+|--------------------------------------------------------------------------
+|
+| All CRM pages require authentication. Public routes such as login
+| and password reset are handled in auth.php (included above).
+|
+*/
+
 Route::middleware(['auth'])->group(function () {
 
     // Dashboard
@@ -25,15 +38,16 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // -----------------------------------------------------
-    // 🟨 All Contacts (THIS FIXES YOUR 404)
+    // 🟨 All Contacts (MAIN CONTACTS PAGE)
     // -----------------------------------------------------
     Route::get('/contacts', function () {
         return view('contacts.index');
     })->name('contacts.index');
 
-    // Future modules (placeholders)
+    // -------------------------------------------------------------------
+    // Additional placeholder modules (uncomment as you build them)
+    // -------------------------------------------------------------------
     // Route::get('/book-of-business', ...);
     // Route::get('/service-department', ...);
-    // Route::get('/hired-agents', ...);
+    // Route::get('/agents', ...);
 });
-
