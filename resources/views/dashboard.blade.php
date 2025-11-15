@@ -17,79 +17,100 @@
 @endphp
 
 <style>
-    /* ---------- DASHBOARD LAYOUT ---------- */
+    /* Import Inter font (matches modern SaaS dashboards) */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+        --gold: #c9a227;
+        --gold-soft: #f5e6b3;
+        --bg-page: #f5f5f5;
+        --text-main: #111827;
+        --text-subtle: #4b5563;
+        --text-faint: #9ca3af;
+    }
+
     .dashboard-page {
-        padding: 24px 32px 40px;
-        background: #f5f5f5;
+        padding: 30px 40px 40px;
+        background: var(--bg-page);
         min-height: 100vh;
         font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
+    /* HEADER AREA (BIG) */
     .dashboard-header {
-        margin-bottom: 24px;
+        margin-bottom: 32px;
     }
 
     .dashboard-title {
-        font-size: 26px;
+        font-size: 32px;
         font-weight: 700;
-        color: #111827;
-        margin-bottom: 4px;
+        color: var(--text-main);
+        margin-bottom: 8px;
+        letter-spacing: 0.01em;
     }
 
     .dashboard-subtitle {
-        font-size: 14px;
-        color: #4b5563;
-        margin-bottom: 4px;
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--text-subtle);
+        margin-bottom: 6px;
     }
 
     .dashboard-datetime {
-        font-size: 13px;
-        color: #6b7280;
+        font-size: 18px;
+        font-weight: 500;
+        color: var(--text-faint);
     }
 
+    /* SEARCH ROW */
     .dashboard-search-row {
-        margin-top: 18px;
-        margin-bottom: 24px;
+        margin-top: 24px;
+        margin-bottom: 28px;
     }
 
     .dashboard-search-wrapper {
-        max-width: 420px;
+        max-width: 480px;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
     }
 
     .dashboard-search-input {
         flex: 1;
-        padding: 8px 10px;
-        border-radius: 6px;
+        padding: 10px 12px;
+        border-radius: 10px;
         border: 1px solid #d1d5db;
-        font-size: 13px;
+        font-size: 14px;
+        font-weight: 400;
+        background: #ffffff;
     }
 
     .dashboard-search-button {
-        padding: 7px 12px;
-        border-radius: 6px;
+        padding: 10px 16px;
+        border-radius: 10px;
         border: none;
-        background: #fbbf24;
+        background: var(--gold);
         color: #111827;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
     }
 
     .dashboard-search-button:hover {
-        background: #f59e0b;
+        filter: brightness(0.95);
     }
 
+    /* GRID OF CARDS */
     .dashboard-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
+        gap: 20px;
     }
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1280px) {
         .dashboard-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -101,13 +122,14 @@
         }
     }
 
+    /* CARD SHELL */
     .dashboard-card {
         background: #ffffff;
-        border-radius: 12px;
-        padding: 16px 18px 16px;
+        border-radius: 18px;
+        padding: 22px 22px 24px;
         box-shadow:
-            0 10px 15px -3px rgba(0,0,0,0.08),
-            0 4px 6px -4px rgba(0,0,0,0.06);
+            0 18px 30px -12px rgba(0,0,0,0.35),
+            0 8px 16px -8px rgba(0,0,0,0.18);
         border: 1px solid #e5e7eb;
     }
 
@@ -115,103 +137,110 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
         gap: 8px;
     }
 
     .dashboard-card-title {
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 15px;
+        gap: 10px;
+        font-size: 20px;
         font-weight: 700;
-        color: #111827;
+        color: var(--text-main);
     }
 
     .dashboard-card-icon {
-        width: 18px;
-        height: 18px;
+        width: 26px;
+        height: 26px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        background: #fef3c7;
-        color: #92400e;
-        font-size: 11px;
+        background: var(--gold-soft);
+        color: #7c5a00;
+        font-size: 14px;
+        box-shadow: 0 3px 5px rgba(0,0,0,0.25);
     }
 
     .dashboard-card-body {
-        font-size: 13px;
+        font-size: 14px;
         color: #374151;
     }
 
     .dashboard-list {
         margin: 0;
-        padding-left: 18px;
+        padding-left: 20px;
+        font-size: 14px;
     }
 
     .dashboard-list li {
-        margin-bottom: 4px;
+        margin-bottom: 6px;
     }
 
     .dashboard-footer-note {
-        margin-top: 18px;
-        font-size: 11px;
-        color: #9ca3af;
+        margin-top: 24px;
+        font-size: 12px;
+        color: var(--text-faint);
         text-align: center;
     }
 
-    /* ---------- PRODUCTION TABS ---------- */
+    /* CURRENT PRODUCTION TABS (BIG + BOLD) */
     .production-tabs {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 6px;
         background: #f9fafb;
-        padding: 2px;
+        padding: 4px;
         border-radius: 999px;
         border: 1px solid #e5e7eb;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.06);
     }
 
     .production-tab {
         border: none;
         background: transparent;
-        font-size: 11px;
-        padding: 4px 9px;
+        font-size: 14px;
+        padding: 6px 12px;
         border-radius: 999px;
         cursor: pointer;
-        color: #4b5563;
-        font-weight: 500;
-        transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+        color: #6b7280;
+        font-weight: 600;
+        transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
     }
 
     .production-tab-active {
-        background: #fbbf24;
+        background: var(--gold);
         color: #111827;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+        transform: translateY(-1px);
     }
 
     .production-stats {
-        margin-top: 4px;
+        margin-top: 10px;
     }
 
     .production-stats table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13px;
     }
 
     .production-stats td {
-        padding: 2px 0;
+        padding: 5px 0;
     }
 
+    /* Label + value sizes (C2 style) */
     .production-label {
         color: #4b5563;
+        font-size: 18px;
+        font-weight: 500;
     }
 
     .production-value {
         text-align: right;
-        font-weight: 600;
+        font-weight: 700;
         color: #111827;
+        font-size: 28px;
     }
 
     .production-range {
@@ -222,18 +251,18 @@
         display: block;
     }
 
+    /* BADGE FOR RECENTLY ADDED */
     .badge-new {
         display: inline-flex;
         align-items: center;
-        padding: 2px 6px;
+        padding: 4px 8px;
         border-radius: 999px;
         background: #dbeafe;
         color: #1d4ed8;
-        font-size: 10px;
-        font-weight: 600;
+        font-size: 11px;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
-        margin-right: 4px;
+        letter-spacing: 0.05em;
     }
 </style>
 
@@ -282,7 +311,7 @@
             </div>
 
             <div class="dashboard-card-body production-stats">
-                {{-- Day (example numbers – replace with real data later) --}}
+                {{-- Day --}}
                 <div class="production-range production-range-active" data-production-range="day">
                     <table>
                         <tr>
@@ -467,7 +496,7 @@
                     <li>--</li>
                     <li>--</li>
                 </ul>
-                <div style="margin-top:10px; font-size:11px; color:#9ca3af;">
+                <div style="margin-top:10px; font-size:12px; color:var(--text-faint);">
                     Dynamic data coming soon.
                 </div>
             </div>
