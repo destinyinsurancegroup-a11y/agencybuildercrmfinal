@@ -1,10 +1,12 @@
 @extends('layouts.app')
 @section('content')
+
 @php
-    // Time-based greeting
-    $tz = config('app.timezone', 'UTC');
-    $now = now()->timezone($tz);
-    $hour = (int) $now->format('H');
+    // Server datetime (UTC)
+    $serverTime = now()->toDateTimeString();
+
+    // Time-based greeting defaults
+    $hour = now()->timezone('UTC')->format('H');
 
     if ($hour < 12) {
         $greeting = 'morning';
@@ -16,7 +18,6 @@
 @endphp
 
 <style>
-    /* Import Inter font */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     :root {
@@ -32,43 +33,47 @@
         padding: 30px 40px 40px;
         background: var(--bg-page);
         min-height: 100vh;
-        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: 'Inter', sans-serif;
     }
 
-    /* HEADER AREA */
     .dashboard-header {
         margin-bottom: 32px;
     }
+
     .dashboard-title {
         font-size: 32px;
         font-weight: 700;
         color: var(--text-main);
         margin-bottom: 8px;
-        letter-spacing: 0.01em;
     }
+
     .dashboard-subtitle {
         font-size: 22px;
         font-weight: 600;
         color: var(--text-subtle);
         margin-bottom: 6px;
+        text-transform: capitalize;
     }
+
     .dashboard-datetime {
         font-size: 18px;
         font-weight: 500;
         color: var(--text-faint);
     }
 
-    /* SEARCH */
+    /* Search */
     .dashboard-search-row {
         margin-top: 24px;
         margin-bottom: 28px;
     }
+
     .dashboard-search-wrapper {
         max-width: 480px;
         display: flex;
         align-items: center;
         gap: 10px;
     }
+
     .dashboard-search-input {
         flex: 1;
         padding: 10px 12px;
@@ -77,6 +82,7 @@
         font-size: 14px;
         background: #ffffff;
     }
+
     .dashboard-search-button {
         padding: 10px 16px;
         border-radius: 10px;
@@ -87,16 +93,15 @@
         font-weight: 600;
         cursor: pointer;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
     }
 
-    /* GRID */
+    /* Card grid */
     .dashboard-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 20px;
     }
+
     @media (max-width: 1280px) {
         .dashboard-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -108,7 +113,7 @@
         }
     }
 
-    /* CARD */
+    /* Cards (original size restored) */
     .dashboard-card {
         background: #ffffff;
         border-radius: 18px;
@@ -118,6 +123,7 @@
             0 8px 16px -8px rgba(0,0,0,0.18);
         border: 1px solid #e5e7eb;
     }
+
     .dashboard-card-title-row {
         display: flex;
         align-items: center;
@@ -125,6 +131,7 @@
         margin-bottom: 14px;
         gap: 8px;
     }
+
     .dashboard-card-title {
         display: flex;
         align-items: center;
@@ -133,6 +140,7 @@
         font-weight: 700;
         color: var(--text-main);
     }
+
     .dashboard-card-icon {
         width: 26px;
         height: 26px;
@@ -143,10 +151,9 @@
         background: var(--gold-soft);
         color: #7c5a00;
         font-size: 14px;
-        box-shadow: 0 3px 5px rgba(0,0,0,0.25);
     }
 
-    /* CURRENT PRODUCTION FIXES */
+    /* Current Production – unchanged except behavior fix */
     .production-title {
         text-align:center;
         font-size:20px;
@@ -169,7 +176,6 @@
         padding:4px;
         border-radius:999px;
         border:1px solid #e5e7eb;
-        box-shadow:0 2px 4px rgba(0,0,0,0.06);
     }
 
     .production-tab {
@@ -182,6 +188,7 @@
         color:#6b7280;
         font-weight:600;
     }
+
     .production-tab-active {
         background:var(--gold);
         color:#111827;
@@ -190,19 +197,6 @@
 
     .production-range { display:none; }
     .production-range-active { display:block; }
-
-    .badge-new {
-        display:inline-flex;
-        align-items:center;
-        padding:4px 8px;
-        border-radius:999px;
-        background:#dbeafe;
-        color:#1d4ed8;
-        font-size:11px;
-        font-weight:700;
-        text-transform:uppercase;
-        letter-spacing:0.05em;
-    }
 </style>
 
 <div class="dashboard-page">
@@ -210,10 +204,15 @@
     {{-- Header --}}
     <div class="dashboard-header">
         <div class="dashboard-title">Dashboard</div>
-        <div class="dashboard-subtitle">Good {{ $greeting }} — here’s your daily overview.</div>
 
-        {{-- FIXED LOCAL USER TIME --}}
-        <div class="dashboard-datetime" id="local-time"></div>
+        <div class="dashboard-subtitle">
+            Good {{ $greeting }}
+        </div>
+
+        <!-- Local time (auto-adjusted in browser) -->
+        <div class="dashboard-datetime local-time" data-server-time="{{ $serverTime }}">
+            Loading time…
+        </div>
 
         <div class="dashboard-search-row">
             <div class="dashboard-search-wrapper">
@@ -223,12 +222,11 @@
         </div>
     </div>
 
-    {{-- Cards Row --}}
+    {{-- Cards --}}
     <div class="dashboard-grid">
 
         {{-- CURRENT PRODUCTION --}}
-        <div class="dashboard-card" id="production-card">
-
+        <div class="dashboard-card">
             <div class="production-title">Current Production</div>
 
             <div class="production-tabs-wrapper">
@@ -242,7 +240,6 @@
             </div>
 
             <div class="dashboard-card-body production-stats">
-                {{-- Day --}}
                 <div class="production-range production-range-active" data-production-range="day">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -255,7 +252,6 @@
                     </table>
                 </div>
 
-                {{-- Week --}}
                 <div class="production-range" data-production-range="week">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -268,7 +264,6 @@
                     </table>
                 </div>
 
-                {{-- Month --}}
                 <div class="production-range" data-production-range="month">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -281,7 +276,6 @@
                     </table>
                 </div>
 
-                {{-- Quarter --}}
                 <div class="production-range" data-production-range="quarter">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -294,7 +288,6 @@
                     </table>
                 </div>
 
-                {{-- Year --}}
                 <div class="production-range" data-production-range="year">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -314,8 +307,7 @@
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
-                    <span class="dashboard-card-icon">📅</span>
-                    Upcoming Appointments
+                    <span class="dashboard-card-icon">📅</span> Upcoming Appointments
                 </div>
             </div>
             <div class="dashboard-card-body">
@@ -323,9 +315,6 @@
                     <li>--</li>
                     <li>--</li>
                 </ul>
-                <div style="margin-top:10px; font-size:12px; color:var(--text-faint);">
-                    Dynamic data coming soon.
-                </div>
             </div>
         </div>
 
@@ -333,8 +322,7 @@
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
-                    <span class="dashboard-card-icon">✨</span>
-                    Today’s Insights
+                    <span class="dashboard-card-icon">✨</span> Today’s Insights
                 </div>
             </div>
             <div class="dashboard-card-body">
@@ -349,8 +337,7 @@
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
-                    <span class="badge-new">NEW</span>
-                    <span>Recently Added</span>
+                    <span class="badge-new">NEW</span> Recently Added
                 </div>
             </div>
             <div class="dashboard-card-body">
@@ -368,49 +355,41 @@
     </div>
 </div>
 
-{{-- PRODUCTION TAB SWITCHER --}}
+
+<!-- LOCAL TIME SCRIPT -->
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const tabs = document.querySelectorAll('.production-tab');
-        const ranges = document.querySelectorAll('.production-range');
+document.addEventListener("DOMContentLoaded", function () {
+    const el = document.querySelector(".local-time");
+    if (!el) return;
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const range = tab.getAttribute('data-production-tab');
+    const serverTime = el.getAttribute("data-server-time");
+    const localDate = new Date(serverTime + " UTC");
 
-                tabs.forEach(t => t.classList.remove('production-tab-active'));
-                tab.classList.add('production-tab-active');
+    el.innerText = localDate.toLocaleString();
+});
+</script>
 
-                ranges.forEach(r => {
-                    if (r.getAttribute('data-production-range') === range) {
-                        r.classList.add('production-range-active');
-                    } else {
-                        r.classList.remove('production-range-active');
-                    }
-                });
+<!-- TAB LOGIC -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tabs = document.querySelectorAll('.production-tab');
+    const ranges = document.querySelectorAll('.production-range');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const range = tab.getAttribute('data-production-tab');
+
+            tabs.forEach(t => t.classList.remove('production-tab-active'));
+            tab.classList.add('production-tab-active');
+
+            ranges.forEach(r => {
+                r.classList.toggle('production-range-active',
+                    r.getAttribute('data-production-range') === range
+                );
             });
         });
     });
-</script>
-
-{{-- REAL LOCAL TIME SCRIPT --}}
-<script>
-function updateLocalTime() {
-    const el = document.getElementById('local-time');
-    const now = new Date();
-
-    el.innerText = now.toLocaleString([], {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: true
-    });
-}
-updateLocalTime();
-setInterval(updateLocalTime, 60000); // update every minute
+});
 </script>
 
 @endsection
