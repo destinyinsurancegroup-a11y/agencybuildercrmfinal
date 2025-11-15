@@ -10,6 +10,10 @@
 
     <!-- GLOBAL STYLES -->
     <style>
+        :root {
+            --abc-gold: #F5D254; /* Correct ABC Gold */
+        }
+
         body {
             margin: 0;
             padding: 0;
@@ -21,29 +25,42 @@
         .sidebar {
             width: 250px;
             background-color: #000;
-            color: #FFD700;
+            color: var(--abc-gold);
             height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
             padding-top: 20px;
-            border-right: 3px solid #FFD700;
+            border-right: 3px solid var(--abc-gold);
         }
 
-        .sidebar h2 {
+        /* LOGO AREA */
+        .sidebar-logo {
             text-align: center;
-            font-size: 22px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-logo img {
+            max-width: 120px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-logo .logo-text {
+            color: var(--abc-gold);
+            font-size: 14px;
+            font-weight: 700;
             letter-spacing: 1px;
+            line-height: 1.2;
         }
 
         .nav-item {
             padding: 14px 25px;
             font-size: 16px;
-            color: #FFD700;
+            color: var(--abc-gold);
             text-decoration: none;
             display: block;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+            border-bottom: 1px solid rgba(245, 210, 84, 0.25);
         }
 
         .nav-item:hover {
@@ -56,10 +73,10 @@
             margin-left: 250px;
             background-color: #000;
             padding: 12px 25px;
-            color: #FFD700;
+            color: var(--abc-gold);
             font-size: 18px;
             font-weight: 600;
-            border-bottom: 3px solid #FFD700;
+            border-bottom: 3px solid var(--abc-gold);
         }
 
         /* MAIN CONTENT */
@@ -82,7 +99,14 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-        <h2>Agency Builder CRM</h2>
+
+        <div class="sidebar-logo">
+            <img src="{{ asset('images/agency-builder-logo.png') }}" alt="Agency Builder CRM">
+
+            <div class="logo-text">
+                AGENCY BUILDER<br>CRM
+            </div>
+        </div>
 
         <a class="nav-item" href="/dashboard">Dashboard</a>
         <a class="nav-item" href="/all-contacts">All Contacts</a>
