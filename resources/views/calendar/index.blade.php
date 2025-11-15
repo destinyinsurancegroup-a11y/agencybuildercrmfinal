@@ -1,92 +1,94 @@
 {{-- resources/views/calendar/index.blade.php --}}
-<x-app-layout>
+@extends('layouts.app')
 
-    <div style="padding: 25px 40px;">
-        <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
-        <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
+@section('content')
 
-        {{-- FullCalendar Container --}}
-        <div id="calendar"></div>
-    </div>
+<div style="padding: 25px 40px;">
+    <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
+    <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
 
-    {{-- FullCalendar CSS --}}
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+    {{-- FullCalendar Container --}}
+    <div id="calendar"></div>
+</div>
 
-    {{-- FullCalendar Script --}}
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+{{-- FullCalendar CSS --}}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const calendarEl = document.getElementById('calendar');
+{{-- FullCalendar Script --}}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                selectable: true,
-                height: "auto",
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const calendarEl = document.getElementById('calendar');
 
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            selectable: true,
+            height: "auto",
 
-                events: '/calendar/events', // ← LOAD FROM DB
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
 
-                select: function(info) {
-                    const title = prompt('Event Title:');
-                    if (title) {
-                        const color = '#facc15'; // Destiny Gold
+            events: '/calendar/events', // ← LOAD FROM DB
 
-                        fetch('/calendar/events', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            },
-                            body: JSON.stringify({
-                                title: title,
-                                start: info.startStr,
-                                end: info.endStr,
-                                color: color
-                            })
+            select: function(info) {
+                const title = prompt('Event Title:');
+                if (title) {
+                    const color = '#facc15'; // Destiny Gold
+
+                    fetch('/calendar/events', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            title: title,
+                            start: info.startStr,
+                            end: info.endStr,
+                            color: color
                         })
-                        .then(response => response.json())
-                        .then(event => {
-                            calendar.addEvent(event); // Add instantly
-                        })
-                        .catch(error => console.error('Error saving event:', error));
-                    }
-                },
+                    })
+                    .then(response => response.json())
+                    .then(event => {
+                        calendar.addEvent(event); // Add instantly
+                    })
+                    .catch(error => console.error('Error saving event:', error));
+                }
+            },
 
-                eventColor: '#facc15',
-                displayEventEnd: true,
-            });
-
-            calendar.render();
+            eventColor: '#facc15',
+            displayEventEnd: true,
         });
-    </script>
 
-    {{-- Style the calendar to match your CRM --}}
-    <style>
-        #calendar {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-            border: 1px solid #e5e7eb;
-            max-width: 1200px;
-        }
-        .fc .fc-toolbar-title {
-            font-weight: 700;
-            font-size: 20px;
-        }
-        .fc-button {
-            background: #111827 !important;
-            border: none !important;
-            color: #facc15 !important;
-            border-radius: 6px !important;
-            padding: 6px 12px !important;
-        }
-    </style>
+        calendar.render();
+    });
+</script>
 
-</x-app-layout>
+{{-- Style the calendar to match your CRM --}}
+<style>
+    #calendar {
+        background: white;
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        border: 1px solid #e5e7eb;
+        max-width: 1200px;
+    }
+    .fc .fc-toolbar-title {
+        font-weight: 700;
+        font-size: 20px;
+    }
+    .fc-button {
+        background: #111827 !important;
+        border: none !important;
+        color: #facc15 !important;
+        border-radius: 6px !important;
+        padding: 6px 12px !important;
+    }
+</style>
+
+@endsection
