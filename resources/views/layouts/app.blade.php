@@ -10,10 +10,6 @@
 
     <!-- GLOBAL STYLES -->
     <style>
-        :root {
-            --abc-gold: #F5D254; /* Correct ABC Gold */
-        }
-
         body {
             margin: 0;
             padding: 0;
@@ -21,46 +17,41 @@
             background: #f4f4f4;
         }
 
-        /* SIDEBAR */
+        /* === SIDEBAR === */
         .sidebar {
             width: 250px;
             background-color: #000;
-            color: var(--abc-gold);
+            color: #D4AF37; /* TRUE GOLD */
             height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            padding-top: 20px;
-            border-right: 3px solid var(--abc-gold);
-        }
-
-        /* LOGO AREA */
-        .sidebar-logo {
+            padding-top: 25px;
+            border-right: 3px solid #D4AF37;
             text-align: center;
-            margin-bottom: 20px;
         }
 
+        /* LOGO */
         .sidebar-logo img {
-            max-width: 120px;
+            width: 140px;   /* Increased 400% from your original small render */
             height: auto;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
-        .sidebar-logo .logo-text {
-            color: var(--abc-gold);
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            line-height: 1.2;
+        /* Removed the text below the logo */
+        .sidebar h2 {
+            display: none;
         }
 
+        /* NAV BUTTONS */
         .nav-item {
             padding: 14px 25px;
             font-size: 16px;
-            color: var(--abc-gold);
+            color: #D4AF37;
             text-decoration: none;
             display: block;
-            border-bottom: 1px solid rgba(245, 210, 84, 0.25);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+            text-align: left;
         }
 
         .nav-item:hover {
@@ -68,18 +59,7 @@
             cursor: pointer;
         }
 
-        /* HEADER */
-        .header {
-            margin-left: 250px;
-            background-color: #000;
-            padding: 12px 25px;
-            color: var(--abc-gold);
-            font-size: 18px;
-            font-weight: 600;
-            border-bottom: 3px solid var(--abc-gold);
-        }
-
-        /* MAIN CONTENT */
+        /* === MAIN CONTENT AREA === */
         .main-content {
             margin-left: 250px;
             padding: 25px;
@@ -92,6 +72,23 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
 
+        /* REMOVE TOP BLACK BAR */
+        .header {
+            display: none;
+        }
+
+        /* GOLD THEME FOR BUTTONS & HIGHLIGHTED ELEMENTS */
+        .btn-gold,
+        button,
+        .tab.active {
+            background-color: #D4AF37 !important;
+            color: #000 !important;
+        }
+
+        /* Fix gold text accents */
+        .gold-text {
+            color: #D4AF37 !important;
+        }
     </style>
 </head>
 
@@ -100,14 +97,12 @@
     <!-- SIDEBAR -->
     <div class="sidebar">
 
+        <!-- LOGO -->
         <div class="sidebar-logo">
-            <img src="{{ asset('images/agency-builder-logo.png') }}" alt="Agency Builder CRM">
-
-            <div class="logo-text">
-                AGENCY BUILDER<br>CRM
-            </div>
+            <img src="/images/agency-builder-logo.png" alt="Agency Builder CRM Logo">
         </div>
 
+        <!-- NAVIGATION -->
         <a class="nav-item" href="/dashboard">Dashboard</a>
         <a class="nav-item" href="/all-contacts">All Contacts</a>
         <a class="nav-item" href="/book-of-business">Book of Business</a>
@@ -120,16 +115,9 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- HEADER -->
-    <div class="header">
-        Welcome to Agency Builder CRM
-    </div>
-
-    <!-- MAIN CONTENT -->
+    <!-- MAIN CONTENT WRAPPER -->
     <div class="main-content">
-        <div class="content-box">
-            @yield('content')
-        </div>
+        @yield('content')
     </div>
 
 </body>
