@@ -1,18 +1,8 @@
 @extends('layouts.app')
 @section('content')
 @php
-    // Time-based greeting
-    $tz = config('app.timezone', 'UTC');
-    $now = now()->timezone($tz);
-    $hour = (int) $now->format('H');
-
-    if ($hour < 12) {
-        $greeting = 'morning';
-    } elseif ($hour < 18) {
-        $greeting = 'afternoon';
-    } else {
-        $greeting = 'evening';
-    }
+    // Server time in UTC (used only for JS conversion)
+    $serverTime = now()->toDateTimeString();
 @endphp
 
 <style>
@@ -51,6 +41,7 @@
         font-weight: 600;
         color: var(--text-subtle);
         margin-bottom: 6px;
+        text-transform: capitalize;
     }
     .dashboard-datetime {
         font-size: 18px;
@@ -223,8 +214,16 @@
     {{-- Header --}}
     <div class="dashboard-header">
         <div class="dashboard-title">Dashboard</div>
-        <div class="dashboard-subtitle">Good {{ $greeting }} — here’s your daily overview.</div>
-        <div class="dashboard-datetime">{{ $now->format('l, F j, Y • g:i A') }}</div>
+
+        {{-- Greeting updated by JS --}}
+        <div class="dashboard-subtitle local-greeting">
+            Loading greeting…
+        </div>
+
+        {{-- Local time updated by JS --}}
+        <div class="dashboard-datetime local-time" data-server-time="{{ $serverTime }}">
+            Loading time…
+        </div>
 
         <div class="dashboard-search-row">
             <div class="dashboard-search-wrapper">
@@ -236,146 +235,8 @@
 
     {{-- Cards Row --}}
     <div class="dashboard-grid">
-
-        {{-- CURRENT PRODUCTION (FIXED) --}}
-        <div class="dashboard-card" id="production-card">
-
-            {{-- CENTERED TITLE / NO CHECKMARK --}}
-            <div class="production-title">Current Production</div>
-
-            {{-- CENTERED TABS --}}
-            <div class="production-tabs-wrapper">
-                <div class="production-tabs">
-                    <button class="production-tab production-tab-active" data-production-tab="day">Day</button>
-                    <button class="production-tab" data-production-tab="week">Week</button>
-                    <button class="production-tab" data-production-tab="month">Month</button>
-                    <button class="production-tab" data-production-tab="quarter">Quarter</button>
-                    <button class="production-tab" data-production-tab="year">Year</button>
-                </div>
-            </div>
-
-            {{-- TABLE CONTENT (UNCHANGED) --}}
-            <div class="dashboard-card-body production-stats">
-
-                {{-- DAY --}}
-                <div class="production-range production-range-active" data-production-range="day">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                {{-- WEEK --}}
-                <div class="production-range" data-production-range="week">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                {{-- MONTH --}}
-                <div class="production-range" data-production-range="month">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                {{-- QUARTER --}}
-                <div class="production-range" data-production-range="quarter">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                {{-- YEAR --}}
-                <div class="production-range" data-production-range="year">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-            </div>
-        </div>
-
-        {{-- UPCOMING APPOINTMENTS --}}
-        <div class="dashboard-card">
-            <div class="dashboard-card-title-row">
-                <div class="dashboard-card-title">
-                    <span class="dashboard-card-icon">📅</span>
-                    Upcoming Appointments
-                </div>
-            </div>
-            <div class="dashboard-card-body">
-                <ul class="dashboard-list">
-                    <li>--</li>
-                    <li>--</li>
-                </ul>
-                <div style="margin-top:10px; font-size:12px; color:var(--text-faint);">
-                    Dynamic data coming soon.
-                </div>
-            </div>
-        </div>
-
-        {{-- TODAY'S INSIGHTS --}}
-        <div class="dashboard-card">
-            <div class="dashboard-card-title-row">
-                <div class="dashboard-card-title">
-                    <span class="dashboard-card-icon">✨</span>
-                    Today’s Insights
-                </div>
-            </div>
-            <div class="dashboard-card-body">
-                <ul class="dashboard-list">
-                    <li>Birthdays this week: --</li>
-                    <li>Anniversaries this week: --</li>
-                </ul>
-            </div>
-        </div>
-
-        {{-- RECENTLY ADDED --}}
-        <div class="dashboard-card">
-            <div class="dashboard-card-title-row">
-                <div class="dashboard-card-title">
-                    <span class="badge-new">NEW</span>
-                    <span>Recently Added</span>
-                </div>
-            </div>
-            <div class="dashboard-card-body">
-                <ul class="dashboard-list">
-                    <li>--</li>
-                    <li>--</li>
-                </ul>
-            </div>
-        </div>
-
+        {{-- CURRENT PRODUCTION --}}
+        @include('components.current-production')
     </div>
 
     <div class="dashboard-footer-note">
@@ -383,28 +244,55 @@
     </div>
 </div>
 
+<!-- LOCAL TIME + LOCAL GREETING SCRIPT -->
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const tabs = document.querySelectorAll('.production-tab');
-        const ranges = document.querySelectorAll('.production-range');
+document.addEventListener("DOMContentLoaded", function () {
+    const timeEl = document.querySelector(".local-time");
+    const greetEl = document.querySelector(".local-greeting");
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const range = tab.getAttribute('data-production-tab');
+    const serverTime = timeEl.getAttribute("data-server-time");
 
-                tabs.forEach(t => t.classList.remove('production-tab-active'));
-                tab.classList.add('production-tab-active');
+    // Convert server UTC → local browser time
+    const localDate = new Date(serverTime + " UTC");
+    timeEl.innerText = localDate.toLocaleString();
 
-                ranges.forEach(r => {
-                    if (r.getAttribute('data-production-range') === range) {
-                        r.classList.add('production-range-active');
-                    } else {
-                        r.classList.remove('production-range-active');
-                    }
-                });
+    // Greeting logic (your rules)
+    const hour = localDate.getHours();
+    let greeting = "Good ";
+
+    if (hour < 12) {
+        greeting += "morning";
+    } else if (hour < 17) {
+        greeting += "afternoon";
+    } else {
+        greeting += "evening";
+    }
+
+    greetEl.innerText = greeting + " — here’s your daily overview.";
+});
+</script>
+
+<!-- TAB LOGIC -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tabs = document.querySelectorAll('.production-tab');
+    const ranges = document.querySelectorAll('.production-range');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const range = tab.getAttribute('data-production-tab');
+
+            tabs.forEach(t => t.classList.remove('production-tab-active'));
+            tab.classList.add('production-tab-active');
+
+            ranges.forEach(r => {
+                r.classList.toggle('production-range-active',
+                    r.getAttribute('data-production-range') === range
+                );
             });
         });
     });
+});
 </script>
 
 @endsection
