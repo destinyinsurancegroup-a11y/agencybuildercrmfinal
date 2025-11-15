@@ -37,14 +37,16 @@ class Contact extends Model
     ];
 
     protected $casts = [
-        'tags'            => 'array',
-        'date_of_birth'   => 'date',
-        'premium_due_date'=> 'date',
-        'face_amount'     => 'decimal:2',
-        'premium_amount'  => 'decimal:2',
+        'tags'             => 'array',
+        'date_of_birth'    => 'date',
+        'premium_due_date' => 'date',
+        'face_amount'      => 'decimal:2',
+        'premium_amount'   => 'decimal:2',
     ];
 
-    // Always keep names in sync
+    /**
+     * Automatically keep full_name synced with first + last name
+     */
     public static function booted(): void
     {
         static::saving(function (Contact $contact) {
@@ -52,7 +54,9 @@ class Contact extends Model
         });
     }
 
-    /** Scope to currently authenticated tenant (safety for multi-tenant). */
+    /**
+     * Multi-tenant scope for safety
+     */
     public function scopeForCurrentTenant(Builder $query): Builder
     {
         $tenantId = auth()->user()?->tenant_id;
@@ -60,13 +64,27 @@ class Contact extends Model
         return $query->where('tenant_id', $tenantId);
     }
 
+    /**
+     * User who created this contact
+     */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * User assigned to this contact
+     */
     public function assignee()
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /**
+     * Relationship: historical notes for this contact
+     */
+    public function notes()
+    {
+        return $this->hasMany(ContactNote::class);
     }
 }
