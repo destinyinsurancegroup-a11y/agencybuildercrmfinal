@@ -1,28 +1,80 @@
 @extends('layouts.app')
 
 @section('content')
-<div style="padding: 20px;">
-    <h1 style="font-size: 28px; font-weight: bold;">Dashboard</h1>
-    <p>Welcome to Agency Builder CRM Tier 1.</p>
+@php
+    // Time-based greeting
+    $hour = now()->format('H');
+    if ($hour < 12) {
+        $greeting = 'Good morning';
+    } elseif ($hour < 17) {
+        $greeting = 'Good afternoon';
+    } else {
+        $greeting = 'Good evening';
+    }
 
-    <div style="margin-top: 30px; padding: 20px; background: #f7f7f7; border-radius: 8px;">
-        <h3 style="margin-bottom: 10px;">Current Production Snapshot (placeholder)</h3>
+    // Date & Time
+    $today = now()->format('l, F j, Y');
+    $time = now()->format('g:i A');
+@endphp
 
-        <ul>
-            <li>Daily Calls: --</li>
-            <li>Weekly Calls: --</li>
-            <li>Monthly Calls: --</li>
-            <li>Stops: --</li>
-            <li>Presentations: --</li>
-            <li>Apps Sold: --</li>
-            <li>Premium Collected: --</li>
-            <li>Annualized Premium (AP): --</li>
-            <li>Leads Worked: --</li>
-        </ul>
+<div class="dashboard-header">
+    <h1 class="dashboard-title">Dashboard</h1>
+    <p class="dashboard-subtitle">
+        {{ $greeting }} — here’s your daily overview.
+    </p>
+    <p class="dashboard-datetime">{{ $today }} • {{ $time }}</p>
 
-        <p style="color: gray; font-size: 14px; margin-top: 10px;">
-            (Dynamic data will populate after we add the backend modules)
-        </p>
+    <div class="search-container">
+        <input type="text" placeholder="Search contacts, leads, or clients..." class="search-input">
+        <button class="search-btn">🔍</button>
     </div>
 </div>
+
+<div class="dashboard-grid">
+
+    {{-- Current Production --}}
+    <div class="dashboard-card">
+        <h3 class="card-title">📋 Current Production</h3>
+        <ul class="stats-list">
+            <li>Calls: --</li>
+            <li>Presentations: --</li>
+            <li>Sales: --</li>
+            <li>Premium: --</li>
+        </ul>
+    </div>
+
+    {{-- Upcoming Appointments --}}
+    <div class="dashboard-card">
+        <h3 class="card-title">📅 Upcoming Appointments</h3>
+        <ul class="stats-list">
+            <li>--</li>
+            <li>--</li>
+            <li>(Dynamic data coming soon)</li>
+        </ul>
+    </div>
+
+    {{-- Today’s Insights --}}
+    <div class="dashboard-card">
+        <h3 class="card-title">✨ Today’s Insights</h3>
+        <ul class="stats-list">
+            <li>Birthdays this week: --</li>
+            <li>Anniversaries this week: --</li>
+        </ul>
+    </div>
+
+    {{-- Recently Added --}}
+    <div class="dashboard-card">
+        <h3 class="card-title">🆕 Recently Added</h3>
+        <ul class="stats-list">
+            <li>--</li>
+            <li>--</li>
+        </ul>
+    </div>
+
+</div>
+
+<footer class="footer-note">
+    © {{ date('Y') }} Agency Builder CRM — Tier 1
+</footer>
+
 @endsection
