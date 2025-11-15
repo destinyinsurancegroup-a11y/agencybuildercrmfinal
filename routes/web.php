@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 
 // Dashboard
 Route::get('/', function () {
@@ -11,7 +12,16 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 });
 
-// Contacts (NO AUTH, SAFE, SIMPLE)
+// Contacts
 Route::get('/contacts', function () {
     return view('contacts.index');
+});
+
+// TEMPORARY CLEAR CACHE ROUTE
+Route::get('/clear-cache', function () {
+    Artisan::call('route:clear');
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
+    return 'Laravel cache cleared!';
 });
