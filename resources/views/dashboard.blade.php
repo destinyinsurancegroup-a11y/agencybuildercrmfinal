@@ -1,5 +1,4 @@
 @extends('layouts.app')
-
 @section('content')
 @php
     // Time-based greeting
@@ -17,7 +16,7 @@
 @endphp
 
 <style>
-    /* Import Inter font (matches modern SaaS dashboards) */
+    /* Import Inter font */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
     :root {
@@ -40,7 +39,6 @@
     .dashboard-header {
         margin-bottom: 32px;
     }
-
     .dashboard-title {
         font-size: 32px;
         font-weight: 700;
@@ -48,33 +46,29 @@
         margin-bottom: 8px;
         letter-spacing: 0.01em;
     }
-
     .dashboard-subtitle {
         font-size: 22px;
         font-weight: 600;
         color: var(--text-subtle);
         margin-bottom: 6px;
     }
-
     .dashboard-datetime {
         font-size: 18px;
         font-weight: 500;
         color: var(--text-faint);
     }
 
-    /* SEARCH ROW */
+    /* SEARCH */
     .dashboard-search-row {
         margin-top: 24px;
         margin-bottom: 28px;
     }
-
     .dashboard-search-wrapper {
         max-width: 480px;
         display: flex;
         align-items: center;
         gap: 10px;
     }
-
     .dashboard-search-input {
         flex: 1;
         padding: 10px 12px;
@@ -83,7 +77,6 @@
         font-size: 14px;
         background: #ffffff;
     }
-
     .dashboard-search-button {
         padding: 10px 16px;
         border-radius: 10px;
@@ -98,26 +91,24 @@
         text-transform: uppercase;
     }
 
-    /* GRID OF CARDS */
+    /* GRID */
     .dashboard-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 20px;
     }
-
     @media (max-width: 1280px) {
         .dashboard-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
-
     @media (max-width: 768px) {
         .dashboard-grid {
             grid-template-columns: minmax(0, 1fr);
         }
     }
 
-    /* CARD SHELL */
+    /* CARD */
     .dashboard-card {
         background: #ffffff;
         border-radius: 18px;
@@ -127,7 +118,6 @@
             0 8px 16px -8px rgba(0,0,0,0.18);
         border: 1px solid #e5e7eb;
     }
-
     .dashboard-card-title-row {
         display: flex;
         align-items: center;
@@ -135,7 +125,6 @@
         margin-bottom: 14px;
         gap: 8px;
     }
-
     .dashboard-card-title {
         display: flex;
         align-items: center;
@@ -144,7 +133,6 @@
         font-weight: 700;
         color: var(--text-main);
     }
-
     .dashboard-card-icon {
         width: 26px;
         height: 26px;
@@ -158,113 +146,104 @@
         box-shadow: 0 3px 5px rgba(0,0,0,0.25);
     }
 
-    /* NEW — CENTERED CURRENT PRODUCTION CARD */
-    .production-header {
-        text-align: center;
-        margin-bottom: 16px;
-        font-size: 20px;
-        font-weight: 700;
-        color: var(--text-main);
+    /* CURRENT PRODUCTION FIXES */
+    .production-title {
+        text-align:center;
+        font-size:20px;
+        font-weight:700;
+        color:var(--text-main);
+        margin-bottom:14px;
     }
 
     .production-tabs-wrapper {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 18px;
+        display:flex;
+        justify-content:center;
+        margin-bottom:18px;
     }
 
     .production-tabs {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #f9fafb;
-        padding: 5px;
-        border-radius: 999px;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        background:#f9fafb;
+        padding:4px;
+        border-radius:999px;
+        border:1px solid #e5e7eb;
+        box-shadow:0 2px 4px rgba(0,0,0,0.06);
     }
 
     .production-tab {
-        border: none;
-        background: transparent;
-        font-size: 14px;
-        padding: 6px 12px;
-        border-radius: 999px;
-        cursor: pointer;
-        color: #6b7280;
-        font-weight: 600;
-        transition: 0.15s;
+        border:none;
+        background:transparent;
+        font-size:14px;
+        padding:6px 12px;
+        border-radius:999px;
+        cursor:pointer;
+        color:#6b7280;
+        font-weight:600;
     }
-
     .production-tab-active {
-        background: var(--gold);
-        color: #111827;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+        background:var(--gold);
+        color:#111827;
+        box-shadow:0 3px 6px rgba(0,0,0,0.25);
     }
 
-    .production-stats table { width: 100%; }
+    /* TABLE */
     .production-label {
-        color: #4b5563;
-        font-size: 16px;
-        font-weight: 500;
+        color:#4b5563;
+        font-size:18px;
+        font-weight:500;
     }
     .production-value {
-        text-align: right;
-        color: #111827;
-        font-size: 22px;
-        font-weight: 700;
+        text-align:right;
+        font-weight:700;
+        color:#111827;
+        font-size:28px;
     }
 
-    .production-range { display: none; }
-    .production-range-active { display: block; }
+    .production-range { display:none; }
+    .production-range-active { display:block; }
 
-    /* BADGE FOR RECENTLY ADDED */
     .badge-new {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 8px;
-        border-radius: 999px;
-        background: #dbeafe;
-        color: #1d4ed8;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        display:inline-flex;
+        align-items:center;
+        padding:4px 8px;
+        border-radius:999px;
+        background:#dbeafe;
+        color:#1d4ed8;
+        font-size:11px;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:0.05em;
     }
 </style>
 
 <div class="dashboard-page">
-    {{-- HEADER --}}
+
+    {{-- Header --}}
     <div class="dashboard-header">
         <div class="dashboard-title">Dashboard</div>
-        <div class="dashboard-subtitle">
-            Good {{ $greeting }} — here’s your daily overview.
-        </div>
-        <div class="dashboard-datetime">
-            {{ $now->format('l, F j, Y • g:i A') }}
-        </div>
+        <div class="dashboard-subtitle">Good {{ $greeting }} — here’s your daily overview.</div>
+        <div class="dashboard-datetime">{{ $now->format('l, F j, Y • g:i A') }}</div>
 
         <div class="dashboard-search-row">
             <div class="dashboard-search-wrapper">
-                <input type="text" class="dashboard-search-input"
-                       placeholder="Search contacts, leads, or clients...">
+                <input type="text" class="dashboard-search-input" placeholder="Search contacts, leads, or clients...">
                 <button class="dashboard-search-button">🔍 Search</button>
             </div>
         </div>
     </div>
 
-    {{-- CARDS GRID --}}
+    {{-- Cards Row --}}
     <div class="dashboard-grid">
 
-        {{-- ⭐ UPDATED CURRENT PRODUCTION CARD ⭐ --}}
+        {{-- CURRENT PRODUCTION (FIXED) --}}
         <div class="dashboard-card" id="production-card">
 
-            {{-- NEW CENTERED TITLE (NO CHECKMARK) --}}
-            <div class="production-header">
-                Current Production
-            </div>
+            {{-- CENTERED TITLE / NO CHECKMARK --}}
+            <div class="production-title">Current Production</div>
 
-            {{-- NEW CENTERED TABS --}}
+            {{-- CENTERED TABS --}}
             <div class="production-tabs-wrapper">
                 <div class="production-tabs">
                     <button class="production-tab production-tab-active" data-production-tab="day">Day</button>
@@ -275,7 +254,7 @@
                 </div>
             </div>
 
-            {{-- PRODUCTION TABLES (unchanged) --}}
+            {{-- TABLE CONTENT (UNCHANGED) --}}
             <div class="dashboard-card-body production-stats">
 
                 {{-- DAY --}}
@@ -307,8 +286,125 @@
                 {{-- MONTH --}}
                 <div class="production-range" data-production-range="month">
                     <table>
-                        <tr><td class="production-label">  
+                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
+                    </table>
+                </div>
 
-(…remaining tables & cards unchanged…)
+                {{-- QUARTER --}}
+                <div class="production-range" data-production-range="quarter">
+                    <table>
+                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
+                    </table>
+                </div>
+
+                {{-- YEAR --}}
+                <div class="production-range" data-production-range="year">
+                    <table>
+                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
+                        <tr><td class="production-label">AP (Annualized Premium)</td><td class="production-value">--</td></tr>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        {{-- UPCOMING APPOINTMENTS --}}
+        <div class="dashboard-card">
+            <div class="dashboard-card-title-row">
+                <div class="dashboard-card-title">
+                    <span class="dashboard-card-icon">📅</span>
+                    Upcoming Appointments
+                </div>
+            </div>
+            <div class="dashboard-card-body">
+                <ul class="dashboard-list">
+                    <li>--</li>
+                    <li>--</li>
+                </ul>
+                <div style="margin-top:10px; font-size:12px; color:var(--text-faint);">
+                    Dynamic data coming soon.
+                </div>
+            </div>
+        </div>
+
+        {{-- TODAY'S INSIGHTS --}}
+        <div class="dashboard-card">
+            <div class="dashboard-card-title-row">
+                <div class="dashboard-card-title">
+                    <span class="dashboard-card-icon">✨</span>
+                    Today’s Insights
+                </div>
+            </div>
+            <div class="dashboard-card-body">
+                <ul class="dashboard-list">
+                    <li>Birthdays this week: --</li>
+                    <li>Anniversaries this week: --</li>
+                </ul>
+            </div>
+        </div>
+
+        {{-- RECENTLY ADDED --}}
+        <div class="dashboard-card">
+            <div class="dashboard-card-title-row">
+                <div class="dashboard-card-title">
+                    <span class="badge-new">NEW</span>
+                    <span>Recently Added</span>
+                </div>
+            </div>
+            <div class="dashboard-card-body">
+                <ul class="dashboard-list">
+                    <li>--</li>
+                    <li>--</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="dashboard-footer-note">
+        © {{ now()->year }} Agency Builder CRM — Tier 1
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tabs = document.querySelectorAll('.production-tab');
+        const ranges = document.querySelectorAll('.production-range');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const range = tab.getAttribute('data-production-tab');
+
+                tabs.forEach(t => t.classList.remove('production-tab-active'));
+                tab.classList.add('production-tab-active');
+
+                ranges.forEach(r => {
+                    if (r.getAttribute('data-production-range') === range) {
+                        r.classList.add('production-range-active');
+                    } else {
+                        r.classList.remove('production-range-active');
+                    }
+                });
+            });
+        });
+    });
+</script>
 
 @endsection
