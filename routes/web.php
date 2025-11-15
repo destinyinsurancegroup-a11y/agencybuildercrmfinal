@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 
-// TEST ROUTE TO CONFIRM ROUTES WORK
+// TEST ROUTE
 Route::get('/test', function () {
     return 'ROUTES ARE WORKING';
 });
@@ -22,12 +22,12 @@ Route::get('/contacts', function () {
     return view('contacts.index');
 });
 
-// Calendar (NEW)
+// Calendar
 Route::get('/calendar', function () {
     return view('calendar.index');
 });
 
-// TEMPORARY CLEAR CACHE ROUTE
+// TEMPORARY CLEAR CACHE
 Route::get('/clear-cache', function () {
     Artisan::call('route:clear');
     Artisan::call('config:clear');
