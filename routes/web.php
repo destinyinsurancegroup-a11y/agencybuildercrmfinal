@@ -48,7 +48,8 @@ Route::get('/calendar', function () {
 /*
 |--------------------------------------------------------------------------
 | CALENDAR API ROUTES
-| Load events + Save events
+|--------------------------------------------------------------------------
+| Fetch events + Save events (now MySQL-safe)
 |--------------------------------------------------------------------------
 */
 
@@ -83,6 +84,27 @@ Route::post('/calendar/events', function (Request $request) {
             'error'   => true,
             'message' => $e->getMessage()
         ], 500);
+    }
+});
+
+/*
+|--------------------------------------------------------------------------
+| TEMPORARY DB MIGRATION ROUTE (IMPORTANT!)
+|--------------------------------------------------------------------------
+| You MUST visit this URL after deployment:
+|
+|   https://YOURDOMAIN/migrate
+|
+| This will create the `events` table in MySQL so calendar saving works.
+|--------------------------------------------------------------------------
+*/
+Route::get('/migrate', function () {
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+
+        return 'Migrations ran successfully!';
+    } catch (\Throwable $e) {
+        return 'Migration error: ' . $e->getMessage();
     }
 });
 
