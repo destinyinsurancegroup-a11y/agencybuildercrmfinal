@@ -79,11 +79,12 @@
         <label>Time</label>
         <input id="eventTime" class="modal-input" type="time">
 
-        <label>Location</label>
+        {{-- Future fields, disabled for now (DB does not support them yet) --}}
+        {{-- <label>Location</label>
         <input id="eventLocation" class="modal-input" type="text" placeholder="Optional">
 
         <label>Reminder (minutes before)</label>
-        <input id="eventReminder" class="modal-input" type="number" placeholder="Optional">
+        <input id="eventReminder" class="modal-input" type="number" placeholder="Optional"> --}}
 
         <div style="text-align: right; margin-top: 10px;">
             <button class="modal-btn btn-cancel" onclick="closeEventModal()">Cancel</button>
@@ -97,7 +98,6 @@
     let selectedDate;
 
     document.addEventListener('DOMContentLoaded', function () {
-
         const calendarEl = document.getElementById('calendar');
 
         calendar = new FullCalendar.Calendar(calendarEl, {
@@ -138,8 +138,6 @@
         const title = document.getElementById('eventTitle').value;
         const date = document.getElementById('eventDate').value;
         const time = document.getElementById('eventTime').value;
-        const location = document.getElementById('eventLocation').value;
-        const reminder = document.getElementById('eventReminder').value;
 
         if (!title) {
             alert("Please enter an event title.");
@@ -158,14 +156,18 @@
                 title: title,
                 start: startDateTime,
                 end: startDateTime,
-                location: location,
-                reminder: reminder,
                 color: '#facc15'
             })
         })
         .then(res => res.json())
         .then(event => {
-            calendar.addEvent(event);
+            calendar.addEvent({
+                id: event.id,
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                color: event.color
+            });
             closeEventModal();
         })
         .catch(err => console.error("Save error:", err));
