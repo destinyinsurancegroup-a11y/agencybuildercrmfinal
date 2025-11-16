@@ -11,14 +11,19 @@ return new class extends Migration
         Schema::create('events', function (Blueprint $table) {
             $table->id();
 
-            // Multi-tenant safe (temporary default tenant)
+            // Multi-tenant safe
             $table->unsignedBigInteger('tenant_id')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
 
+            // Event fields
             $table->string('title');
             $table->datetime('start');
             $table->datetime('end')->nullable();
             $table->string('color')->nullable();
+
+            // NEW required fields
+            $table->string('location')->nullable();
+            $table->integer('reminder')->nullable(); // minutes before
 
             $table->timestamps();
         });
