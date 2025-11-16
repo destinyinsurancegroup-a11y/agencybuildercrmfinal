@@ -66,7 +66,7 @@
     }
 </style>
 
-{{-- CRM Modal HTML --}}
+{{-- CRM Modal --}}
 <div id="eventModalBackdrop">
     <div id="eventModal">
         <h2 style="font-size: 20px; font-weight: 700;">Create Event</h2>
@@ -79,13 +79,6 @@
         <label>Time</label>
         <input id="eventTime" class="modal-input" type="time">
 
-        {{-- Future fields, disabled for now (DB does not support them yet) --}}
-        {{-- <label>Location</label>
-        <input id="eventLocation" class="modal-input" type="text" placeholder="Optional">
-
-        <label>Reminder (minutes before)</label>
-        <input id="eventReminder" class="modal-input" type="number" placeholder="Optional"> --}}
-
         <div style="text-align: right; margin-top: 10px;">
             <button class="modal-btn btn-cancel" onclick="closeEventModal()">Cancel</button>
             <button class="modal-btn btn-save" onclick="saveEvent()">Save Event</button>
@@ -94,84 +87,95 @@
 </div>
 
 <script>
-    let calendar;
-    let selectedDate;
+let calendar;
+let selectedDate;
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const calendarEl = document.getElementById('calendar');
+document.addEventListener('DOMContentLoaded', function () {
 
-        calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            selectable: true,
-            height: "auto",
+    const calendarEl = document.getElementById('calendar');
 
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            },
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        selectable: true,
+        height: "auto",
 
-            events: '/calendar/events',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
 
-            select: function(info) {
-                selectedDate = info.startStr;
-                openEventModal();
-            },
+        events: '/calendar/events',
 
-            eventColor: '#facc15',
-            displayEventEnd: true,
-        });
+        select: function(info) {
+            selectedDate = info.startStr;
+            openEventModal();
+        },
 
-        calendar.render();
+        eventColor: '#facc15',
+        displayEventEnd: true,
     });
 
-    function openEventModal() {
-        document.getElementById('eventModalBackdrop').style.display = "flex";
-        document.getElementById('eventDate').value = selectedDate;
+    calendar.render();
+});
+
+function openEventModal() {
+    document.getElementById('eventModalBackdrop').style.display = "flex";
+    document.getElementById('eventDate').value = selectedDate;
+}
+
+function closeEventModal() {
+    document.getElementById('eventModalBackdrop').style.display = "none";
+}
+
+function saveEvent() {
+    const title = document.getElementById('eventTitle').value;
+    const date = document.getElementById('eventDate').value;
+    const time = document.getElementById('eventTime').value;
+
+    if (!title) {
+        alert("Please enter an event title.");
+        return;
     }
 
-    function closeEventModal() {
-        document.getElementById('eventModalBackdrop').style.display = "none";
-    }
+    const startDateTime = time ? `${date} ${time}` : date;
 
-    function saveEvent() {
-        const title = document.getElementById('eventTitle').value;
-        const date = document.getElementById('eventDate').value;
-        const time = document.getElementById('eventTime').value;
-
-        if (!title) {
-            alert("Please enter an event title.");
+    fetch('/calendar/events', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            title: title,
+            start: startDateTime,
+            end: startDateTime,
+            color: '#facc15'
+        })
+    })
+    .then(async res => {
+        if (!res.ok) {
+            const err = await res.json();
+            alert("SAVE ERROR:\n" + JSON.stringify(err, null, 2));
             return;
         }
 
-        const startDateTime = time ? `${date} ${time}` : date;
+        const event = await res.json();
 
-        fetch('/calendar/events', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                title: title,
-                start: startDateTime,
-                end: startDateTime,
-                color: '#facc15'
-            })
-        })
-        .then(res => res.json())
-        .then(event => {
-            calendar.addEvent({
-                id: event.id,
-                title: event.title,
-                start: event.start,
-                end: event.end,
-                color: event.color
-            });
-            closeEventModal();
-        })
-        .catch(err => console.error("Save error:", err));
-    }
+        calendar.addEvent({
+            id: event.id,
+            title: event.title,
+            start: event.start,
+            end: event.end,
+            color: event.color
+        });
+
+        closeEventModal();
+    })
+    .catch(err => {
+        alert("NETWORK ERROR:\n" + err.message);
+    });
+}
 </script>
 
 @endsection
