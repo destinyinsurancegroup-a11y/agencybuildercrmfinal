@@ -52,27 +52,43 @@ Route::get('/calendar', function () {
 |--------------------------------------------------------------------------
 */
 
-// Return all events for the calendar
+// FETCH EVENTS
 Route::get('/calendar/events', function () {
-    return Event::all();
+    try {
+        return Event::all();
+    } catch (\Throwable $e) {
+        return response()->json([
+            'error' => true,
+            'message' => $e->getMessage()
+        ], 500);
+    }
 });
 
-// Add new event created in the calendar
+// CREATE EVENT
 Route::post('/calendar/events', function (Request $request) {
-    return Event::create([
-        'title' => $request->title,
-        'start' => $request->start,
-        'end'   => $request->end,
-        'color' => $request->color,
-        // tenant and user will be handled later
-        'tenant_id' => 1,
-        'created_by' => null,
-    ]);
+    try {
+        $event = Event::create([
+            'title'      => $request->input('title'),
+            'start'      => $request->input('start'),
+            'end'        => $request->input('end'),
+            'color'      => $request->input('color'),
+            'tenant_id'  => 1,
+            'created_by' => null,
+        ]);
+
+        return response()->json($event, 201);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'error'   => true,
+            'message' => $e->getMessage()
+        ], 500);
+    }
 });
 
 /*
 |--------------------------------------------------------------------------
-| TEMPORARY CLEAR CACHE
+| TEMPORARY CLEAR CACHE (DEV ONLY)
 |--------------------------------------------------------------------------
 */
 Route::get('/clear-cache', function () {
