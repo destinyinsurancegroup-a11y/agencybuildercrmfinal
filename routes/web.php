@@ -49,11 +49,13 @@ Route::get('/calendar', function () {
 |--------------------------------------------------------------------------
 | CALENDAR API ROUTES
 |--------------------------------------------------------------------------
-| Fetch events + Save events (now MySQL-safe)
+| Fetch events + Save events + Update events + Delete events
 |--------------------------------------------------------------------------
 */
 
-// FETCH EVENTS
+/* --------------------------
+   FETCH ALL EVENTS
+-------------------------- */
 Route::get('/calendar/events', function () {
     try {
         return Event::all();
@@ -65,7 +67,9 @@ Route::get('/calendar/events', function () {
     }
 });
 
-// CREATE EVENT
+/* --------------------------
+   CREATE EVENT
+-------------------------- */
 Route::post('/calendar/events', function (Request $request) {
     try {
         $event = Event::create([
@@ -87,21 +91,63 @@ Route::post('/calendar/events', function (Request $request) {
     }
 });
 
+/* --------------------------
+   UPDATE EVENT  (Fix #2)
+-------------------------- */
+Route::put('/calendar/events/{id}', function (Request $request, $id) {
+    try {
+        $event = Event::findOrFail($id);
+
+        $event->update([
+            'title' => $request->input('title'),
+            'start' => $request->input('start'),
+            'end'   => $request->input('end'),
+            'color' => $request->input('color'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Event updated successfully',
+            'event'   => $event
+        ]);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'error'   => true,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+
+/* --------------------------
+   DELETE EVENT  (Fix #3)
+-------------------------- */
+Route::delete('/calendar/events/{id}', function ($id) {
+    try {
+        $event = Event::findOrFail($id);
+        $event->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Event deleted successfully'
+        ]);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'error'   => true,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+
 /*
 |--------------------------------------------------------------------------
-| TEMPORARY DB MIGRATION ROUTE (IMPORTANT!)
-|--------------------------------------------------------------------------
-| You MUST visit this URL after deployment:
-|
-|   https://YOURDOMAIN/migrate
-|
-| This will create the `events` table in MySQL so calendar saving works.
+| TEMPORARY DB MIGRATION ROUTE
 |--------------------------------------------------------------------------
 */
 Route::get('/migrate', function () {
     try {
         Artisan::call('migrate', ['--force' => true]);
-
         return 'Migrations ran successfully!';
     } catch (\Throwable $e) {
         return 'Migration error: ' . $e->getMessage();
