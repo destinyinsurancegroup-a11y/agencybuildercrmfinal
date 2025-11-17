@@ -1,205 +1,174 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mt-4">
 
-    <div class="card shadow border-0" style="border-top: 4px solid #facc15;">
-        <div class="card-body">
-            <h4 class="mb-3" style="color:#facc15;">Calendar</h4>
+<div style="padding: 25px 40px;">
+    <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
+    <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
 
-            <div id="calendar"></div>
-        </div>
+    <!-- CALENDAR CARD -->
+    <div style="
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        min-height: 650px;
+    ">
+        <div id="calendar" style="min-height: 600px;"></div>
     </div>
-
 </div>
 
-<!-- ===========================
-     EVENT MODAL (CREATE/EDIT)
-=========================== -->
-<div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form id="eventForm">
-        @csrf
+<!-- FullCalendar (Safe CDN) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+<!-- Bootstrap for Modal -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- EVENT MODAL -->
+<div class="modal fade" id="eventModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
 
-            <div class="modal-header" style="background:#000; color:#facc15;">
-                <h5 class="modal-title" id="eventModalLabel">Add Event</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Create Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
             <div class="modal-body">
-
-                <input type="hidden" id="event_id">
+                <input type="hidden" id="eventId">
 
                 <div class="mb-3">
-                    <label class="form-label">Title</label>
-                    <input type="text" id="event_title" class="form-control" required>
+                    <label>Title</label>
+                    <input type="text" id="eventTitle" class="form-control">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Start Date</label>
-                    <input type="datetime-local" id="event_start" class="form-control" required>
+                    <label>Start</label>
+                    <input type="datetime-local" id="eventStart" class="form-control">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">End Date</label>
-                    <input type="datetime-local" id="event_end" class="form-control">
+                    <label>End</label>
+                    <input type="datetime-local" id="eventEnd" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label>Color</label>
+                    <input type="color" id="eventColor" class="form-control form-control-color">
                 </div>
 
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    Close
-                </button>
-
-                <button type="submit" class="btn" style="background:#facc15; color:#000;">
-                    Save Event
-                </button>
-
-                <button type="button" id="deleteEventBtn" class="btn btn-danger d-none">
-                    Delete
-                </button>
+                <button class="btn btn-danger d-none" id="deleteEventBtn">Delete</button>
+                <button class="btn btn-primary" id="saveEventBtn">Save</button>
             </div>
 
         </div>
-    </form>
-  </div>
+    </div>
 </div>
 
-@endsection
-
-
-@section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener("DOMContentLoaded", function () {
 
-    let modal = new bootstrap.Modal(document.getElementById('eventModal'));
-    let deleteBtn = document.getElementById('deleteEventBtn');
+    console.log("FullCalendar version:", FullCalendar);
 
-    const calendarEl = document.getElementById('calendar');
+    let calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
 
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
+        initialView: "dayGridMonth",
         selectable: true,
-        editable: true,
-        events: @json($events),
+        editable: false,
+        height: "auto",
 
+        headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay"
+        },
+
+        events: "/calendar/events",
+
+        /* CREATE EVENT */
         select: function(info) {
-            resetForm();
-            document.getElementById('event_start').value = formatDate(info.start);
-            document.getElementById('event_end').value = formatDate(info.end);
-            document.getElementById('eventModalLabel').innerText = "Add Event";
-            deleteBtn.classList.add('d-none');
-            modal.show();
+            document.getElementById("modalTitle").innerText = "Create Event";
+            document.getElementById("deleteEventBtn").classList.add("d-none");
+
+            document.getElementById("eventId").value = "";
+            document.getElementById("eventTitle").value = "";
+            document.getElementById("eventStart").value = info.startStr + "T00:00";
+            document.getElementById("eventEnd").value = info.endStr + "T00:00";
+            document.getElementById("eventColor").value = "#facc15";
+
+            new bootstrap.Modal(document.getElementById("eventModal")).show();
         },
 
+        /* EDIT EVENT */
         eventClick: function(info) {
-            resetForm();
-            const event = info.event;
+            let e = info.event;
 
-            document.getElementById('event_id').value = event.id;
-            document.getElementById('event_title').value = event.title;
-            document.getElementById('event_start').value = formatDate(event.start);
+            document.getElementById("modalTitle").innerText = "Edit Event";
+            document.getElementById("deleteEventBtn").classList.remove("d-none");
 
-            if (event.end) {
-                document.getElementById('event_end').value = formatDate(event.end);
-            }
+            document.getElementById("eventId").value = e.id;
+            document.getElementById("eventTitle").value = e.title;
+            document.getElementById("eventColor").value = e.backgroundColor;
+            document.getElementById("eventStart").value = e.start.toISOString().slice(0,16);
+            document.getElementById("eventEnd").value = e.end ? e.end.toISOString().slice(0,16) : "";
 
-            document.getElementById('eventModalLabel').innerText = "Edit Event";
-            deleteBtn.classList.remove('d-none');
-            modal.show();
-        },
-
-        eventDrop: function(info) {
-            updateEvent(info.event);
-        },
-
-        eventResize: function(info) {
-            updateEvent(info.event);
+            new bootstrap.Modal(document.getElementById("eventModal")).show();
         }
     });
 
     calendar.render();
 
-    // ======================================================
-    // SAVE (CREATE / UPDATE)
-    // ======================================================
-    document.getElementById('eventForm').addEventListener('submit', function(e) {
-        e.preventDefault();
 
-        let id = document.getElementById('event_id').value;
-        let url = id ? `/calendar/events/${id}` : `/calendar/events`;
-        let method = id ? 'PUT' : 'POST';
+    /* SAVE EVENT */
+    document.getElementById("saveEventBtn").onclick = function () {
+
+        let id = document.getElementById("eventId").value;
+
+        let payload = {
+            title: document.getElementById("eventTitle").value,
+            start: document.getElementById("eventStart").value,
+            end: document.getElementById("eventEnd").value,
+            color: document.getElementById("eventColor").value
+        };
+
+        let url = id ? `/calendar/events/${id}` : "/calendar/events";
+        let method = id ? "PUT" : "POST";
 
         fetch(url, {
             method: method,
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                "Content-Type": "application/json",
+                "Accept": "application/json"
             },
-            body: JSON.stringify({
-                title: document.getElementById('event_title').value,
-                start: document.getElementById('event_start').value,
-                end: document.getElementById('event_end').value
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            modal.hide();
-            calendar.refetchEvents(); // refresh UI
-        });
-    });
-
-    // ======================================================
-    // DELETE EVENT
-    // ======================================================
-    deleteBtn.addEventListener('click', function() {
-        let id = document.getElementById('event_id').value;
-
-        fetch(`/calendar/events/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': "{{ csrf_token() }}"
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            modal.hide();
+            body: JSON.stringify(payload)
+        }).then(() => {
+            bootstrap.Modal.getInstance(document.getElementById("eventModal")).hide();
             calendar.refetchEvents();
         });
-    });
+    };
 
-    // ======================================================
-    // HELPER FUNCTIONS
-    // ======================================================
-    function formatDate(date) {
-        let d = new Date(date);
-        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-        return d.toISOString().slice(0, 16);
-    }
 
-    function resetForm() {
-        document.getElementById('eventForm').reset();
-        document.getElementById('event_id').value = "";
-    }
+    /* DELETE EVENT */
+    document.getElementById("deleteEventBtn").onclick = function () {
 
-    function updateEvent(event) {
-        fetch(`/calendar/events/${event.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': "{{ csrf_token() }}"
-            },
-            body: JSON.stringify({
-                title: event.title,
-                start: formatDate(event.start),
-                end: event.end ? formatDate(event.end) : null
-            })
+        let id = document.getElementById("eventId").value;
+        if (!confirm("Delete this event?")) return;
+
+        fetch(`/calendar/events/${id}`, {
+            method: "DELETE",
+            headers: { "Accept": "application/json" }
+        }).then(() => {
+            bootstrap.Modal.getInstance(document.getElementById("eventModal")).hide();
+            calendar.refetchEvents();
         });
-    }
+    };
 
 });
 </script>
