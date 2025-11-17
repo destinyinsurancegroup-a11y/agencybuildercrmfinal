@@ -15,14 +15,14 @@ class DashboardController extends Controller
 
         // Fetch events for today → next 7 days
         $events = Event::query()
-            // Optional multi-tenant protection:
+            // Optional multi-tenant protection (enable if needed):
             // ->where('tenant_id', Auth::user()->tenant_id)
             ->whereDate('start', '>=', $today)
             ->whereDate('start', '<=', $today->clone()->addDays(7))
             ->orderBy('start', 'asc')
             ->get();
 
-        // Pass to the dashboard blade
+        // Pass data to the dashboard blade
         return view('dashboard', [
             'events' => $events,
         ]);
