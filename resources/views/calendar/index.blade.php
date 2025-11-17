@@ -31,11 +31,12 @@
 
 
 <!-- ================================
-     FULLCALENDAR HARD OVERRIDES
+     FULLCALENDAR OVERRIDES
 ================================ -->
 <style>
 /* Base fonts */
-#calendar, #calendar .fc {
+#calendar,
+#calendar .fc {
     font-family: system-ui, sans-serif;
     color: #111827;
 }
@@ -47,46 +48,53 @@
     color: #111827 !important;
 }
 
-/* 🔥 REMOVE TODAY HIGHLIGHT */
+/* ❌ REMOVE today highlight */
 .fc-daygrid-day.fc-day-today {
-    background:none !important;
+    background: none !important;
 }
 
-/* 🔥 REMOVE SELECTED-DAY HIGHLIGHT */
+/* ❌ REMOVE selected-day / drag highlight */
 .fc-daygrid-day.fc-daygrid-day-selected {
-    background:none !important;
+    background: none !important;
 }
-
-/* 🔥 REMOVE DRAG/SELECTION HIGHLIGHT */
 .fc-highlight {
-    background:none !important;
+    background: none !important;
 }
 
-/* 🔥 REMOVE BACKGROUND EVENT LAYER */
+/* ❌ REMOVE background multi-day event layer */
 .fc-daygrid-bg-harness .fc-event {
-    background:none !important;
-    border:none !important;
+    background: none !important;
+    border: none !important;
 }
 
-/* 🔥 REMOVE EVENT FOCUS HIGHLIGHT */
+/* ❌ REMOVE focus/active outline on events */
 .fc-event:focus,
 .fc-event:active,
 .fc-event:focus-visible {
-    outline:none !important;
-    box-shadow:none !important;
-    border:none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
 }
 
-/* Event pill styling */
+/* ❌ REMOVE gold pill / ANY event background */
+/*    -> events become plain text only */
 .fc .fc-daygrid-event {
-    background:#facc15 !important;
-    border:none !important;
-    border-radius:999px !important;
-    padding:2px 8px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
 }
+
+/* Event title text only */
 .fc .fc-event-title {
-    color:#111827 !important;
-    font-weight:600 !important;
+    color: #111827 !important;
+    font-weight: 500 !important;
+}
+
+/* Also remove the little colored dot if FC uses dot style */
+.fc .fc-daygrid-dot-event .fc-event-dot {
+    border: none !important;
+    background: transparent !important;
 }
 
 /* Gold buttons */
@@ -162,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         initialView: "dayGridMonth",
 
-        /* 🔥 THE TRUE FIX — NO SELECTION ENGINE AT ALL */
+        /* no select engine; clicks only */
         selectable: false,
 
         eventDisplay: "block",
@@ -177,10 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         events: "/calendar/events",
 
-
-        /* ------------------------
-           CREATE EVENT
-        ------------------------- */
+        /* CREATE EVENT */
         dateClick: function(info) {
 
             document.getElementById("modalTitle").innerText = "Create Event";
@@ -194,10 +199,7 @@ document.addEventListener("DOMContentLoaded", function () {
             modal.show();
         },
 
-
-        /* ------------------------
-           EDIT EVENT
-        ------------------------- */
+        /* EDIT EVENT */
         eventClick: function(info) {
             let e = info.event;
 
@@ -216,9 +218,7 @@ document.addEventListener("DOMContentLoaded", function () {
     calendar.render();
 
 
-    /* ------------------------
-       SAVE EVENT
-    ------------------------- */
+    /* SAVE EVENT */
     document.getElementById("saveEventBtn").onclick = function () {
 
         let id = document.getElementById("eventId").value;
@@ -248,9 +248,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
 
-    /* ------------------------
-       DELETE EVENT
-    ------------------------- */
+    /* DELETE EVENT */
     document.getElementById("deleteEventBtn").onclick = function () {
 
         let id = document.getElementById("eventId").value;
