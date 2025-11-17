@@ -1,109 +1,97 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
-use App\Models\CrmEvent;
+use App\Models\Event;
 
 /*
 |--------------------------------------------------------------------------
 | DASHBOARD
 |--------------------------------------------------------------------------
 */
-Route::get('/', fn() => view('dashboard'));
-Route::get('/dashboard', fn() => view('dashboard'));
+Route::view('/', 'dashboard');
+Route::view('/dashboard', 'dashboard');
 
 /*
 |--------------------------------------------------------------------------
 | CONTACTS
 |--------------------------------------------------------------------------
 */
-Route::get('/contacts', fn() => view('contacts.index'));
+Route::view('/contacts', 'contacts.index');
 
 /*
 |--------------------------------------------------------------------------
 | CALENDAR PAGE
 |--------------------------------------------------------------------------
 */
-Route::get('/calendar', fn() => view('calendar.index'));
+Route::view('/calendar', 'calendar.index');
 
 /*
 |--------------------------------------------------------------------------
-| CALENDAR API (CRUD)
+| CALENDAR API ROUTES (JSON SAFE)
 |--------------------------------------------------------------------------
 */
 
-/* --------------------------
-   FETCH ALL EVENTS
--------------------------- */
+/* === GET ALL EVENTS === */
 Route::get('/calendar/events', function () {
-    try {
-        return CrmEvent::all();
-    } catch (\Throwable $e) {
-        return response()->json(['error' => true, 'message' => $e->getMessage()], 500);
-    }
+    return Event::orderBy('start', 'asc')->get();
 });
 
-/* --------------------------
-   CREATE EVENT
--------------------------- */
+/* === CREATE EVENT === */
 Route::post('/calendar/events', function (Request $request) {
+    $event = Event::create([
+        'title' => $request->title,
+        'start' => $request->start,
+        'end'   => $request->end,
+        'color' => $request->color,
+        'tenant_id'  => 1,
+        'created_by' => 1,
+    ]);
 
-    try {
-        $event = CrmEvent::create([
-            'title' => $request->title,
-            'start' => $request->start,
-            'end'   => $request->end,
-            'color' => $request->color,
-        ]);
-
-        return response()->json($event, 201);
-
-    } catch (\Throwable $e) {
-        return response()->json(['error' => true, 'message' => $e->getMessage()], 500);
-    }
+    return response()->json($event);
 });
 
-/* --------------------------
-   UPDATE EVENT
--------------------------- */
-Route::put('/calendar/events/{id}', function ($id, Request $request) {
-    try {
-        $event = CrmEvent::findOrFail($id);
+/* === UPDATE EVENT === */
+Route::put('/calendar/events/{id}', function (Request $request, $id) {
 
-        $event->update([
-            'title' => $request->title,
-            'start' => $request->start,
-            'end'   => $request->end,
-            'color' => $request->color,
-        ]);
+    $event = Event::findOrFail($id);
 
-        return response()->json(['success' => true, 'event' => $event]);
+    $event->update([
+        'title' => $request->title,
+        'start' => $request->start,
+        'end'   => $request->end,
+        'color' => $request->color,
+    ]);
 
-    } catch (\Throwable $e) {
-        return response()->json(['error' => true, 'message' => $e->getMessage()], 500);
-    }
+    return response()->json(['success' => true]);
 });
 
-/* --------------------------
-   DELETE EVENT
--------------------------- */
+/* === DELETE EVENT === */
 Route::delete('/calendar/events/{id}', function ($id) {
-    try {
-        CrmEvent::findOrFail($id)->delete();
-        return response()->json(['success' => true]);
-    } catch (\Throwable $e) {
-        return response()->json(['error' => true, 'message' => $e->getMessage()], 500);
-    }
+
+    $event = Event::findOrFail($id);
+    $event->delete();
+
+    return response()->json(['success' => true]);
 });
 
 /*
 |--------------------------------------------------------------------------
-| DASHBOARD: UPCOMING EVENTS FEED
+| DATABASE MIGRATION (TEMPORARY)
 |--------------------------------------------------------------------------
 */
-Route::get('/dashboard/events-upcoming', function () {
-    return CrmEvent::orderBy('start', 'asc')
-        ->where('start', '>=', now())
-        ->limit(5)
-        ->get();
+Route::get('/migrate', function () {
+    Artisan::call('migrate', ['--force' => true]);
+    return 'Migrations complete.';
+});
+
+/*
+|--------------------------------------------------------------------------
+| CLEAR CACHE
+|--------------------------------------------------------------------------
+*/
+Route::get('/clear-cache', function () {
+    Artisan::call('optimize:clear');
+    return 'Cache cleared!';
 });
