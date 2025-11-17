@@ -2,10 +2,10 @@
 
 @section('content')
 
-{{-- PAGE WRAPPER – match dashboard background --}}
+<!-- PAGE WRAPPER – match dashboard background -->
 <div style="padding: 32px 48px; background-color:#f9fafb; min-height:100vh;">
 
-    {{-- PAGE TITLE --}}
+    <!-- PAGE TITLE -->
     <h1 style="font-size: 28px; font-weight: 700; color:#111827;">
         Calendar
     </h1>
@@ -13,7 +13,7 @@
         Manage your events and reminders.
     </p>
 
-    {{-- CALENDAR CARD – match dashboard card --}}
+    <!-- CALENDAR CARD – match dashboard card -->
     <div style="
         background:#ffffff;
         padding: 28px;
@@ -29,15 +29,19 @@
 
 </div>
 
-{{-- FullCalendar --}}
+<!-- ================================================
+     FullCalendar + Bootstrap (CDN)
+===================================================-->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
-{{-- Bootstrap Modal --}}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-{{-- DASHBOARD-THEMED FULLCALENDAR STYLES --}}
+
+<!-- ================================================
+     FULLCALENDAR DASHBOARD STYLE OVERRIDES
+===================================================-->
 <style>
     /* Base font + text color inside calendar */
     #calendar,
@@ -46,66 +50,77 @@
         color: #111827;
     }
 
-    /* Toolbar title + day names + day numbers */
+    /* Toolbar title + days */
     .fc .fc-toolbar-title,
     .fc .fc-col-header-cell-cushion,
     .fc .fc-daygrid-day-number {
         color: #111827;
     }
 
-    /* Today highlight – soft gold */
+    /* Today highlight */
     .fc .fc-day-today {
         background-color: rgba(250, 204, 21, 0.14) !important;
     }
 
-    /* FullCalendar buttons – use gold instead of blue */
+    /* FullCalendar gold buttons */
     .fc .fc-button-primary {
-        background-color: #facc15;
-        border-color: #facc15;
-        color: #111827;
+        background-color: #facc15 !important;
+        border-color: #facc15 !important;
+        color: #111827 !important;
         font-weight: 600;
-        text-transform: none;
-        border-radius: 999px;
-        padding: 0.35rem 0.9rem;
+        border-radius: 999px !important;
+        padding: 0.35rem 0.9rem !important;
     }
 
-    .fc .fc-button-primary:hover,
-    .fc .fc-button-primary:not(:disabled).fc-button-active,
-    .fc .fc-button-primary:not(:disabled):active {
-        background-color: #fbbf24;
-        border-color: #fbbf24;
-        color: #111827;
+    .fc .fc-button-primary:hover {
+        background-color: #fbbf24 !important;
+        border-color: #fbbf24 !important;
     }
 
-    .fc .fc-button-primary:disabled {
-        background-color: #e5e7eb;
-        border-color: #e5e7eb;
-        color: #9ca3af;
-    }
-
-    /* Events – pill style, dark text */
+    /* Event pill style */
     .fc .fc-daygrid-event {
         border-radius: 999px;
-        padding: 1px 6px;
-        font-size: 0.8rem;
+        background: #facc15 !important;
+        border: none !important;
+        padding: 2px 6px;
     }
 
     .fc .fc-daygrid-event .fc-event-title {
-        color: #111827;
+        color: #111827 !important;
+        font-weight: 600;
+    }
+
+    /* REMOVE BLUE HIGHLIGHT ON SELECTED EVENT */
+    .fc .fc-daygrid-event.fc-event-selected {
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .fc .fc-daygrid-event:focus,
+    .fc .fc-daygrid-event:active {
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
     }
 </style>
 
-{{-- EVENT MODAL --}}
+
+<!-- ================================================
+     EVENT MODAL
+===================================================-->
 <div class="modal fade" id="eventModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content" style="color:#111827;">
 
             <div class="modal-header" style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
-                <h5 class="modal-title" id="modalTitle" style="color:#111827;">Create Event</h5>
+                <h5 class="modal-title" id="modalTitle" style="color:#111827;">
+                    Create Event
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
             <div class="modal-body">
+
                 <input type="hidden" id="eventId">
 
                 <div class="mb-3">
@@ -122,6 +137,7 @@
                     <label style="color:#111827;">End (Date &amp; Time)</label>
                     <input type="datetime-local" id="eventEnd" class="form-control">
                 </div>
+
             </div>
 
             <div class="modal-footer" style="background:#f9fafb; border-top:1px solid #e5e7eb;">
@@ -136,6 +152,10 @@
     </div>
 </div>
 
+
+<!-- ================================================
+     FULLCALENDAR LOGIC
+===================================================-->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
@@ -143,6 +163,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let modal = new bootstrap.Modal(modalEl);
 
     let calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
+
         initialView: "dayGridMonth",
         selectable: true,
         editable: false,
@@ -155,10 +176,15 @@ document.addEventListener("DOMContentLoaded", function () {
         },
 
         eventTextColor: "#111827",
+
         events: "/calendar/events",
 
-        /* CREATE EVENT */
+
+        /* ================================
+           CREATE EVENT
+        =================================*/
         select: function(info) {
+
             document.getElementById("modalTitle").innerText = "Create Event";
             document.getElementById("deleteEventBtn").classList.add("d-none");
 
@@ -170,7 +196,10 @@ document.addEventListener("DOMContentLoaded", function () {
             modal.show();
         },
 
-        /* EDIT EVENT */
+
+        /* ================================
+           EDIT EVENT
+        =================================*/
         eventClick: function(info) {
             let e = info.event;
 
@@ -188,8 +217,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     calendar.render();
 
-    /* SAVE EVENT */
+
+    /* ================================
+       SAVE (CREATE / UPDATE)
+    =================================*/
     document.getElementById("saveEventBtn").onclick = function () {
+
         let id = document.getElementById("eventId").value;
 
         let payload = {
@@ -209,14 +242,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}"
             },
             body: JSON.stringify(payload)
-        }).then(() => {
+        })
+        .then(() => {
             modal.hide();
             calendar.refetchEvents();
         });
     };
 
-    /* DELETE EVENT */
+
+    /* ================================
+       DELETE
+    =================================*/
     document.getElementById("deleteEventBtn").onclick = function () {
+
         let id = document.getElementById("eventId").value;
         if (!confirm("Delete this event?")) return;
 
@@ -226,7 +264,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 "Accept": "application/json",
                 "X-CSRF-TOKEN": "{{ csrf_token() }}"
             }
-        }).then(() => {
+        })
+        .then(() => {
             modal.hide();
             calendar.refetchEvents();
         });
