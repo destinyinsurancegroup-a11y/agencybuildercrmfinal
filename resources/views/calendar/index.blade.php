@@ -8,7 +8,6 @@
     <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
     <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
 
-    <!-- CALENDAR CARD -->
     <div style="
         background:#ffffff;
         padding: 28px;
@@ -24,7 +23,6 @@
 
 </div>
 
-<!-- FullCalendar + Bootstrap -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
@@ -33,74 +31,77 @@
 
 
 <style>
-/* TEXT COLOR / STYLE */
+/* ---- Text + layout ---- */
 #calendar, #calendar .fc {
     font-family: system-ui, sans-serif;
     color: #111827;
 }
 
-/* Toolbar + day numbers */
 .fc .fc-toolbar-title,
 .fc .fc-col-header-cell-cushion,
 .fc .fc-daygrid-day-number {
     color: #111827 !important;
 }
 
-/* Today background */
 .fc .fc-day-today {
-    background-color: rgba(250, 204, 21, 0.14) !important;
+    background-color: rgba(250,204,21,0.14) !important;
 }
 
-/* BUTTONS */
+/* ---- Gold buttons ---- */
 .fc .fc-button-primary {
-    background-color: #facc15 !important;
-    border-color: #facc15 !important;
-    color: #111827 !important;
-    border-radius: 999px !important;
-    font-weight: 600;
+    background:#facc15 !important;
+    border:#facc15 !important;
+    color:#111 !important;
+    border-radius:999px !important;
+    font-weight:600;
 }
-
 .fc .fc-button-primary:hover {
-    background-color: #fbbf24 !important;
+    background:#fbbf24 !important;
 }
 
-/* EVENT STYLE */
+/* ---- Event pill ---- */
 .fc .fc-daygrid-event {
-    border-radius: 999px !important;
-    background: #facc15 !important;
-    border: none !important;
-    padding: 2px 8px !important;
+    background:#facc15 !important;
+    border:none !important;
+    border-radius:999px !important;
+    padding:2px 8px !important;
 }
-.fc .fc-daygrid-event .fc-event-title {
-    color: #111827 !important;
-    font-weight: 600;
-}
-
-/* 🔥 REMOVE ALL HIGHLIGHT LAYERS (THE REAL FIX) */
-.fc-daygrid-day.fc-daygrid-day-selected,
-.fc-highlight,
-.fc-event-mirror,
-.fc-event-selected,
-.fc-event-selected .fc-event-main,
-.fc-daygrid-day:focus,
-.fc-daygrid-day:active,
-.fc-daygrid-event:focus,
-.fc-daygrid-event:active,
-.fc-daygrid-event:focus-visible {
-    background: none !important;
-    box-shadow: none !important;
-    outline: none !important;
-    border: none !important;
+.fc .fc-event-title {
+    color:#111827 !important;
+    font-weight:600 !important;
 }
 
-/* 🔥 REMOVE MULTI-DAY BACKGROUND BLOCKS */
+/* ---- REMOVE ALL DAY HIGHLIGHTS (THE TRUE FIX) ---- */
+.fc-daygrid-day.fc-daygrid-day-selected {
+    background:none !important;
+}
+.fc-daygrid-day:not(.fc-day-today).fc-daygrid-day-selected {
+    background:none !important;
+}
+
+/* Remove drag highlights */
+.fc-highlight { background:none !important; }
+
+/* Remove event focus highlight */
+.fc-event:focus,
+.fc-event:active,
+.fc-event:focus-visible {
+    outline:none !important;
+    box-shadow:none !important;
+    border:none !important;
+}
+
+/* Remove FC background event layer */
 .fc-daygrid-bg-harness .fc-event {
-    background: none !important;
+    background:none !important;
+    border:none !important;
 }
 </style>
 
 
-<!-- MODAL -->
+<!-- ==========================
+     MODAL
+=========================== -->
 <div class="modal fade" id="eventModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content" style="color:#111827;">
@@ -133,7 +134,9 @@
 
             <div class="modal-footer" style="background:#f9fafb; border-top:1px solid #e5e7eb;">
                 <button class="btn btn-danger d-none" id="deleteEventBtn">Delete</button>
-                <button class="btn" id="saveEventBtn" style="background:#facc15; color:#000; font-weight:600;">Save</button>
+                <button class="btn" id="saveEventBtn" style="background:#facc15; color:#000; font-weight:600;">
+                    Save
+                </button>
             </div>
 
         </div>
@@ -141,6 +144,9 @@
 </div>
 
 
+<!-- ==========================
+     FULLCALENDAR LOGIC
+=========================== -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
@@ -150,13 +156,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         initialView: "dayGridMonth",
 
-        /* 🔥 NO SELECTION HIGHLIGHT AT ALL */
         selectable: true,
         selectMinDistance: 99999,
-        selectOverlap: false,
 
-        /* 🔥 PREVENT MULTI-DAY BACKGROUND */
-        displayEventEnd: false,
         eventDisplay: "block",
 
         editable: false,
@@ -168,12 +170,14 @@ document.addEventListener("DOMContentLoaded", function () {
             right: "dayGridMonth,timeGridWeek,timeGridDay"
         },
 
-        eventTextColor: "#111827",
-
         events: "/calendar/events",
 
-        /* CREATE EVENT */
+        /* ------------------------
+           CREATE EVENT
+        ------------------------- */
         dateClick: function(info) {
+
+            calendar.unselect(); // 🔥 FINAL FIX — CLEAR HIGHLIGHT IMMEDIATELY
 
             document.getElementById("modalTitle").innerText = "Create Event";
             document.getElementById("deleteEventBtn").classList.add("d-none");
@@ -186,16 +190,20 @@ document.addEventListener("DOMContentLoaded", function () {
             modal.show();
         },
 
-        /* EDIT EVENT */
+        /* ------------------------
+           EDIT EVENT
+        ------------------------- */
         eventClick: function(info) {
             let e = info.event;
+
+            calendar.unselect(); // 🔥 ALSO CLEAR WHEN EDITING
 
             document.getElementById("modalTitle").innerText = "Edit Event";
             document.getElementById("deleteEventBtn").classList.remove("d-none");
 
             document.getElementById("eventId").value = e.id;
             document.getElementById("eventTitle").value = e.title;
-            document.getElementById("eventStart").value = e.start.toISOString().slice(0, 16);
+            document.getElementById("eventStart").value = e.start.toISOString().slice(0,16);
             document.getElementById("eventLocation").value = e.extendedProps.location ?? "";
 
             modal.show();
@@ -205,7 +213,9 @@ document.addEventListener("DOMContentLoaded", function () {
     calendar.render();
 
 
-    /* SAVE EVENT */
+    /* ------------------------
+       SAVE (CREATE/UPDATE)
+    ------------------------- */
     document.getElementById("saveEventBtn").onclick = function () {
 
         let id = document.getElementById("eventId").value;
@@ -235,7 +245,9 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
 
-    /* DELETE EVENT */
+    /* ------------------------
+       DELETE EVENT
+    ------------------------- */
     document.getElementById("deleteEventBtn").onclick = function () {
 
         let id = document.getElementById("eventId").value;
