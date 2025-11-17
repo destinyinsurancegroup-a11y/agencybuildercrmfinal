@@ -2,34 +2,32 @@
 
 @section('content')
 
-<div class="p-6">
+<div style="padding: 25px 40px;">
+    <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
+    <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
 
-    <h1 style="font-size:28px; font-weight:700; color:#111827;">Calendar</h1>
-    <p style="color:#6b7280; margin-bottom:20px;">Manage your events and reminders.</p>
-
-    <!-- CARD WRAPPER -->
+    <!-- CARD -->
     <div style="
-        background:white;
-        padding:25px;
-        border-radius:16px;
-        border:1px solid #e5e7eb;
-        box-shadow:0 4px 12px rgba(0,0,0,0.07);
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        min-height: 650px;
     ">
         <div id="calendar"></div>
     </div>
-
 </div>
 
-<!-- FULLCALENDAR CSS -->
+<!-- FullCalendar CSS -->
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
 
-<!-- FULLCALENDAR JS -->
+<!-- FullCalendar JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
 
-<!-- BOOTSTRAP 5 (needed for modal) -->
+<!-- Bootstrap 5 Modal Support -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
 
 <!-- EVENT MODAL -->
 <div class="modal fade" id="eventModal" tabindex="-1">
@@ -75,8 +73,6 @@
     </div>
 </div>
 
-
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -95,34 +91,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         events: "/calendar/events",
 
-
-        /* -----------------------------
-           CREATE
-        ------------------------------ */
+        /* CREATE EVENT */
         select: function(info) {
-
             document.getElementById("modalTitle").innerText = "Create Event";
-
             document.getElementById("eventId").value = "";
             document.getElementById("deleteEventBtn").classList.add("d-none");
 
             document.getElementById("eventTitle").value = "";
-            document.getElementById("eventColor").value = "#facc15";
             document.getElementById("eventStart").value = info.startStr + "T00:00";
             document.getElementById("eventEnd").value = info.endStr + "T00:00";
+            document.getElementById("eventColor").value = "#facc15";
 
             new bootstrap.Modal(document.getElementById("eventModal")).show();
         },
 
-
-        /* -----------------------------
-           EDIT
-        ------------------------------ */
+        /* EDIT EVENT */
         eventClick: function(info) {
-
             let e = info.event;
 
             document.getElementById("modalTitle").innerText = "Edit Event";
+            document.getElementById("deleteEventBtn").classList.remove("d-none");
 
             document.getElementById("eventId").value = e.id;
             document.getElementById("eventTitle").value = e.title;
@@ -132,8 +120,6 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById("eventEnd").value =
                 e.end ? e.end.toISOString().slice(0,16) : "";
 
-            document.getElementById("deleteEventBtn").classList.remove("d-none");
-
             new bootstrap.Modal(document.getElementById("eventModal")).show();
         }
 
@@ -142,9 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
     calendar.render();
 
 
-    /* -----------------------------
-       SAVE (Create or Update)
-    ------------------------------ */
+    /* SAVE EVENT */
     document.getElementById("saveEventBtn").onclick = function () {
 
         let id = document.getElementById("eventId").value;
@@ -173,9 +157,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
 
-    /* -----------------------------
-       DELETE EVENT
-    ------------------------------ */
+    /* DELETE EVENT */
     document.getElementById("deleteEventBtn").onclick = function () {
 
         let id = document.getElementById("eventId").value;
