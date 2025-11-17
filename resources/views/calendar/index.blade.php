@@ -90,44 +90,26 @@
         font-weight: 600;
     }
 
-    /* REMOVE BLUE HIGHLIGHT ON SELECTED EVENT */
-    .fc .fc-daygrid-event.fc-event-selected {
-        outline: none !important;
-        box-shadow: none !important;
-        border: none !important;
-    }
-    .fc .fc-daygrid-event:focus,
-    .fc .fc-daygrid-event:active {
-        outline: none !important;
-        box-shadow: none !important;
-        border: none !important;
-    }
-
     /*********************************************
-        🔥 FINAL FIX — REMOVE ALL HIGHLIGHTS
+        REMOVE ALL EVENT AND DAY HIGHLIGHTS
     **********************************************/
-
-    /* Remove yellow click highlight on day cells */
     .fc-daygrid-day.fc-daygrid-day-selected {
         background: none !important;
     }
 
-    /* Remove drag/selection highlight */
     .fc-highlight {
         background: none !important;
     }
 
-    /* Remove event selection overlay/mirror */
     .fc-event-selected,
     .fc-event-mirror,
     .fc-event-selected .fc-event-main {
-        background: #facc15 !important; /* keep your gold pill */
+        background: #facc15 !important;
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
     }
 
-    /* Remove blue outline when event is focused */
     .fc-daygrid-event:focus,
     .fc-daygrid-event:active,
     .fc-daygrid-event:focus-visible {
@@ -198,7 +180,12 @@ document.addEventListener("DOMContentLoaded", function () {
     let calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
 
         initialView: "dayGridMonth",
+
+        /* DISABLE HIGHLIGHTED DATE SELECTION COMPLETELY */
         selectable: true,
+        selectMinDistance: 99999,   // disables visual selection highlight
+        selectOverlap: false,
+
         editable: false,
         height: "auto",
 
@@ -214,17 +201,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
         /* ================================
-           CREATE EVENT
+           CREATE EVENT (manual click)
         =================================*/
-        select: function(info) {
+        dateClick: function(info) {
 
             document.getElementById("modalTitle").innerText = "Create Event";
             document.getElementById("deleteEventBtn").classList.add("d-none");
 
             document.getElementById("eventId").value = "";
             document.getElementById("eventTitle").value = "";
-            document.getElementById("eventStart").value = info.startStr + "T00:00";
-            document.getElementById("eventEnd").value = info.endStr + "T00:00";
+
+            document.getElementById("eventStart").value = info.dateStr + "T00:00";
+            document.getElementById("eventEnd").value = info.dateStr + "T00:00";
 
             modal.show();
         },
@@ -241,6 +229,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             document.getElementById("eventId").value = e.id;
             document.getElementById("eventTitle").value = e.title;
+
             document.getElementById("eventStart").value = e.start.toISOString().slice(0, 16);
             document.getElementById("eventEnd").value = e.end ? e.end.toISOString().slice(0, 16) : "";
 
