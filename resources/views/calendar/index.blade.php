@@ -6,26 +6,24 @@
     <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
     <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
 
-    <!-- CARD -->
+    <!-- CALENDAR CARD -->
     <div style="
         background: #ffffff;
         padding: 25px;
         border-radius: 16px;
         border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
         min-height: 650px;
     ">
-        <div id="calendar"></div>
+        <div id="calendar" style="min-height: 600px;"></div>
     </div>
 </div>
 
-<!-- FullCalendar CSS -->
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+<!-- FullCalendar (Safe CDN) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
-<!-- FullCalendar JS -->
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
-
-<!-- Bootstrap 5 Modal Support -->
+<!-- Bootstrap for Modal -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -73,20 +71,23 @@
     </div>
 </div>
 
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener("DOMContentLoaded", function () {
 
-    let calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    console.log("FullCalendar version:", FullCalendar);
 
-        initialView: 'dayGridMonth',
+    let calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
+
+        initialView: "dayGridMonth",
         selectable: true,
         editable: false,
         height: "auto",
 
         headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay"
         },
 
         events: "/calendar/events",
@@ -94,9 +95,9 @@ document.addEventListener('DOMContentLoaded', function () {
         /* CREATE EVENT */
         select: function(info) {
             document.getElementById("modalTitle").innerText = "Create Event";
-            document.getElementById("eventId").value = "";
             document.getElementById("deleteEventBtn").classList.add("d-none");
 
+            document.getElementById("eventId").value = "";
             document.getElementById("eventTitle").value = "";
             document.getElementById("eventStart").value = info.startStr + "T00:00";
             document.getElementById("eventEnd").value = info.endStr + "T00:00";
@@ -115,14 +116,11 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById("eventId").value = e.id;
             document.getElementById("eventTitle").value = e.title;
             document.getElementById("eventColor").value = e.backgroundColor;
-
             document.getElementById("eventStart").value = e.start.toISOString().slice(0,16);
-            document.getElementById("eventEnd").value =
-                e.end ? e.end.toISOString().slice(0,16) : "";
+            document.getElementById("eventEnd").value = e.end ? e.end.toISOString().slice(0,16) : "";
 
             new bootstrap.Modal(document.getElementById("eventModal")).show();
         }
-
     });
 
     calendar.render();
