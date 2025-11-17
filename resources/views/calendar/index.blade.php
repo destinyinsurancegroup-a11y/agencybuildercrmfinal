@@ -2,22 +2,30 @@
 
 @section('content')
 
-<div style="padding: 25px 40px;">
-    <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
-    <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
+<!-- PAGE WRAPPER BACKGROUND (Dashboard style) -->
+<div style="padding: 25px 40px; background: linear-gradient(to bottom, #f9fafb, #f3f4f6); min-height: 100vh;">
 
-    <!-- CALENDAR CARD -->
+    <!-- PAGE TITLE -->
+    <h1 style="font-size: 28px; font-weight: 700; color:#111827;">
+        Calendar
+    </h1>
+    <p style="color:#4b5563; margin-bottom: 20px;">
+        Manage your events and reminders.
+    </p>
+
+    <!-- CALENDAR CARD (dashboard style) -->
     <div style="
         background: #ffffff;
-        padding: 25px;
-        border-radius: 16px;
+        padding: 30px;
+        border-radius: 20px;
         border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
         min-height: 650px;
         color:#111827;
     ">
         <div id="calendar" style="min-height: 600px;"></div>
     </div>
+
 </div>
 
 <!-- FullCalendar -->
@@ -34,33 +42,38 @@
     <div class="modal-dialog">
         <div class="modal-content" style="color:#111827;">
 
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Create Event</h5>
+            <div class="modal-header" style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+                <h5 class="modal-title" id="modalTitle" style="color:#111827;">Create Event</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
             <div class="modal-body">
+
                 <input type="hidden" id="eventId">
 
                 <div class="mb-3">
-                    <label>Title</label>
+                    <label style="color:#111827;">Title</label>
                     <input type="text" id="eventTitle" class="form-control">
                 </div>
 
                 <div class="mb-3">
-                    <label>Start (Date & Time)</label>
+                    <label style="color:#111827;">Start (Date & Time)</label>
                     <input type="datetime-local" id="eventStart" class="form-control">
                 </div>
 
                 <div class="mb-3">
-                    <label>End (Date & Time)</label>
+                    <label style="color:#111827;">End (Date & Time)</label>
                     <input type="datetime-local" id="eventEnd" class="form-control">
                 </div>
+
             </div>
 
-            <div class="modal-footer">
+            <div class="modal-footer" style="background:#f9fafb; border-top:1px solid #e5e7eb;">
                 <button class="btn btn-danger d-none" id="deleteEventBtn">Delete</button>
-                <button class="btn btn-primary" id="saveEventBtn">Save</button>
+                <button class="btn" id="saveEventBtn" 
+                        style="background:#facc15; color:#000; font-weight:600;">
+                    Save
+                </button>
             </div>
 
         </div>
@@ -131,7 +144,7 @@ document.addEventListener("DOMContentLoaded", function () {
         let payload = {
             title: document.getElementById("eventTitle").value,
             start: document.getElementById("eventStart").value,
-            end: document.getElementById("eventEnd").value
+            end: document.getElementById("eventEnd").value,
         };
 
         let url = id ? `/calendar/events/${id}` : "/calendar/events";
