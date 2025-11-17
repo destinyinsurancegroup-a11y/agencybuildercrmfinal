@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Schema;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Fix MySQL string length for older database versions
+        Schema::defaultStringLength(191);
+
+        // Force timezone for the entire application (fixes calendar times)
+        date_default_timezone_set('America/New_York');
+
+        // Set Laravel's internal timezone
+        config(['app.timezone' => 'America/New_York']);
     }
 }
