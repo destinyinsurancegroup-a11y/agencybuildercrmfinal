@@ -79,10 +79,10 @@
 
     /* Event pill style */
     .fc .fc-daygrid-event {
-        border-radius: 999px !important;
+        border-radius: 999px;
         background: #facc15 !important;
         border: none !important;
-        padding: 2px 6px !important;
+        padding: 2px 6px;
     }
 
     .fc .fc-daygrid-event .fc-event-title {
@@ -90,47 +90,50 @@
         font-weight: 600;
     }
 
-    /******************************************************
-     REMOVE *ALL* EVENT HIGHLIGHTS IN FULLCALENDAR v6
-    ******************************************************/
-
-    /* Remove FullCalendar event selected highlight */
-    .fc-event-selected,
-    .fc-daygrid-event.fc-event-selected {
-        background: #facc15 !important;
-        border: none !important;
+    /* REMOVE BLUE HIGHLIGHT ON SELECTED EVENT */
+    .fc .fc-daygrid-event.fc-event-selected {
         outline: none !important;
         box-shadow: none !important;
-    }
-
-    /* THIS removes the yellow overlay highlight */
-    .fc-event-selected .fc-event-main {
-        background: #facc15 !important;
         border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
     }
-
-    /* Remove the mirror clone highlight */
-    .fc-event-mirror {
-        background: #facc15 !important;
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
-    /* Remove default focus/active highlight */
     .fc .fc-daygrid-event:focus,
-    .fc .fc-daygrid-event:active,
-    .fc .fc-daygrid-event:focus-visible {
+    .fc .fc-daygrid-event:active {
         outline: none !important;
         box-shadow: none !important;
         border: none !important;
     }
 
-    /* Remove selection background shading */
-    .fc .fc-highlight {
+    /*********************************************
+        🔥 FINAL FIX — REMOVE ALL HIGHLIGHTS
+    **********************************************/
+
+    /* Remove yellow click highlight on day cells */
+    .fc-daygrid-day.fc-daygrid-day-selected {
         background: none !important;
+    }
+
+    /* Remove drag/selection highlight */
+    .fc-highlight {
+        background: none !important;
+    }
+
+    /* Remove event selection overlay/mirror */
+    .fc-event-selected,
+    .fc-event-mirror,
+    .fc-event-selected .fc-event-main {
+        background: #facc15 !important; /* keep your gold pill */
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Remove blue outline when event is focused */
+    .fc-daygrid-event:focus,
+    .fc-daygrid-event:active,
+    .fc-daygrid-event:focus-visible {
+        outline: none !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 </style>
 
