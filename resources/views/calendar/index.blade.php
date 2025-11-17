@@ -55,7 +55,7 @@
     <div id="calendar"></div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL ONLY — no bottom form -->
 <div class="modal fade" id="eventModal">
     <div class="modal-dialog">
         <div class="modal-content crm-modal">
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         /* ==========================
-            CREATE EVENT
+            CREATE EVENT (click + drag)
         =========================== */
         select(info) {
             document.getElementById("modalTitle").innerText = "Create Event";
@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         /* ==========================
-            EDIT EVENT
+            EDIT EVENT (click existing)
         =========================== */
         eventClick(info) {
             const e = info.event;
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     /* ==========================
-        SAVE EVENT
+        SAVE (CREATE / UPDATE)
     =========================== */
     document.getElementById("saveEventBtn").onclick = function () {
 
@@ -170,10 +170,10 @@ document.addEventListener('DOMContentLoaded', function () {
             headers: {
                 "Content-Type": "application/json",
                 "X-CSRF-TOKEN": csrf,
+                "Accept": "application/json"
             },
             body: JSON.stringify(payload)
         })
-        .then(res => res.json())
         .then(() => {
             bootstrap.Modal.getInstance(document.getElementById("eventModal")).hide();
             calendar.refetchEvents();
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     /* ==========================
-        DELETE EVENT
+        DELETE
     =========================== */
     document.getElementById("deleteEventBtn").onclick = function () {
         const id = document.getElementById("eventId").value;
@@ -190,7 +190,8 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(`/calendar/events/${id}`, {
             method: "DELETE",
             headers: {
-                "X-CSRF-TOKEN": csrf
+                "X-CSRF-TOKEN": csrf,
+                "Accept": "application/json"
             }
         })
         .then(() => {
