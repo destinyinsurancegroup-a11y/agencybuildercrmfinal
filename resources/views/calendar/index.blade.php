@@ -30,33 +30,51 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 
+<!-- ================================
+     FULLCALENDAR HARD OVERRIDES
+================================ -->
 <style>
-/* ---- Text + layout ---- */
+/* ---- Base fonts ---- */
 #calendar, #calendar .fc {
     font-family: system-ui, sans-serif;
     color: #111827;
 }
 
+/* Header + numbers */
 .fc .fc-toolbar-title,
 .fc .fc-col-header-cell-cushion,
 .fc .fc-daygrid-day-number {
     color: #111827 !important;
 }
 
-.fc .fc-day-today {
-    background-color: rgba(250,204,21,0.14) !important;
+/* 🔥 REMOVE TODAY HIGHLIGHT — THE REAL FIX */
+.fc-daygrid-day.fc-day-today {
+    background: none !important;
 }
 
-/* ---- Gold buttons ---- */
-.fc .fc-button-primary {
-    background:#facc15 !important;
-    border:#facc15 !important;
-    color:#111 !important;
-    border-radius:999px !important;
-    font-weight:600;
+/* 🔥 REMOVE SELECTED-DAY HIGHLIGHT */
+.fc-daygrid-day.fc-daygrid-day-selected {
+    background: none !important;
 }
-.fc .fc-button-primary:hover {
-    background:#fbbf24 !important;
+
+/* 🔥 REMOVE DRAG HIGHLIGHT */
+.fc-highlight {
+    background: none !important;
+}
+
+/* 🔥 REMOVE ANY BACKGROUND EVENT LAYER */
+.fc-daygrid-bg-harness .fc-event {
+    background: none !important;
+    border: none !important;
+}
+
+/* 🔥 REMOVE FOCUS/CLICK HIGHLIGHT */
+.fc-event:focus,
+.fc-event:active,
+.fc-event:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
 }
 
 /* ---- Event pill ---- */
@@ -71,30 +89,16 @@
     font-weight:600 !important;
 }
 
-/* ---- REMOVE ALL DAY HIGHLIGHTS (THE TRUE FIX) ---- */
-.fc-daygrid-day.fc-daygrid-day-selected {
-    background:none !important;
+/* ---- Gold buttons ---- */
+.fc .fc-button-primary {
+    background:#facc15 !important;
+    border:#facc15 !important;
+    color:#111 !important;
+    border-radius:999px !important;
+    font-weight:600;
 }
-.fc-daygrid-day:not(.fc-day-today).fc-daygrid-day-selected {
-    background:none !important;
-}
-
-/* Remove drag highlights */
-.fc-highlight { background:none !important; }
-
-/* Remove event focus highlight */
-.fc-event:focus,
-.fc-event:active,
-.fc-event:focus-visible {
-    outline:none !important;
-    box-shadow:none !important;
-    border:none !important;
-}
-
-/* Remove FC background event layer */
-.fc-daygrid-bg-harness .fc-event {
-    background:none !important;
-    border:none !important;
+.fc .fc-button-primary:hover {
+    background:#fbbf24 !important;
 }
 </style>
 
@@ -134,7 +138,8 @@
 
             <div class="modal-footer" style="background:#f9fafb; border-top:1px solid #e5e7eb;">
                 <button class="btn btn-danger d-none" id="deleteEventBtn">Delete</button>
-                <button class="btn" id="saveEventBtn" style="background:#facc15; color:#000; font-weight:600;">
+                <button class="btn" id="saveEventBtn"
+                        style="background:#facc15; color:#000; font-weight:600;">
                     Save
                 </button>
             </div>
@@ -177,7 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ------------------------- */
         dateClick: function(info) {
 
-            calendar.unselect(); // 🔥 FINAL FIX — CLEAR HIGHLIGHT IMMEDIATELY
+            calendar.unselect(); // remove background immediately
 
             document.getElementById("modalTitle").innerText = "Create Event";
             document.getElementById("deleteEventBtn").classList.add("d-none");
@@ -196,7 +201,7 @@ document.addEventListener("DOMContentLoaded", function () {
         eventClick: function(info) {
             let e = info.event;
 
-            calendar.unselect(); // 🔥 ALSO CLEAR WHEN EDITING
+            calendar.unselect();
 
             document.getElementById("modalTitle").innerText = "Edit Event";
             document.getElementById("deleteEventBtn").classList.remove("d-none");
@@ -212,9 +217,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     calendar.render();
 
-
     /* ------------------------
-       SAVE (CREATE/UPDATE)
+       SAVE EVENT
     ------------------------- */
     document.getElementById("saveEventBtn").onclick = function () {
 
