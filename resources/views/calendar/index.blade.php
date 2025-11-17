@@ -34,50 +34,50 @@
      FULLCALENDAR HARD OVERRIDES
 ================================ -->
 <style>
-/* ---- Base fonts ---- */
+/* Base fonts */
 #calendar, #calendar .fc {
     font-family: system-ui, sans-serif;
     color: #111827;
 }
 
-/* Header + numbers */
+/* Header titles + day numbers */
 .fc .fc-toolbar-title,
 .fc .fc-col-header-cell-cushion,
 .fc .fc-daygrid-day-number {
     color: #111827 !important;
 }
 
-/* 🔥 REMOVE TODAY HIGHLIGHT — THE REAL FIX */
+/* 🔥 REMOVE TODAY HIGHLIGHT */
 .fc-daygrid-day.fc-day-today {
-    background: none !important;
+    background:none !important;
 }
 
 /* 🔥 REMOVE SELECTED-DAY HIGHLIGHT */
 .fc-daygrid-day.fc-daygrid-day-selected {
-    background: none !important;
+    background:none !important;
 }
 
-/* 🔥 REMOVE DRAG HIGHLIGHT */
+/* 🔥 REMOVE DRAG/SELECTION HIGHLIGHT */
 .fc-highlight {
-    background: none !important;
+    background:none !important;
 }
 
-/* 🔥 REMOVE ANY BACKGROUND EVENT LAYER */
+/* 🔥 REMOVE BACKGROUND EVENT LAYER */
 .fc-daygrid-bg-harness .fc-event {
-    background: none !important;
-    border: none !important;
+    background:none !important;
+    border:none !important;
 }
 
-/* 🔥 REMOVE FOCUS/CLICK HIGHLIGHT */
+/* 🔥 REMOVE EVENT FOCUS HIGHLIGHT */
 .fc-event:focus,
 .fc-event:active,
 .fc-event:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
-    border: none !important;
+    outline:none !important;
+    box-shadow:none !important;
+    border:none !important;
 }
 
-/* ---- Event pill ---- */
+/* Event pill styling */
 .fc .fc-daygrid-event {
     background:#facc15 !important;
     border:none !important;
@@ -89,7 +89,7 @@
     font-weight:600 !important;
 }
 
-/* ---- Gold buttons ---- */
+/* Gold buttons */
 .fc .fc-button-primary {
     background:#facc15 !important;
     border:#facc15 !important;
@@ -103,8 +103,9 @@
 </style>
 
 
+
 <!-- ==========================
-     MODAL
+     EVENT MODAL
 =========================== -->
 <div class="modal fade" id="eventModal" tabindex="-1">
     <div class="modal-dialog">
@@ -161,11 +162,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         initialView: "dayGridMonth",
 
-        selectable: true,
-        selectMinDistance: 99999,
+        /* 🔥 THE TRUE FIX — NO SELECTION ENGINE AT ALL */
+        selectable: false,
 
         eventDisplay: "block",
-
         editable: false,
         height: "auto",
 
@@ -177,12 +177,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         events: "/calendar/events",
 
+
         /* ------------------------
            CREATE EVENT
         ------------------------- */
         dateClick: function(info) {
-
-            calendar.unselect(); // remove background immediately
 
             document.getElementById("modalTitle").innerText = "Create Event";
             document.getElementById("deleteEventBtn").classList.add("d-none");
@@ -195,13 +194,12 @@ document.addEventListener("DOMContentLoaded", function () {
             modal.show();
         },
 
+
         /* ------------------------
            EDIT EVENT
         ------------------------- */
         eventClick: function(info) {
             let e = info.event;
-
-            calendar.unselect();
 
             document.getElementById("modalTitle").innerText = "Edit Event";
             document.getElementById("deleteEventBtn").classList.remove("d-none");
@@ -216,6 +214,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     calendar.render();
+
 
     /* ------------------------
        SAVE EVENT
