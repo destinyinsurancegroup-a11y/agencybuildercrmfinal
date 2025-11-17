@@ -48,18 +48,13 @@
                 </div>
 
                 <div class="mb-3">
-                    <label>Start</label>
+                    <label>Start (Date & Time)</label>
                     <input type="datetime-local" id="eventStart" class="form-control">
                 </div>
 
                 <div class="mb-3">
-                    <label>End</label>
+                    <label>End (Date & Time)</label>
                     <input type="datetime-local" id="eventEnd" class="form-control">
-                </div>
-
-                <div class="mb-3">
-                    <label>Color</label>
-                    <input type="color" id="eventColor" class="form-control form-control-color">
                 </div>
             </div>
 
@@ -72,11 +67,12 @@
     </div>
 </div>
 
+
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
-    let eventModalEl = document.getElementById("eventModal");
-    let eventModal = new bootstrap.Modal(eventModalEl);
+    let modalEl = document.getElementById("eventModal");
+    let modal = new bootstrap.Modal(modalEl);
 
     let calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
 
@@ -95,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         events: "/calendar/events",
 
-        /* CREATE */
+        /* CREATE EVENT */
         select: function(info) {
             document.getElementById("modalTitle").innerText = "Create Event";
             document.getElementById("deleteEventBtn").classList.add("d-none");
@@ -104,12 +100,11 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById("eventTitle").value = "";
             document.getElementById("eventStart").value = info.startStr + "T00:00";
             document.getElementById("eventEnd").value = info.endStr + "T00:00";
-            document.getElementById("eventColor").value = "#facc15";
 
-            eventModal.show();
+            modal.show();
         },
 
-        /* EDIT */
+        /* EDIT EVENT */
         eventClick: function(info) {
             let e = info.event;
 
@@ -118,18 +113,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
             document.getElementById("eventId").value = e.id;
             document.getElementById("eventTitle").value = e.title;
-            document.getElementById("eventColor").value = e.backgroundColor || "#facc15";
             document.getElementById("eventStart").value = e.start.toISOString().slice(0, 16);
             document.getElementById("eventEnd").value = e.end ? e.end.toISOString().slice(0, 16) : "";
 
-            eventModal.show();
+            modal.show();
         }
     });
 
     calendar.render();
 
 
-    /* SAVE EVENT (CREATE / UPDATE) */
+    /* SAVE EVENT */
     document.getElementById("saveEventBtn").onclick = function () {
 
         let id = document.getElementById("eventId").value;
@@ -137,8 +131,7 @@ document.addEventListener("DOMContentLoaded", function () {
         let payload = {
             title: document.getElementById("eventTitle").value,
             start: document.getElementById("eventStart").value,
-            end: document.getElementById("eventEnd").value,
-            color: document.getElementById("eventColor").value
+            end: document.getElementById("eventEnd").value
         };
 
         let url = id ? `/calendar/events/${id}` : "/calendar/events";
@@ -153,7 +146,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             body: JSON.stringify(payload)
         }).then(() => {
-            eventModal.hide();
+            modal.hide();
             calendar.refetchEvents();
         });
     };
@@ -172,7 +165,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}"
             }
         }).then(() => {
-            eventModal.hide();
+            modal.hide();
             calendar.refetchEvents();
         });
     };
