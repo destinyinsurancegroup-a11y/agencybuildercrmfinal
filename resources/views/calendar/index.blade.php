@@ -1,167 +1,181 @@
+{{-- resources/views/calendar/index.blade.php --}}
 @extends('layouts.app')
 
 @section('content')
 
-<div class="container mt-4">
-    <h2>Calendar</h2>
+<div style="padding: 25px 40px;">
+    <h1 style="font-size: 28px; font-weight: 700; color:#111827;">Calendar</h1>
+    <p style="color:#4b5563; margin-bottom: 20px;">Manage your events and reminders.</p>
+
+    {{-- FullCalendar Container --}}
     <div id="calendar"></div>
 </div>
 
-<!-- CREATE / EDIT EVENT MODAL -->
-<div class="modal fade" id="eventModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Create Event</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+{{-- FullCalendar CSS --}}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 
-            <div class="modal-body">
-                <input type="hidden" id="eventId">
+{{-- FullCalendar Script --}}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
-                <div class="mb-3">
-                    <label>Title</label>
-                    <input type="text" id="eventTitle" class="form-control">
-                </div>
+<style>
+    /* CRM Modal Styling */
+    #eventModalBackdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
 
-                <div class="mb-3">
-                    <label>Start</label>
-                    <input type="datetime-local" id="eventStart" class="form-control">
-                </div>
+    #eventModal {
+        background: #ffffff;
+        padding: 25px;
+        width: 420px;
+        border-radius: 16px;
+        border: 2px solid #facc15;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
 
-                <div class="mb-3">
-                    <label>End</label>
-                    <input type="datetime-local" id="eventEnd" class="form-control">
-                </div>
+    .modal-input {
+        width: 100%;
+        margin-bottom: 12px;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+    }
 
-                <div class="mb-3">
-                    <label>Color</label>
-                    <input type="color" id="eventColor" class="form-control form-control-color">
-                </div>
+    .modal-btn {
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+    }
 
-            </div>
+    .btn-save {
+        background: #facc15;
+        color: #111827;
+    }
 
-            <div class="modal-footer">
-                <button class="btn btn-danger d-none" id="deleteEventBtn">Delete</button>
-                <button class="btn btn-primary" id="saveEventBtn">Save</button>
-            </div>
+    .btn-cancel {
+        background: #9ca3af;
+        color: #111827;
+    }
+</style>
 
+{{-- CRM Modal --}}
+<div id="eventModalBackdrop">
+    <div id="eventModal">
+        <h2 style="font-size: 20px; font-weight: 700;">Create Event</h2>
+
+        <input id="eventTitle" class="modal-input" type="text" placeholder="Event Title">
+
+        <label>Date</label>
+        <input id="eventDate" class="modal-input" type="date">
+
+        <label>Time</label>
+        <input id="eventTime" class="modal-input" type="time">
+
+        <div style="text-align: right; margin-top: 10px;">
+            <button class="modal-btn btn-cancel" onclick="closeEventModal()">Cancel</button>
+            <button class="modal-btn btn-save" onclick="saveEvent()">Save Event</button>
         </div>
     </div>
 </div>
 
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+let calendar;
+let selectedDate;
 
-    var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+document.addEventListener('DOMContentLoaded', function () {
+
+    const calendarEl = document.getElementById('calendar');
+
+    calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         selectable: true,
-        editable: false,
+        height: "auto",
 
-        events: "/calendar/events",
-
-        /* -----------------------------
-           CREATE EVENT (select)
-        ------------------------------ */
-        select: function(info) {
-            document.getElementById("modalTitle").innerText = "Create Event";
-            document.getElementById("deleteEventBtn").classList.add("d-none");
-            document.getElementById("eventId").value = "";
-            
-            document.getElementById("eventTitle").value = "";
-            document.getElementById("eventStart").value = info.startStr + "T00:00";
-            document.getElementById("eventEnd").value = info.endStr + "T00:00";
-            document.getElementById("eventColor").value = "#3a87ad";
-
-            new bootstrap.Modal(document.getElementById("eventModal")).show();
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
 
-        /* -----------------------------
-           EDIT EVENT (click)
-        ------------------------------ */
-        eventClick: function(info) {
+        events: '/calendar/events',
 
-            document.getElementById("modalTitle").innerText = "Edit Event";
-            document.getElementById("deleteEventBtn").classList.remove("d-none");
+        select: function(info) {
+            selectedDate = info.startStr;
+            openEventModal();
+        },
 
-            let e = info.event;
-
-            document.getElementById("eventId").value = e.id;
-            document.getElementById("eventTitle").value = e.title;
-            document.getElementById("eventColor").value = e.backgroundColor;
-
-            document.getElementById("eventStart").value =
-                e.start.toISOString().slice(0,16);
-
-            if (e.end) {
-                document.getElementById("eventEnd").value =
-                    e.end.toISOString().slice(0,16);
-            } else {
-                document.getElementById("eventEnd").value = "";
-            }
-
-            new bootstrap.Modal(document.getElementById("eventModal")).show();
-        }
+        eventColor: '#facc15',
+        displayEventEnd: true,
     });
 
     calendar.render();
-
-
-    /* -----------------------------
-       SAVE EVENT (Create or Update)
-    ------------------------------ */
-    document.getElementById("saveEventBtn").onclick = function() {
-
-        let id = document.getElementById("eventId").value;
-        let payload = {
-            title: document.getElementById("eventTitle").value,
-            start: document.getElementById("eventStart").value,
-            end: document.getElementById("eventEnd").value,
-            color: document.getElementById("eventColor").value,
-        };
-
-        let url = id ? `/calendar/events/${id}` : "/calendar/events";
-        let method = id ? "PUT" : "POST";
-
-        fetch(url, {
-            method: method,
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(() => {
-            bootstrap.Modal.getInstance(document.getElementById("eventModal")).hide();
-            calendar.refetchEvents();
-        });
-    };
-
-
-    /* -----------------------------
-       DELETE EVENT
-    ------------------------------ */
-    document.getElementById("deleteEventBtn").onclick = function() {
-        let id = document.getElementById("eventId").value;
-
-        if (!confirm("Delete this event?")) return;
-
-        fetch(`/calendar/events/${id}`, {
-            method: "DELETE",
-            headers: {
-                "Accept": "application/json"
-            }
-        })
-        .then(() => {
-            bootstrap.Modal.getInstance(document.getElementById("eventModal")).hide();
-            calendar.refetchEvents();
-        });
-    };
-
 });
+
+function openEventModal() {
+    document.getElementById('eventModalBackdrop').style.display = "flex";
+    document.getElementById('eventDate').value = selectedDate;
+}
+
+function closeEventModal() {
+    document.getElementById('eventModalBackdrop').style.display = "none";
+}
+
+function saveEvent() {
+    const title = document.getElementById('eventTitle').value;
+    const date = document.getElementById('eventDate').value;
+    const time = document.getElementById('eventTime').value;
+
+    if (!title) {
+        alert("Please enter an event title.");
+        return;
+    }
+
+    const startDateTime = time ? `${date} ${time}` : date;
+
+    fetch('/calendar/events', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            title: title,
+            start: startDateTime,
+            end: startDateTime,
+            color: '#facc15'
+        })
+    })
+    .then(async res => {
+        if (!res.ok) {
+            const err = await res.json();
+            alert("SAVE ERROR:\n" + JSON.stringify(err, null, 2));
+            return;
+        }
+
+        const event = await res.json();
+
+        calendar.addEvent({
+            id: event.id,
+            title: event.title,
+            start: event.start,
+            end: event.end,
+            color: event.color
+        });
+
+        closeEventModal();
+    })
+    .catch(err => {
+        alert("NETWORK ERROR:\n" + err.message);
+    });
+}
 </script>
 
 @endsection
