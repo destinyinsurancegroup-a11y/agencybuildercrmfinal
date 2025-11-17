@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
 use App\Models\Event;
+use App\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,16 +17,19 @@ Route::get('/test', function () {
 
 /*
 |--------------------------------------------------------------------------
-| DASHBOARD
+| DASHBOARD (Uses DashboardController@index)
 |--------------------------------------------------------------------------
+|
+| This route displays the dashboard and loads events from the controller.
+|
 */
-Route::get('/', function () {
-    return view('dashboard');
-});
+Route::get('/', [DashboardController::class, 'index'])
+    ->middleware(['auth'])
+    ->name('home');
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-});
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth'])
+    ->name('dashboard');
 
 /*
 |--------------------------------------------------------------------------
