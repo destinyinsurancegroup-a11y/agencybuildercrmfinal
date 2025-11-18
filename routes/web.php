@@ -19,13 +19,8 @@ Route::get('/test', function () {
 |--------------------------------------------------------------------------
 | DASHBOARD (NO AUTH REQUIRED)
 |--------------------------------------------------------------------------
-|
-| This route displays the dashboard using the DashboardController@index
-| WITHOUT requiring login or authentication.
-|
 */
 Route::get('/', [DashboardController::class, 'index'])->name('home');
-
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 /*
@@ -48,9 +43,10 @@ Route::get('/calendar', function () {
 
 /*
 |--------------------------------------------------------------------------
-| CALENDAR API ROUTES
+| CALENDAR API ROUTES (COMPLETE + FIXED)
 |--------------------------------------------------------------------------
-| Fetch events + Save events + Update events + Delete events
+| These routes handle: fetch, create, update, delete events.
+| Now include support for: location
 |--------------------------------------------------------------------------
 */
 
@@ -62,22 +58,28 @@ Route::get('/calendar/events', function () {
         return Event::all();
     } catch (\Throwable $e) {
         return response()->json([
-            'error' => true,
+            'error'   => true,
             'message' => $e->getMessage()
         ], 500);
     }
 });
 
 /* --------------------------
-   CREATE EVENT
+   CREATE EVENT (UPDATED)
 -------------------------- */
 Route::post('/calendar/events', function (Request $request) {
     try {
+        $data = $request->validate([
+            'title'    => 'required|string|max:255',
+            'start'    => 'required|string',
+            'location' => 'nullable|string|max:255',
+        ]);
+
         $event = Event::create([
-            'title'      => $request->title,
-            'start'      => $request->start,
-            'end'        => $request->end,
-            'color'      => $request->color,
+            'title'      => $data['title'],
+            'start'      => $data['start'],
+            'end'        => $data['start'], // end not used yet
+            'location'   => $data['location'] ?? null,
             'tenant_id'  => 1,
             'created_by' => 1,
         ]);
@@ -93,22 +95,27 @@ Route::post('/calendar/events', function (Request $request) {
 });
 
 /* --------------------------
-   UPDATE EVENT
+   UPDATE EVENT (UPDATED)
 -------------------------- */
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
     try {
+        $data = $request->validate([
+            'title'    => 'required|string|max:255',
+            'start'    => 'required|string',
+            'location' => 'nullable|string|max:255',
+        ]);
+
         $event = Event::findOrFail($id);
 
         $event->update([
-            'title' => $request->title,
-            'start' => $request->start,
-            'end'   => $request->end,
-            'color' => $request->color,
+            'title'    => $data['title'],
+            'start'    => $data['start'],
+            'end'      => $data['start'],
+            'location' => $data['location'] ?? null,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Event updated successfully',
             'event'   => $event
         ]);
 
