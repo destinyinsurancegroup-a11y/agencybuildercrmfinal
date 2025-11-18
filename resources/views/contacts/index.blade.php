@@ -25,9 +25,44 @@
     .contacts-header {
         font-size: 24px;
         font-weight: 700;
-        margin-bottom: 12px;
+        margin-bottom: 18px;
     }
 
+    /* Dashboard-style search bar */
+    .contacts-search-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .contacts-search-input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        font-size: 14px;
+    }
+
+    .contacts-search-btn {
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: none;
+        background: #c9a227;
+        color: #111827;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        text-transform: uppercase;
+    }
+
+    .contacts-search-btn:hover {
+        background: #b5901f;
+    }
+
+    /* List items */
     .contact-list-item {
         padding: 10px 6px;
         font-size: 15px;
@@ -55,24 +90,29 @@
         box-shadow: none !important;
     }
 
-    /* NEW — Dashboard-style gold button */
+    /* Dashboard-style gold button */
     .btn-gold {
         background: #c9a227;
         color: #111827;
         border: none;
-        padding: 8px 14px;
+        padding: 7px 14px;
         font-weight: 600;
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
         text-transform: uppercase;
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .btn-gold:hover {
         background: #b5901f;
-        color: #111;
     }
 
+    /* Spacing between buttons and search */
+    .button-row {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 8px;
+    }
 </style>
 
 <div class="dashboard-page">
@@ -85,19 +125,22 @@
 
                 <div class="contacts-header">All Contacts</div>
 
-                <!-- Search -->
+                <!-- Dashboard-style Search -->
                 <form method="GET" action="{{ route('contacts.index') }}">
-                    <input 
-                        type="text" 
-                        name="search" 
-                        class="form-control mb-3"
-                        placeholder="Search contacts..."
-                        value="{{ request('search') }}"
-                    >
+                    <div class="contacts-search-wrapper">
+                        <input 
+                            type="text"
+                            name="search"
+                            class="contacts-search-input"
+                            placeholder="Search contacts..."
+                            value="{{ request('search') }}"
+                        >
+                        <button class="contacts-search-btn">Search</button>
+                    </div>
                 </form>
 
-                <!-- Dashboard-style Buttons -->
-                <div class="d-flex gap-2 mb-3">
+                <!-- Dashboard-style Add + Upload buttons -->
+                <div class="button-row">
                     <a href="{{ route('contacts.create') }}" class="btn-gold">+ Add</a>
 
                     <button 
@@ -113,9 +156,8 @@
                 <div>
                     @forelse ($contacts as $contact)
                         <a href="{{ route('contacts.show', $contact->id) }}"
-                            class="contact-list-item
-                                {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
-                            {{ $contact->full_name }}
+                           class="contact-list-item {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
+                           {{ $contact->full_name }}
                         </a>
                     @empty
                         <p class="text-muted">No contacts found.</p>
