@@ -61,7 +61,7 @@
         background: #b5901f;
     }
 
-    /* Button styling */
+    /* Buttons */
     .btn-gold {
         background: #c9a227;
         color: #111827;
@@ -84,7 +84,7 @@
         gap: 8px;
     }
 
-    /* Contacts list */
+    /* Contact list */
     .contact-list-item {
         padding: 10px 6px;
         font-size: 15px;
@@ -102,7 +102,7 @@
         font-weight: 600;
     }
 
-    /* Right side when empty */
+    /* Right empty panel */
     .empty-right-panel {
         height: 100%;
         background: transparent !important;
@@ -137,9 +137,17 @@
                     </div>
                 </form>
 
-                <!-- Add Button ONLY (upload removed completely) -->
+                <!-- Add Contacts + Upload File -->
                 <div class="button-row">
-                    <a href="{{ route('contacts.create') }}" class="btn-gold">+ Add</a>
+                    <a href="{{ route('contacts.create') }}" class="btn-gold">Add Contacts</a>
+
+                    <button 
+                        class="btn-gold"
+                        data-bs-toggle="modal"
+                        data-bs-target="#uploadModal"
+                    >
+                        Upload File
+                    </button>
                 </div>
 
                 <!-- Contact List -->
@@ -166,6 +174,42 @@
             @endif
         </div>
 
+    </div>
+</div>
+
+
+<!-- UPLOAD FILE MODAL -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form 
+            action="{{ route('contacts.import') }}" 
+            method="POST" 
+            enctype="multipart/form-data"
+            class="modal-content"
+        >
+            @csrf
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title">Upload Contacts File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <label class="form-label">Choose CSV or Excel file</label>
+                <input 
+                    type="file"
+                    name="file"
+                    class="form-control"
+                    accept=".csv, .xlsx, .xls"
+                    required
+                >
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Upload</button>
+            </div>
+
+        </form>
     </div>
 </div>
 
