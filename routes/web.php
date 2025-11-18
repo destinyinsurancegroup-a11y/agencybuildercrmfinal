@@ -1,56 +1,6 @@
-<?php
-
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Http\Request;
-use App\Models\Event;
-use App\Http\Controllers\DashboardController;
-
 /*
 |--------------------------------------------------------------------------
-| TEST ROUTE
-|--------------------------------------------------------------------------
-*/
-Route::get('/test', function () {
-    return 'ROUTES ARE WORKING';
-});
-
-/*
-|--------------------------------------------------------------------------
-| DASHBOARD (NO AUTH REQUIRED)
-|--------------------------------------------------------------------------
-|
-| This route displays the dashboard using the DashboardController@index
-| WITHOUT requiring login or authentication.
-|
-*/
-Route::get('/', [DashboardController::class, 'index'])->name('home');
-
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-/*
-|--------------------------------------------------------------------------
-| CONTACTS
-|--------------------------------------------------------------------------
-*/
-Route::get('/contacts', function () {
-    return view('contacts.index');
-});
-
-/*
-|--------------------------------------------------------------------------
-| CALENDAR PAGE
-|--------------------------------------------------------------------------
-*/
-Route::get('/calendar', function () {
-    return view('calendar.index');
-});
-
-/*
-|--------------------------------------------------------------------------
-| CALENDAR API ROUTES
-|--------------------------------------------------------------------------
-| Fetch events + Save events + Update events + Delete events
+| CALENDAR API ROUTES (FIXED)
 |--------------------------------------------------------------------------
 */
 
@@ -69,15 +19,21 @@ Route::get('/calendar/events', function () {
 });
 
 /* --------------------------
-   CREATE EVENT
+   CREATE EVENT (FIXED)
 -------------------------- */
 Route::post('/calendar/events', function (Request $request) {
     try {
+        $data = $request->validate([
+            'title'     => 'required|string',
+            'start'     => 'required|string',
+            'location'  => 'nullable|string',
+        ]);
+
         $event = Event::create([
-            'title'      => $request->title,
-            'start'      => $request->start,
-            'end'        => $request->end,
-            'color'      => $request->color,
+            'title'      => $data['title'],
+            'start'      => $data['start'],
+            'end'        => $data['start'], // You are not using "end" currently
+            'location'   => $data['location'] ?? null,
             'tenant_id'  => 1,
             'created_by' => 1,
         ]);
@@ -86,35 +42,40 @@ Route::post('/calendar/events', function (Request $request) {
 
     } catch (\Throwable $e) {
         return response()->json([
-            'error'   => true,
+            'error' => true,
             'message' => $e->getMessage()
         ], 500);
     }
 });
 
 /* --------------------------
-   UPDATE EVENT
+   UPDATE EVENT (FIXED)
 -------------------------- */
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
     try {
+        $data = $request->validate([
+            'title'     => 'required|string',
+            'start'     => 'required|string',
+            'location'  => 'nullable|string',
+        ]);
+
         $event = Event::findOrFail($id);
 
         $event->update([
-            'title' => $request->title,
-            'start' => $request->start,
-            'end'   => $request->end,
-            'color' => $request->color,
+            'title'    => $data['title'],
+            'start'    => $data['start'],
+            'end'      => $data['start'], // still matching your UI logic
+            'location' => $data['location'] ?? null,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Event updated successfully',
             'event'   => $event
         ]);
 
     } catch (\Throwable $e) {
         return response()->json([
-            'error'   => true,
+            'error' => true,
             'message' => $e->getMessage()
         ], 500);
     }
@@ -129,41 +90,13 @@ Route::delete('/calendar/events/{id}', function ($id) {
         $event->delete();
 
         return response()->json([
-            'success' => true,
-            'message' => 'Event deleted successfully'
+            'success' => true
         ]);
 
     } catch (\Throwable $e) {
         return response()->json([
-            'error'   => true,
+            'error' => true,
             'message' => $e->getMessage()
         ], 500);
     }
-});
-
-/*
-|--------------------------------------------------------------------------
-| TEMPORARY DB MIGRATION ROUTE
-|--------------------------------------------------------------------------
-*/
-Route::get('/migrate', function () {
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        return 'Migrations ran successfully!';
-    } catch (\Throwable $e) {
-        return 'Migration error: ' . $e->getMessage();
-    }
-});
-
-/*
-|--------------------------------------------------------------------------
-| TEMPORARY CLEAR CACHE
-|--------------------------------------------------------------------------
-*/
-Route::get('/clear-cache', function () {
-    Artisan::call('route:clear');
-    Artisan::call('config:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('view:clear');
-    return 'Laravel cache cleared!';
 });
