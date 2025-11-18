@@ -2,104 +2,69 @@
 
 @section('content')
 
-<div class="container py-4">
+<div class="container-fluid py-4">
 
-    <!-- Page Title -->
-    <h1 class="fw-bold mb-4">All Contacts</h1>
+    <div class="row g-3">
 
-    <!-- SEARCH + BUTTONS (same style as dashboard) -->
-    <div class="d-flex mb-3" style="gap: 12px;">
-        <form method="GET" action="{{ route('contacts.index') }}" class="flex-grow-1">
-            <input type="text"
-                   name="search"
-                   value="{{ request('search') }}"
-                   class="form-control"
-                   placeholder="Search contacts..."
-                   style="height: 45px; border-radius:10px;">
-        </form>
+        <!-- LEFT COLUMN — CONTACT LIST -->
+        <div class="col-md-4 col-lg-3">
 
-        <a href="{{ route('contacts.create') }}"
-           class="btn btn-gold px-4"
-           style="height: 45px; display:flex; align-items:center; border-radius:10px;">
-            + Add Contact
-        </a>
+            <div class="card shadow-sm border-0 h-100">
 
-        <a href="#"
-           class="btn btn-outline-secondary px-4"
-           style="height: 45px; display:flex; align-items:center; border-radius:10px;">
-            Import CSV
-        </a>
-    </div>
-
-
-    <!-- MASTER–DETAIL LAYOUT -->
-    <div class="row" style="min-height: 75vh;">
-
-        <!-- LEFT COLUMN – LONG VERTICAL CARD -->
-        <div class="col-md-4">
-
-            <div class="card shadow"
-                 style="height: 75vh; border-radius:16px; overflow:hidden;">
-
-                <div class="card-header bg-white fw-bold" style="font-size:18px;">
-                    Contacts
+                <!-- HEADER -->
+                <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center">
+                    <span>All Contacts</span>
+                    <div class="d-flex gap-2">
+                        <a href="{{ route('contacts.create') }}" class="btn btn-sm btn-primary">+ Add</a>
+                        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#importModal">
+                            Import
+                        </button>
+                    </div>
                 </div>
 
-                <div class="card-body p-0" style="overflow-y: auto;">
+                <!-- SEARCH BAR -->
+                <div class="p-3 pb-0">
+                    <form method="GET" action="{{ route('contacts.index') }}">
+                        <input 
+                            type="text" 
+                            name="search" 
+                            value="{{ request('search') }}"
+                            class="form-control"
+                            placeholder="Search contacts..."
+                        >
+                    </form>
+                </div>
 
-                    @forelse($contacts as $contact)
-                        <a href="{{ route('contacts.show', $contact->id) }}"
-                           class="d-block px-3 py-3"
-                           style="
-                               text-decoration:none;
-                               color:#000;
-                               border-bottom:1px solid #f1f1f1;
-                               font-size:16px;
-                               @if(isset($selected) && $selected && $selected->id === $contact->id)
-                                   background:#f7f7f7;
-                                   font-weight:600;
-                               @endif
-                           ">
-                            {{ $contact->full_name }}
+                <!-- LIST OF CONTACTS -->
+                <div class="list-group list-group-flush mt-2" style="height: calc(100vh - 250px); overflow-y: auto;">
+                    @forelse ($contacts as $contact)
+                        <a 
+                            href="{{ route('contacts.show', $contact->id) }}"
+                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
+                            {{ isset($selected) && $selected && $selected->id === $contact->id ? 'active' : '' }}"
+                        >
+                            <span>{{ $contact->full_name }}</span>
                         </a>
                     @empty
-                        <p class="p-3 text-muted">
+                        <div class="p-3 text-muted">
                             No contacts found.
-                        </p>
+                        </div>
                     @endforelse
-
                 </div>
+
             </div>
 
         </div>
 
 
-        <!-- RIGHT COLUMN – CONTACT DETAIL CARD -->
-        <div class="col-md-8">
+        <!-- RIGHT COLUMN — CONTACT DETAIL -->
+        <div class="col-md-8 col-lg-9">
 
-            @if($selected)
-                <div class="card shadow" style="border-radius:16px;">
-                    <div class="card-body">
-
-                        <h3 class="fw-bold mb-3">{{ $selected->full_name }}</h3>
-
-                        <p><strong>Email:</strong> {{ $selected->email ?? '—' }}</p>
-                        <p><strong>Phone:</strong> {{ $selected->phone ?? '—' }}</p>
-                        <p><strong>Type:</strong> {{ $selected->contact_type ?? '—' }}</p>
-                        <p><strong>Status:</strong> {{ $selected->status ?? '—' }}</p>
-
-                        <hr>
-
-                        <h5 class="fw-bold mt-3">Notes</h5>
-                        <p>{{ $selected->notes ?? 'No notes added.' }}</p>
-
-                    </div>
-                </div>
+            @if(isset($selected) && $selected)
+                @include('contacts.partials.detail', ['contact' => $selected])
             @else
-                <!-- Empty Placeholder Card -->
-                <div class="card shadow d-flex align-items-center justify-content-center"
-                     style="height:75vh; border-radius:16px;">
-                    <p class="text-muted">Select a contact from the left panel.</p>
+                <div class="h-100 d-flex justify-content-center align-items-center text-muted" style="min-height: 60vh;">
+                    <p>Select a contact from the left to view details.</p>
                 </div>
             @endif
 
@@ -107,6 +72,45 @@
 
     </div>
 
+</div>
+
+
+<!-- IMPORT MODAL -->
+<div class="modal fade" id="importModal" tabindex="-1">
+  <div class="modal-dialog">
+      <form 
+        action="{{ route('contacts.import') }}" 
+        method="POST" 
+        enctype="multipart/form-data"
+        class="modal-content"
+      >
+        @csrf
+
+        <div class="modal-header bg-black text-gold">
+            <h5 class="modal-title">Import Contacts</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+            <p class="text-muted mb-2">Upload a CSV or Excel file with contact data.</p>
+
+            <input 
+                type="file" 
+                name="file" 
+                class="form-control" 
+                accept=".csv, .xlsx, .xls"
+                required
+            >
+
+        </div>
+
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </div>
+
+      </form>
+  </div>
 </div>
 
 @endsection
