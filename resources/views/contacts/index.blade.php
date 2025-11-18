@@ -16,7 +16,6 @@
         border: 1px solid #e5e7eb;
     }
 
-    /* Same width as dashboard card */
     .contacts-card-wrapper {
         width: 320px !important;
         max-width: 320px !important;
@@ -28,7 +27,7 @@
         margin-bottom: 18px;
     }
 
-    /* Dashboard-style search bar */
+    /* Search */
     .contacts-search-wrapper {
         display: flex;
         align-items: center;
@@ -62,7 +61,30 @@
         background: #b5901f;
     }
 
-    /* List items */
+    /* Buttons */
+    .btn-gold {
+        background: #c9a227;
+        color: #111827;
+        border: none;
+        padding: 7px 14px;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        text-transform: uppercase;
+        font-size: 12px;
+    }
+
+    .btn-gold:hover {
+        background: #b5901f;
+    }
+
+    .button-row {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 8px;
+    }
+
+    /* Contact List Items */
     .contact-list-item {
         padding: 10px 6px;
         font-size: 15px;
@@ -80,38 +102,14 @@
         font-weight: 600;
     }
 
-    /* Remove blank right panel spacing */
+    /* Remove placeholder right panel content */
     .empty-right-panel {
-        padding: 0 !important;
-        margin: 0 !important;
         height: 100%;
-        background: transparent;
+        background: transparent !important;
         border: none !important;
         box-shadow: none !important;
-    }
-
-    /* Dashboard-style gold button */
-    .btn-gold {
-        background: #c9a227;
-        color: #111827;
-        border: none;
-        padding: 7px 14px;
-        font-weight: 600;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        text-transform: uppercase;
-        font-size: 12px;
-    }
-
-    .btn-gold:hover {
-        background: #b5901f;
-    }
-
-    /* Spacing between buttons and search */
-    .button-row {
-        margin-bottom: 20px;
-        display: flex;
-        gap: 8px;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 </style>
 
@@ -119,13 +117,13 @@
 
     <div class="row g-4">
 
-        <!-- LEFT COLUMN — CONTACT LIST -->
+        <!-- LEFT COLUMN -->
         <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
                 <div class="contacts-header">All Contacts</div>
 
-                <!-- Dashboard-style Search -->
+                <!-- Search -->
                 <form method="GET" action="{{ route('contacts.index') }}">
                     <div class="contacts-search-wrapper">
                         <input 
@@ -139,7 +137,7 @@
                     </div>
                 </form>
 
-                <!-- Dashboard-style Add + Upload buttons -->
+                <!-- Add + Upload -->
                 <div class="button-row">
                     <a href="{{ route('contacts.create') }}" class="btn-gold">+ Add</a>
 
@@ -156,8 +154,8 @@
                 <div>
                     @forelse ($contacts as $contact)
                         <a href="{{ route('contacts.show', $contact->id) }}"
-                           class="contact-list-item {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
-                           {{ $contact->full_name }}
+                            class="contact-list-item {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
+                            {{ $contact->full_name }}
                         </a>
                     @empty
                         <p class="text-muted">No contacts found.</p>
@@ -167,7 +165,7 @@
             </div>
         </div>
 
-        <!-- RIGHT COLUMN — CONTACT DETAILS -->
+        <!-- RIGHT COLUMN -->
         <div class="col-md-8 col-lg-9">
             @if(isset($selected) && $selected)
                 @include('contacts.partials.detail', ['contact' => $selected])
@@ -180,7 +178,7 @@
 </div>
 
 
-<!-- UPLOAD MODAL -->
+<!-- UPLOAD MODAL ONLY -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <form 
@@ -199,8 +197,8 @@
             <div class="modal-body">
                 <label class="form-label">Choose CSV or Excel file</label>
                 <input 
-                    type="file" 
-                    name="file" 
+                    type="file"
+                    name="file"
                     class="form-control"
                     accept=".csv, .xlsx, .xls"
                     required
