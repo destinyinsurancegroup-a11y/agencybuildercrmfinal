@@ -31,9 +31,10 @@ class ContactsController extends Controller
         ]);
     }
 
+
     /**
-     * Display selected contact inside the master-detail layout.
-     * Reuses contacts.index and fills the right panel with the selected contact.
+     * AJAX contact loader for right panel.
+     * Always returns ONLY the partial that goes in the right pane.
      */
     public function show(Request $request, $id)
     {
@@ -44,16 +45,10 @@ class ContactsController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
-        // Load left panel list
-        $contacts = Contact::where('tenant_id', $tenantId)
-            ->orderBy('last_name')
-            ->get();
-
-        return view('contacts.index', [
-            'contacts' => $contacts,
-            'selected' => $contact,
-        ]);
+        // Always return ONLY the right-side panel partial
+        return view('contacts.partials.details', compact('contact'));
     }
+
 
     /**
      * Show standalone create form.
@@ -62,6 +57,7 @@ class ContactsController extends Controller
     {
         return view('contacts.create');
     }
+
 
     /**
      * Store a newly created contact.
@@ -100,6 +96,7 @@ class ContactsController extends Controller
             ->with('success', 'Contact created successfully.');
     }
 
+
     /**
      * Show edit form.
      */
@@ -107,6 +104,7 @@ class ContactsController extends Controller
     {
         return view('contacts.edit', compact('contact'));
     }
+
 
     /**
      * Update selected contact.
@@ -116,6 +114,7 @@ class ContactsController extends Controller
         return back()->with('success', 'Update placeholder.');
     }
 
+
     /**
      * Delete a contact.
      */
@@ -124,6 +123,7 @@ class ContactsController extends Controller
         $contact->delete();
         return redirect()->route('contacts.index')->with('success', 'Contact deleted.');
     }
+
 
     /**
      * Bulk CSV/Excel Import Handler (placeholder for now).
