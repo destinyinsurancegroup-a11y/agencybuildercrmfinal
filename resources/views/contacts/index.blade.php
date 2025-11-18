@@ -3,7 +3,7 @@
 @section('content')
 
 <style>
-    /* Use same styling as dashboard cards */
+    /* Match dashboard card styling */
     .contacts-card {
         background: #ffffff;
         border-radius: 18px;
@@ -14,6 +14,12 @@
             0 18px 30px -12px rgba(0,0,0,0.35),
             0 8px 16px -8px rgba(0,0,0,0.18);
         border: 1px solid #e5e7eb;
+    }
+
+    /* NEW — forces same width as dashboard cards */
+    .contacts-card-wrapper {
+        width: 320px !important;      /* fixed width match */
+        max-width: 320px !important;  /* prevents stretching */
     }
 
     .contacts-header {
@@ -27,6 +33,7 @@
         font-size: 15px;
         border-bottom: 1px solid #eee;
         cursor: pointer;
+        display: block;
     }
 
     .contact-list-item:hover {
@@ -44,7 +51,7 @@
     <div class="row g-4">
 
         <!-- LEFT COLUMN — CONTACT LIST -->
-        <div class="col-md-4 col-lg-3">
+        <div class="col-md-4 col-lg-3 contacts-card-wrapper"><!-- FIXED WIDTH APPLIED HERE -->
             <div class="contacts-card">
 
                 <div class="contacts-header">All Contacts</div>
@@ -72,7 +79,7 @@
                 <div>
                     @forelse ($contacts as $contact)
                         <a href="{{ route('contacts.show', $contact->id) }}"
-                            class="contact-list-item d-block 
+                            class="contact-list-item 
                                 {{ isset($selected) && $selected && $selected->id === $contact->id ? 'contact-selected' : '' }}">
                             {{ $contact->full_name }}
                         </a>
