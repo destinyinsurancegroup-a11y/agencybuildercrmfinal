@@ -12,7 +12,7 @@ Route::get('/calendar/events', function () {
         return Event::all();
     } catch (\Throwable $e) {
         return response()->json([
-            'error' => true,
+            'error'   => true,
             'message' => $e->getMessage(),
         ], 500);
     }
@@ -42,7 +42,7 @@ Route::post('/calendar/events', function (Request $request) {
 
     } catch (\Throwable $e) {
         return response()->json([
-            'error' => true,
+            'error'   => true,
             'message' => $e->getMessage(),
         ], 500);
     }
@@ -75,7 +75,7 @@ Route::put('/calendar/events/{id}', function (Request $request, $id) {
 
     } catch (\Throwable $e) {
         return response()->json([
-            'error' => true,
+            'error'   => true,
             'message' => $e->getMessage(),
         ], 500);
     }
@@ -95,7 +95,7 @@ Route::delete('/calendar/events/{id}', function ($id) {
 
     } catch (\Throwable $e) {
         return response()->json([
-            'error' => true,
+            'error'   => true,
             'message' => $e->getMessage(),
         ], 500);
     }
