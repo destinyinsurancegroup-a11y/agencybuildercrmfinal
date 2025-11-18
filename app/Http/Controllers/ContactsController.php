@@ -43,7 +43,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Show standalone create form (we will later convert to modal).
+     * Show standalone create form.
      */
     public function create()
     {
@@ -51,12 +51,40 @@ class ContactsController extends Controller
     }
 
     /**
-     * Store a newly created contact.
+     * Store a newly created contact (Minimal Validation — Option A).
      */
     public function store(Request $request)
     {
-        // Real implementation coming in next steps
-        return back()->with('success', 'Contact creation placeholder.');
+        // Minimal required validation
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+
+            // Optional fields
+            'email'          => 'nullable|email|max:255',
+            'phone'          => 'nullable|string|max:50',
+            'contact_type'   => 'nullable|string|max:50',
+            'status'         => 'nullable|string|max:50',
+            'source'         => 'nullable|string|max:100',
+            'address_line1'  => 'nullable|string|max:255',
+            'address_line2'  => 'nullable|string|max:255',
+            'city'           => 'nullable|string|max:100',
+            'state'          => 'nullable|string|max:50',
+            'postal_code'    => 'nullable|string|max:20',
+            'notes'          => 'nullable|string',
+        ]);
+
+        // Temporary static values until authentication & tenancy are added
+        $validated['tenant_id']  = 1;
+        $validated['created_by'] = 1;
+
+        // Create the contact
+        $contact = Contact::create($validated);
+
+        // Redirect to master-detail view with selected contact
+        return redirect()
+            ->route('contacts.show', $contact->id)
+            ->with('success', 'Contact created successfully.');
     }
 
     /**
@@ -68,11 +96,10 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update selected contact.
+     * Update selected contact (will be implemented after UI is built).
      */
     public function update(Request $request, Contact $contact)
     {
-        // Real update logic coming soon
         return back()->with('success', 'Update placeholder.');
     }
 
@@ -90,7 +117,6 @@ class ContactsController extends Controller
      */
     public function import(Request $request)
     {
-        // Actual CSV/Excel processing will be implemented after UI setup
         return back()->with('success', 'Import placeholder working.');
     }
 }
