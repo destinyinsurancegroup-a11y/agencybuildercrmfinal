@@ -26,21 +26,26 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 
 /*
 |--------------------------------------------------------------------------
-| CONTACTS (FULL CRUD)
+| CONTACTS (FULL CRUD + IMPORT + MASTER-DETAIL LAYOUT)
 |--------------------------------------------------------------------------
-| IMPORTANT:
-| This adds /all-contacts as a friendly alias to /contacts.
-| Does NOT interfere with calendar or dashboard.
+| This section:
+| - Defines /all-contacts → redirect to contacts.index
+| - Loads master-detail Contacts UI
+| - Supports search, show panel, import modal
 |--------------------------------------------------------------------------
 */
 
-// "All Contacts" tab route → redirect to contacts.index
+// "All Contacts" menu item → friendly alias
 Route::get('/all-contacts', function () {
     return redirect()->route('contacts.index');
 });
 
-// Contacts CRUD routes
+// Contacts CRUD
 Route::resource('contacts', ContactsController::class);
+
+// Contacts Import (CSV/Excel)
+Route::post('/contacts/import', [ContactsController::class, 'import'])
+    ->name('contacts.import');
 
 /*
 |--------------------------------------------------------------------------
