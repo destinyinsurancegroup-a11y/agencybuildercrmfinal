@@ -8,19 +8,42 @@ use Illuminate\Http\Request;
 class ContactsController extends Controller
 {
     /**
-     * Display the contacts index page.
+     * Display the contacts index page (master-detail layout).
+     * Shows the contacts list in the left panel.
+     * Optionally loads a selected contact in the right panel.
      */
     public function index(Request $request)
     {
-        // Load contacts from database
-        $contacts = Contact::orderBy('last_name')->get();
+        $contacts = Contact::orderBy('last_name')
+            ->when($request->search, function ($q) use ($request) {
+                $q->where('full_name', 'like', '%' . $request->search . '%')
+                  ->orWhere('email', 'like', '%' . $request->search . '%')
+                  ->orWhere('phone', 'like', '%' . $request->search . '%');
+            })
+            ->get();
 
-        // Pass data to the view
-        return view('contacts.index', compact('contacts'));
+        return view('contacts.index', [
+            'contacts' => $contacts,
+            'selected' => null,   // No contact selected yet
+        ]);
     }
 
     /**
-     * Show the form for creating a new contact.
+     * Display selected contact inside the master-detail layout.
+     * Reuses the same index page but passes a selected contact.
+     */
+    public function show(Contact $contact, Request $request)
+    {
+        $contacts = Contact::orderBy('last_name')->get();
+
+        return view('contacts.index', [
+            'contacts' => $contacts,
+            'selected' => $contact
+        ]);
+    }
+
+    /**
+     * Show standalone create form (we will later convert to modal).
      */
     public function create()
     {
@@ -28,23 +51,16 @@ class ContactsController extends Controller
     }
 
     /**
-     * Store a newly created contact in storage.
+     * Store a newly created contact.
      */
     public function store(Request $request)
     {
-        // (Create logic will be added soon)
+        // Real implementation coming in next steps
+        return back()->with('success', 'Contact creation placeholder.');
     }
 
     /**
-     * Display the specified contact.
-     */
-    public function show(Contact $contact)
-    {
-        return view('contacts.show', compact('contact'));
-    }
-
-    /**
-     * Show the form for editing the specified contact.
+     * Show edit form.
      */
     public function edit(Contact $contact)
     {
@@ -52,18 +68,29 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update the specified contact in storage.
+     * Update selected contact.
      */
     public function update(Request $request, Contact $contact)
     {
-        // (Update logic will be added soon)
+        // Real update logic coming soon
+        return back()->with('success', 'Update placeholder.');
     }
 
     /**
-     * Remove the specified contact from storage.
+     * Delete a contact.
      */
     public function destroy(Contact $contact)
     {
-        // (Delete logic will be added soon)
+        $contact->delete();
+        return redirect()->route('contacts.index')->with('success', 'Contact deleted.');
+    }
+
+    /**
+     * Bulk CSV/Excel Import Handler (placeholder for now).
+     */
+    public function import(Request $request)
+    {
+        // Actual CSV/Excel processing will be implemented after UI setup
+        return back()->with('success', 'Import placeholder working.');
     }
 }
