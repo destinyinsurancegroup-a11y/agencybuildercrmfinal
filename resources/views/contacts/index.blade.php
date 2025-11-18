@@ -16,10 +16,10 @@
         border: 1px solid #e5e7eb;
     }
 
-    /* NEW — forces same width as dashboard cards */
+    /* Same width as dashboard card */
     .contacts-card-wrapper {
-        width: 320px !important;      
-        max-width: 320px !important; 
+        width: 320px !important;
+        max-width: 320px !important;
     }
 
     .contacts-header {
@@ -43,6 +43,16 @@
     .contact-selected {
         background: #eae6d1 !important;
         font-weight: 600;
+    }
+
+    /* Completely remove placeholder spacing */
+    .empty-right-panel {
+        padding: 0 !important;
+        margin: 0 !important;
+        height: 100%;
+        background: transparent;
+        border: none !important;
+        box-shadow: none !important;
     }
 </style>
 
@@ -79,7 +89,7 @@
                 <div>
                     @forelse ($contacts as $contact)
                         <a href="{{ route('contacts.show', $contact->id) }}"
-                            class="contact-list-item 
+                            class="contact-list-item
                                 {{ isset($selected) && $selected && $selected->id === $contact->id ? 'contact-selected' : '' }}">
                             {{ $contact->full_name }}
                         </a>
@@ -97,8 +107,8 @@
             @if(isset($selected) && $selected)
                 @include('contacts.partials.detail', ['contact' => $selected])
             @else
-                <!-- Clean blank area (NO placeholder text) -->
-                <div></div>
+                <!-- Completely empty right panel (no spacing, no border, no text) -->
+                <div class="empty-right-panel"></div>
             @endif
 
         </div>
