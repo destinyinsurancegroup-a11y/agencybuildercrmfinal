@@ -18,8 +18,8 @@
 
     /* NEW — forces same width as dashboard cards */
     .contacts-card-wrapper {
-        width: 320px !important;      /* fixed width match */
-        max-width: 320px !important;  /* prevents stretching */
+        width: 320px !important;      
+        max-width: 320px !important; 
     }
 
     .contacts-header {
@@ -46,12 +46,12 @@
     }
 </style>
 
-<div class="dashboard-page"><!-- IMPORTANT WRAPPER -->
+<div class="dashboard-page">
 
     <div class="row g-4">
 
         <!-- LEFT COLUMN — CONTACT LIST -->
-        <div class="col-md-4 col-lg-3 contacts-card-wrapper"><!-- FIXED WIDTH APPLIED HERE -->
+        <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
                 <div class="contacts-header">All Contacts</div>
@@ -97,9 +97,8 @@
             @if(isset($selected) && $selected)
                 @include('contacts.partials.detail', ['contact' => $selected])
             @else
-                <div class="contacts-card d-flex justify-content-center align-items-center text-muted">
-                    Select a contact from the left to view details.
-                </div>
+                <!-- Clean blank area (NO placeholder text) -->
+                <div></div>
             @endif
 
         </div>
