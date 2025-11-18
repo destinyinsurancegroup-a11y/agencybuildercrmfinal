@@ -29,17 +29,17 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 | CONTACTS (FULL CRUD)
 |--------------------------------------------------------------------------
 | IMPORTANT:
-| We REMOVE the old static route and replace it with resource routes.
-| This does NOT interfere with Dashboard or Calendar.
+| This adds /all-contacts as a friendly alias to /contacts.
+| Does NOT interfere with calendar or dashboard.
 |--------------------------------------------------------------------------
 */
 
-// REMOVE THIS OLD ROUTE (IT CAUSES THE 404):
-// Route::get('/contacts', function () {
-//     return view('contacts.index');
-// });
+// "All Contacts" tab route → redirect to contacts.index
+Route::get('/all-contacts', function () {
+    return redirect()->route('contacts.index');
+});
 
-// Correct Contacts CRUD routes:
+// Contacts CRUD routes
 Route::resource('contacts', ContactsController::class);
 
 /*
