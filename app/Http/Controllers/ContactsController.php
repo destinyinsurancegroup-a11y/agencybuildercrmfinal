@@ -14,7 +14,10 @@ class ContactsController extends Controller
      */
     public function index(Request $request)
     {
-        $contacts = Contact::orderBy('last_name')
+        $tenantId = 1; // Temporary tenant binding
+
+        $contacts = Contact::where('tenant_id', $tenantId)
+            ->orderBy('last_name')
             ->when($request->search, function ($q) use ($request) {
                 $q->where('full_name', 'like', '%' . $request->search . '%')
                   ->orWhere('email', 'like', '%' . $request->search . '%')
@@ -29,27 +32,27 @@ class ContactsController extends Controller
     }
 
     /**
-     * AJAX-enabled show() method
-     * Loads ONLY the right contact panel when requested via AJAX.
-     * Keeps full page fallback for direct URLs.
+     * Display selected contact inside the master-detail layout.
+     * Reuses contacts.index and fills the right panel with the selected contact.
      */
     public function show(Request $request, $id)
     {
-        // ⚠️ TEMP tenant constraint — replace once auth is added
-        $tenantId = 1;
+        $tenantId = 1; // Temporary tenant binding
 
-        // Tenant-safe contact lookup
+        // Tenant-safe lookup
         $contact = Contact::where('tenant_id', $tenantId)
             ->where('id', $id)
             ->firstOrFail();
 
-        // 🟡 If AJAX → return ONLY the right-side panel HTML partial
-        if ($request->ajax()) {
-            return view('contacts.partials.details', compact('contact'));
-        }
+        // Load left panel list
+        $contacts = Contact::where('tenant_id', $tenantId)
+            ->orderBy('last_name')
+            ->get();
 
-        // 🔵 Fallback → full page for direct access (not used in AJAX workflow)
-        return view('contacts.show', compact('contact'));
+        return view('contacts.index', [
+            'contacts' => $contacts,
+            'selected' => $contact,
+        ]);
     }
 
     /**
@@ -61,7 +64,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Store a newly created contact (Minimal Validation — Option A).
+     * Store a newly created contact.
      */
     public function store(Request $request)
     {
@@ -84,14 +87,14 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Temporary static values until authentication & tenancy are added
+        // Temporary tenant & creator values
         $validated['tenant_id']  = 1;
         $validated['created_by'] = 1;
 
-        // Create the contact
+        // Create contact
         $contact = Contact::create($validated);
 
-        // Redirect to master-detail view with selected contact
+        // Redirect to master-detail with right panel active
         return redirect()
             ->route('contacts.show', $contact->id)
             ->with('success', 'Contact created successfully.');
@@ -106,7 +109,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update selected contact (will be implemented after UI is built).
+     * Update selected contact.
      */
     public function update(Request $request, Contact $contact)
     {
