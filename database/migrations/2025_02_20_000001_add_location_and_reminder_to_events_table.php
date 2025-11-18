@@ -9,15 +9,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('events', function (Blueprint $table) {
-            $table->string('location')->nullable()->after('color');
-            $table->integer('reminder')->nullable()->after('location');
+            // Add the new calendar fields
+            if (!Schema::hasColumn('events', 'location')) {
+                $table->string('location')->nullable()->after('title');
+            }
+
+            if (!Schema::hasColumn('events', 'reminder')) {
+                $table->string('reminder')->nullable()->after('location');
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('events', function (Blueprint $table) {
-            $table->dropColumn(['location', 'reminder']);
+            if (Schema::hasColumn('events', 'location')) {
+                $table->dropColumn('location');
+            }
+            if (Schema::hasColumn('events', 'reminder')) {
+                $table->dropColumn('reminder');
+            }
         });
     }
 };
