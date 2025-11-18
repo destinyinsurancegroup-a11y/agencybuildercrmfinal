@@ -27,7 +27,7 @@
         margin-bottom: 18px;
     }
 
-    /* Search */
+    /* Search bar */
     .contacts-search-wrapper {
         display: flex;
         align-items: center;
@@ -61,7 +61,7 @@
         background: #b5901f;
     }
 
-    /* Buttons */
+    /* Button styling */
     .btn-gold {
         background: #c9a227;
         color: #111827;
@@ -84,7 +84,7 @@
         gap: 8px;
     }
 
-    /* Contact List Items */
+    /* Contacts list */
     .contact-list-item {
         padding: 10px 6px;
         font-size: 15px;
@@ -102,7 +102,7 @@
         font-weight: 600;
     }
 
-    /* Remove placeholder right panel content */
+    /* Right side when empty */
     .empty-right-panel {
         height: 100%;
         background: transparent !important;
@@ -137,25 +137,17 @@
                     </div>
                 </form>
 
-                <!-- Add + Upload -->
+                <!-- Add Button ONLY (upload removed completely) -->
                 <div class="button-row">
                     <a href="{{ route('contacts.create') }}" class="btn-gold">+ Add</a>
-
-                    <button 
-                        class="btn-gold"
-                        data-bs-toggle="modal"
-                        data-bs-target="#uploadModal"
-                    >
-                        Upload File
-                    </button>
                 </div>
 
                 <!-- Contact List -->
                 <div>
                     @forelse ($contacts as $contact)
                         <a href="{{ route('contacts.show', $contact->id) }}"
-                            class="contact-list-item {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
-                            {{ $contact->full_name }}
+                           class="contact-list-item {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
+                           {{ $contact->full_name }}
                         </a>
                     @empty
                         <p class="text-muted">No contacts found.</p>
@@ -174,42 +166,6 @@
             @endif
         </div>
 
-    </div>
-</div>
-
-
-<!-- UPLOAD MODAL ONLY -->
-<div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form 
-            action="{{ route('contacts.import') }}" 
-            method="POST" 
-            enctype="multipart/form-data"
-            class="modal-content"
-        >
-            @csrf
-
-            <div class="modal-header bg-black text-gold">
-                <h5 class="modal-title">Upload Contacts File</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <label class="form-label">Choose CSV or Excel file</label>
-                <input 
-                    type="file"
-                    name="file"
-                    class="form-control"
-                    accept=".csv, .xlsx, .xls"
-                    required
-                >
-            </div>
-
-            <div class="modal-footer">
-                <button type="submit" class="btn-gold">Upload</button>
-            </div>
-
-        </form>
     </div>
 </div>
 
