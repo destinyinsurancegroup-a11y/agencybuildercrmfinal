@@ -77,12 +77,9 @@
                     >
                 </form>
 
-                <!-- Add / Import buttons -->
+                <!-- Add button ONLY -->
                 <div class="d-flex gap-2 mb-3">
                     <a href="{{ route('contacts.create') }}" class="btn btn-sm btn-primary">+ Add</a>
-                    <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#importModal">
-                        Import CSV
-                    </button>
                 </div>
 
                 <!-- Contact List -->
@@ -107,41 +104,12 @@
             @if(isset($selected) && $selected)
                 @include('contacts.partials.detail', ['contact' => $selected])
             @else
-                <!-- Completely empty right panel (no spacing, no border, no text) -->
+                <!-- Completely empty right panel -->
                 <div class="empty-right-panel"></div>
             @endif
 
         </div>
 
-    </div>
-</div>
-
-<!-- Import CSV Modal -->
-<div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form 
-            action="{{ route('contacts.import') }}" 
-            method="POST" 
-            enctype="multipart/form-data"
-            class="modal-content"
-        >
-            @csrf
-
-            <div class="modal-header bg-black text-gold">
-                <h5 class="modal-title">Import Contacts</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <label class="form-label">Upload CSV or Excel file</label>
-                <input type="file" name="file" class="form-control" accept=".csv, .xlsx, .xls" required>
-            </div>
-
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Upload</button>
-            </div>
-
-        </form>
     </div>
 </div>
 
