@@ -10,7 +10,7 @@ class ContactsController extends Controller
     /**
      * Display the contacts index page (master-detail layout).
      * Shows the contacts list in the left panel.
-     * Optionally loads a selected contact in the right panel.
+     * Right panel stays empty until a contact is clicked.
      */
     public function index(Request $request)
     {
@@ -29,17 +29,27 @@ class ContactsController extends Controller
     }
 
     /**
-     * Display selected contact inside the master-detail layout.
-     * Reuses the same index page but passes a selected contact.
+     * AJAX-enabled show() method
+     * Loads ONLY the right contact panel when requested via AJAX.
+     * Keeps full page fallback for direct URLs.
      */
-    public function show(Contact $contact, Request $request)
+    public function show(Request $request, $id)
     {
-        $contacts = Contact::orderBy('last_name')->get();
+        // ⚠️ TEMP tenant constraint — replace once auth is added
+        $tenantId = 1;
 
-        return view('contacts.index', [
-            'contacts' => $contacts,
-            'selected' => $contact
-        ]);
+        // Tenant-safe contact lookup
+        $contact = Contact::where('tenant_id', $tenantId)
+            ->where('id', $id)
+            ->firstOrFail();
+
+        // 🟡 If AJAX → return ONLY the right-side panel HTML partial
+        if ($request->ajax()) {
+            return view('contacts.partials.details', compact('contact'));
+        }
+
+        // 🔵 Fallback → full page for direct access (not used in AJAX workflow)
+        return view('contacts.show', compact('contact'));
     }
 
     /**
