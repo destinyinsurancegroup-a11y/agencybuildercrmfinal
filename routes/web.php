@@ -13,7 +13,7 @@ Route::get('/calendar/events', function () {
     } catch (\Throwable $e) {
         return response()->json([
             'error' => true,
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
         ], 500);
     }
 });
@@ -24,15 +24,15 @@ Route::get('/calendar/events', function () {
 Route::post('/calendar/events', function (Request $request) {
     try {
         $data = $request->validate([
-            'title'     => 'required|string',
-            'start'     => 'required|string',
-            'location'  => 'nullable|string',
+            'title'    => 'required|string',
+            'start'    => 'required|string',
+            'location' => 'nullable|string',
         ]);
 
         $event = Event::create([
             'title'      => $data['title'],
             'start'      => $data['start'],
-            'end'        => $data['start'], // You are not using "end" currently
+            'end'        => $data['start'], // you aren't using "end" yet
             'location'   => $data['location'] ?? null,
             'tenant_id'  => 1,
             'created_by' => 1,
@@ -43,7 +43,7 @@ Route::post('/calendar/events', function (Request $request) {
     } catch (\Throwable $e) {
         return response()->json([
             'error' => true,
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
         ], 500);
     }
 });
@@ -54,9 +54,9 @@ Route::post('/calendar/events', function (Request $request) {
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
     try {
         $data = $request->validate([
-            'title'     => 'required|string',
-            'start'     => 'required|string',
-            'location'  => 'nullable|string',
+            'title'    => 'required|string',
+            'start'    => 'required|string',
+            'location' => 'nullable|string',
         ]);
 
         $event = Event::findOrFail($id);
@@ -64,19 +64,19 @@ Route::put('/calendar/events/{id}', function (Request $request, $id) {
         $event->update([
             'title'    => $data['title'],
             'start'    => $data['start'],
-            'end'      => $data['start'], // still matching your UI logic
+            'end'      => $data['start'],
             'location' => $data['location'] ?? null,
         ]);
 
         return response()->json([
             'success' => true,
-            'event'   => $event
+            'event'   => $event,
         ]);
 
     } catch (\Throwable $e) {
         return response()->json([
             'error' => true,
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
         ], 500);
     }
 });
@@ -90,13 +90,13 @@ Route::delete('/calendar/events/{id}', function ($id) {
         $event->delete();
 
         return response()->json([
-            'success' => true
+            'success' => true,
         ]);
 
     } catch (\Throwable $e) {
         return response()->json([
             'error' => true,
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
         ], 500);
     }
 });
