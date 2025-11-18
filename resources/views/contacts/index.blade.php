@@ -45,7 +45,7 @@
         font-weight: 600;
     }
 
-    /* Completely remove placeholder spacing */
+    /* Remove blank right panel spacing */
     .empty-right-panel {
         padding: 0 !important;
         margin: 0 !important;
@@ -54,6 +54,25 @@
         border: none !important;
         box-shadow: none !important;
     }
+
+    /* NEW — Dashboard-style gold button */
+    .btn-gold {
+        background: #c9a227;
+        color: #111827;
+        border: none;
+        padding: 8px 14px;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        text-transform: uppercase;
+        font-size: 13px;
+    }
+
+    .btn-gold:hover {
+        background: #b5901f;
+        color: #111;
+    }
+
 </style>
 
 <div class="dashboard-page">
@@ -77,9 +96,17 @@
                     >
                 </form>
 
-                <!-- Add button ONLY -->
+                <!-- Dashboard-style Buttons -->
                 <div class="d-flex gap-2 mb-3">
-                    <a href="{{ route('contacts.create') }}" class="btn btn-sm btn-primary">+ Add</a>
+                    <a href="{{ route('contacts.create') }}" class="btn-gold">+ Add</a>
+
+                    <button 
+                        class="btn-gold"
+                        data-bs-toggle="modal"
+                        data-bs-target="#uploadModal"
+                    >
+                        Upload File
+                    </button>
                 </div>
 
                 <!-- Contact List -->
@@ -87,7 +114,7 @@
                     @forelse ($contacts as $contact)
                         <a href="{{ route('contacts.show', $contact->id) }}"
                             class="contact-list-item
-                                {{ isset($selected) && $selected && $selected->id === $contact->id ? 'contact-selected' : '' }}">
+                                {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
                             {{ $contact->full_name }}
                         </a>
                     @empty
@@ -100,16 +127,49 @@
 
         <!-- RIGHT COLUMN — CONTACT DETAILS -->
         <div class="col-md-8 col-lg-9">
-
             @if(isset($selected) && $selected)
                 @include('contacts.partials.detail', ['contact' => $selected])
             @else
-                <!-- Completely empty right panel -->
                 <div class="empty-right-panel"></div>
             @endif
-
         </div>
 
+    </div>
+</div>
+
+
+<!-- UPLOAD MODAL -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form 
+            action="{{ route('contacts.import') }}" 
+            method="POST" 
+            enctype="multipart/form-data"
+            class="modal-content"
+        >
+            @csrf
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title">Upload Contacts File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <label class="form-label">Choose CSV or Excel file</label>
+                <input 
+                    type="file" 
+                    name="file" 
+                    class="form-control"
+                    accept=".csv, .xlsx, .xls"
+                    required
+                >
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Upload</button>
+            </div>
+
+        </form>
     </div>
 </div>
 
