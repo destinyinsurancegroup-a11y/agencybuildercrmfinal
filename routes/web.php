@@ -47,11 +47,6 @@ Route::resource('contacts', ContactsController::class);
 Route::post('/contacts/import', [ContactsController::class, 'import'])
     ->name('contacts.import');
 
-// ⭐ NEW: Add Note (Step 5A)
-Route::post('/contacts/{id}/notes', [ContactsController::class, 'addNote'])
-    ->name('contacts.addNote');
-
-
 /*
 |--------------------------------------------------------------------------
 | CALENDAR PAGE (STATIC VIEW)
