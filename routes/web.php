@@ -28,23 +28,18 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 |--------------------------------------------------------------------------
 | CONTACTS (FULL CRUD)
 |--------------------------------------------------------------------------
-| This REPLACES the temporary static contacts route you had before.
-| It does NOT affect Calendar or Dashboard in any way.
-|
 | IMPORTANT:
-| Remove the old static route:
-|     Route::get('/contacts', function () { return view('contacts.index'); });
-|
-| This static route would have blocked the correct controller.
+| We REMOVE the old static route and replace it with resource routes.
+| This does NOT interfere with Dashboard or Calendar.
 |--------------------------------------------------------------------------
 */
 
-// REMOVE this old route (commented out so you can see it):
+// REMOVE THIS OLD ROUTE (IT CAUSES THE 404):
 // Route::get('/contacts', function () {
 //     return view('contacts.index');
 // });
 
-// Correct, full CRUD routes:
+// Correct Contacts CRUD routes:
 Route::resource('contacts', ContactsController::class);
 
 /*
@@ -61,7 +56,6 @@ Route::get('/calendar', function () {
 | CALENDAR API ROUTES (COMPLETE + FIXED)
 |--------------------------------------------------------------------------
 | These routes handle: fetch, create, update, delete events.
-| Fully compatible with your current working FullCalendar v6 setup.
 |--------------------------------------------------------------------------
 */
 
@@ -93,7 +87,7 @@ Route::post('/calendar/events', function (Request $request) {
         $event = Event::create([
             'title'      => $data['title'],
             'start'      => $data['start'],
-            'end'        => $data['start'], // end not used yet
+            'end'        => $data['start'],
             'location'   => $data['location'] ?? null,
             'tenant_id'  => 1,
             'created_by' => 1,
