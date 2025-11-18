@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
 use App\Models\Event;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ContactsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,16 +26,30 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 
 /*
 |--------------------------------------------------------------------------
-| CONTACTS
+| CONTACTS (FULL CRUD)
+|--------------------------------------------------------------------------
+| This REPLACES the temporary static contacts route you had before.
+| It does NOT affect Calendar or Dashboard in any way.
+|
+| IMPORTANT:
+| Remove the old static route:
+|     Route::get('/contacts', function () { return view('contacts.index'); });
+|
+| This static route would have blocked the correct controller.
 |--------------------------------------------------------------------------
 */
-Route::get('/contacts', function () {
-    return view('contacts.index');
-});
+
+// REMOVE this old route (commented out so you can see it):
+// Route::get('/contacts', function () {
+//     return view('contacts.index');
+// });
+
+// Correct, full CRUD routes:
+Route::resource('contacts', ContactsController::class);
 
 /*
 |--------------------------------------------------------------------------
-| CALENDAR PAGE
+| CALENDAR PAGE (STATIC VIEW)
 |--------------------------------------------------------------------------
 */
 Route::get('/calendar', function () {
@@ -46,7 +61,7 @@ Route::get('/calendar', function () {
 | CALENDAR API ROUTES (COMPLETE + FIXED)
 |--------------------------------------------------------------------------
 | These routes handle: fetch, create, update, delete events.
-| Now include support for: location
+| Fully compatible with your current working FullCalendar v6 setup.
 |--------------------------------------------------------------------------
 */
 
