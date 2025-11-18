@@ -8,6 +8,15 @@ use App\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
+| TEMPORARY PLACEHOLDER LOGIN ROUTE (Fix for "Route [login] not defined")
+|--------------------------------------------------------------------------
+*/
+Route::get('/login', function () {
+    return 'LOGIN PAGE COMING SOON';
+})->name('login');
+
+/*
+|--------------------------------------------------------------------------
 | TEST ROUTE
 |--------------------------------------------------------------------------
 */
