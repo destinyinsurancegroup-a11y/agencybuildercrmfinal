@@ -97,8 +97,7 @@
         background: #f9fafb;
     }
 
-    .contact-selected,
-    .active-contact-row {
+    .contact-selected {
         background: #eae6d1 !important;
         font-weight: 600;
     }
@@ -151,15 +150,13 @@
                     </button>
                 </div>
 
-                <!-- Contact List (NOW AJAX ENABLED) -->
+                <!-- Contact List -->
                 <div>
                     @forelse ($contacts as $contact)
-                        <div 
-                            class="contact-list-item js-contact-row"
-                            data-contact-url="{{ route('contacts.show', $contact->id) }}"
-                        >
-                            {{ $contact->full_name }}
-                        </div>
+                        <a href="{{ route('contacts.show', $contact->id) }}"
+                           class="contact-list-item {{ isset($selected) && $selected->id === $contact->id ? 'contact-selected' : '' }}">
+                           {{ $contact->full_name }}
+                        </a>
                     @empty
                         <p class="text-muted">No contacts found.</p>
                     @endforelse
@@ -170,12 +167,11 @@
 
         <!-- RIGHT COLUMN -->
         <div class="col-md-8 col-lg-9">
-
-            <!-- AJAX will load details here -->
-            <div id="contact-details-container">
+            @if(isset($selected) && $selected)
+                @include('contacts.partials.detail', ['contact' => $selected])
+            @else
                 <div class="empty-right-panel"></div>
-            </div>
-
+            @endif
         </div>
 
     </div>
@@ -218,51 +214,3 @@
 </div>
 
 @endsection
-
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-
-    const rows = document.querySelectorAll('.js-contact-row');
-    const container = document.getElementById('contact-details-container');
-
-    rows.forEach(row => {
-        row.addEventListener('click', function () {
-
-            // Remove highlight + activate clicked row
-            rows.forEach(r => r.classList.remove('active-contact-row'));
-            this.classList.add('active-contact-row');
-
-            const url = this.dataset.contactUrl;
-
-            // Loading animation
-            container.innerHTML = `
-                <div class="card" style="padding:40px; text-align:center;">
-                    <div class="spinner-border text-warning" role="status"></div>
-                    <p class="mt-3 text-muted">Loading contact...</p>
-                </div>
-            `;
-
-            // AJAX call
-            fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(res => res.text())
-            .then(html => {
-                container.innerHTML = html;
-            })
-            .catch(err => {
-                container.innerHTML = `
-                    <div class="card" style="padding:40px; text-align:center; color:red;">
-                        Failed to load contact details.
-                    </div>
-                `;
-            });
-
-        });
-    });
-
-});
-</script>
-@endpush
