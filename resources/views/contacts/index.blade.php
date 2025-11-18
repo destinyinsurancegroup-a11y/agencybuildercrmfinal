@@ -2,69 +2,111 @@
 
 @section('content')
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-3">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="text-gold fw-bold m-0">All Contacts</h1>
+    <div class="row">
+        
+        <!-- LEFT COLUMN — CONTACT LIST -->
+        <div class="col-md-4 col-lg-3">
 
-        <a href="{{ route('contacts.create') }}" class="btn btn-primary">
-            + Add Contact
-        </a>
-    </div>
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center">
+                    <span>Contacts</span>
+                    <div>
+                        <a href="{{ route('contacts.create') }}" class="btn btn-sm btn-primary">+ Add</a>
+                        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#importModal">Import</button>
+                    </div>
+                </div>
 
-    <!-- Contacts Table Container -->
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
+                <div class="p-3">
+                    <!-- SEARCH BAR (same style as Dashboard) -->
+                    <form>
+                        <input 
+                            type="text" 
+                            name="search" 
+                            value="{{ request('search') }}"
+                            class="form-control"
+                            placeholder="Search contacts..."
+                        >
+                    </form>
+                </div>
 
-            <table class="table table-hover mb-0">
-                <thead class="bg-dark text-gold">
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th style="width: 120px;">Actions</th>
-                    </tr>
-                </thead>
-
-                <tbody class="align-middle">
-                    @forelse($contacts as $contact)
-                        <tr>
-                            <td class="fw-semibold">{{ $contact->full_name }}</td>
-                            <td>{{ $contact->email }}</td>
-                            <td>{{ $contact->phone }}</td>
-                            <td>{{ $contact->contact_type }}</td>
-                            <td>{{ $contact->status }}</td>
-                            <td>
-                                <div class="btn-group">
-
-                                    <a href="{{ route('contacts.show', $contact->id) }}"
-                                       class="btn btn-sm btn-outline-dark">
-                                        View
-                                    </a>
-
-                                    <a href="{{ route('contacts.edit', $contact->id) }}"
-                                       class="btn btn-sm btn-outline-dark">
-                                        Edit
-                                    </a>
-
-                                </div>
-                            </td>
-                        </tr>
+                <!-- CONTACT LIST -->
+                <div class="list-group list-group-flush" style="height: calc(100vh - 220px); overflow-y: auto;">
+                    @forelse ($contacts as $contact)
+                        <a 
+                            href="{{ route('contacts.show', $contact->id) }}"
+                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                        >
+                            <span class="fw-semibold">{{ $contact->full_name }}</span>
+                        </a>
                     @empty
-                        <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                No contacts found.
-                            </td>
-                        </tr>
+                        <div class="p-3 text-muted">
+                            No contacts found.
+                        </div>
                     @endforelse
-                </tbody>
-            </table>
+                </div>
+
+            </div>
+        </div>
+
+
+
+        <!-- RIGHT COLUMN — CONTACT DETAIL -->
+        <div class="col-md-8 col-lg-9">
+
+            @if(isset($selected))
+                @include('contacts.partials.detail', ['contact' => $selected])
+            @else
+                <div class="h-100 d-flex justify-content-center align-items-center text-muted" style="min-height: 60vh;">
+                    <p>Select a contact from the left to view details.</p>
+                </div>
+            @endif
 
         </div>
+
     </div>
 
+</div>
+
+
+
+<!-- IMPORT MODAL -->
+<div class="modal fade" id="importModal" tabindex="-1">
+  <div class="modal-dialog">
+      <form 
+        action="{{ route('contacts.import') }}" 
+        method="POST" 
+        enctype="multipart/form-data"
+        class="modal-content"
+      >
+        @csrf
+
+        <div class="modal-header bg-black text-gold">
+            <h5 class="modal-title">Import Contacts</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+            <p class="text-muted mb-2">Upload a CSV or Excel file with contact data.</p>
+
+            <input 
+                type="file" 
+                name="file" 
+                class="form-control" 
+                accept=".csv, .xlsx, .xls"
+                required
+            >
+
+        </div>
+
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </div>
+
+      </form>
+  </div>
 </div>
 
 @endsection
