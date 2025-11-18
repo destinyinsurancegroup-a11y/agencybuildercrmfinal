@@ -12,9 +12,11 @@ class ContactsController extends Controller
      */
     public function index(Request $request)
     {
-        // For now just load the view.
-        // Later we can add search, pagination, etc.
-        return view('contacts.index');
+        // Load contacts from database
+        $contacts = Contact::orderBy('last_name')->get();
+
+        // Pass data to the view
+        return view('contacts.index', compact('contacts'));
     }
 
     /**
@@ -30,7 +32,7 @@ class ContactsController extends Controller
      */
     public function store(Request $request)
     {
-        // Placeholder — we will implement after your views are ready.
+        // (Create logic will be added soon)
     }
 
     /**
@@ -54,7 +56,7 @@ class ContactsController extends Controller
      */
     public function update(Request $request, Contact $contact)
     {
-        // Placeholder — we will implement soon.
+        // (Update logic will be added soon)
     }
 
     /**
@@ -62,6 +64,6 @@ class ContactsController extends Controller
      */
     public function destroy(Contact $contact)
     {
-        // Placeholder — we will implement soon.
+        // (Delete logic will be added soon)
     }
 }
