@@ -64,7 +64,7 @@
             padding: 25px;
         }
 
-        /* TAB BUTTONS */
+        /* TAB BUTTONS (Day/Week/Month/Quarter/Year) */
         .tab-button {
             padding: 6px 14px;
             border-radius: 20px;
@@ -82,7 +82,7 @@
             font-weight: 600;
         }
 
-        /* CARDS */
+        /* Cards stay the same */
         .content-box {
             background: #fff;
             padding: 25px;
@@ -116,7 +116,7 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- MAIN CONTENT -->
+    <!-- MAIN CONTENT AREA -->
     <div class="main-content">
         @yield('content')
     </div>
@@ -144,9 +144,6 @@
             }
         });
     </script>
-
-    <!-- ✅ REQUIRED: BOOTSTRAP JS FOR MODALS (Fixes upload controls appearing at page bottom) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
