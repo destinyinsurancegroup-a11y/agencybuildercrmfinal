@@ -226,7 +226,6 @@
                 </div>
             </div>
 
-            {{-- TABLES (unchanged) --}}
             <div class="dashboard-card-body production-stats">
 
                 <div class="production-range production-range-active" data-production-range="day">
@@ -300,10 +299,22 @@
                 </div>
             </div>
             <div class="dashboard-card-body">
-                <ul class="dashboard-list">
-                    <li>--</li>
-                    <li>--</li>
-                </ul>
+                @if($events->isEmpty())
+                    <ul class="dashboard-list">
+                        <li>No upcoming appointments.</li>
+                    </ul>
+                @else
+                    <ul class="dashboard-list">
+                        @foreach($events as $event)
+                            <li>
+                                <strong>{{ $event->title }}</strong><br>
+                                <span style="color: var(--text-faint); font-size: 13px;">
+                                    {{ \Carbon\Carbon::parse($event->start)->format('M j, g:i A') }}
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
 
