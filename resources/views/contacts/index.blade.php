@@ -2,7 +2,10 @@
 
 @section('content')
 
-<div class="container py-4">
+<!-- FIX: wrap content so it aligns like the dashboard -->
+<div class="content p-4" style="margin-left: 250px;">
+
+<div class="container-fluid py-4">
 
     <div class="row g-4">
 
@@ -87,43 +90,6 @@
 
 </div>
 
-
-<!-- IMPORT MODAL -->
-<div class="modal fade" id="importModal" tabindex="-1">
-  <div class="modal-dialog">
-      <form 
-        action="{{ route('contacts.import') }}" 
-        method="POST" 
-        enctype="multipart/form-data"
-        class="modal-content"
-      >
-        @csrf
-
-        <div class="modal-header bg-black text-gold">
-            <h5 class="modal-title">Import Contacts</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-
-            <p class="text-muted mb-2">Upload a CSV or Excel file with contact data.</p>
-
-            <input 
-                type="file" 
-                name="file" 
-                class="form-control" 
-                accept=".csv, .xlsx, .xls"
-                required
-            >
-
-        </div>
-
-        <div class="modal-footer">
-            <button type="submit" class="btn btn-primary">Upload</button>
-        </div>
-
-      </form>
-  </div>
-</div>
+</div> <!-- END OF WRAPPER FIX -->
 
 @endsection
