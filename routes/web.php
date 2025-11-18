@@ -8,15 +8,6 @@ use App\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
-| TEMPORARY PLACEHOLDER LOGIN ROUTE (Fix for "Route [login] not defined")
-|--------------------------------------------------------------------------
-*/
-Route::get('/login', function () {
-    return 'LOGIN PAGE COMING SOON';
-})->name('login');
-
-/*
-|--------------------------------------------------------------------------
 | TEST ROUTE
 |--------------------------------------------------------------------------
 */
@@ -26,19 +17,16 @@ Route::get('/test', function () {
 
 /*
 |--------------------------------------------------------------------------
-| DASHBOARD (Uses DashboardController@index)
+| DASHBOARD (NO AUTH REQUIRED)
 |--------------------------------------------------------------------------
 |
-| This route displays the dashboard and loads events from the controller.
+| This route displays the dashboard using the DashboardController@index
+| WITHOUT requiring login or authentication.
 |
 */
-Route::get('/', [DashboardController::class, 'index'])
-    ->middleware(['auth'])
-    ->name('home');
+Route::get('/', [DashboardController::class, 'index'])->name('home');
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth'])
-    ->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 /*
 |--------------------------------------------------------------------------
