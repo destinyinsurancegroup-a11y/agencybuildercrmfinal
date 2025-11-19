@@ -64,35 +64,40 @@
 
         {{-- TABS --}}
         <ul class="nav nav-tabs" id="contactDetailTabs" style="font-weight:600;">
+
             <li class="nav-item">
-                <button class="nav-link active"
-                        data-tab="details"
-                        data-contact-id="{{ $contact->id }}">
+                <a href="#" 
+                   class="nav-link active"
+                   data-tab="details"
+                   data-contact-id="{{ $contact->id }}">
                     Details
-                </button>
+                </a>
             </li>
 
             <li class="nav-item">
-                <button class="nav-link"
-                        data-tab="notes"
-                        data-contact-id="{{ $contact->id }}">
+                <a href="#"
+                   class="nav-link"
+                   data-tab="notes"
+                   data-contact-id="{{ $contact->id }}">
                     Notes
-                </button>
+                </a>
             </li>
 
             <li class="nav-item">
-                <button class="nav-link"
-                        data-tab="documents"
-                        data-contact-id="{{ $contact->id }}">
+                <a href="#"
+                   class="nav-link"
+                   data-tab="documents"
+                   data-contact-id="{{ $contact->id }}">
                     Documents
-                </button>
+                </a>
             </li>
+
         </ul>
 
-        {{-- TAB CONTENT AREA --}}
+        {{-- TAB CONTENT OUTPUT --}}
         <div id="contact-tab-content" class="pt-3">
 
-            {{-- DEFAULT: DETAILS TAB CONTENT --}}
+            {{-- DETAILS TAB IS DEFAULT --}}
             <div id="details-content">
                 <h5 class="fw-bold mb-2">Additional Details</h5>
                 <p class="text-muted">More custom contact details or policy info can go here.</p>
@@ -108,20 +113,21 @@
 
 /*
 |--------------------------------------------------------------------------
-| TAB CLICK HANDLING (AJAX LOADING)
+| CONTACT DETAILS — TAB CLICK HANDLER (AJAX)
 |--------------------------------------------------------------------------
 */
+
 $(document).on('click', '[data-tab]', function(e) {
     e.preventDefault();
 
     const tab = $(this).data('tab');
     const contactId = $(this).data('contact-id');
 
-    // Remove active class from all tab buttons
+    // Activate the clicked tab visually
     $('[data-tab]').removeClass('active');
     $(this).addClass('active');
 
-    // Handle tab switching
+    // DETAILS TAB
     if (tab === 'details') {
         $('#contact-tab-content').html(`
             <div id="details-content">
@@ -131,11 +137,13 @@ $(document).on('click', '[data-tab]', function(e) {
         `);
     }
 
+    // NOTES TAB
     if (tab === 'notes') {
         $('#contact-tab-content').html('<p class="text-muted">Loading notes...</p>');
         $('#contact-tab-content').load(`/contacts/${contactId}/notes`);
     }
 
+    // DOCUMENTS TAB (placeholder)
     if (tab === 'documents') {
         $('#contact-tab-content').html(`
             <h5 class="fw-bold mb-2">Documents</h5>
