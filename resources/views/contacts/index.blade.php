@@ -135,10 +135,6 @@
                 <!-- Add Contact (AJAX) + Upload -->
                 <div class="button-row">
 
-                    <!-- REPLACED THIS BUTTON -->
-                    <!-- <a href="{{ route('contacts.create') }}" class="btn-gold">Add Contacts</a> -->
-
-                    <!-- NEW AJAX BUTTON -->
                     <button 
                         id="add-contact-btn"
                         class="btn-gold"
@@ -156,7 +152,7 @@
                     </button>
                 </div>
 
-                <!-- Contact List (AJAX ENABLED) -->
+                <!-- Contact List -->
                 <div>
                     @forelse ($contacts as $contact)
                         <div 
@@ -173,9 +169,9 @@
             </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT PANEL (FIXED WIDTH/HEIGHT) -->
         <div class="col-md-8 col-lg-9">
-            <div id="contact-details-container">
+            <div id="contact-details-container" style="width:100%; min-height:400px;">
                 <div class="empty-right-panel"></div>
             </div>
         </div>
@@ -224,70 +220,57 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', () => {
 
-    const rows = document.querySelectorAll('.js-contact-row');
     const container = document.getElementById('contact-details-container');
 
-    /* -------------------------------------------------------
-       LOAD SELECTED CONTACT (RIGHT PANEL)
-    ------------------------------------------------------- */
-    rows.forEach(row => {
-        row.addEventListener('click', function () {
-
-            // Remove highlight + activate clicked row
-            rows.forEach(r => r.classList.remove('active-contact-row'));
-            this.classList.add('active-contact-row');
-
-            const url = this.dataset.contactUrl;
-
-            container.innerHTML = `
-                <div class="card" style="padding:40px; text-align:center;">
-                    <div class="spinner-border text-warning" role="status"></div>
-                    <p class="mt-3 text-muted">Loading contact...</p>
-                </div>
-            `;
-
-            fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(res => res.text())
-            .then(html => container.innerHTML = html)
-            .catch(() => container.innerHTML =
-                `<div class="card" style="padding:40px; text-align:center; color:red;">
-                    Failed to load contact.
-                </div>`
-            );
-        });
-    });
-
-
-    /* -------------------------------------------------------
-       LOAD CREATE FORM INTO RIGHT PANEL (AJAX)
-    ------------------------------------------------------- */
-    const addBtn = document.getElementById('add-contact-btn');
-
-    addBtn.addEventListener('click', function () {
-
-        const url = this.dataset.createUrl;
+    function loadPanel(url) {
 
         container.innerHTML = `
-            <div class="card" style="padding:40px; text-align:center;">
+            <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
-                <p class="mt-3 text-muted">Loading form...</p>
+                <p class="mt-3 text-muted">Loading...</p>
             </div>
         `;
 
         fetch(url, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
         })
         .then(res => res.text())
-        .then(html => container.innerHTML = html)
-        .catch(() => container.innerHTML =
-            `<div class="card" style="padding:40px; text-align:center; color:red;">
-                Failed to load form.
-            </div>`
-        );
+        .then(html => {
+            console.log("Loaded HTML:", html);
+            container.innerHTML = html;
+            container.style.display = "block";
+        })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = `
+                <div style="padding:40px; text-align:center; color:red;">
+                    Failed to load.
+                </div>
+            `;
+        });
+    }
+
+    /* ----- Load Contact Details ----- */
+    document.querySelectorAll('.js-contact-row').forEach(row => {
+        row.addEventListener('click', () => {
+
+            document
+                .querySelectorAll('.js-contact-row')
+                .forEach(r => r.classList.remove('active-contact-row'));
+
+            row.classList.add('active-contact-row');
+
+            loadPanel(row.dataset.contactUrl);
+        });
+    });
+
+    /* ----- Load Create Form ----- */
+    const addBtn = document.getElementById('add-contact-btn');
+
+    addBtn.addEventListener('click', () => {
+        loadPanel(addBtn.dataset.createUrl);
     });
 
 });
