@@ -93,7 +93,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Show full-page edit form.
+     * Show full-page edit form (styled, not AJAX).
      */
     public function edit(Contact $contact)
     {
@@ -101,7 +101,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update contact (redirects to contact detail page).
+     * Update contact and redirect to the contact page.
      */
     public function update(Request $request, Contact $contact)
     {
@@ -131,7 +131,7 @@ class ContactsController extends Controller
         // Update record
         $contact->update($validated);
 
-        // Redirect back to this contact's detail card
+        // Redirect back to the updated contact's detail page
         return redirect()
             ->route('contacts.show', $contact->id)
             ->with('success', 'Contact updated successfully.');
