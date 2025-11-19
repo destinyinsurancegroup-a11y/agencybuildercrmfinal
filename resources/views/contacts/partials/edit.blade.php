@@ -1,120 +1,78 @@
-<div class="bg-white shadow rounded-lg p-6">
+<div class="p-4">
 
-    {{-- Title --}}
-    <h2 class="text-2xl font-bold mb-6">Edit Contact</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">{{ $contact->full_name }}</h2>
+    </div>
 
-    <form id="edit-contact-form" data-id="{{ $contact->id }}" class="space-y-10">
-
+    <form id="edit-contact-form" data-id="{{ $contact->id }}">
         @csrf
 
-        {{-- BASIC INFORMATION --}}
-        <div>
-            <h3 class="font-semibold text-xl mb-3">Basic Information</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                <div>
-                    <label class="block text-sm mb-1">First Name</label>
-                    <input type="text" name="first_name" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->first_name }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">Last Name</label>
-                    <input type="text" name="last_name" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->last_name }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">Email</label>
-                    <input type="email" name="email" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->email }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">Phone</label>
-                    <input type="text" name="phone" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->phone }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">Contact Type</label>
-                    <input type="text" name="contact_type" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->contact_type }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">Status</label>
-                    <input type="text" name="status" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->status }}">
-                </div>
+        {{-- Email + Phone --}}
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="text-muted">Email</label>
+                <input type="email" name="email" class="form-control" value="{{ $contact->email }}">
+            </div>
+            <div class="col-md-6">
+                <label class="text-muted">Phone</label>
+                <input type="text" name="phone" class="form-control" value="{{ $contact->phone }}">
             </div>
         </div>
 
-        {{-- ADDRESS --}}
-        <div>
-            <h3 class="font-semibold text-xl mb-3">Address</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                <div class="md:col-span-2">
-                    <label class="block text-sm mb-1">Address Line 1</label>
-                    <input type="text" name="address_line1" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->address_line1 }}">
-                </div>
-
-                <div class="md:col-span-2">
-                    <label class="block text-sm mb-1">Address Line 2</label>
-                    <input type="text" name="address_line2" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->address_line2 }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">City</label>
-                    <input type="text" name="city" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->city }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">State</label>
-                    <input type="text" name="state" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->state }}">
-                </div>
-
-                <div>
-                    <label class="block text-sm mb-1">Postal Code</label>
-                    <input type="text" name="postal_code" class="w-full border rounded px-3 py-2"
-                           value="{{ $contact->postal_code }}">
-                </div>
+        {{-- Contact Type + Status --}}
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="text-muted">Contact Type</label>
+                <input type="text" name="contact_type" class="form-control" value="{{ $contact->contact_type }}">
+            </div>
+            <div class="col-md-6">
+                <label class="text-muted">Status</label>
+                <input type="text" name="status" class="form-control" value="{{ $contact->status }}">
             </div>
         </div>
 
-
-        {{-- NOTES --}}
-        <div>
-            <h3 class="font-semibold text-xl mb-3">Notes</h3>
-
-            <textarea
-                name="notes"
-                class="w-full border rounded px-3 py-2 h-32"
-            >{{ $contact->notes }}</textarea>
+        {{-- Address --}}
+        <div class="mb-3">
+            <label class="text-muted">Address Line 1</label>
+            <input type="text" name="address_line1" class="form-control" value="{{ $contact->address_line1 }}">
         </div>
 
+        <div class="mb-3">
+            <label class="text-muted">Address Line 2</label>
+            <input type="text" name="address_line2" class="form-control" value="{{ $contact->address_line2 }}">
+        </div>
 
-        {{-- SUBMIT BUTTON --}}
-        <button type="submit"
-            class="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-6 py-2 rounded">
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="text-muted">City</label>
+                <input type="text" name="city" class="form-control" value="{{ $contact->city }}">
+            </div>
+            <div class="col-md-4">
+                <label class="text-muted">State</label>
+                <input type="text" name="state" class="form-control" value="{{ $contact->state }}">
+            </div>
+            <div class="col-md-4">
+                <label class="text-muted">Postal Code</label>
+                <input type="text" name="postal_code" class="form-control" value="{{ $contact->postal_code }}">
+            </div>
+        </div>
+
+        {{-- Notes --}}
+        <div class="mb-4">
+            <label class="text-muted">Notes</label>
+            <textarea name="notes" rows="4" class="form-control">{{ $contact->notes }}</textarea>
+        </div>
+
+        <button type="submit" class="btn fw-bold"
+                style="background:#c9a227; color:#111827; border:none; border-radius:8px; padding:10px 20px;">
             Save Changes
         </button>
-
     </form>
 </div>
 
-
-{{-- AJAX UPDATE SCRIPT --}}
 @push('scripts')
 <script>
-$(document).on('submit', '#edit-contact-form', function (e) {
+$(document).on('submit', '#edit-contact-form', function(e) {
     e.preventDefault();
 
     let id = $(this).data('id');
@@ -124,14 +82,13 @@ $(document).on('submit', '#edit-contact-form', function (e) {
         url: '/contacts/' + id,
         type: 'PUT',
         data: formData,
-        success: function () {
-            // Reload updated details panel
-            $.get('/contacts/' + id, function (html) {
+        success: function() {
+            $.get('/contacts/' + id, function(html) {
                 $('#contact-details-container').html(html);
             });
         },
-        error: function () {
-            alert('Error updating contact.');
+        error: function() {
+            alert("Error updating contact.");
         }
     });
 });
