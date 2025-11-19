@@ -31,10 +31,10 @@ class ContactsController extends Controller
         ]);
     }
 
-
     /**
      * AJAX contact loader for right panel.
      * Always returns ONLY the partial that goes in the right pane.
+     * Route: GET /contacts/{id}
      */
     public function show(Request $request, $id)
     {
@@ -49,15 +49,25 @@ class ContactsController extends Controller
         return view('contacts.partials.details', compact('contact'));
     }
 
+    /**
+     * AJAX "create contact" panel loader.
+     * Returns ONLY the empty create form to display in the right pane.
+     * Route: GET /contacts-create-panel  (name: contacts.create.panel)
+     */
+    public function createAjax(Request $request)
+    {
+        // This will be rendered into the right-side panel via fetch()
+        return view('contacts.partials.create');
+    }
 
     /**
-     * Show standalone create form.
+     * Show standalone create form (legacy/full-page).
+     * Route: GET /contacts/create  (resource route)
      */
     public function create()
     {
         return view('contacts.create');
     }
-
 
     /**
      * Store a newly created contact.
@@ -90,12 +100,12 @@ class ContactsController extends Controller
         // Create contact
         $contact = Contact::create($validated);
 
-        // Redirect to master-detail with right panel active
+        // For now, redirect back to the main contacts page.
+        // (In a later step, we'll wire this to keep the right panel populated via AJAX.)
         return redirect()
-            ->route('contacts.show', $contact->id)
+            ->route('contacts.index')
             ->with('success', 'Contact created successfully.');
     }
-
 
     /**
      * Show edit form.
@@ -105,15 +115,14 @@ class ContactsController extends Controller
         return view('contacts.edit', compact('contact'));
     }
 
-
     /**
      * Update selected contact.
      */
     public function update(Request $request, Contact $contact)
     {
+        // Placeholder until we build the full update flow
         return back()->with('success', 'Update placeholder.');
     }
-
 
     /**
      * Delete a contact.
@@ -121,15 +130,18 @@ class ContactsController extends Controller
     public function destroy(Contact $contact)
     {
         $contact->delete();
-        return redirect()->route('contacts.index')->with('success', 'Contact deleted.');
-    }
 
+        return redirect()
+            ->route('contacts.index')
+            ->with('success', 'Contact deleted.');
+    }
 
     /**
      * Bulk CSV/Excel Import Handler (placeholder for now).
      */
     public function import(Request $request)
     {
+        // Placeholder until we implement real import logic
         return back()->with('success', 'Import placeholder working.');
     }
 }
