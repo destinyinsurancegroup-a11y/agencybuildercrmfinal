@@ -91,7 +91,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Load your existing working edit partial.
+     * Load the correct edit partial.
      */
     public function edit(Contact $contact)
     {
@@ -99,11 +99,11 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update contact and return to contact's detail page.
+     * Update contact and return to ALL CONTACTS page.
      */
     public function update(Request $request, Contact $contact)
     {
-        // Multi-tenant safety
+        // Multi-tenant security
         $tenantId = 1;
         if ($contact->tenant_id !== $tenantId) {
             abort(403, 'Unauthorized tenant access.');
@@ -126,12 +126,12 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Update contact
+        // Save the update
         $contact->update($validated);
 
-        // ✔ Return to the contact's detail page
+        // ✔ Return to ALL CONTACTS page
         return redirect()
-            ->route('contacts.show', $contact->id)
+            ->route('contacts.index')
             ->with('success', 'Contact updated successfully.');
     }
 
