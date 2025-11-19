@@ -8,6 +8,9 @@
     <!-- GOOGLE FONTS -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
+    <!-- ⭐ ADD BOOTSTRAP (CRITICAL FOR GRID LAYOUT) ⭐ -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <!-- GLOBAL STYLES -->
     <style>
         body {
@@ -21,7 +24,7 @@
         .sidebar {
             width: 250px;
             background-color: #000;
-            color: #D4AF37; /* TRUE GOLD */
+            color: #D4AF37;
             height: 100vh;
             position: fixed;
             top: 0;
@@ -29,20 +32,15 @@
             padding-top: 25px;
             border-right: 3px solid #D4AF37;
             text-align: center;
+            z-index: 10;
         }
 
-        /* LOGO */
         .sidebar-logo img {
             width: 200px;
             height: auto;
             margin-bottom: 15px;
         }
 
-        .sidebar h2 {
-            display: none;
-        }
-
-        /* NAV BUTTONS */
         .nav-item {
             padding: 14px 25px;
             font-size: 16px;
@@ -58,40 +56,10 @@
             cursor: pointer;
         }
 
-        /* MAIN CONTENT AREA */
+        /* ⭐ MAIN CONTENT FIX ⭐ */
         .main-content {
             margin-left: 250px;
             padding: 25px;
-        }
-
-        /* TAB BUTTONS */
-        .tab-button {
-            padding: 6px 14px;
-            border-radius: 20px;
-            border: 1px solid #ccc;
-            color: #333;
-            background: #f2f2f2;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .tab-button.active {
-            background-color: #D4AF37 !important;
-            color: #000 !important;
-            border-color: #D4AF37;
-            font-weight: 600;
-        }
-
-        /* Cards */
-        .content-box {
-            background: #fff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-
-        .header {
-            display: none;
         }
     </style>
 </head>
@@ -116,10 +84,15 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- MAIN CONTENT -->
+    <!-- ⭐ WRAP CONTENT IN BOOTSTRAP CONTAINER ⭐ -->
     <div class="main-content">
-        @yield('content')
+        <div class="container-fluid">
+            @yield('content')
+        </div>
     </div>
+
+    <!-- BOOTSTRAP JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- AUTO USER TIMEZONE FIX -->
     <script>
@@ -136,7 +109,6 @@
             });
         });
 
-        // TAB LOGIC
         document.addEventListener("click", (e) => {
             if (e.target.classList.contains("tab-button")) {
                 document.querySelectorAll(".tab-button").forEach(btn =>
@@ -147,7 +119,7 @@
         });
     </script>
 
-    {{-- ⭐⭐ CRITICAL LINE — allows AJAX scripts from contacts.index to run --}}
+    <!-- ⭐ REQUIRED FOR AJAX IN contacts.index ⭐ -->
     @stack('scripts')
 
 </body>
