@@ -18,8 +18,8 @@ class ContactsController extends Controller
             ->orderBy('last_name')
             ->when($request->search, function ($q) use ($request) {
                 $q->where('full_name', 'like', '%' . $request->search . '%')
-                  ->orWhere('email', 'like', '%' . $request->search . '%')
-                  ->orWhere('phone', 'like', '%' . $request->search . '%');
+                    ->orWhere('email', 'like', '%' . $request->search . '%')
+                    ->orWhere('phone', 'like', '%' . $request->search . '%');
             })
             ->get();
 
@@ -65,19 +65,19 @@ class ContactsController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name'  => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:50',
-            'contact_type' => 'nullable|string|max:50',
-            'status' => 'nullable|string|max:50',
-            'source' => 'nullable|string|max:100',
-            'address_line1' => 'nullable|string|max:255',
-            'address_line2' => 'nullable|string|max:255',
-            'city' => 'nullable|string|max:100',
-            'state' => 'nullable|string|max:50',
-            'postal_code' => 'nullable|string|max:20',
-            'notes' => 'nullable|string',
+            'first_name'     => 'required|string|max:255',
+            'last_name'      => 'required|string|max:255',
+            'email'          => 'nullable|email|max:255',
+            'phone'          => 'nullable|string|max:50',
+            'contact_type'   => 'nullable|string|max:50',
+            'status'         => 'nullable|string|max:50',
+            'source'         => 'nullable|string|max:100',
+            'address_line1'  => 'nullable|string|max:255',
+            'address_line2'  => 'nullable|string|max:255',
+            'city'           => 'nullable|string|max:100',
+            'state'          => 'nullable|string|max:50',
+            'postal_code'    => 'nullable|string|max:20',
+            'notes'          => 'nullable|string',
         ]);
 
         // Temporary tenant + creator
@@ -97,21 +97,52 @@ class ContactsController extends Controller
 
     /**
      * Show edit form (AJAX).
-     * FIXED: Load the partial view that actually exists.
+     * FIXED: Load the correct partial view.
      */
     public function edit(Contact $contact)
     {
         return view('contacts.partials.edit', compact('contact'));
     }
 
+
     /**
-     * Update selected contact.
-     * Placeholder for now.
+     * Update contact (AJAX-safe).
      */
     public function update(Request $request, Contact $contact)
     {
-        return back()->with('success', 'Update placeholder.');
+        // Multi-tenant security
+        $tenantId = 1;
+        if ($contact->tenant_id !== $tenantId) {
+            abort(403, 'Unauthorized tenant access.');
+        }
+
+        // Validation (same rules as store)
+        $validated = $request->validate([
+            'first_name'     => 'required|string|max:255',
+            'last_name'      => 'required|string|max:255',
+            'email'          => 'nullable|email|max:255',
+            'phone'          => 'nullable|string|max:50',
+            'contact_type'   => 'nullable|string|max:50',
+            'status'         => 'nullable|string|max:50',
+            'source'         => 'nullable|string|max:100',
+            'address_line1'  => 'nullable|string|max:255',
+            'address_line2'  => 'nullable|string|max:255',
+            'city'           => 'nullable|string|max:100',
+            'state'          => 'nullable|string|max:50',
+            'postal_code'    => 'nullable|string|max:20',
+            'notes'          => 'nullable|string',
+        ]);
+
+        // Update the record
+        $contact->update($validated);
+
+        // AJAX-safe response
+        return response()->json([
+            'success' => true,
+            'message' => 'Contact updated successfully.'
+        ]);
     }
+
 
     /**
      * Delete a contact.
