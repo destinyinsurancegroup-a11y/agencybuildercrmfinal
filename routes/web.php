@@ -40,6 +40,10 @@ Route::get('/all-contacts', function () {
     return redirect()->route('contacts.index');
 });
 
+// AJAX route → loads the EMPTY CREATE FORM into the right-side panel
+Route::get('/contacts-create-panel', [ContactsController::class, 'createAjax'])
+    ->name('contacts.create.panel');
+
 // Contacts CRUD
 Route::resource('contacts', ContactsController::class);
 
