@@ -147,7 +147,7 @@
         });
     </script>
 
-    {{-- ⭐⭐ CRITICAL LINE — loads JS from @push('scripts') in contacts.index --}}
+    {{-- ⭐⭐ CRITICAL LINE — allows AJAX scripts from contacts.index to run --}}
     @stack('scripts')
 
 </body>
