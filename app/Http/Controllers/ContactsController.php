@@ -52,7 +52,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Standalone full-page create (legacy).
+     * Standalone full-page create (legacy)
      */
     public function create()
     {
@@ -88,9 +88,7 @@ class ContactsController extends Controller
         $contact = Contact::create($validated);
 
         /**
-         * KEY FIX:
-         * Redirect to the details panel instead of the index.
-         * This keeps the new contact loaded on the right side.
+         * Redirect to the details panel
          */
         return redirect()
             ->route('contacts.show', $contact->id)
@@ -98,15 +96,17 @@ class ContactsController extends Controller
     }
 
     /**
-     * Show edit form.
+     * Show edit form (AJAX).
+     * FIXED: Load the partial view that actually exists.
      */
     public function edit(Contact $contact)
     {
-        return view('contacts.edit', compact('contact'));
+        return view('contacts.partials.edit', compact('contact'));
     }
 
     /**
-     * Update selected contact (placeholder for now).
+     * Update selected contact.
+     * Placeholder for now.
      */
     public function update(Request $request, Contact $contact)
     {
