@@ -1,20 +1,24 @@
 <div class="card shadow-sm border-0"
      style="border-radius:18px; height: calc(100vh - 120px); overflow-y:auto;">
 
-    {{-- HEADER --}}
-    <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center"
-         style="border-radius:18px 18px 0 0;">
-        
-        <span style="font-size:18px;">{{ $contact->full_name }}</span>
+    {{-- CONTACT NAME HEADER --}}
+    <div class="card-header bg-white d-flex justify-content-between align-items-center"
+         style="border-radius:18px 18px 0 0; padding:25px 30px; border-bottom:1px solid #eee;">
 
+        {{-- BIG CONTACT NAME --}}
+        <span style="font-size:48px; font-weight:800; color:#111827;">
+            {{ $contact->full_name }}
+        </span>
+
+        {{-- EDIT BUTTON --}}
         <a href="{{ route('contacts.edit', $contact->id) }}" 
            class="btn btn-sm"
            style="background:#c9a227; color:#111827; font-weight:600; border-radius:8px;">
-           Edit
+            Edit
         </a>
     </div>
 
-    <div class="card-body">
+    <div class="card-body" style="padding:30px;">
 
         {{-- PRIMARY DETAILS --}}
         <div class="row mb-3">
@@ -65,13 +69,11 @@
                     Details
                 </button>
             </li>
-
             <li class="nav-item">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes">
                     Notes
                 </button>
             </li>
-
             <li class="nav-item">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs">
                     Documents
