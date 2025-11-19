@@ -97,7 +97,6 @@
         background: #f9fafb;
     }
 
-    .contact-selected,
     .active-contact-row {
         background: #eae6d1 !important;
         font-weight: 600;
@@ -115,7 +114,6 @@
 </style>
 
 <div class="dashboard-page">
-
     <div class="row g-4">
 
         <!-- LEFT COLUMN -->
@@ -151,7 +149,7 @@
                     </button>
                 </div>
 
-                <!-- Contact List (NOW AJAX ENABLED) -->
+                <!-- Contact List (AJAX ENABLED) -->
                 <div>
                     @forelse ($contacts as $contact)
                         <div 
@@ -168,10 +166,10 @@
             </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT COLUMN (FIXED) -->
         <div class="col-md-8 col-lg-9">
 
-            <!-- AJAX will load details here -->
+            <!-- AJAX loads the details partial here -->
             <div id="contact-details-container">
                 <div class="empty-right-panel"></div>
             </div>
