@@ -87,36 +87,31 @@ class ContactsController extends Controller
         // Create record
         $contact = Contact::create($validated);
 
-        /**
-         * Redirect to the details panel
-         */
         return redirect()
             ->route('contacts.show', $contact->id)
             ->with('success', 'Contact created successfully.');
     }
 
     /**
-     * Show edit form (AJAX).
-     * FIXED: Load the correct partial view.
+     * Show full-page edit form.
      */
     public function edit(Contact $contact)
     {
-        return view('contacts.partials.edit', compact('contact'));
+        return view('contacts.edit', compact('contact'));
     }
 
-
     /**
-     * Update contact (AJAX-safe).
+     * Update contact (redirects to contact detail page).
      */
     public function update(Request $request, Contact $contact)
     {
-        // Multi-tenant security
+        // Multi-tenant safety
         $tenantId = 1;
         if ($contact->tenant_id !== $tenantId) {
             abort(403, 'Unauthorized tenant access.');
         }
 
-        // Validation (same rules as store)
+        // Validation
         $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
@@ -133,16 +128,14 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Update the record
+        // Update record
         $contact->update($validated);
 
-        // AJAX-safe response
-        return response()->json([
-            'success' => true,
-            'message' => 'Contact updated successfully.'
-        ]);
+        // Redirect back to this contact's detail card
+        return redirect()
+            ->route('contacts.show', $contact->id)
+            ->with('success', 'Contact updated successfully.');
     }
-
 
     /**
      * Delete a contact.
