@@ -48,7 +48,7 @@
         </div>
 
         {{-- ADDRESS --}}
-        <div class="mb-4">
+        <div class="mb-3">
             <label class="text-muted">Address</label>
             <div class="fw-semibold">
                 @if($contact->address_line1)
@@ -62,69 +62,47 @@
 
         <hr class="my-4">
 
-        {{-- ADD NEW NOTE --}}
-        <h4 class="fw-bold mb-3">Add a Note</h4>
+        {{-- TABS --}}
+        <ul class="nav nav-tabs" id="contactDetailTabs" style="font-weight:600;">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-details">
+                    Details
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes">
+                    Notes
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs">
+                    Documents
+                </button>
+            </li>
+        </ul>
 
-        <form id="add-note-form" data-contact-id="{{ $contact->id }}">
-            @csrf
-            <textarea 
-                name="note" 
-                class="form-control" 
-                rows="5"
-                placeholder="Type your note here..."
-                required
-            ></textarea>
+        {{-- TAB CONTENT --}}
+        <div class="tab-content pt-3">
 
-            <button type="submit" 
-                    class="btn mt-3"
-                    style="background:#c9a227; color:#111827; font-weight:600; border-radius:8px;">
-                Save Note
-            </button>
-        </form>
+            {{-- DETAILS TAB --}}
+            <div class="tab-pane fade show active" id="tab-details">
+                <h5 class="fw-bold mb-2">Additional Details</h5>
+                <p class="text-muted">More custom contact details or policy info can go here.</p>
+            </div>
 
-        <hr class="my-4">
+            {{-- NOTES TAB --}}
+            <div class="tab-pane fade" id="tab-notes">
+                <h5 class="fw-bold mb-2">Notes</h5>
+                <p class="text-muted">Notes panel will be added soon.</p>
+            </div>
 
-        {{-- NOTES HISTORY --}}
-        <h4 class="fw-bold mb-3">Notes History</h4>
+            {{-- DOCUMENTS TAB --}}
+            <div class="tab-pane fade" id="tab-docs">
+                <h5 class="fw-bold mb-2">Documents</h5>
+                <p class="text-muted">Document upload & preview coming soon.</p>
+            </div>
 
-        <div id="notes-list">
-            @include('contacts.partials._notes_list', ['contact' => $contact])
         </div>
 
     </div>
 </div>
-
-@push('scripts')
-<script>
-
-/*
-|--------------------------------------------------------------------------
-| SAVE NOTE (AJAX)
-|--------------------------------------------------------------------------
-*/
-$(document).on('submit', '#add-note-form', function(e) {
-    e.preventDefault();
-
-    let form = $(this);
-    let contactId = form.data('contact-id');
-
-    $.ajax({
-        url: `/contacts/${contactId}/notes`,
-        type: "POST",
-        data: form.serialize(),
-        success: function(response) {
-            // Update notes history
-            $('#notes-list').html(response.html);
-
-            // Clear input
-            form[0].reset();
-        },
-        error: function(xhr) {
-            alert("There was an error saving the note.");
-            console.error(xhr.responseText);
-        }
-    });
-});
-
-</script>
-@endpush
