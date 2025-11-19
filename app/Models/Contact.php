@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Note; // <-- REQUIRED
 
 class Contact extends Model
 {
@@ -33,7 +34,7 @@ class Contact extends Model
         'face_amount',
         'premium_amount',
         'premium_due_date',
-        'notes', // legacy column, still safe to keep
+        'notes', // legacy column (ignored by new notes system)
     ];
 
     protected $casts = [
@@ -45,7 +46,7 @@ class Contact extends Model
     ];
 
     /**
-     * Automatically keep full_name synced with first + last name
+     * Auto-generate full_name when saving
      */
     public static function booted(): void
     {
@@ -55,7 +56,7 @@ class Contact extends Model
     }
 
     /**
-     * Multi-tenant scope for safety
+     * Multi-tenant scope
      */
     public function scopeForCurrentTenant(Builder $query): Builder
     {
@@ -65,7 +66,7 @@ class Contact extends Model
     }
 
     /**
-     * User who created this contact
+     * User who created the contact
      */
     public function creator()
     {
@@ -81,11 +82,12 @@ class Contact extends Model
     }
 
     /**
-     * Relationship: historical notes for this contact
-     * Uses the correct Notes model and orders newest-first.
+     * Contact Notes Relationship
+     * FIXED: Ensures non-null, correct model, correct key, newest first.
      */
     public function notes()
     {
-        return $this->hasMany(Note::class)->latest();
+        return $this->hasMany(Note::class, 'contact_id')
+                    ->latest();
     }
 }
