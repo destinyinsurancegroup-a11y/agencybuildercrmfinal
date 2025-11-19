@@ -48,7 +48,7 @@
         </div>
 
         {{-- ADDRESS --}}
-        <div class="mb-3">
+        <div class="mb-4">
             <label class="text-muted">Address</label>
             <div class="fw-semibold">
                 @if($contact->address_line1)
@@ -62,47 +62,33 @@
 
         <hr class="my-4">
 
-        {{-- TABS --}}
-        <ul class="nav nav-tabs" id="contactDetailTabs" style="font-weight:600;">
+        {{-- ADD NEW NOTE --}}
+        <h4 class="fw-bold mb-3">Add a Note</h4>
 
-            <li class="nav-item">
-                <a href="#" 
-                   class="nav-link active"
-                   data-tab="details"
-                   data-contact-id="{{ $contact->id }}">
-                    Details
-                </a>
-            </li>
+        <form id="add-note-form" data-contact-id="{{ $contact->id }}">
+            @csrf
+            <textarea 
+                name="note" 
+                class="form-control" 
+                rows="5"
+                placeholder="Type your note here..."
+                required
+            ></textarea>
 
-            <li class="nav-item">
-                <a href="#"
-                   class="nav-link"
-                   data-tab="notes"
-                   data-contact-id="{{ $contact->id }}">
-                    Notes
-                </a>
-            </li>
+            <button type="submit" 
+                    class="btn mt-3"
+                    style="background:#c9a227; color:#111827; font-weight:600; border-radius:8px;">
+                Save Note
+            </button>
+        </form>
 
-            <li class="nav-item">
-                <a href="#"
-                   class="nav-link"
-                   data-tab="documents"
-                   data-contact-id="{{ $contact->id }}">
-                    Documents
-                </a>
-            </li>
+        <hr class="my-4">
 
-        </ul>
+        {{-- NOTES HISTORY --}}
+        <h4 class="fw-bold mb-3">Notes History</h4>
 
-        {{-- TAB CONTENT OUTPUT --}}
-        <div id="contact-tab-content" class="pt-3">
-
-            {{-- DETAILS TAB IS DEFAULT --}}
-            <div id="details-content">
-                <h5 class="fw-bold mb-2">Additional Details</h5>
-                <p class="text-muted">More custom contact details or policy info can go here.</p>
-            </div>
-
+        <div id="notes-list">
+            @include('contacts.partials._notes_list', ['contact' => $contact])
         </div>
 
     </div>
@@ -113,43 +99,31 @@
 
 /*
 |--------------------------------------------------------------------------
-| CONTACT DETAILS — TAB CLICK HANDLER (AJAX)
+| SAVE NOTE (AJAX)
 |--------------------------------------------------------------------------
 */
-
-$(document).on('click', '[data-tab]', function(e) {
+$(document).on('submit', '#add-note-form', function(e) {
     e.preventDefault();
 
-    const tab = $(this).data('tab');
-    const contactId = $(this).data('contact-id');
+    let form = $(this);
+    let contactId = form.data('contact-id');
 
-    // Activate the clicked tab visually
-    $('[data-tab]').removeClass('active');
-    $(this).addClass('active');
+    $.ajax({
+        url: `/contacts/${contactId}/notes`,
+        type: "POST",
+        data: form.serialize(),
+        success: function(response) {
+            // Update notes history
+            $('#notes-list').html(response.html);
 
-    // DETAILS TAB
-    if (tab === 'details') {
-        $('#contact-tab-content').html(`
-            <div id="details-content">
-                <h5 class="fw-bold mb-2">Additional Details</h5>
-                <p class="text-muted">More custom contact details or policy info can go here.</p>
-            </div>
-        `);
-    }
-
-    // NOTES TAB
-    if (tab === 'notes') {
-        $('#contact-tab-content').html('<p class="text-muted">Loading notes...</p>');
-        $('#contact-tab-content').load(`/contacts/${contactId}/notes`);
-    }
-
-    // DOCUMENTS TAB (placeholder)
-    if (tab === 'documents') {
-        $('#contact-tab-content').html(`
-            <h5 class="fw-bold mb-2">Documents</h5>
-            <p class="text-muted">Document upload & preview coming soon.</p>
-        `);
-    }
+            // Clear input
+            form[0].reset();
+        },
+        error: function(xhr) {
+            alert("There was an error saving the note.");
+            console.error(xhr.responseText);
+        }
+    });
 });
 
 </script>
