@@ -65,44 +65,84 @@
         {{-- TABS --}}
         <ul class="nav nav-tabs" id="contactDetailTabs" style="font-weight:600;">
             <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-details">
+                <button class="nav-link active"
+                        data-tab="details"
+                        data-contact-id="{{ $contact->id }}">
                     Details
                 </button>
             </li>
+
             <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes">
+                <button class="nav-link"
+                        data-tab="notes"
+                        data-contact-id="{{ $contact->id }}">
                     Notes
                 </button>
             </li>
+
             <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs">
+                <button class="nav-link"
+                        data-tab="documents"
+                        data-contact-id="{{ $contact->id }}">
                     Documents
                 </button>
             </li>
         </ul>
 
-        {{-- TAB CONTENT --}}
-        <div class="tab-content pt-3">
+        {{-- TAB CONTENT AREA --}}
+        <div id="contact-tab-content" class="pt-3">
 
-            {{-- DETAILS TAB --}}
-            <div class="tab-pane fade show active" id="tab-details">
+            {{-- DEFAULT: DETAILS TAB CONTENT --}}
+            <div id="details-content">
                 <h5 class="fw-bold mb-2">Additional Details</h5>
                 <p class="text-muted">More custom contact details or policy info can go here.</p>
-            </div>
-
-            {{-- NOTES TAB --}}
-            <div class="tab-pane fade" id="tab-notes">
-                <h5 class="fw-bold mb-2">Notes</h5>
-                <p class="text-muted">Notes panel will be added soon.</p>
-            </div>
-
-            {{-- DOCUMENTS TAB --}}
-            <div class="tab-pane fade" id="tab-docs">
-                <h5 class="fw-bold mb-2">Documents</h5>
-                <p class="text-muted">Document upload & preview coming soon.</p>
             </div>
 
         </div>
 
     </div>
 </div>
+
+@push('scripts')
+<script>
+
+/*
+|--------------------------------------------------------------------------
+| TAB CLICK HANDLING (AJAX LOADING)
+|--------------------------------------------------------------------------
+*/
+$(document).on('click', '[data-tab]', function(e) {
+    e.preventDefault();
+
+    const tab = $(this).data('tab');
+    const contactId = $(this).data('contact-id');
+
+    // Remove active class from all tab buttons
+    $('[data-tab]').removeClass('active');
+    $(this).addClass('active');
+
+    // Handle tab switching
+    if (tab === 'details') {
+        $('#contact-tab-content').html(`
+            <div id="details-content">
+                <h5 class="fw-bold mb-2">Additional Details</h5>
+                <p class="text-muted">More custom contact details or policy info can go here.</p>
+            </div>
+        `);
+    }
+
+    if (tab === 'notes') {
+        $('#contact-tab-content').html('<p class="text-muted">Loading notes...</p>');
+        $('#contact-tab-content').load(`/contacts/${contactId}/notes`);
+    }
+
+    if (tab === 'documents') {
+        $('#contact-tab-content').html(`
+            <h5 class="fw-bold mb-2">Documents</h5>
+            <p class="text-muted">Document upload & preview coming soon.</p>
+        `);
+    }
+});
+
+</script>
+@endpush
