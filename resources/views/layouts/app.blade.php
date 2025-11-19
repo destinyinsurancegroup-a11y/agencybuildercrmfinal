@@ -33,7 +33,7 @@
 
         /* LOGO */
         .sidebar-logo img {
-            width: 200px;   /* 200% Larger */
+            width: 200px;
             height: auto;
             margin-bottom: 15px;
         }
@@ -58,13 +58,13 @@
             cursor: pointer;
         }
 
-        /* === MAIN CONTENT AREA === */
+        /* MAIN CONTENT AREA */
         .main-content {
             margin-left: 250px;
             padding: 25px;
         }
 
-        /* TAB BUTTONS (Day/Week/Month/Quarter/Year) */
+        /* TAB BUTTONS */
         .tab-button {
             padding: 6px 14px;
             border-radius: 20px;
@@ -82,7 +82,7 @@
             font-weight: 600;
         }
 
-        /* Cards stay the same */
+        /* Cards */
         .content-box {
             background: #fff;
             padding: 25px;
@@ -116,7 +116,7 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- MAIN CONTENT AREA -->
+    <!-- MAIN CONTENT -->
     <div class="main-content">
         @yield('content')
     </div>
@@ -139,11 +139,16 @@
         // TAB LOGIC
         document.addEventListener("click", (e) => {
             if (e.target.classList.contains("tab-button")) {
-                document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+                document.querySelectorAll(".tab-button").forEach(btn =>
+                    btn.classList.remove("active")
+                );
                 e.target.classList.add("active");
             }
         });
     </script>
+
+    {{-- ⭐⭐ CRITICAL LINE — loads JS from @push('scripts') in contacts.index --}}
+    @stack('scripts')
 
 </body>
 </html>
