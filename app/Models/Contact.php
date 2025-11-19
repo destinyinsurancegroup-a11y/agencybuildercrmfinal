@@ -33,7 +33,7 @@ class Contact extends Model
         'face_amount',
         'premium_amount',
         'premium_due_date',
-        'notes',
+        'notes', // legacy column, still safe to keep
     ];
 
     protected $casts = [
@@ -82,9 +82,10 @@ class Contact extends Model
 
     /**
      * Relationship: historical notes for this contact
+     * Uses the correct Notes model and orders newest-first.
      */
     public function notes()
     {
-        return $this->hasMany(ContactNote::class);
+        return $this->hasMany(Note::class)->latest();
     }
 }
