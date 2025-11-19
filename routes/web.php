@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Event;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ContactsController;
+use App\Http\Controllers\NoteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,21 +27,21 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 
 /*
 |--------------------------------------------------------------------------
-| CONTACTS (FULL CRUD + IMPORT + MASTER-DETAIL LAYOUT)
+| CONTACTS (FULL CRUD + MASTER-DETAIL LAYOUT)
 |--------------------------------------------------------------------------
 | - /all-contacts redirects to contacts.index
 | - Left panel shows list
 | - Right panel loads via AJAX
-| - New AJAX route loads empty create form
+| - create-panel loads empty form into right panel
 |--------------------------------------------------------------------------
 */
 
-// "All Contacts" menu item → friendly alias
+// Friendly alias for menu
 Route::get('/all-contacts', function () {
     return redirect()->route('contacts.index');
 });
 
-// AJAX route → loads the EMPTY CREATE FORM into the right-side panel
+// AJAX route for CREATE PANEL
 Route::get('/contacts/create-panel', function () {
     return view('contacts.partials.create');
 })->name('contacts.create.panel');
@@ -54,7 +55,33 @@ Route::post('/contacts/import', [ContactsController::class, 'import'])
 
 /*
 |--------------------------------------------------------------------------
-| CALENDAR PAGE (STATIC VIEW)
+| NOTES (AJAX)
+|--------------------------------------------------------------------------
+| These routes power:
+| - Notes tab loading
+| - Saving a note
+| - Reloading updated notes list
+|--------------------------------------------------------------------------
+*/
+
+// Load Notes tab UI
+Route::get('/contacts/{contact}/notes', 
+    [NoteController::class, 'index']
+)->name('contacts.notes.index');
+
+// Save new note via AJAX
+Route::post('/contacts/{contact}/notes', 
+    [NoteController::class, 'store']
+)->name('contacts.notes.store');
+
+// Reload notes list partial
+Route::get('/contacts/{contact}/notes/list', 
+    [NoteController::class, 'list']
+)->name('contacts.notes.list');
+
+/*
+|--------------------------------------------------------------------------
+| CALENDAR PAGE (STATIC)
 |--------------------------------------------------------------------------
 */
 Route::get('/calendar', function () {
@@ -63,7 +90,7 @@ Route::get('/calendar', function () {
 
 /*
 |--------------------------------------------------------------------------
-| CALENDAR API ROUTES (COMPLETE + FIXED)
+| CALENDAR API ROUTES
 |--------------------------------------------------------------------------
 */
 
@@ -82,7 +109,7 @@ Route::get('/calendar/events', function () {
 });
 
 /* --------------------------
-   CREATE EVENT (UPDATED)
+   CREATE EVENT
 -------------------------- */
 Route::post('/calendar/events', function (Request $request) {
     try {
@@ -112,7 +139,7 @@ Route::post('/calendar/events', function (Request $request) {
 });
 
 /* --------------------------
-   UPDATE EVENT (UPDATED)
+   UPDATE EVENT
 -------------------------- */
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
     try {
