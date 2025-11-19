@@ -80,43 +80,36 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Temporary tenant + creator
         $validated['tenant_id']  = 1;
         $validated['created_by'] = 1;
 
-        // Create record
         $contact = Contact::create($validated);
 
-        /**
-         * Redirect to the details panel
-         */
         return redirect()
             ->route('contacts.show', $contact->id)
             ->with('success', 'Contact created successfully.');
     }
 
     /**
-     * Show edit form (AJAX).
-     * FIXED: Load the correct partial view.
+     * Load your existing working edit partial.
      */
     public function edit(Contact $contact)
     {
         return view('contacts.partials.edit', compact('contact'));
     }
 
-
     /**
-     * Update contact (AJAX-safe).
+     * Update contact and return to contact's detail page.
      */
     public function update(Request $request, Contact $contact)
     {
-        // Multi-tenant security
+        // Multi-tenant safety
         $tenantId = 1;
         if ($contact->tenant_id !== $tenantId) {
             abort(403, 'Unauthorized tenant access.');
         }
 
-        // Validation (same rules as store)
+        // Validation
         $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
@@ -133,16 +126,14 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Update the record
+        // Update contact
         $contact->update($validated);
 
-        // AJAX-safe response
-        return response()->json([
-            'success' => true,
-            'message' => 'Contact updated successfully.'
-        ]);
+        // ✔ Return to the contact's detail page
+        return redirect()
+            ->route('contacts.show', $contact->id)
+            ->with('success', 'Contact updated successfully.');
     }
-
 
     /**
      * Delete a contact.
