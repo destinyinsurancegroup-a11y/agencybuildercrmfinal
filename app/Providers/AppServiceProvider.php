@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,5 +29,10 @@ class AppServiceProvider extends ServiceProvider
 
         // Set Laravel's internal timezone
         config(['app.timezone' => 'America/New_York']);
+
+        // 🔐 Force HTTPS when deployed on DigitalOcean (production)
+        if (env('APP_ENV') === 'production') {
+            URL::forceScheme('https');
+        }
     }
 }
