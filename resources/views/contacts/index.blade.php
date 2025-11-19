@@ -72,6 +72,7 @@
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
         text-transform: uppercase;
         font-size: 12px;
+        cursor: pointer;
     }
 
     .btn-gold:hover {
@@ -90,7 +91,6 @@
         font-size: 15px;
         border-bottom: 1px solid #eee;
         cursor: pointer;
-        display: block;
     }
 
     .contact-list-item:hover {
@@ -106,10 +106,6 @@
     .empty-right-panel {
         height: 100%;
         background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
     }
 </style>
 
@@ -136,9 +132,20 @@
                     </div>
                 </form>
 
-                <!-- Add Contacts + Upload File -->
+                <!-- Add Contact (AJAX) + Upload -->
                 <div class="button-row">
-                    <a href="{{ route('contacts.create') }}" class="btn-gold">Add Contacts</a>
+
+                    <!-- REPLACED THIS BUTTON -->
+                    <!-- <a href="{{ route('contacts.create') }}" class="btn-gold">Add Contacts</a> -->
+
+                    <!-- NEW AJAX BUTTON -->
+                    <button 
+                        id="add-contact-btn"
+                        class="btn-gold"
+                        data-create-url="{{ route('contacts.create.panel') }}"
+                    >
+                        Add Contact
+                    </button>
 
                     <button 
                         class="btn-gold"
@@ -166,14 +173,11 @@
             </div>
         </div>
 
-        <!-- RIGHT COLUMN (FIXED) -->
+        <!-- RIGHT COLUMN -->
         <div class="col-md-8 col-lg-9">
-
-            <!-- AJAX loads the details partial here -->
             <div id="contact-details-container">
                 <div class="empty-right-panel"></div>
             </div>
-
         </div>
 
     </div>
@@ -225,6 +229,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const rows = document.querySelectorAll('.js-contact-row');
     const container = document.getElementById('contact-details-container');
 
+    /* -------------------------------------------------------
+       LOAD SELECTED CONTACT (RIGHT PANEL)
+    ------------------------------------------------------- */
     rows.forEach(row => {
         row.addEventListener('click', function () {
 
@@ -234,7 +241,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const url = this.dataset.contactUrl;
 
-            // Loading animation
             container.innerHTML = `
                 <div class="card" style="padding:40px; text-align:center;">
                     <div class="spinner-border text-warning" role="status"></div>
@@ -242,23 +248,46 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
 
-            // AJAX call
             fetch(url, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
             .then(res => res.text())
-            .then(html => {
-                container.innerHTML = html;
-            })
-            .catch(err => {
-                container.innerHTML = `
-                    <div class="card" style="padding:40px; text-align:center; color:red;">
-                        Failed to load contact details.
-                    </div>
-                `;
-            });
-
+            .then(html => container.innerHTML = html)
+            .catch(() => container.innerHTML =
+                `<div class="card" style="padding:40px; text-align:center; color:red;">
+                    Failed to load contact.
+                </div>`
+            );
         });
+    });
+
+
+    /* -------------------------------------------------------
+       LOAD CREATE FORM INTO RIGHT PANEL (AJAX)
+    ------------------------------------------------------- */
+    const addBtn = document.getElementById('add-contact-btn');
+
+    addBtn.addEventListener('click', function () {
+
+        const url = this.dataset.createUrl;
+
+        container.innerHTML = `
+            <div class="card" style="padding:40px; text-align:center;">
+                <div class="spinner-border text-warning" role="status"></div>
+                <p class="mt-3 text-muted">Loading form...</p>
+            </div>
+        `;
+
+        fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.text())
+        .then(html => container.innerHTML = html)
+        .catch(() => container.innerHTML =
+            `<div class="card" style="padding:40px; text-align:center; color:red;">
+                Failed to load form.
+            </div>`
+        );
     });
 
 });
