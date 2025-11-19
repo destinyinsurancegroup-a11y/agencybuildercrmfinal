@@ -28,10 +28,10 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 |--------------------------------------------------------------------------
 | CONTACTS (FULL CRUD + IMPORT + MASTER-DETAIL LAYOUT)
 |--------------------------------------------------------------------------
-| This section:
-| - Defines /all-contacts → redirect to contacts.index
-| - Loads master-detail Contacts UI
-| - Supports search, show panel, import modal
+| - /all-contacts redirects to contacts.index
+| - Left panel shows list
+| - Right panel loads via AJAX
+| - New AJAX route loads empty create form
 |--------------------------------------------------------------------------
 */
 
@@ -41,8 +41,9 @@ Route::get('/all-contacts', function () {
 });
 
 // AJAX route → loads the EMPTY CREATE FORM into the right-side panel
-Route::get('/contacts-create-panel', [ContactsController::class, 'createAjax'])
-    ->name('contacts.create.panel');
+Route::get('/contacts/create-panel', function () {
+    return view('contacts.partials.create');
+})->name('contacts.create.panel');
 
 // Contacts CRUD
 Route::resource('contacts', ContactsController::class);
@@ -63,8 +64,6 @@ Route::get('/calendar', function () {
 /*
 |--------------------------------------------------------------------------
 | CALENDAR API ROUTES (COMPLETE + FIXED)
-|--------------------------------------------------------------------------
-| These routes handle: fetch, create, update, delete events.
 |--------------------------------------------------------------------------
 */
 
