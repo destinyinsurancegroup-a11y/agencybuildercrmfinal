@@ -1,8 +1,12 @@
-<div class="p-4" style="margin-top:-40px;">  {{-- raises the form to match the Leads card --}}
+<div class="p-4" style="margin-top:-28px;">
 
     <div class="card shadow-sm border-0">
 
-        {{-- Removed black header completely --}}
+        <!-- HEADER (matches Add Contact) -->
+        <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center">
+            <span>Add New Lead</span>
+            <a href="{{ route('leads.index') }}" class="btn btn-sm btn-outline-light">Back</a>
+        </div>
 
         <form method="POST" action="{{ route('contacts.store') }}" class="p-4">
             @csrf
@@ -34,6 +38,24 @@
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Phone</label>
                     <input type="text" name="phone" class="form-control">
+                </div>
+            </div>
+
+            <!-- EXTRA LEAD INFO -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Age</label>
+                    <input type="number" name="age" class="form-control" min="0" max="110">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Lead Received Date</label>
+                    <input type="date" name="lead_received_date" class="form-control">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Lead Assigned Date</label>
+                    <input type="date" name="lead_assigned_date" class="form-control">
                 </div>
             </div>
 
@@ -114,7 +136,7 @@
                 ></textarea>
             </div>
 
-            <!-- SUBMIT BUTTON (gold) -->
+            <!-- SUBMIT BUTTON -->
             <div class="text-end">
                 <button class="btn btn-gold btn-lg">
                     Save Lead
