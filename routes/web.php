@@ -3,10 +3,17 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
+
 use App\Models\Event;
+
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\NoteController;
+
+// NEW CONTROLLERS FOR LEADS / BOOK / SERVICE
+use App\Http\Controllers\LeadController;
+use App\Http\Controllers\BookController;
+use App\Http\Controllers\ServiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +59,33 @@ Route::resource('contacts', ContactsController::class);
 // Contacts Import (CSV/Excel)
 Route::post('/contacts/import', [ContactsController::class, 'import'])
     ->name('contacts.import');
+
+/*
+|--------------------------------------------------------------------------
+| LEADS (NEW SECTION)
+|--------------------------------------------------------------------------
+*/
+Route::get('/leads',        [LeadController::class, 'index'])->name('leads.index');
+Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
+Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show');
+
+/*
+|--------------------------------------------------------------------------
+| BOOK OF BUSINESS (NEW SECTION)
+|--------------------------------------------------------------------------
+*/
+Route::get('/book',        [BookController::class, 'index'])->name('book.index');
+Route::get('/book/create', [BookController::class, 'create'])->name('book.create');
+Route::get('/book/{id}',   [BookController::class, 'show'])->name('book.show');
+
+/*
+|--------------------------------------------------------------------------
+| SERVICE (NEW SECTION)
+|--------------------------------------------------------------------------
+*/
+Route::get('/service',        [ServiceController::class, 'index'])->name('service.index');
+Route::get('/service/create', [ServiceController::class, 'create'])->name('service.create');
+Route::get('/service/{id}',   [ServiceController::class, 'show'])->name('service.show');
 
 /*
 |--------------------------------------------------------------------------
