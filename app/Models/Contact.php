@@ -5,7 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Note; // <-- REQUIRED
+use App\Models\Note;
+use App\Models\Document;
+use App\Models\Beneficiary;
+use App\Models\EmergencyContact;
 
 class Contact extends Model
 {
@@ -30,11 +33,15 @@ class Contact extends Model
         'state',
         'postal_code',
         'date_of_birth',
+
+        // Policy info
         'policy_type',
         'face_amount',
         'premium_amount',
         'premium_due_date',
-        'notes', // legacy column (ignored by new notes system)
+
+        // Legacy notes column (ignored by new notes system)
+        'notes',
     ];
 
     protected $casts = [
@@ -51,43 +58,4 @@ class Contact extends Model
     public static function booted(): void
     {
         static::saving(function (Contact $contact) {
-            $contact->full_name = trim($contact->first_name . ' ' . $contact->last_name);
-        });
-    }
-
-    /**
-     * Multi-tenant scope
-     */
-    public function scopeForCurrentTenant(Builder $query): Builder
-    {
-        $tenantId = auth()->user()?->tenant_id;
-
-        return $query->where('tenant_id', $tenantId);
-    }
-
-    /**
-     * User who created the contact
-     */
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * User assigned to this contact
-     */
-    public function assignee()
-    {
-        return $this->belongsTo(User::class, 'assigned_to');
-    }
-
-    /**
-     * Contact Notes Relationship
-     * FIXED: Ensures non-null, correct model, correct key, newest first.
-     */
-    public function notes()
-    {
-        return $this->hasMany(Note::class, 'contact_id')
-                    ->latest();
-    }
-}
+            $contact->full_name = tri_
