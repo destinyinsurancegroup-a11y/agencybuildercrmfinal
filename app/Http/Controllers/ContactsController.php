@@ -99,7 +99,7 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update contact and return to ALL CONTACTS page.
+     * Update contact and return to edited contact's details page.
      */
     public function update(Request $request, Contact $contact)
     {
@@ -129,9 +129,9 @@ class ContactsController extends Controller
         // Save the update
         $contact->update($validated);
 
-        // ✔ Return to ALL CONTACTS page
+        // ✔ Return to All Contacts page WITH this contact showing
         return redirect()
-            ->route('contacts.index')
+            ->route('contacts.show', $contact->id)
             ->with('success', 'Contact updated successfully.');
     }
 
