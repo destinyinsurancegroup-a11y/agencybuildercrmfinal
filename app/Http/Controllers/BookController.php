@@ -2,181 +2,187 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Contact;
-use App\Models\Note;
 use Illuminate\Http\Request;
+use App\Models\Client;
+use App\Models\Note;
 
 class BookController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | INDEX — LEFT LIST + RIGHT PANEL
-    |--------------------------------------------------------------------------
-    */
-    public function index()
+    /**
+     * INDEX — loads the two-panel page.
+     */
+    public function index(Request $request)
     {
-        $query = Contact::where('contact_type', 'book');
+        $search = $request->input('search');
 
-        if (request('search')) {
-            $search = request('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%$search%")
-                  ->orWhere('last_name', 'like', "%$search%");
-            });
-        }
+        $clients = Client::when($search, function ($query, $search) {
+            $query->where('first_name', 'LIKE', "%{$search}%")
+                  ->orWhere('last_name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%");
+        })
+        ->orderBy('last_name')
+        ->get();
 
-        $clients = $query
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
-
-        $selected = request('selected'); // auto-open after update
-
-        return view('book.index', compact('clients', 'selected'));
+        return view('book.index', [
+            'clients'  => $clients,
+            'selected' => $request->selected ?? null
+        ]);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | AJAX — CREATE PANEL
-    |--------------------------------------------------------------------------
-    */
+
+    /**
+     * CREATE PANEL — loads inside right pane via AJAX.
+     */
     public function createPanel()
     {
         return view('book.partials.create');
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | STORE NEW CLIENT
-    |--------------------------------------------------------------------------
-    */
+
+    /**
+     * STORE — saves a new client.
+     */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'first_name'   => 'required|string|max:255',
-            'last_name'    => 'required|string|max:255',
-            'email'        => 'nullable|email|max:255',
-            'phone'        => 'nullable|string|max:255',
-            'address'      => 'nullable|string|max:500',
-            'notes'        => 'nullable|string',
+        $data = $request->validate([
+            'first_name'        => 'required|string|max:255',
+            'last_name'         => 'required|string|max:255',
+            'email'             => 'nullable|string|max:255',
+            'phone'             => 'nullable|string|max:255',
+
+            // address
+            'address_line1'     => 'nullable|string|max:255',
+            'address_line2'     => 'nullable|string|max:255',
+            'city'              => 'nullable|string|max:255',
+            'state'             => 'nullable|string|max:50',
+            'postal_code'       => 'nullable|string|max:50',
+
+            // dates
+            'date_of_birth'        => 'nullable|date',
+            'anniversary'          => 'nullable|date',
+
+            // policy info
+            'policy_type'          => 'nullable|string|max:255',
+            'face_amount'          => 'nullable|string|max:255',
+            'premium_amount'       => 'nullable|string|max:255',
+            'recurring_due_date'   => 'nullable|date',
+            'policy_issue_date'    => 'nullable|date',
         ]);
 
-        $validated['contact_type'] = 'book';
+        $client = Client::create($data);
 
-        $client = Contact::create($validated);
-
-        return redirect()->route('book.index', ['selected' => $client->id]);
+        return redirect()
+            ->route('book.index', ['selected' => $client->id]);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | AJAX — SHOW CLIENT FILE PANEL
-    |--------------------------------------------------------------------------
-    */
-    public function show(Contact $client)
+
+    /**
+     * SHOW — loads client file into the right panel.
+     */
+    public function show(Client $client)
     {
         if (request()->ajax()) {
             return view('book.partials.client-file', compact('client'));
         }
 
-        abort(404);
+        return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | AJAX — EDIT CLIENT PANEL
-    |--------------------------------------------------------------------------
-    */
-    public function editPanel(Contact $client)
+
+    /**
+     * EDIT — loads form inside right AJAX panel.
+     */
+    public function edit(Client $client)
     {
         return view('book.partials.edit', compact('client'));
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE CLIENT (PUT)
-    |--------------------------------------------------------------------------
-    */
-    public function update(Request $request, Contact $client)
+
+    /**
+     * UPDATE — saves client changes.
+     */
+    public function update(Request $request, Client $client)
     {
-        $validated = $request->validate([
+        $data = $request->validate([
             'first_name'        => 'required|string|max:255',
             'last_name'         => 'required|string|max:255',
-            'email'             => 'nullable|email|max:255',
+            'email'             => 'nullable|string|max:255',
             'phone'             => 'nullable|string|max:255',
-            'date_of_birth'     => 'nullable|date',
-            'anniversary'       => 'nullable|date',
+
+            // address
             'address_line1'     => 'nullable|string|max:255',
             'address_line2'     => 'nullable|string|max:255',
             'city'              => 'nullable|string|max:255',
-            'state'             => 'nullable|string|max:255',
-            'postal_code'       => 'nullable|string|max:20',
-            'policy_type'       => 'nullable|string|max:255',
-            'face_amount'       => 'nullable|string|max:255',
-            'premium_amount'    => 'nullable|string|max:255',
-            'recurring_due_date'=> 'nullable|date',
-            'policy_issue_date' => 'nullable|date',
-            'notes'             => 'nullable|string',
+            'state'             => 'nullable|string|max:50',
+            'postal_code'       => 'nullable|string|max:50',
+
+            // dates
+            'date_of_birth'        => 'nullable|date',
+            'anniversary'          => 'nullable|date',
+
+            // policy info
+            'policy_type'          => 'nullable|string|max:255',
+            'face_amount'          => 'nullable|string|max:255',
+            'premium_amount'       => 'nullable|string|max:255',
+            'recurring_due_date'   => 'nullable|date',
+            'policy_issue_date'    => 'nullable|date',
         ]);
 
-        // ALWAYS keep type book
-        $validated['contact_type'] = 'book';
+        $client->update($data);
 
-        $client->update($validated);
-
-        return redirect()->route('book.index', ['selected' => $client->id]);
+        return redirect()
+            ->route('book.index', ['selected' => $client->id]);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES — ADD (AJAX)
-    |--------------------------------------------------------------------------
-    */
-    public function storeNote(Request $request, Contact $client)
+
+    /**
+     * NOTES — STORE NOTE (AJAX).
+     */
+    public function storeNote(Request $request, Client $client)
     {
         $request->validate([
             'body' => 'required|string'
         ]);
 
-        Note::create([
-            'contact_id' => $client->id,
-            'body'       => $request->body
+        $note = new Note();
+        $note->body = $request->body;
+        $note->client_id = $client->id;
+        $note->save();
+
+        return response()->json(['success' => true]);
+    }
+
+
+
+    /**
+     * NOTES — UPDATE NOTE (AJAX).
+     */
+    public function updateNote(Request $request, Client $client, Note $note)
+    {
+        $request->validate([
+            'body' => 'required|string'
+        ]);
+
+        $note->update([
+            'body' => $request->body
         ]);
 
         return response()->json(['success' => true]);
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES — UPDATE (AJAX)
-    |--------------------------------------------------------------------------
-    */
-    public function updateNote(Request $request, Contact $client, Note $note)
-    {
-        $request->validate([
-            'body' => 'required|string'
-        ]);
 
-        $note->update(['body' => $request->body]);
-
-        return response()->json(['success' => true]);
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | IMPORT (LATER)
-    |--------------------------------------------------------------------------
-    */
+    /**
+     * IMPORT — placeholder
+     */
     public function import(Request $request)
     {
-        return back()->with('message', 'Import not implemented yet.');
+        return back()->with('success', 'Import feature coming soon.');
     }
 }
