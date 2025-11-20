@@ -125,7 +125,7 @@
                     <button class="contacts-search-btn" disabled>Search</button>
                 </div>
 
-                <!-- Add Lead -->
+                <!-- Add Lead + Upload -->
                 <div class="button-row">
                     <button 
                         id="add-lead-btn"
@@ -133,6 +133,14 @@
                         data-create-url="{{ route('leads.create') }}"
                     >
                         Add Lead
+                    </button>
+
+                    <button 
+                        class="btn-gold"
+                        data-bs-toggle="modal"
+                        data-bs-target="#uploadLeadModal"
+                    >
+                        Upload
                     </button>
                 </div>
 
@@ -163,6 +171,43 @@
 
     </div>
 </div>
+
+
+<!-- UPLOAD LEADS MODAL -->
+<div class="modal fade" id="uploadLeadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form 
+            action="{{ route('contacts.import') }}" 
+            method="POST" 
+            enctype="multipart/form-data"
+            class="modal-content"
+        >
+            @csrf
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title">Upload Leads File</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <label class="form-label">Choose CSV or Excel file</label>
+                <input 
+                    type="file"
+                    name="file"
+                    class="form-control"
+                    accept=".csv, .xlsx, .xls"
+                    required
+                >
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Upload</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
 
 @endsection
 
