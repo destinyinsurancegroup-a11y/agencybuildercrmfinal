@@ -3,7 +3,7 @@
 @section('content')
 
 <style>
-    /* Match dashboard card styling */
+    /* Same styling as Contacts */
     .contacts-card {
         background: #ffffff;
         border-radius: 18px;
@@ -112,31 +112,31 @@
         <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
-                <div class="contacts-header">All Contacts</div>
+                <div class="contacts-header">Book of Business</div>
 
                 <!-- Search -->
-                <form method="GET" action="{{ route('contacts.index') }}">
+                <form method="GET" action="{{ route('book.index') }}">
                     <div class="contacts-search-wrapper">
                         <input 
                             type="text"
                             name="search"
                             class="contacts-search-input"
-                            placeholder="Search contacts..."
+                            placeholder="Search clients..."
                             value="{{ request('search') }}"
                         >
                         <button class="contacts-search-btn">Search</button>
                     </div>
                 </form>
 
-                <!-- Add Contact (AJAX) + Upload -->
+                <!-- Add Client + Upload -->
                 <div class="button-row">
 
                     <button 
-                        id="add-contact-btn"
+                        id="add-client-btn"
                         class="btn-gold"
-                        data-create-url="{{ route('contacts.create.panel') }}"
+                        data-create-url="{{ route('book.create.panel') }}"
                     >
-                        Add Contact
+                        Add Client
                     </button>
 
                     <button 
@@ -148,18 +148,18 @@
                     </button>
                 </div>
 
-                <!-- Contact List -->
+                <!-- CLIENT LIST -->
                 <div>
-                    @forelse ($contacts as $contact)
+                    @forelse ($clients as $client)
                         <div 
-                            class="contact-list-item js-contact-row"
-                            data-contact-url="{{ route('contacts.show', $contact->id) }}"
-                            data-contact-id="{{ $contact->id }}"   {{-- ← REQUIRED FOR AUTO-SELECT --}}
+                            class="contact-list-item js-client-row"
+                            data-client-url="{{ route('book.show', $client->id) }}"
+                            data-client-id="{{ $client->id }}"
                         >
-                            {{ $contact->full_name }}
+                            {{ $client->name }}
                         </div>
                     @empty
-                        <p class="text-muted">No contacts found.</p>
+                        <p class="text-muted">No clients found.</p>
                     @endforelse
                 </div>
 
@@ -168,7 +168,7 @@
 
         <!-- RIGHT PANEL -->
         <div class="col-md-8 col-lg-9">
-            <div id="contact-details-container" style="width:100%; min-height:400px;">
+            <div id="client-details-container" style="width:100%; min-height:400px;">
                 <div class="empty-right-panel"></div>
             </div>
         </div>
@@ -181,15 +181,15 @@
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <form 
-            action="{{ route('contacts.import') }}" 
-            method="POST" 
+            action="{{ route('book.import') }}"
+            method="POST"
             enctype="multipart/form-data"
             class="modal-content"
         >
             @csrf
 
             <div class="modal-header bg-black text-gold">
-                <h5 class="modal-title">Upload Contacts File</h5>
+                <h5 class="modal-title">Upload Clients File</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
@@ -219,7 +219,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
-    const container = document.getElementById('contact-details-container');
+    const container = document.getElementById('client-details-container');
 
     function loadPanel(url) {
 
@@ -249,40 +249,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* ----- Load Contact Details ----- */
-    document.querySelectorAll('.js-contact-row').forEach(row => {
+    /* ----- LOAD CLIENT DETAILS ----- */
+    document.querySelectorAll('.js-client-row').forEach(row => {
         row.addEventListener('click', () => {
 
             document
-                .querySelectorAll('.js-contact-row')
+                .querySelectorAll('.js-client-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
 
             row.classList.add('active-contact-row');
 
-            loadPanel(row.dataset.contactUrl);
+            loadPanel(row.dataset.clientUrl);
         });
     });
 
-    /* ----- Load Create Form ----- */
-    const addBtn = document.getElementById('add-contact-btn');
+    /* ----- LOAD CREATE FORM ----- */
+    const addBtn = document.getElementById('add-client-btn');
 
     addBtn.addEventListener('click', () => {
         loadPanel(addBtn.dataset.createUrl);
     });
 
-
-    /* ============================================================
-       AUTO-LOAD SELECTED CONTACT AFTER SAVING AN EDIT
-       ============================================================ */
-    const selectedId = "{{ $selected ?? '' }}";  // ← comes from controller
+    /* ----- AUTO-OPEN SELECTED CLIENT AFTER EDIT ----- */
+    const selectedId = "{{ $selected ?? '' }}";
 
     if (selectedId) {
         const target = document.querySelector(
-            `.js-contact-row[data-contact-id='${selectedId}']`
+            `.js-client-row[data-client-id='${selectedId}']`
         );
 
         if (target) {
-            target.click();    // ← auto-open the edited contact
+            target.click();
         }
     }
 
