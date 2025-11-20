@@ -92,11 +92,13 @@ Route::prefix('book')->group(function () {
     Route::get('/{client}', [BookController::class, 'show'])
         ->name('book.show');
 
-    // AJAX: LOAD EDIT CLIENT FORM
-    Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])
-        ->name('book.edit.panel');
+    // ------------------------------------------------------
+    // UPDATE 1: CORRECT EDIT PANEL ROUTE
+    // ------------------------------------------------------
+    Route::get('/{client}/edit', [BookController::class, 'edit'])
+        ->name('book.edit');
 
-    // UPDATE CLIENT (PUT)
+    // UPDATE CLIENT
     Route::put('/{client}', [BookController::class, 'update'])
         ->name('book.update');
 
