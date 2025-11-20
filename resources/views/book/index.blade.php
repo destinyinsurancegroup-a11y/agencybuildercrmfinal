@@ -56,7 +56,9 @@
         text-transform: uppercase;
     }
 
-    .contacts-search-btn:hover { background: #b5901f; }
+    .contacts-search-btn:hover {
+        background: #b5901f;
+    }
 
     .btn-gold {
         background: #c9a227;
@@ -86,9 +88,7 @@
         cursor: pointer;
     }
 
-    .contact-list-item:hover {
-        background: #f9fafb;
-    }
+    .contact-list-item:hover { background: #f9fafb; }
 
     .active-contact-row {
         background: #eae6d1 !important;
@@ -207,12 +207,9 @@
             <div class="modal-footer">
                 <button type="submit" class="btn-gold">Upload</button>
             </div>
-
         </form>
     </div>
 </div>
-
-
 
 @endsection
 
@@ -241,10 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = html;
             container.style.display = "block";
 
-            attachNotesHandlers(); 
+            attachNotesHandlers();  
+            attachEditButtonHandler();   // <-- REQUIRED
         })
         .catch(err => {
-            console.error(err);
             container.innerHTML = `
                 <div style="padding:40px; text-align:center; color:red;">
                     Failed to load.
@@ -263,7 +260,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 .forEach(r => r.classList.remove('active-contact-row'));
 
             row.classList.add('active-contact-row');
-
             loadPanel(row.dataset.clientUrl);
         });
     });
@@ -271,19 +267,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* ----- Load Create Form ----- */
     const addBtn = document.getElementById('add-client-btn');
-
     addBtn.addEventListener('click', () => {
         loadPanel(addBtn.dataset.createUrl);
     });
 
 
-    /* ----- LOAD EDIT PANEL (UPDATE 2) ----- */
-    document.addEventListener('click', function (e) {
-        if (e.target.classList.contains('edit-client-btn')) {
-            let url = e.target.dataset.editUrl;
-            loadPanel(url);
-        }
-    });
+    /* ----- LOAD EDIT PANEL (DYNAMIC) ----- */
+    function attachEditButtonHandler() {
+        const editBtn = document.querySelector('.edit-client-btn');
+        if (!editBtn) return;
+
+        editBtn.addEventListener('click', function () {
+            loadPanel(this.dataset.editUrl);
+        });
+    }
 
 
     /* AUTO-LOAD AFTER SAVE */
@@ -293,10 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = document.querySelector(
             `.js-client-row[data-client-id='${selectedId}']`
         );
-
-        if (target) {
-            target.click();
-        }
+        if (target) target.click();
     }
 
 });
@@ -327,9 +321,7 @@ function attachNotesHandlers() {
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    reloadClientFile(clientId);
-                }
+                if (data.success) reloadClientFile(clientId);
             });
         });
     }
@@ -374,9 +366,7 @@ function attachNoteEditButtons(noteId) {
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    reloadClientFile(clientId);
-                }
+                if (data.success) reloadClientFile(clientId);
             });
         });
 
