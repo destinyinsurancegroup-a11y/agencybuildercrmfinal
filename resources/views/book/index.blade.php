@@ -56,9 +56,7 @@
         text-transform: uppercase;
     }
 
-    .contacts-search-btn:hover {
-        background: #b5901f;
-    }
+    .contacts-search-btn:hover { background: #b5901f; }
 
     .btn-gold {
         background: #c9a227;
@@ -73,9 +71,7 @@
         cursor: pointer;
     }
 
-    .btn-gold:hover {
-        background: #b5901f;
-    }
+    .btn-gold:hover { background: #b5901f; }
 
     .button-row {
         margin-bottom: 20px;
@@ -130,7 +126,7 @@
                     </div>
                 </form>
 
-                <!-- Add Client (AJAX) + Upload -->
+                <!-- Add Client + Upload -->
                 <div class="button-row">
 
                     <button 
@@ -278,6 +274,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addBtn.addEventListener('click', () => {
         loadPanel(addBtn.dataset.createUrl);
+    });
+
+
+    /* ----- LOAD EDIT PANEL (UPDATE 2) ----- */
+    document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('edit-client-btn')) {
+            let url = e.target.dataset.editUrl;
+            loadPanel(url);
+        }
     });
 
 
