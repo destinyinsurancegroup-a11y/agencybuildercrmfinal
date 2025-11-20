@@ -20,7 +20,7 @@ class BookController extends Controller
             ->orderBy('first_name')
             ->get();
 
-        $selected = request('selected'); // for auto-opening panel
+        $selected = request('selected'); // for auto-select after save/update
 
         return view('book.index', compact('clients', 'selected'));
     }
@@ -39,7 +39,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | STORE NEW CLIENT (FORM SUBMISSION)
+    | STORE NEW CLIENT
     |--------------------------------------------------------------------------
     */
     public function store(Request $request)
@@ -52,18 +52,13 @@ class BookController extends Controller
             'address'      => 'nullable|string|max:500',
         ]);
 
-        // REQUIRED FIELDS FOR THE CONTACTS TABLE
         $validated['contact_type'] = 'book';
-        $validated['tenant_id']    = auth()->user()->tenant_id ?? 1;
-        $validated['created_by']   = auth()->id() ?? 1;
 
-        // Build full_name
-        $validated['full_name'] = trim($validated['first_name'] . ' ' . $validated['last_name']);
+        $validated['tenant_id'] = 1;       // REQUIRED
+        $validated['created_by'] = 1;      // REQUIRED
 
-        // Save the client
         $client = Contact::create($validated);
 
-        // Redirect back to Book index and auto-select new client
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
@@ -80,6 +75,49 @@ class BookController extends Controller
         }
 
         return abort(404);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | AJAX — LOAD EDIT PANEL
+    |--------------------------------------------------------------------------
+    */
+    public function editPanel(Contact $client)
+    {
+        return view('book.partials.edit', compact('client'));
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE CLIENT
+    |--------------------------------------------------------------------------
+    */
+    public function update(Request $request, Contact $client)
+    {
+        $validated = $request->validate([
+            'first_name'   => 'required|string|max:255',
+            'last_name'    => 'required|string|max:255',
+            'email'        => 'nullable|email|max:255',
+            'phone'        => 'nullable|string|max:255',
+            'address'      => 'nullable|string|max:500',
+
+            // POLICY FIELDS
+            'policy_type'        => 'nullable|string|max:255',
+            'face_amount'        => 'nullable|string|max:255',
+            'premium_amount'     => 'nullable|string|max:255',
+            'recurring_due_date' => 'nullable|date',
+            'policy_issue_date'  => 'nullable|date',
+
+            // CLIENT INFO
+            'date_of_birth'  => 'nullable|date',
+            'anniversary'    => 'nullable|date',
+        ]);
+
+        $client->update($validated);
+
+        return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
 
