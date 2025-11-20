@@ -1,12 +1,15 @@
 <div class="p-4" style="background:#ffffff; border-radius:18px; min-height:100%;">
 
+
     @php
+        // Build display name
         $clientName = $client->full_name
             ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
     @endphp
 
+
     <!-- =========================
-         HEADER: NAME + ATTACHMENTS
+         HEADER: NAME + ATTACHMENTS + EDIT BUTTON
          ========================= -->
     <div class="d-flex justify-content-between align-items-start mb-4">
 
@@ -19,15 +22,11 @@
             <div class="mt-2">
                 <strong class="d-block mb-1" style="font-size:14px;">Attachments</strong>
 
-                @php
-                    $docs = method_exists($client, 'documents')
-                        ? ($client->documents ?? collect())
-                        : collect();
-                @endphp
+                @php $hasDocs = method_exists($client, 'documents'); @endphp
 
-                @if($docs->count())
+                @if($hasDocs && $client->documents->count())
                     <ul class="ps-3" style="font-size:14px;">
-                        @foreach($docs as $doc)
+                        @foreach($client->documents as $doc)
                             <li>
                                 <a href="{{ $doc->url }}" target="_blank" class="text-decoration-underline">
                                     {{ $doc->original_name }}
@@ -36,17 +35,22 @@
                         @endforeach
                     </ul>
                 @else
-                    <div class="text-muted" style="font-size:13px;">
-                        No documents uploaded.
-                    </div>
+                    <div class="text-muted" style="font-size:13px;">No documents uploaded.</div>
                 @endif
             </div>
         </div>
 
-        <button type="button" class="btn-gold" style="font-size:12px;">
+        <!-- ⭐ EDIT CLIENT BUTTON (NOW WORKING) ⭐ -->
+        <button 
+            type="button" 
+            class="btn-gold edit-client-btn"
+            data-edit-url="{{ route('book.edit.panel', $client->id) }}"
+            style="font-size:12px;"
+        >
             Edit Client
         </button>
     </div>
+
 
 
 
@@ -57,6 +61,7 @@
         <h5 class="fw-bold text-dark mb-3">Client Information</h5>
 
         <div class="row g-3" style="font-size:14px;">
+
             <div class="col-md-6">
                 <strong>Date of Birth:</strong><br>
                 {{ optional($client->date_of_birth)->format('m/d/Y') ?? '—' }}
@@ -84,24 +89,20 @@
 
             <div class="col-md-12">
                 <strong>Address:</strong><br>
-
-                @if(
-                    !empty($client->address_line1) ||
-                    !empty($client->city) ||
-                    !empty($client->state) ||
-                    !empty($client->postal_code)
-                )
-                    {{ $client->address_line1 ?? '' }}<br>
-                    @if(!empty($client->address_line2))
+                @if(!empty($client->address_line1) || !empty($client->city) || !empty($client->state))
+                    {{ $client->address_line1 }}<br>
+                    @if($client->address_line2)
                         {{ $client->address_line2 }}<br>
                     @endif
-                    {{ $client->city ?? '' }} {{ $client->state ?? '' }} {{ $client->postal_code ?? '' }}
+                    {{ $client->city }} {{ $client->state }} {{ $client->postal_code }}
                 @else
-                    {{ $client->address ?? 'No address on file.' }}
+                    <span class="text-muted">No address on file.</span>
                 @endif
             </div>
+
         </div>
     </div>
+
 
 
 
@@ -112,6 +113,7 @@
         <h5 class="fw-bold text-dark mb-3">Policy Information</h5>
 
         <div class="row g-3" style="font-size:14px;">
+
             <div class="col-md-6">
                 <strong>Policy Type:</strong><br>
                 {{ $client->policy_type ?? '—' }}
@@ -136,8 +138,10 @@
                 <strong>Policy Issue Date:</strong><br>
                 {{ optional($client->policy_issue_date)->format('m/d/Y') ?? '—' }}
             </div>
+
         </div>
     </div>
+
 
 
 
@@ -147,47 +151,46 @@
     <div class="mb-4">
         <h5 class="fw-bold text-dark mb-3">Beneficiaries & Emergency Contacts</h5>
 
-        @php
-            $beneficiaries = method_exists($client, 'beneficiaries')
-                ? ($client->beneficiaries ?? collect())
-                : collect();
-
-            $emergency = method_exists($client, 'emergencyContacts')
-                ? ($client->emergencyContacts ?? collect())
-                : collect();
-        @endphp
-
         <!-- Beneficiaries -->
         <div class="mb-3">
             <strong>Beneficiaries:</strong><br>
 
-            @forelse(($beneficiaries ?? []) as $b)
-                <div style="font-size:14px;">
-                    {{ $b->name }} — {{ $b->relationship }} — {{ $b->phone }}
-                </div>
-            @empty
+            @php $hasBeneficiaries = method_exists($client, 'beneficiaries'); @endphp
+
+            @if($hasBeneficiaries && $client->beneficiaries->count())
+                @foreach($client->beneficiaries as $b)
+                    <div style="font-size:14px;">
+                        {{ $b->name }} — {{ $b->relationship }} — {{ $b->phone }}
+                    </div>
+                @endforeach
+            @else
                 <div class="text-muted" style="font-size:13px;">None listed.</div>
-            @endforelse
+            @endif
         </div>
 
         <!-- Emergency Contacts -->
         <div>
             <strong>Emergency Contacts:</strong><br>
 
-            @forelse(($emergency ?? []) as $c)
-                <div style="font-size:14px;">
-                    {{ $c->name }} — {{ $c->relationship }} — {{ $c->phone }}
-                </div>
-            @empty
+            @php $hasEmergency = method_exists($client, 'emergencyContacts'); @endphp
+
+            @if($hasEmergency && $client->emergencyContacts->count())
+                @foreach($client->emergencyContacts as $c)
+                    <div style="font-size:14px;">
+                        {{ $c->name }} — {{ $c->relationship }} — {{ $c->phone }}
+                    </div>
+                @endforeach
+            @else
                 <div class="text-muted" style="font-size:13px;">None listed.</div>
-            @endforelse
+            @endif
         </div>
     </div>
 
 
 
+
     <!-- =========================
-         NOTES (EDITABLE INLINE)
+         NOTES (AJAX ADD & EDIT)
          ========================= -->
     <div>
         <h5 class="fw-bold text-dark mb-3">Notes</h5>
@@ -209,21 +212,17 @@
                 required
             ></textarea>
 
-            <button type="submit" class="btn-gold" style="font-size:12px;">
-                Save Note
-            </button>
+            <button type="submit" class="btn-gold" style="font-size:12px;">Save Note</button>
         </form>
 
-        <!-- List of Notes -->
-        @php
-            $notes = method_exists($client, 'notes')
-                ? ($client->notes ?? collect())
-                : collect();
-        @endphp
 
+        <!-- Notes List -->
         <div id="notes-list" class="mt-3">
 
-            @forelse(($notes ?? []) as $note)
+            @php $notes = method_exists($client, 'notes') ? $client->notes : collect(); @endphp
+
+            @forelse($notes as $note)
+
                 <div class="border rounded p-2 mb-2" style="font-size:14px;">
 
                     <div class="text-muted" style="font-size:12px;">
@@ -234,6 +233,7 @@
                         {{ $note->body }}
                     </div>
 
+                    <!-- Inline Edit -->
                     <button 
                         type="button"
                         class="btn btn-sm btn-outline-secondary mt-1 edit-note-btn"
