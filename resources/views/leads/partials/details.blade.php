@@ -1,22 +1,19 @@
 <div class="card h-100 shadow-sm border-0">
 
-    <!-- HEADER -->
-    <div class="card-header bg-black text-gold fw-bold">
-        {{ $contact->first_name }} {{ $contact->last_name }}
-    </div>
+    @php
+        // Normalize variable naming so both "contact" or "lead" work
+        $contact = $contact ?? $lead ?? null;
+    @endphp
 
-    <!-- BODY -->
-    <div class="card-body">
+    @if ($contact)
 
-        <h5 class="fw-bold mb-3">Lead Details</h5>
+        {{-- REUSE THE FULL CONTACT DETAILS PARTIAL --}}
+        @include('contacts.partials.details', ['contact' => $contact])
 
-        <p><strong>Email:</strong> {{ $contact->email ?? 'N/A' }}</p>
-        <p><strong>Phone:</strong> {{ $contact->phone ?? 'N/A' }}</p>
+    @else
+        <div class="p-4">
+            <p class="text-muted">Lead not found.</p>
+        </div>
+    @endif
 
-        <hr>
-
-        <h6 class="text-gold fw-bold">Notes</h6>
-        <p>{{ $contact->notes ?? 'No notes added.' }}</p>
-
-    </div>
 </div>
