@@ -68,6 +68,35 @@
                 </div>
             </div>
 
+            <!-- EXTRA LEAD INFO (NEW FIELDS) -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Age</label>
+                    <input type="number"
+                           name="age"
+                           class="form-control"
+                           min="0"
+                           max="110"
+                           value="{{ old('age', $contact->age) }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Lead Received Date</label>
+                    <input type="date"
+                           name="lead_received_date"
+                           class="form-control"
+                           value="{{ old('lead_received_date', $contact->lead_received_date) }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Lead Assigned Date</label>
+                    <input type="date"
+                           name="lead_assigned_date"
+                           class="form-control"
+                           value="{{ old('lead_assigned_date', $contact->lead_assigned_date) }}">
+                </div>
+            </div>
+
             <hr>
 
             <!-- LEAD DETAILS -->
