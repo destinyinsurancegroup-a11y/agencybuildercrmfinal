@@ -5,12 +5,13 @@
     <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center"
          style="border-radius:18px 18px 0 0;">
 
-        <span style="font-size:18px;">New Contact</span>
+        <span style="font-size:18px;">New Client</span>
     </div>
 
     <div class="card-body">
 
-        <form id="createContactForm" method="POST" action="{{ route('contacts.store') }}">
+        <!-- IMPORTANT: This now points to book.store -->
+        <form id="createClientForm" method="POST" action="{{ route('book.store') }}">
             @csrf
 
             <!-- BASIC INFO -->
@@ -40,47 +41,12 @@
                 </div>
             </div>
 
-            <!-- CONTACT TYPE + STATUS -->
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="text-muted">Contact Type</label>
-                    <input type="text" name="contact_type" class="form-control" placeholder="Optional">
-                </div>
-
-                <div class="col-md-6">
-                    <label class="text-muted">Status</label>
-                    <input type="text" name="status" class="form-control" placeholder="Optional">
-                </div>
-            </div>
-
             <!-- ADDRESS SECTION -->
             <h5 class="fw-bold mt-4 mb-2">Address</h5>
 
             <div class="mb-3">
-                <label class="text-muted">Address Line 1</label>
-                <input type="text" name="address_line1" class="form-control">
-            </div>
-
-            <div class="mb-3">
-                <label class="text-muted">Address Line 2</label>
-                <input type="text" name="address_line2" class="form-control">
-            </div>
-
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <label class="text-muted">City</label>
-                    <input type="text" name="city" class="form-control">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="text-muted">State</label>
-                    <input type="text" name="state" class="form-control">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="text-muted">Postal Code</label>
-                    <input type="text" name="postal_code" class="form-control">
-                </div>
+                <label class="text-muted">Full Address</label>
+                <textarea name="address" class="form-control" rows="2" placeholder="Street, City, State, ZIP"></textarea>
             </div>
 
             <!-- NOTES -->
@@ -93,7 +59,7 @@
             <!-- SAVE BUTTON -->
             <button class="btn fw-bold"
                     style="background:#c9a227; color:#111827; border:none; border-radius:8px; padding:10px 20px;">
-                Save Contact
+                Save Client
             </button>
 
         </form>
