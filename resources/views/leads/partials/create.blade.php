@@ -3,9 +3,10 @@
     <div class="row justify-content-center">
         <div class="col-lg-8">
 
-            <div class="card shadow-sm border-0">
+            <!-- Match Add Contact width exactly -->
+            <div class="card shadow-sm border-0" style="max-width: 800px; margin: auto;">
 
-                <!-- HEADER (EXACT match to Add Contact) -->
+                <!-- HEADER (matches Add Contact) -->
                 <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center">
                     <span>Add New Lead</span>
                     <a href="{{ route('leads.index') }}" class="btn btn-sm btn-outline-light">Back</a>
@@ -121,9 +122,9 @@
                         ></textarea>
                     </div>
 
-                    <!-- SUBMIT BUTTON -->
+                    <!-- SUBMIT BUTTON (make gold) -->
                     <div class="text-end">
-                        <button class="btn btn-primary btn-lg">
+                        <button class="btn-gold btn-lg">
                             Save Lead
                         </button>
                     </div>
