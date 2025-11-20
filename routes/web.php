@@ -66,13 +66,16 @@ Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show')
 
 /*
 |--------------------------------------------------------------------------
-| BOOK OF BUSINESS (UPDATED – COMPLETE)
+| BOOK OF BUSINESS (UPDATED)
 |--------------------------------------------------------------------------
 |
-| MATCHES:
-| - AJAX two-panel layout (same as contacts + leads)
-| - create, show, edit-panel, update
-| - notes AJAX
+| Supports:
+| - index
+| - AJAX create panel
+| - AJAX show panel
+| - AJAX edit panel
+| - update
+| - notes add/update
 | - import
 |--------------------------------------------------------------------------
 */
@@ -81,22 +84,20 @@ Route::prefix('book')->group(function () {
     // INDEX PAGE
     Route::get('/', [BookController::class, 'index'])->name('book.index');
 
-    // AJAX: LOAD CREATE FORM
+    // AJAX: LOAD CREATE PANEL
     Route::get('/create-panel', [BookController::class, 'createPanel'])
         ->name('book.create.panel');
 
-    // STORE NEW CLIENT (POST)
+    // STORE NEW CLIENT
     Route::post('/', [BookController::class, 'store'])->name('book.store');
 
     // AJAX: LOAD CLIENT FILE
     Route::get('/{client}', [BookController::class, 'show'])
         ->name('book.show');
 
-    // ------------------------------------------------------
-    // UPDATE 1: CORRECT EDIT PANEL ROUTE
-    // ------------------------------------------------------
-    Route::get('/{client}/edit', [BookController::class, 'edit'])
-        ->name('book.edit');
+    // *** REQUIRED FIX: Edit Panel Route ***
+    Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])
+        ->name('book.edit.panel');
 
     // UPDATE CLIENT
     Route::put('/{client}', [BookController::class, 'update'])
