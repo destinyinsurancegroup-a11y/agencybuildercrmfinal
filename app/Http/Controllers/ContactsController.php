@@ -25,7 +25,7 @@ class ContactsController extends Controller
 
         return view('contacts.index', [
             'contacts' => $contacts,
-            'selected' => null,
+            'selected' => $request->selected, // <-- ADD: allows auto-load after edit
         ]);
     }
 
@@ -43,25 +43,16 @@ class ContactsController extends Controller
         return view('contacts.partials.details', compact('contact'));
     }
 
-    /**
-     * AJAX "create contact" panel loader.
-     */
     public function createAjax(Request $request)
     {
         return view('contacts.partials.create');
     }
 
-    /**
-     * Standalone full-page create (legacy)
-     */
     public function create()
     {
         return view('contacts.create');
     }
 
-    /**
-     * Store a newly created contact.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -90,16 +81,13 @@ class ContactsController extends Controller
             ->with('success', 'Contact created successfully.');
     }
 
-    /**
-     * Load the correct edit partial.
-     */
     public function edit(Contact $contact)
     {
         return view('contacts.partials.edit', compact('contact'));
     }
 
     /**
-     * Update contact and return to edited contact's details page.
+     * Update contact and return to ALL CONTACTS page with edited contact selected.
      */
     public function update(Request $request, Contact $contact)
     {
@@ -126,18 +114,15 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Save update
         $contact->update($validated);
 
-        // ✔ Return to All Contacts page WITH edited contact showing
+        // ✔ Return to All Contacts PAGE (full layout)
+        // ✔ Tell the index page which contact to autoload
         return redirect()
-            ->route('contacts.show', $contact->id)
+            ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact updated successfully.');
     }
 
-    /**
-     * Delete a contact.
-     */
     public function destroy(Contact $contact)
     {
         $contact->delete();
@@ -147,9 +132,6 @@ class ContactsController extends Controller
             ->with('success', 'Contact deleted.');
     }
 
-    /**
-     * CSV/Excel Import placeholder.
-     */
     public function import(Request $request)
     {
         return back()->with('success', 'Import placeholder working.');
