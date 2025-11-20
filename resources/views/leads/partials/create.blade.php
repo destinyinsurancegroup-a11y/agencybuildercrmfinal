@@ -5,23 +5,16 @@
 
             <div class="card shadow-sm border-0">
 
-                <!-- HEADER (matches Add Contact, no black strip) -->
-                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center"
-                     style="border-bottom:1px solid #e5e7eb; font-size:18px;">
-                    <span class="text-black">Add New Lead</span>
-                    <button 
-                        type="button" 
-                        class="btn btn-sm btn-outline-secondary"
-                        onclick="window.location.reload()"
-                    >
-                        Back
-                    </button>
+                <!-- HEADER (EXACT match to Add Contact) -->
+                <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center">
+                    <span>Add New Lead</span>
+                    <a href="{{ route('leads.index') }}" class="btn btn-sm btn-outline-light">Back</a>
                 </div>
 
                 <form method="POST" action="{{ route('contacts.store') }}" class="p-4">
                     @csrf
 
-                    <!-- FORCE CONTACT TYPE TO LEAD -->
+                    <!-- FORCE LEAD TYPE -->
                     <input type="hidden" name="contact_type" value="Lead">
 
                     <!-- BASIC INFORMATION -->
