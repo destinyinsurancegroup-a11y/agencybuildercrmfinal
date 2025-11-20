@@ -2,7 +2,7 @@
 
     <div class="card shadow-sm border-0 p-4">
 
-        <!-- BIG NAME HEADER (REPLACES OLD SMALL HEADER) -->
+        <!-- BIG NAME HEADER -->
         <h1 class="fw-bold mb-3" style="font-size: 32px;">
             {{ $contact->first_name }} {{ $contact->last_name }}
         </h1>
@@ -36,17 +36,32 @@
 
         <!-- DETAILS SECTION -->
         <div class="row mb-4">
+
             <div class="col-md-6">
-                <p><strong>Email:</strong> {{ $contact->email ?? '—' }}</p>
-                <p><strong>Contact Type:</strong> Lead</p>
+                <p><strong>Email:</strong> {{ $contact->email ?: '—' }}</p>
+                <p><strong>Phone:</strong> {{ $contact->phone ?: '—' }}</p>
+
+                <p><strong>Age:</strong> {{ $contact->age ?: '—' }}</p>
             </div>
 
             <div class="col-md-6">
-                <p><strong>Phone:</strong> {{ $contact->phone ?? '—' }}</p>
-                <p><strong>Status:</strong> 
-                    <span class="badge bg-secondary">{{ $contact->status ?? 'New' }}</span>
+                <p><strong>Contact Type:</strong> Lead</p>
+
+                <p><strong>Status:</strong>
+                    <span class="badge bg-secondary">
+                        {{ $contact->status ?? 'New' }}
+                    </span>
+                </p>
+
+                <p><strong>Lead Received Date:</strong>
+                    {{ $contact->lead_received_date ? \Carbon\Carbon::parse($contact->lead_received_date)->format('m/d/Y') : '—' }}
+                </p>
+
+                <p><strong>Lead Assigned Date:</strong>
+                    {{ $contact->lead_assigned_date ? \Carbon\Carbon::parse($contact->lead_assigned_date)->format('m/d/Y') : '—' }}
                 </p>
             </div>
+
         </div>
 
         <!-- ADDRESS -->
@@ -66,7 +81,7 @@
 
         <hr>
 
-        <!-- TABS (Details / Notes / Documents) -->
+        <!-- TABS -->
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <a class="nav-link active" data-bs-toggle="tab" href="#detailsTab">Details</a>
@@ -92,7 +107,7 @@
             <!-- NOTES TAB -->
             <div class="tab-pane fade" id="notesTab">
                 <h5 class="fw-bold">Notes</h5>
-                <p>{{ $contact->notes ?? 'No notes added.' }}</p>
+                <p>{{ $contact->notes ?: 'No notes added.' }}</p>
             </div>
 
             <!-- DOCUMENTS TAB -->
