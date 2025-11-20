@@ -58,4 +58,65 @@ class Contact extends Model
     public static function booted(): void
     {
         static::saving(function (Contact $contact) {
-            $contact->full_name = tri_
+            $contact->full_name = trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+        });
+    }
+
+    /**
+     * Multi-tenant scope
+     */
+    public function scopeForCurrentTenant(Builder $query): Builder
+    {
+        $tenantId = auth()->user()?->tenant_id;
+
+        return $query->where('tenant_id', $tenantId);
+    }
+
+    /**
+     * User who created the contact
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * User assigned to this contact
+     */
+    public function assignee()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /**
+     * Contact Notes Relationship (new notes system)
+     */
+    public function notes()
+    {
+        return $this->hasMany(Note::class, 'contact_id')->latest();
+    }
+
+    /**
+     * Documents uploaded to this client
+     */
+    public function documents()
+    {
+        return $this->hasMany(Document::class, 'contact_id');
+    }
+
+    /**
+     * Beneficiaries for this client
+     */
+    public function beneficiaries()
+    {
+        return $this->hasMany(Beneficiary::class, 'contact_id');
+    }
+
+    /**
+     * Emergency Contacts for this client
+     */
+    public function emergencyContacts()
+    {
+        return $this->hasMany(EmergencyContact::class, 'contact_id');
+    }
+}
