@@ -126,10 +126,10 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Save the update
+        // Save update
         $contact->update($validated);
 
-        // ✔ Return to All Contacts page WITH this contact showing
+        // ✔ Return to All Contacts page WITH edited contact showing
         return redirect()
             ->route('contacts.show', $contact->id)
             ->with('success', 'Contact updated successfully.');
