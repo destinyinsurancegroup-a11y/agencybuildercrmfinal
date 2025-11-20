@@ -1,8 +1,12 @@
-<div class="p-4">
+<div class="p-4" style="margin-top:-28px;">
 
     <div class="card shadow-sm border-0">
 
-        <!-- ❌ REMOVED BLACK HEADER BAR -->
+        <!-- HEADER (matches Add Contact) -->
+        <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center">
+            <span>Add New Lead</span>
+            <a href="{{ route('leads.index') }}" class="btn btn-sm btn-outline-light">Back</a>
+        </div>
 
         <form method="POST" action="{{ route('contacts.store') }}" class="p-4">
             @csrf
@@ -116,7 +120,7 @@
 
             <!-- SUBMIT BUTTON (gold) -->
             <div class="text-end">
-                <button class="btn-gold btn-lg">
+                <button class="btn btn-gold btn-lg">
                     Save Lead
                 </button>
             </div>
