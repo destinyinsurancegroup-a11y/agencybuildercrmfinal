@@ -158,7 +158,7 @@
                             data-client-url="{{ route('book.show', $client->id) }}"
                             data-client-id="{{ $client->id }}"
                         >
-                            {{ $client->name }}
+                            {{ $client->full_name ?? ($client->first_name . ' ' . $client->last_name) }}
                         </div>
                     @empty
                         <p class="text-muted">No clients found.</p>
@@ -222,7 +222,6 @@
 
 
 
-
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -243,11 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(res => res.text())
         .then(html => {
-            console.log("Loaded HTML:", html);
             container.innerHTML = html;
             container.style.display = "block";
 
-            attachNotesHandlers(); // <<<<<<<<<< IMPORTANT
+            attachNotesHandlers(); 
         })
         .catch(err => {
             console.error(err);
@@ -283,9 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    /* ============================================================
-       AUTO-LOAD SELECTED CLIENT AFTER SAVING AN EDIT
-       ============================================================ */
+    /* AUTO-LOAD AFTER SAVE */
     const selectedId = "{{ $selected ?? '' }}";
 
     if (selectedId) {
@@ -298,18 +294,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
 });
 
 
 
-/* ============================================================
-   NOTES: ADD / EDIT / SAVE / RELOAD
-   ============================================================ */
-
+/* ===== NOTES HANDLING ===== */
 function attachNotesHandlers() {
 
-    /* ADD NOTE */
     const form = document.getElementById("add-note-form");
 
     if (form) {
@@ -338,8 +329,6 @@ function attachNotesHandlers() {
         });
     }
 
-
-    /* EDIT NOTE BUTTONS */
     document.querySelectorAll(".edit-note-btn").forEach(btn => {
         btn.addEventListener("click", function() {
 
@@ -361,10 +350,8 @@ function attachNotesHandlers() {
     });
 }
 
-
 function attachNoteEditButtons(noteId) {
 
-    /* SAVE NOTE */
     document.querySelector(`.save-note-btn[data-note-id='${noteId}']`)
         .addEventListener("click", function () {
 
@@ -388,8 +375,6 @@ function attachNoteEditButtons(noteId) {
             });
         });
 
-
-    /* CANCEL EDIT */
     document.querySelector(`.cancel-note-btn[data-note-id='${noteId}']`)
         .addEventListener("click", function () {
 
@@ -398,11 +383,6 @@ function attachNoteEditButtons(noteId) {
         });
 }
 
-
-
-/* ============================================================
-   RELOAD CLIENT PANEL
-   ============================================================ */
 function reloadClientFile(clientId) {
 
     fetch(`/book-of-business/${clientId}`, {
