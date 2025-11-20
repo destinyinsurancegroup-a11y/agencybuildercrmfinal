@@ -20,15 +20,14 @@ class BookController extends Controller
             ->orderBy('first_name')
             ->get();
 
-        $selected = request('selected'); // for auto-select after save/update
+        $selected = request('selected');
 
         return view('book.index', compact('clients', 'selected'));
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | AJAX — LOAD CREATE CLIENT PANEL
+    | CREATE PANEL (right side)
     |--------------------------------------------------------------------------
     */
     public function createPanel()
@@ -36,36 +35,32 @@ class BookController extends Controller
         return view('book.partials.create');
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | STORE NEW CLIENT
+    | STORE — SAME FLOW AS CONTACTS
     |--------------------------------------------------------------------------
     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'first_name'   => 'required|string|max:255',
-            'last_name'    => 'required|string|max:255',
-            'email'        => 'nullable|email|max:255',
-            'phone'        => 'nullable|string|max:255',
-            'address'      => 'nullable|string|max:500',
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'nullable|email|max:255',
+            'phone'      => 'nullable|string|max:255',
+            'address'    => 'nullable|string|max:500',
         ]);
 
         $validated['contact_type'] = 'book';
-
-        $validated['tenant_id'] = 1;       // REQUIRED
-        $validated['created_by'] = 1;      // REQUIRED
+        $validated['full_name'] = trim($validated['first_name'].' '.$validated['last_name']);
 
         $client = Contact::create($validated);
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | AJAX — LOAD CLIENT FILE PANEL
+    | SHOW — LOAD RIGHT PANEL
     |--------------------------------------------------------------------------
     */
     public function show(Contact $client)
@@ -74,56 +69,44 @@ class BookController extends Controller
             return view('book.partials.client-file', compact('client'));
         }
 
-        return abort(404);
+        return redirect()->route('book.index', ['selected' => $client->id]);
     }
-
 
     /*
     |--------------------------------------------------------------------------
-    | AJAX — LOAD EDIT PANEL
+    | EDIT — MATCHES CONTACTS EDIT FLOW
     |--------------------------------------------------------------------------
     */
-    public function editPanel(Contact $client)
+    public function edit(Contact $client)
     {
         return view('book.partials.edit', compact('client'));
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | UPDATE CLIENT
+    | UPDATE — SAME AS CONTACTS UPDATE
     |--------------------------------------------------------------------------
     */
     public function update(Request $request, Contact $client)
     {
         $validated = $request->validate([
-            'first_name'   => 'required|string|max:255',
-            'last_name'    => 'required|string|max:255',
-            'email'        => 'nullable|email|max:255',
-            'phone'        => 'nullable|string|max:255',
-            'address'      => 'nullable|string|max:500',
-
-            // POLICY FIELDS
-            'policy_type'        => 'nullable|string|max:255',
-            'face_amount'        => 'nullable|string|max:255',
-            'premium_amount'     => 'nullable|string|max:255',
-            'recurring_due_date' => 'nullable|date',
-            'policy_issue_date'  => 'nullable|date',
-
-            // CLIENT INFO
-            'date_of_birth'  => 'nullable|date',
-            'anniversary'    => 'nullable|date',
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'nullable|email|max:255',
+            'phone'      => 'nullable|string|max:255',
+            'address'    => 'nullable|string|max:500',
         ]);
+
+        $validated['full_name'] = trim($validated['first_name'].' '.$validated['last_name']);
 
         $client->update($validated);
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | STORE NOTE (AJAX)
+    | NOTES — ADD
     |--------------------------------------------------------------------------
     */
     public function storeNote(Request $request, Contact $client)
@@ -140,10 +123,9 @@ class BookController extends Controller
         return response()->json(['success' => true]);
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | UPDATE NOTE (AJAX)
+    | NOTES — UPDATE
     |--------------------------------------------------------------------------
     */
     public function updateNote(Request $request, Contact $client, Note $note)
@@ -157,10 +139,9 @@ class BookController extends Controller
         return response()->json(['success' => true]);
     }
 
-
     /*
     |--------------------------------------------------------------------------
-    | IMPORT (CSV / EXCEL)
+    | IMPORT (future)
     |--------------------------------------------------------------------------
     */
     public function import(Request $request)
