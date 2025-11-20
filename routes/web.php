@@ -66,42 +66,49 @@ Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show')
 
 /*
 |--------------------------------------------------------------------------
-| BOOK OF BUSINESS (CORRECTED + COMPLETE)
+| BOOK OF BUSINESS (UPDATED – COMPLETE)
 |--------------------------------------------------------------------------
 |
-| These routes now match:
-| - your folder structure resources/views/book/
-| - your AJAX panel system
-| - your index.blade.js logic
-| - your create/client-file partial views
+| MATCHES:
+| - AJAX two-panel layout (same as contacts + leads)
+| - create, show, edit-panel, update
+| - notes AJAX
+| - import
 |--------------------------------------------------------------------------
 */
-
 Route::prefix('book')->group(function () {
 
-    // INDEX PAGE (LEFT LIST + RIGHT PANEL)
+    // INDEX PAGE
     Route::get('/', [BookController::class, 'index'])->name('book.index');
 
-    // AJAX — LOAD CREATE FORM INTO RIGHT PANEL
+    // AJAX: LOAD CREATE FORM
     Route::get('/create-panel', [BookController::class, 'createPanel'])
         ->name('book.create.panel');
 
-    // STORE NEW CLIENT (AJAX)
+    // STORE NEW CLIENT (POST)
     Route::post('/', [BookController::class, 'store'])->name('book.store');
 
-    // AJAX — LOAD CLIENT FILE PANEL
+    // AJAX: LOAD CLIENT FILE
     Route::get('/{client}', [BookController::class, 'show'])
         ->name('book.show');
 
-    // NOTES — ADD NEW NOTE (AJAX)
+    // AJAX: LOAD EDIT CLIENT FORM
+    Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])
+        ->name('book.edit.panel');
+
+    // UPDATE CLIENT (PUT)
+    Route::put('/{client}', [BookController::class, 'update'])
+        ->name('book.update');
+
+    // NOTES — ADD
     Route::post('/{client}/notes', [BookController::class, 'storeNote'])
         ->name('book.notes.store');
 
-    // NOTES — UPDATE NOTE (AJAX)
+    // NOTES — EDIT
     Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
         ->name('book.notes.update');
 
-    // IMPORT CLIENTS FILE (CSV / XLSX)
+    // IMPORT
     Route::post('/import', [BookController::class, 'import'])
         ->name('book.import');
 });
