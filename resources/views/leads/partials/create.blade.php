@@ -2,12 +2,6 @@
 
     <div class="card shadow-sm border-0">
 
-        <!-- HEADER (matches Add Contact) -->
-        <div class="card-header bg-black text-gold fw-bold d-flex justify-content-between align-items-center">
-            <span>Add New Lead</span>
-            <a href="{{ route('leads.index') }}" class="btn btn-sm btn-outline-light">Back</a>
-        </div>
-
         <form method="POST" action="{{ route('contacts.store') }}" class="p-4">
             @csrf
 
@@ -136,8 +130,8 @@
                 ></textarea>
             </div>
 
-            <!-- SUBMIT BUTTON -->
-            <div class="text-end">
+            <!-- SUBMIT BUTTON LEFT -->
+            <div class="text-start">
                 <button class="btn btn-gold btn-lg">
                     Save Lead
                 </button>
