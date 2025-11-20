@@ -36,11 +36,6 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 |--------------------------------------------------------------------------
 | CONTACTS (FULL CRUD + MASTER-DETAIL LAYOUT)
 |--------------------------------------------------------------------------
-| - /all-contacts redirects to contacts.index
-| - Left panel shows list
-| - Right panel loads via AJAX
-| - create-panel loads empty form into right panel
-|--------------------------------------------------------------------------
 */
 
 // Friendly alias for menu
@@ -62,7 +57,7 @@ Route::post('/contacts/import', [ContactsController::class, 'import'])
 
 /*
 |--------------------------------------------------------------------------
-| LEADS (NEW SECTION)
+| LEADS
 |--------------------------------------------------------------------------
 */
 Route::get('/leads',        [LeadController::class, 'index'])->name('leads.index');
@@ -71,16 +66,49 @@ Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show')
 
 /*
 |--------------------------------------------------------------------------
-| BOOK OF BUSINESS (NEW SECTION)
+| BOOK OF BUSINESS (CORRECTED + COMPLETE)
+|--------------------------------------------------------------------------
+|
+| These routes now match:
+| - your folder structure resources/views/book/
+| - your AJAX panel system
+| - your index.blade.js logic
+| - your create/client-file partial views
 |--------------------------------------------------------------------------
 */
-Route::get('/book',        [BookController::class, 'index'])->name('book.index');
-Route::get('/book/create', [BookController::class, 'create'])->name('book.create');
-Route::get('/book/{id}',   [BookController::class, 'show'])->name('book.show');
+
+Route::prefix('book')->group(function () {
+
+    // INDEX PAGE (LEFT LIST + RIGHT PANEL)
+    Route::get('/', [BookController::class, 'index'])->name('book.index');
+
+    // AJAX — LOAD CREATE FORM INTO RIGHT PANEL
+    Route::get('/create-panel', [BookController::class, 'createPanel'])
+        ->name('book.create.panel');
+
+    // STORE NEW CLIENT (AJAX)
+    Route::post('/', [BookController::class, 'store'])->name('book.store');
+
+    // AJAX — LOAD CLIENT FILE PANEL
+    Route::get('/{client}', [BookController::class, 'show'])
+        ->name('book.show');
+
+    // NOTES — ADD NEW NOTE (AJAX)
+    Route::post('/{client}/notes', [BookController::class, 'storeNote'])
+        ->name('book.notes.store');
+
+    // NOTES — UPDATE NOTE (AJAX)
+    Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
+        ->name('book.notes.update');
+
+    // IMPORT CLIENTS FILE (CSV / XLSX)
+    Route::post('/import', [BookController::class, 'import'])
+        ->name('book.import');
+});
 
 /*
 |--------------------------------------------------------------------------
-| SERVICE (NEW SECTION)
+| SERVICE
 |--------------------------------------------------------------------------
 */
 Route::get('/service',        [ServiceController::class, 'index'])->name('service.index');
@@ -89,33 +117,21 @@ Route::get('/service/{id}',   [ServiceController::class, 'show'])->name('service
 
 /*
 |--------------------------------------------------------------------------
-| NOTES (AJAX)
-|--------------------------------------------------------------------------
-| These routes power:
-| - Notes tab loading
-| - Saving a note
-| - Reloading updated notes list
+| NOTES FOR CONTACTS
 |--------------------------------------------------------------------------
 */
+Route::get('/contacts/{contact}/notes', [NoteController::class, 'index'])
+    ->name('contacts.notes.index');
 
-// Load Notes tab UI
-Route::get('/contacts/{contact}/notes', 
-    [NoteController::class, 'index']
-)->name('contacts.notes.index');
+Route::post('/contacts/{contact}/notes', [NoteController::class, 'store'])
+    ->name('contacts.notes.store');
 
-// Save new note via AJAX
-Route::post('/contacts/{contact}/notes', 
-    [NoteController::class, 'store']
-)->name('contacts.notes.store');
-
-// Reload notes list partial
-Route::get('/contacts/{contact}/notes/list', 
-    [NoteController::class, 'list']
-)->name('contacts.notes.list');
+Route::get('/contacts/{contact}/notes/list', [NoteController::class, 'list'])
+    ->name('contacts.notes.list');
 
 /*
 |--------------------------------------------------------------------------
-| CALENDAR PAGE (STATIC)
+| CALENDAR
 |--------------------------------------------------------------------------
 */
 Route::get('/calendar', function () {
@@ -124,27 +140,14 @@ Route::get('/calendar', function () {
 
 /*
 |--------------------------------------------------------------------------
-| CALENDAR API ROUTES
+| CALENDAR API
 |--------------------------------------------------------------------------
 */
-
-/* --------------------------
-   FETCH ALL EVENTS
--------------------------- */
 Route::get('/calendar/events', function () {
-    try {
-        return Event::all();
-    } catch (\Throwable $e) {
-        return response()->json([
-            'error'   => true,
-            'message' => $e->getMessage()
-        ], 500);
-    }
+    try { return Event::all(); }
+    catch (\Throwable $e) { return response()->json(['error'=>true,'message'=>$e->getMessage()], 500); }
 });
 
-/* --------------------------
-   CREATE EVENT
--------------------------- */
 Route::post('/calendar/events', function (Request $request) {
     try {
         $data = $request->validate([
@@ -165,16 +168,10 @@ Route::post('/calendar/events', function (Request $request) {
         return response()->json($event, 201);
 
     } catch (\Throwable $e) {
-        return response()->json([
-            'error'   => true,
-            'message' => $e->getMessage()
-        ], 500);
+        return response()->json(['error'=>true,'message'=>$e->getMessage()], 500);
     }
 });
 
-/* --------------------------
-   UPDATE EVENT
--------------------------- */
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
     try {
         $data = $request->validate([
@@ -192,43 +189,28 @@ Route::put('/calendar/events/{id}', function (Request $request, $id) {
             'location' => $data['location'] ?? null,
         ]);
 
-        return response()->json([
-            'success' => true,
-            'event'   => $event
-        ]);
+        return response()->json(['success'=>true,'event'=>$event]);
 
     } catch (\Throwable $e) {
-        return response()->json([
-            'error'   => true,
-            'message' => $e->getMessage()
-        ], 500);
+        return response()->json(['error'=>true,'message'=>$e->getMessage()], 500);
     }
 });
 
-/* --------------------------
-   DELETE EVENT
--------------------------- */
 Route::delete('/calendar/events/{id}', function ($id) {
     try {
         $event = Event::findOrFail($id);
         $event->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Event deleted successfully'
-        ]);
+        return response()->json(['success'=>true, 'message'=>'Event deleted successfully']);
 
     } catch (\Throwable $e) {
-        return response()->json([
-            'error'   => true,
-            'message' => $e->getMessage()
-        ], 500);
+        return response()->json(['error'=>true,'message'=>$e->getMessage()], 500);
     }
 });
 
 /*
 |--------------------------------------------------------------------------
-| TEMPORARY DB MIGRATION ROUTE
+| MIGRATION & CACHE UTILS
 |--------------------------------------------------------------------------
 */
 Route::get('/migrate', function () {
@@ -240,11 +222,6 @@ Route::get('/migrate', function () {
     }
 });
 
-/*
-|--------------------------------------------------------------------------
-| TEMPORARY CLEAR CACHE
-|--------------------------------------------------------------------------
-*/
 Route::get('/clear-cache', function () {
     Artisan::call('route:clear');
     Artisan::call('config:clear');
