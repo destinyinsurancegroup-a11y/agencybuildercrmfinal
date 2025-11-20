@@ -52,8 +52,13 @@ class BookController extends Controller
             'address'      => 'nullable|string|max:500',
         ]);
 
-        // MUST be book type
+        // REQUIRED FIELDS FOR THE CONTACTS TABLE
         $validated['contact_type'] = 'book';
+        $validated['tenant_id']    = auth()->user()->tenant_id ?? 1;
+        $validated['created_by']   = auth()->id() ?? 1;
+
+        // Build full_name
+        $validated['full_name'] = trim($validated['first_name'] . ' ' . $validated['last_name']);
 
         // Save the client
         $client = Contact::create($validated);
@@ -74,7 +79,6 @@ class BookController extends Controller
             return view('book.partials.client-file', compact('client'));
         }
 
-        // No direct navigation allowed
         return abort(404);
     }
 
