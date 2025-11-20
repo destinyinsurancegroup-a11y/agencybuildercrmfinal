@@ -27,7 +27,6 @@
         margin-bottom: 18px;
     }
 
-    /* Search bar */
     .contacts-search-wrapper {
         display: flex;
         align-items: center;
@@ -61,7 +60,6 @@
         background: #b5901f;
     }
 
-    /* Buttons */
     .btn-gold {
         background: #c9a227;
         color: #111827;
@@ -85,7 +83,6 @@
         gap: 8px;
     }
 
-    /* Contact list */
     .contact-list-item {
         padding: 10px 6px;
         font-size: 15px;
@@ -102,7 +99,6 @@
         font-weight: 600;
     }
 
-    /* Right empty panel */
     .empty-right-panel {
         height: 100%;
         background: transparent !important;
@@ -158,6 +154,7 @@
                         <div 
                             class="contact-list-item js-contact-row"
                             data-contact-url="{{ route('contacts.show', $contact->id) }}"
+                            data-contact-id="{{ $contact->id }}"   {{-- ← REQUIRED FOR AUTO-SELECT --}}
                         >
                             {{ $contact->full_name }}
                         </div>
@@ -169,7 +166,7 @@
             </div>
         </div>
 
-        <!-- RIGHT PANEL (FIXED WIDTH/HEIGHT) -->
+        <!-- RIGHT PANEL -->
         <div class="col-md-8 col-lg-9">
             <div id="contact-details-container" style="width:100%; min-height:400px;">
                 <div class="empty-right-panel"></div>
@@ -272,6 +269,22 @@ document.addEventListener('DOMContentLoaded', () => {
     addBtn.addEventListener('click', () => {
         loadPanel(addBtn.dataset.createUrl);
     });
+
+
+    /* ============================================================
+       AUTO-LOAD SELECTED CONTACT AFTER SAVING AN EDIT
+       ============================================================ */
+    const selectedId = "{{ $selected ?? '' }}";  // ← comes from controller
+
+    if (selectedId) {
+        const target = document.querySelector(
+            `.js-contact-row[data-contact-id='${selectedId}']`
+        );
+
+        if (target) {
+            target.click();    // ← auto-open the edited contact
+        }
+    }
 
 });
 </script>
