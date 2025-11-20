@@ -3,7 +3,7 @@
 @section('content')
 
 <style>
-    /* Same styling as Contacts */
+    /* Match dashboard card styling */
     .contacts-card {
         background: #ffffff;
         border-radius: 18px;
@@ -105,6 +105,8 @@
     }
 </style>
 
+
+
 <div class="dashboard-page">
     <div class="row g-4">
 
@@ -128,7 +130,7 @@
                     </div>
                 </form>
 
-                <!-- Add Client + Upload -->
+                <!-- Add Client (AJAX) + Upload -->
                 <div class="button-row">
 
                     <button 
@@ -148,7 +150,7 @@
                     </button>
                 </div>
 
-                <!-- CLIENT LIST -->
+                <!-- Client List -->
                 <div>
                     @forelse ($clients as $client)
                         <div 
@@ -166,6 +168,7 @@
             </div>
         </div>
 
+
         <!-- RIGHT PANEL -->
         <div class="col-md-8 col-lg-9">
             <div id="client-details-container" style="width:100%; min-height:400px;">
@@ -177,12 +180,13 @@
 </div>
 
 
+
 <!-- UPLOAD FILE MODAL -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <form 
-            action="{{ route('book.import') }}"
-            method="POST"
+            action="{{ route('book.import') }}" 
+            method="POST" 
             enctype="multipart/form-data"
             class="modal-content"
         >
@@ -212,7 +216,11 @@
     </div>
 </div>
 
+
+
 @endsection
+
+
 
 
 @push('scripts')
@@ -238,6 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Loaded HTML:", html);
             container.innerHTML = html;
             container.style.display = "block";
+
+            attachNotesHandlers(); // <<<<<<<<<< IMPORTANT
         })
         .catch(err => {
             console.error(err);
@@ -249,7 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* ----- LOAD CLIENT DETAILS ----- */
+
+    /* ----- Load Client Details ----- */
     document.querySelectorAll('.js-client-row').forEach(row => {
         row.addEventListener('click', () => {
 
@@ -263,14 +274,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    /* ----- LOAD CREATE FORM ----- */
+
+    /* ----- Load Create Form ----- */
     const addBtn = document.getElementById('add-client-btn');
 
     addBtn.addEventListener('click', () => {
         loadPanel(addBtn.dataset.createUrl);
     });
 
-    /* ----- AUTO-OPEN SELECTED CLIENT AFTER EDIT ----- */
+
+    /* ============================================================
+       AUTO-LOAD SELECTED CLIENT AFTER SAVING AN EDIT
+       ============================================================ */
     const selectedId = "{{ $selected ?? '' }}";
 
     if (selectedId) {
@@ -283,6 +298,122 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
 });
+
+
+
+/* ============================================================
+   NOTES: ADD / EDIT / SAVE / RELOAD
+   ============================================================ */
+
+function attachNotesHandlers() {
+
+    /* ADD NOTE */
+    const form = document.getElementById("add-note-form");
+
+    if (form) {
+        form.addEventListener("submit", function(e) {
+            e.preventDefault();
+
+            const clientId = this.dataset.clientId;
+            const url = this.action;
+            const body = this.querySelector("textarea[name='body']").value;
+
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ body })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    reloadClientFile(clientId);
+                }
+            });
+        });
+    }
+
+
+    /* EDIT NOTE BUTTONS */
+    document.querySelectorAll(".edit-note-btn").forEach(btn => {
+        btn.addEventListener("click", function() {
+
+            const noteId = this.dataset.noteId;
+            const bodyDiv = document.querySelector(
+                `.note-body[data-note-id='${noteId}']`
+            );
+
+            const original = bodyDiv.textContent.trim();
+
+            bodyDiv.innerHTML = `
+                <textarea class="form-control edit-note-textarea" rows="3">${original}</textarea>
+                <button class="btn btn-sm btn-success mt-1 save-note-btn" data-note-id="${noteId}">Save</button>
+                <button class="btn btn-sm btn-secondary mt-1 cancel-note-btn" data-note-id="${noteId}">Cancel</button>
+            `;
+
+            attachNoteEditButtons(noteId);
+        });
+    });
+}
+
+
+function attachNoteEditButtons(noteId) {
+
+    /* SAVE NOTE */
+    document.querySelector(`.save-note-btn[data-note-id='${noteId}']`)
+        .addEventListener("click", function () {
+
+            const body = document.querySelector(".edit-note-textarea").value;
+            const clientId = document.getElementById("add-note-form").dataset.clientId;
+
+            fetch(`/book-of-business/${clientId}/notes/${noteId}`, {
+                method: "PUT",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ body })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    reloadClientFile(clientId);
+                }
+            });
+        });
+
+
+    /* CANCEL EDIT */
+    document.querySelector(`.cancel-note-btn[data-note-id='${noteId}']`)
+        .addEventListener("click", function () {
+
+            const clientId = document.getElementById("add-note-form").dataset.clientId;
+            reloadClientFile(clientId);
+        });
+}
+
+
+
+/* ============================================================
+   RELOAD CLIENT PANEL
+   ============================================================ */
+function reloadClientFile(clientId) {
+
+    fetch(`/book-of-business/${clientId}`, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(res => res.text())
+    .then(html => {
+        document.getElementById("client-details-container").innerHTML = html;
+        attachNotesHandlers();
+    });
+}
+
 </script>
 @endpush
