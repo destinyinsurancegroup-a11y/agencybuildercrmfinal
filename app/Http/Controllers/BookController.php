@@ -20,7 +20,9 @@ class BookController extends Controller
             ->orderBy('first_name')
             ->get();
 
-        return view('book.index', compact('clients'));
+        $selected = request('selected'); // for auto-opening panel
+
+        return view('book.index', compact('clients', 'selected'));
     }
 
 
@@ -37,7 +39,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | STORE NEW CLIENT
+    | STORE NEW CLIENT (FORM SUBMISSION)
     |--------------------------------------------------------------------------
     */
     public function store(Request $request)
@@ -50,14 +52,14 @@ class BookController extends Controller
             'address'      => 'nullable|string|max:500',
         ]);
 
+        // MUST be book type
         $validated['contact_type'] = 'book';
 
+        // Save the client
         $client = Contact::create($validated);
 
-        return response()->json([
-            'success' => true,
-            'id' => $client->id
-        ]);
+        // Redirect back to Book index and auto-select new client
+        return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
 
@@ -72,7 +74,7 @@ class BookController extends Controller
             return view('book.partials.client-file', compact('client'));
         }
 
-        // Prevent direct navigation
+        // No direct navigation allowed
         return abort(404);
     }
 
@@ -121,7 +123,6 @@ class BookController extends Controller
     */
     public function import(Request $request)
     {
-        // You can fill this later with Excel import logic
         return back()->with('message', 'Import not implemented yet.');
     }
 }
