@@ -72,13 +72,18 @@
             <img src="/images/agency-builder-logo.png" alt="Agency Builder CRM Logo">
         </div>
 
-        <a class="nav-item" href="/dashboard">Dashboard</a>
-        <a class="nav-item" href="/all-contacts">All Contacts</a>
-        <a class="nav-item" href="/book-of-business">Book of Business</a>
-        <a class="nav-item" href="/leads">Leads</a>
-        <a class="nav-item" href="/service">Service</a>
+        <a class="nav-item" href="{{ route('dashboard') }}">Dashboard</a>
+        <a class="nav-item" href="{{ route('contacts.index') }}">All Contacts</a>
+
+        <!-- ⭐ FIXED BOOK OF BUSINESS LINK ⭐ -->
+        <a class="nav-item" href="{{ route('book.index') }}">Book of Business</a>
+
+        <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
+        <a class="nav-item" href="{{ route('service.index') }}">Service</a>
+
         <a class="nav-item" href="/activity">Activity</a>
         <a class="nav-item" href="/calendar">Calendar</a>
+
         <a class="nav-item" href="/settings">Settings</a>
         <a class="nav-item" href="/billing">Billing</a>
         <a class="nav-item" href="/logout">Logout</a>
