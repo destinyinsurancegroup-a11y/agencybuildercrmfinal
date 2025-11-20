@@ -1,21 +1,31 @@
-<div class="p-4" style="background:#ffffff; min-height:100%; border-radius:18px;">
+<div class="p-4" style="background:#ffffff; border-radius:18px; min-height:100%;">
+
+    @php
+        // Try to build a friendly name using what exists on Contact
+        $clientName = $client->full_name
+            ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+    @endphp
 
     <!-- =========================
-         HEADER: NAME + EDIT + ATTACHMENTS
+         HEADER: NAME + ATTACHMENTS + (FUTURE) EDIT BUTTON
          ========================= -->
     <div class="d-flex justify-content-between align-items-start mb-4">
 
         <div>
             <!-- Client Name -->
             <h2 class="text-gold fw-bold mb-2" style="font-size:26px;">
-                {{ $client->name }}
+                {{ $clientName }}
             </h2>
 
-            <!-- Attachments List -->
+            <!-- Attachments (view-only) -->
             <div class="mt-2">
                 <strong class="d-block mb-1" style="font-size:14px;">Attachments</strong>
 
-                @if($client->documents->count())
+                @php
+                    $hasDocumentsRelation = method_exists($client, 'documents');
+                @endphp
+
+                @if($hasDocumentsRelation && $client->documents->count())
                     <ul class="ps-3" style="font-size:14px;">
                         @foreach($client->documents as $doc)
                             <li>
@@ -26,16 +36,17 @@
                         @endforeach
                     </ul>
                 @else
-                    <div class="text-muted" style="font-size:13px;">No documents uploaded.</div>
+                    <div class="text-muted" style="font-size:13px;">
+                        No documents uploaded.
+                    </div>
                 @endif
             </div>
         </div>
 
-        <!-- Edit Button -->
-        <a href="{{ route('book.edit', $client->id) }}" class="btn-gold" style="font-size:12px;">
+        <!-- Edit button placeholder (wired later when edit page is built) -->
+        <button type="button" class="btn-gold" style="font-size:12px;">
             Edit Client
-        </a>
-
+        </button>
     </div>
 
 
@@ -74,11 +85,15 @@
 
             <div class="col-md-12">
                 <strong>Address:</strong><br>
-                {{ $client->address_line1 }}<br>
-                @if($client->address_line2)
-                    {{ $client->address_line2 }}<br>
+                @if(!empty($client->address_line1) || !empty($client->city) || !empty($client->state) || !empty($client->postal_code))
+                    {{ $client->address_line1 ?? '' }}<br>
+                    @if(!empty($client->address_line2))
+                        {{ $client->address_line2 }}<br>
+                    @endif
+                    {{ $client->city ?? '' }} {{ $client->state ?? '' }} {{ $client->postal_code ?? '' }}
+                @else
+                    {{ $client->address ?? 'No address on file.' }}
                 @endif
-                {{ $client->city }}, {{ $client->state }} {{ $client->postal_code }}
             </div>
         </div>
     </div>
@@ -127,35 +142,44 @@
     <div class="mb-4">
         <h5 class="fw-bold text-dark mb-3">Beneficiaries & Emergency Contacts</h5>
 
+        @php
+            $hasBeneficiariesRelation = method_exists($client, 'beneficiaries');
+            $hasEmergencyRelation     = method_exists($client, 'emergencyContacts');
+        @endphp
+
         <!-- Beneficiaries -->
         <div class="mb-3">
             <strong>Beneficiaries:</strong><br>
-            @forelse($client->beneficiaries as $b)
-                <div style="font-size:14px;">
-                    {{ $b->name }} — {{ $b->relationship }} — {{ $b->phone }}
-                </div>
-            @empty
+            @if($hasBeneficiariesRelation && $client->beneficiaries->count())
+                @foreach($client->beneficiaries as $b)
+                    <div style="font-size:14px;">
+                        {{ $b->name }} — {{ $b->relationship }} — {{ $b->phone }}
+                    </div>
+                @endforeach
+            @else
                 <div class="text-muted" style="font-size:13px;">None listed.</div>
-            @endforelse
+            @endif
         </div>
 
         <!-- Emergency Contacts -->
         <div>
             <strong>Emergency Contacts:</strong><br>
-            @forelse($client->emergencyContacts as $c)
-                <div style="font-size:14px;">
-                    {{ $c->name }} — {{ $c->relationship }} — {{ $c->phone }}
-                </div>
-            @empty
+            @if($hasEmergencyRelation && $client->emergencyContacts->count())
+                @foreach($client->emergencyContacts as $c)
+                    <div style="font-size:14px;">
+                        {{ $c->name }} — {{ $c->relationship }} — {{ $c->phone }}
+                    </div>
+                @endforeach
+            @else
                 <div class="text-muted" style="font-size:13px;">None listed.</div>
-            @endforelse
+            @endif
         </div>
     </div>
 
 
 
     <!-- =========================
-         NOTES (ONLY EDITABLE SECTION)
+         NOTES (ONLY EDITABLE SECTION HERE)
          ========================= -->
     <div>
         <h5 class="fw-bold text-dark mb-3">Notes</h5>
@@ -184,7 +208,11 @@
 
         <!-- Notes List -->
         <div id="notes-list" class="mt-3">
-            @forelse($client->notes as $note)
+            @php
+                $notes = method_exists($client, 'notes') ? $client->notes : collect();
+            @endphp
+
+            @forelse($notes as $note)
                 <div class="border rounded p-2 mb-2" style="font-size:14px;">
 
                     <div class="text-muted" style="font-size:12px;">
@@ -195,8 +223,9 @@
                         {{ $note->body }}
                     </div>
 
-                    <!-- Inline edit button (allowed in view panel) -->
+                    <!-- Inline edit button (allowed here) -->
                     <button 
+                        type="button"
                         class="btn btn-sm btn-outline-secondary mt-1 edit-note-btn"
                         data-note-id="{{ $note->id }}"
                         style="font-size:11px;"
