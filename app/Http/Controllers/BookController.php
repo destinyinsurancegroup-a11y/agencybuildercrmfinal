@@ -15,19 +15,30 @@ class BookController extends Controller
     */
     public function index()
     {
-        $clients = Contact::where('contact_type', 'book')
+        $query = Contact::where('contact_type', 'book');
+
+        if (request('search')) {
+            $search = request('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%$search%")
+                  ->orWhere('last_name', 'like', "%$search%");
+            });
+        }
+
+        $clients = $query
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
 
-        $selected = request('selected');
+        $selected = request('selected'); // auto-open after update
 
         return view('book.index', compact('clients', 'selected'));
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | CREATE PANEL (right side)
+    | AJAX — CREATE PANEL
     |--------------------------------------------------------------------------
     */
     public function createPanel()
@@ -35,32 +46,34 @@ class BookController extends Controller
         return view('book.partials.create');
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | STORE — SAME FLOW AS CONTACTS
+    | STORE NEW CLIENT
     |--------------------------------------------------------------------------
     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name'  => 'required|string|max:255',
-            'email'      => 'nullable|email|max:255',
-            'phone'      => 'nullable|string|max:255',
-            'address'    => 'nullable|string|max:500',
+            'first_name'   => 'required|string|max:255',
+            'last_name'    => 'required|string|max:255',
+            'email'        => 'nullable|email|max:255',
+            'phone'        => 'nullable|string|max:255',
+            'address'      => 'nullable|string|max:500',
+            'notes'        => 'nullable|string',
         ]);
 
         $validated['contact_type'] = 'book';
-        $validated['full_name'] = trim($validated['first_name'].' '.$validated['last_name']);
 
         $client = Contact::create($validated);
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | SHOW — LOAD RIGHT PANEL
+    | AJAX — SHOW CLIENT FILE PANEL
     |--------------------------------------------------------------------------
     */
     public function show(Contact $client)
@@ -69,44 +82,60 @@ class BookController extends Controller
             return view('book.partials.client-file', compact('client'));
         }
 
-        return redirect()->route('book.index', ['selected' => $client->id]);
+        abort(404);
     }
+
 
     /*
     |--------------------------------------------------------------------------
-    | EDIT — MATCHES CONTACTS EDIT FLOW
+    | AJAX — EDIT CLIENT PANEL
     |--------------------------------------------------------------------------
     */
-    public function edit(Contact $client)
+    public function editPanel(Contact $client)
     {
         return view('book.partials.edit', compact('client'));
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | UPDATE — SAME AS CONTACTS UPDATE
+    | UPDATE CLIENT (PUT)
     |--------------------------------------------------------------------------
     */
     public function update(Request $request, Contact $client)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name'  => 'required|string|max:255',
-            'email'      => 'nullable|email|max:255',
-            'phone'      => 'nullable|string|max:255',
-            'address'    => 'nullable|string|max:500',
+            'first_name'        => 'required|string|max:255',
+            'last_name'         => 'required|string|max:255',
+            'email'             => 'nullable|email|max:255',
+            'phone'             => 'nullable|string|max:255',
+            'date_of_birth'     => 'nullable|date',
+            'anniversary'       => 'nullable|date',
+            'address_line1'     => 'nullable|string|max:255',
+            'address_line2'     => 'nullable|string|max:255',
+            'city'              => 'nullable|string|max:255',
+            'state'             => 'nullable|string|max:255',
+            'postal_code'       => 'nullable|string|max:20',
+            'policy_type'       => 'nullable|string|max:255',
+            'face_amount'       => 'nullable|string|max:255',
+            'premium_amount'    => 'nullable|string|max:255',
+            'recurring_due_date'=> 'nullable|date',
+            'policy_issue_date' => 'nullable|date',
+            'notes'             => 'nullable|string',
         ]);
 
-        $validated['full_name'] = trim($validated['first_name'].' '.$validated['last_name']);
+        // ALWAYS keep type book
+        $validated['contact_type'] = 'book';
 
         $client->update($validated);
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | NOTES — ADD
+    | NOTES — ADD (AJAX)
     |--------------------------------------------------------------------------
     */
     public function storeNote(Request $request, Contact $client)
@@ -123,9 +152,10 @@ class BookController extends Controller
         return response()->json(['success' => true]);
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | NOTES — UPDATE
+    | NOTES — UPDATE (AJAX)
     |--------------------------------------------------------------------------
     */
     public function updateNote(Request $request, Contact $client, Note $note)
@@ -139,9 +169,10 @@ class BookController extends Controller
         return response()->json(['success' => true]);
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | IMPORT (future)
+    | IMPORT (LATER)
     |--------------------------------------------------------------------------
     */
     public function import(Request $request)
