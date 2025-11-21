@@ -26,7 +26,7 @@ Route::get('/test', function () {
 
 /*
 |--------------------------------------------------------------------------
-| DASHBOARD (NO AUTH REQUIRED)
+| DASHBOARD
 |--------------------------------------------------------------------------
 */
 Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -34,7 +34,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 
 /*
 |--------------------------------------------------------------------------
-| CONTACTS (FULL CRUD + MASTER-DETAIL LAYOUT)
+| CONTACTS (FULL CRUD + AJAX RIGHT PANEL)
 |--------------------------------------------------------------------------
 */
 
@@ -43,15 +43,15 @@ Route::get('/all-contacts', function () {
     return redirect()->route('contacts.index');
 });
 
-// AJAX route for CREATE PANEL
+// AJAX right-panel create
 Route::get('/contacts/create-panel', function () {
     return view('contacts.partials.create');
 })->name('contacts.create.panel');
 
-// Contacts CRUD
+// Full resource CRUD
 Route::resource('contacts', ContactsController::class);
 
-// Contacts Import (CSV/Excel)
+// Import
 Route::post('/contacts/import', [ContactsController::class, 'import'])
     ->name('contacts.import');
 
@@ -66,52 +66,43 @@ Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show')
 
 /*
 |--------------------------------------------------------------------------
-| BOOK OF BUSINESS (UPDATED)
-|--------------------------------------------------------------------------
-|
-| Supports:
-| - index
-| - AJAX create panel
-| - AJAX show panel
-| - AJAX edit panel
-| - update
-| - notes add/update
-| - import
+| BOOK OF BUSINESS (Full AJAX Master-Detail)
 |--------------------------------------------------------------------------
 */
 Route::prefix('book')->group(function () {
 
-    // INDEX PAGE
-    Route::get('/', [BookController::class, 'index'])->name('book.index');
+    // Full index page
+    Route::get('/', [BookController::class, 'index'])
+        ->name('book.index');
 
-    // AJAX: LOAD CREATE PANEL
+    // AJAX: Create Panel
     Route::get('/create-panel', [BookController::class, 'createPanel'])
         ->name('book.create.panel');
 
-    // STORE NEW CLIENT
-    Route::post('/', [BookController::class, 'store'])->name('book.store');
+    // Store
+    Route::post('/', [BookController::class, 'store'])
+        ->name('book.store');
 
-    // AJAX: LOAD CLIENT FILE
+    // AJAX: Show client file
     Route::get('/{client}', [BookController::class, 'show'])
         ->name('book.show');
 
-    // *** REQUIRED FIX: Edit Panel Route ***
+    // AJAX: Edit panel (right panel edit)
     Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])
         ->name('book.edit.panel');
 
-    // UPDATE CLIENT
+    // Update record
     Route::put('/{client}', [BookController::class, 'update'])
         ->name('book.update');
 
-    // NOTES — ADD
+    // Notes
     Route::post('/{client}/notes', [BookController::class, 'storeNote'])
         ->name('book.notes.store');
 
-    // NOTES — EDIT
     Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
         ->name('book.notes.update');
 
-    // IMPORT
+    // Import
     Route::post('/import', [BookController::class, 'import'])
         ->name('book.import');
 });
@@ -127,7 +118,7 @@ Route::get('/service/{id}',   [ServiceController::class, 'show'])->name('service
 
 /*
 |--------------------------------------------------------------------------
-| NOTES FOR CONTACTS
+| CONTACT NOTES
 |--------------------------------------------------------------------------
 */
 Route::get('/contacts/{contact}/notes', [NoteController::class, 'index'])
@@ -220,7 +211,7 @@ Route::delete('/calendar/events/{id}', function ($id) {
 
 /*
 |--------------------------------------------------------------------------
-| MIGRATION & CACHE UTILS
+| MAINTENANCE UTILITIES
 |--------------------------------------------------------------------------
 */
 Route::get('/migrate', function () {
