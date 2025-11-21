@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+class CreateBeneficiariesTable extends Migration
+{
     public function up(): void
     {
         Schema::create('beneficiaries', function (Blueprint $table) {
@@ -16,7 +17,10 @@ return new class extends Migration {
             $table->boolean('contacted')->default(false);
             $table->timestamps();
 
-            $table->foreign('contact_id')->references('id')->on('contacts')->onDelete('cascade');
+            $table->foreign('contact_id')
+                ->references('id')
+                ->on('contacts')
+                ->onDelete('cascade');
         });
     }
 
@@ -24,4 +28,4 @@ return new class extends Migration {
     {
         Schema::dropIfExists('beneficiaries');
     }
-};
+}
