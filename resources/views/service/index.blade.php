@@ -3,7 +3,7 @@
 @section('content')
 
 <style>
-    /* Match dashboard card styling */
+    /* Same layout as Book */
     .contacts-card {
         background: #ffffff;
         border-radius: 18px;
@@ -44,16 +44,15 @@
     }
 
     .contacts-search-btn {
-        padding: 10px 16px;
-        border-radius: 10px;
+        padding: 7px 10px;
+        border-radius: 8px;
         border: none;
         background: #c9a227;
         color: #111827;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
         cursor: pointer;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        text-transform: uppercase;
     }
 
     .contacts-search-btn:hover {
@@ -64,15 +63,14 @@
         background: #c9a227;
         color: #111827;
         border: none;
-        padding: 7px 14px;
+        padding: 6px 10px;
         font-weight: 600;
-        border-radius: 10px;
+        border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        text-transform: uppercase;
         font-size: 12px;
         cursor: pointer;
+        white-space: nowrap;
     }
-
     .btn-gold:hover {
         background: #b5901f;
     }
@@ -112,54 +110,46 @@
         <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
-                <div class="contacts-header">All Contacts</div>
+                <div class="contacts-header">Service Clients</div>
 
                 <!-- Search -->
-                <form method="GET" action="{{ route('contacts.index') }}">
-                    <div class="contacts-search-wrapper">
-                        <input 
-                            type="text"
-                            name="search"
-                            class="contacts-search-input"
-                            placeholder="Search contacts..."
-                            value="{{ request('search') }}"
-                        >
-                        <button class="contacts-search-btn">Search</button>
-                    </div>
-                </form>
+                <div class="contacts-search-wrapper">
+                    <input 
+                        type="text"
+                        id="service-search"
+                        class="contacts-search-input"
+                        placeholder="Search service clients..."
+                    >
+                    <button class="contacts-search-btn" disabled>Go</button>
+                </div>
 
-                <!-- Add Contact (AJAX) + Upload -->
+                <!-- Add Client -->
                 <div class="button-row">
-
                     <button 
-                        id="add-contact-btn"
+                        id="add-service-client-btn"
                         class="btn-gold"
-                        data-create-url="{{ route('contacts.create.panel') }}"
+                        data-create-url="{{ route('service.create.panel') }}"
                     >
-                        Add Contact
-                    </button>
-
-                    <button 
-                        class="btn-gold"
-                        data-bs-toggle="modal"
-                        data-bs-target="#uploadModal"
-                    >
-                        Upload File
+                        Add
                     </button>
                 </div>
 
-                <!-- Contact List -->
-                <div>
-                    @forelse ($contacts as $contact)
+                <!-- Client List -->
+                <div id="service-list">
+                    @forelse ($clients as $client)
                         <div 
-                            class="contact-list-item js-contact-row"
-                            data-contact-url="{{ route('contacts.show', $contact->id) }}"
-                            data-contact-id="{{ $contact->id }}"   {{-- ← REQUIRED FOR AUTO-SELECT --}}
+                            class="contact-list-item js-service-row {{ (isset($selected) && $selected == $client->id) ? 'active-contact-row' : '' }}"
+                            data-id="{{ $client->id }}"
+                            data-show-url="{{ route('service.show', $client->id) }}"
                         >
-                            {{ $contact->full_name }}
+                            {{ $client->full_name }}
+
+                            @if($client->policy_type)
+                                <br><small class="text-muted">{{ $client->policy_type }}</small>
+                            @endif
                         </div>
                     @empty
-                        <p class="text-muted">No contacts found.</p>
+                        <p class="text-muted">No service clients found.</p>
                     @endforelse
                 </div>
 
@@ -168,7 +158,7 @@
 
         <!-- RIGHT PANEL -->
         <div class="col-md-8 col-lg-9">
-            <div id="contact-details-container" style="width:100%; min-height:400px;">
+            <div id="service-details-container" style="width:100%; min-height:400px;">
                 <div class="empty-right-panel"></div>
             </div>
         </div>
@@ -176,53 +166,19 @@
     </div>
 </div>
 
-
-<!-- UPLOAD FILE MODAL -->
-<div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form 
-            action="{{ route('contacts.import') }}" 
-            method="POST" 
-            enctype="multipart/form-data"
-            class="modal-content"
-        >
-            @csrf
-
-            <div class="modal-header bg-black text-gold">
-                <h5 class="modal-title">Upload Contacts File</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <label class="form-label">Choose CSV or Excel file</label>
-                <input 
-                    type="file"
-                    name="file"
-                    class="form-control"
-                    accept=".csv, .xlsx, .xls"
-                    required
-                >
-            </div>
-
-            <div class="modal-footer">
-                <button type="submit" class="btn-gold">Upload</button>
-            </div>
-
-        </form>
-    </div>
-</div>
-
 @endsection
 
-
+{{-- ============================================================
+     JAVASCRIPT — SERVICE MODULE (AJAX RIGHT PANEL)
+     ============================================================ --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
-    const container = document.getElementById('contact-details-container');
+    const container = document.getElementById('service-details-container');
 
-    function loadPanel(url) {
-
+    /* ===== LOAD RIGHT PANEL ===== */
+    window.loadServicePanel = function (url) {
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
@@ -234,58 +190,217 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: {'X-Requested-With': 'XMLHttpRequest'}
         })
         .then(res => res.text())
-        .then(html => {
-            console.log("Loaded HTML:", html);
-            container.innerHTML = html;
-            container.style.display = "block";
-        })
-        .catch(err => {
-            console.error(err);
+        .then(html => container.innerHTML = html)
+        .catch(() => {
             container.innerHTML = `
                 <div style="padding:40px; text-align:center; color:red;">
                     Failed to load.
                 </div>
             `;
         });
-    }
+    };
 
-    /* ----- Load Contact Details ----- */
-    document.querySelectorAll('.js-contact-row').forEach(row => {
+    /* ===== CLICK A CLIENT ===== */
+    document.querySelectorAll('.js-service-row').forEach(row => {
         row.addEventListener('click', () => {
 
-            document
-                .querySelectorAll('.js-contact-row')
+            document.querySelectorAll('.js-service-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
 
             row.classList.add('active-contact-row');
 
-            loadPanel(row.dataset.contactUrl);
+            loadServicePanel(row.dataset.showUrl);
         });
     });
 
-    /* ----- Load Create Form ----- */
-    const addBtn = document.getElementById('add-contact-btn');
-
-    addBtn.addEventListener('click', () => {
-        loadPanel(addBtn.dataset.createUrl);
-    });
-
-
-    /* ============================================================
-       AUTO-LOAD SELECTED CONTACT AFTER SAVING AN EDIT
-       ============================================================ */
-    const selectedId = "{{ $selected ?? '' }}";  // ← comes from controller
-
-    if (selectedId) {
-        const target = document.querySelector(
-            `.js-contact-row[data-contact-id='${selectedId}']`
-        );
-
-        if (target) {
-            target.click();    // ← auto-open the edited contact
-        }
+    /* ===== ADD CLIENT BUTTON ===== */
+    const addBtn = document.getElementById('add-service-client-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function () {
+            loadServicePanel(this.dataset.createUrl);
+        });
     }
 
+    /* ===== CLIENT SIDE SEARCH ===== */
+    document.getElementById('service-search').addEventListener('keyup', function () {
+        const term = this.value.toLowerCase();
+        document.querySelectorAll('#service-list .js-service-row')
+            .forEach(row =>
+                row.style.display = row.textContent.toLowerCase().includes(term)
+                    ? 'block'
+                    : 'none'
+            );
+    });
+
+    /* ===== AUTO-LOAD SELECTED ===== */
+    @if(!empty($selected))
+        loadServicePanel("{{ route('service.show', $selected) }}");
+    @endif
 });
+
+
+/* ============================================================
+   BEC (Beneficiary / Emergency Contact) — SERVICE VERSION
+   ============================================================ */
+
+/* ---------- ADD BENEFICIARY ---------- */
+function openAddBeneficiary(clientId) {
+    document.getElementById('beneficiaryModalTitle').innerText = "Add Beneficiary";
+    document.getElementById('beneficiary_id').value = "";
+    document.getElementById('beneficiary_client_id').value = clientId;
+
+    document.getElementById('beneficiary_name').value = "";
+    document.getElementById('beneficiary_relationship').value = "";
+    document.getElementById('beneficiary_phone').value = "";
+    document.getElementById('beneficiary_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
+}
+
+/* ---------- EDIT BENEFICIARY ---------- */
+function editBeneficiary(id) {
+    fetch(`/api/beneficiaries/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('beneficiaryModalTitle').innerText = "Edit Beneficiary";
+
+            document.getElementById('beneficiary_id').value = data.id;
+            document.getElementById('beneficiary_client_id').value = data.contact_id;
+
+            document.getElementById('beneficiary_name').value = data.name;
+            document.getElementById('beneficiary_relationship').value = data.relationship ?? "";
+            document.getElementById('beneficiary_phone').value = data.phone ?? "";
+            document.getElementById('beneficiary_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
+        });
+}
+
+/* ---------- SAVE BENEFICIARY ---------- */
+document.addEventListener("submit", function (e) {
+    if (e.target.id !== "beneficiaryForm") return;
+    e.preventDefault();
+
+    let id = document.getElementById('beneficiary_id').value;
+    let clientId = document.getElementById('beneficiary_client_id').value;
+
+    let url = id
+        ? `/service/${clientId}/beneficiaries/${id}`
+        : `/service/${clientId}/beneficiaries`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            name: document.getElementById('beneficiary_name').value,
+            relationship: document.getElementById('beneficiary_relationship').value,
+            phone: document.getElementById('beneficiary_phone').value,
+            contacted: document.getElementById('beneficiary_contacted').value
+        })
+    })
+    .then(r => r.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('beneficiaryModal')).hide();
+        loadServicePanel(`/service/${clientId}`);
+    });
+});
+
+/* ---------- DELETE BENEFICIARY ---------- */
+function deleteBeneficiary(clientId, id) {
+    if (!confirm("Delete beneficiary?")) return;
+
+    fetch(`/service/${clientId}/beneficiaries/${id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
+    })
+    .then(r => r.json())
+    .then(() => loadServicePanel(`/service/${clientId}`));
+}
+
+
+/* ---------- ADD EMERGENCY CONTACT ---------- */
+function openAddEmergency(clientId) {
+    document.getElementById('emergencyModalTitle').innerText = "Add Emergency Contact";
+    document.getElementById('emergency_id').value = "";
+    document.getElementById('emergency_client_id').value = clientId;
+
+    document.getElementById('emergency_name').value = "";
+    document.getElementById('emergency_relationship').value = "";
+    document.getElementById('emergency_phone').value = "";
+    document.getElementById('emergency_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+}
+
+/* ---------- EDIT EMERGENCY ---------- */
+function editEmergency(id) {
+    fetch(`/api/emergency/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('emergencyModalTitle').innerText = "Edit Emergency Contact";
+
+            document.getElementById('emergency_id').value = data.id;
+            document.getElementById('emergency_client_id').value = data.contact_id;
+
+            document.getElementById('emergency_name').value = data.name;
+            document.getElementById('emergency_relationship').value = data.relationship ?? "";
+            document.getElementById('emergency_phone').value = data.phone ?? "";
+            document.getElementById('emergency_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+        });
+}
+
+/* ---------- SAVE EMERGENCY ---------- */
+document.addEventListener("submit", function (e) {
+    if (e.target.id !== "emergencyForm") return;
+    e.preventDefault();
+
+    let id = document.getElementById('emergency_id').value;
+    let clientId = document.getElementById('emergency_client_id').value;
+
+    let url = id
+        ? `/service/${clientId}/emergency/${id}`
+        : `/service/${clientId}/emergency`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            name: document.getElementById('emergency_name').value,
+            relationship: document.getElementById('emergency_relationship').value,
+            phone: document.getElementById('emergency_phone').value,
+            contacted: document.getElementById('emergency_contacted').value
+        })
+    })
+    .then(r => r.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('emergencyModal')).hide();
+        loadServicePanel(`/service/${clientId}`);
+    });
+});
+
+/* ---------- DELETE EMERGENCY ---------- */
+function deleteEmergency(clientId, id) {
+    if (!confirm("Delete emergency contact?")) return;
+
+    fetch(`/service/${clientId}/emergency/${id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
+    })
+    .then(r => r.json())
+    .then(() => loadServicePanel(`/service/${clientId}`));
+}
+
 </script>
 @endpush
