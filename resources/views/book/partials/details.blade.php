@@ -104,10 +104,17 @@
         <h4 class="text-gold fw-bold mb-3">Beneficiaries</h4>
 
         <div id="beneficiaries-list">
-
             @forelse ($client->beneficiaries as $b)
-                <div class="border rounded p-3 mb-2 d-flex justify-content-between">
-
+                <div 
+                    class="border rounded p-3 mb-2 d-flex justify-content-between align-items-center"
+                    data-beneficiary-row
+                    data-beneficiary-id="{{ $b->id }}"
+                    data-client-id="{{ $client->id }}"
+                    data-name="{{ $b->name }}"
+                    data-relationship="{{ $b->relationship }}"
+                    data-phone="{{ $b->phone }}"
+                    data-contacted="{{ $b->contacted ? 1 : 0 }}"
+                >
                     <div>
                         <strong>{{ $b->name }}</strong><br>
                         <small>
@@ -124,29 +131,30 @@
 
                     <div class="d-flex gap-2">
                         <button 
+                            type="button"
                             class="btn btn-sm btn-outline-primary"
-                            onclick="editBeneficiary({{ $b->id }})"
+                            onclick="editBeneficiary(this.closest('[data-beneficiary-row]'))"
                         >
                             Edit
                         </button>
 
                         <button 
+                            type="button"
                             class="btn btn-sm btn-outline-danger"
                             onclick="deleteBeneficiary({{ $client->id }}, {{ $b->id }})"
                         >
                             Delete
                         </button>
                     </div>
-
                 </div>
             @empty
                 <p class="text-muted">No beneficiaries added.</p>
             @endforelse
-
         </div>
 
         <button 
-            class="btn-gold mt-2"
+            type="button"
+            class="btn-gold btn-gold-mini mt-2"
             onclick="openAddBeneficiary({{ $client->id }})"
         >
             + Add Beneficiary
@@ -160,10 +168,17 @@
         <h4 class="text-gold fw-bold mb-3">Emergency Contacts</h4>
 
         <div id="emergency-list">
-
             @forelse ($client->emergencyContacts as $ec)
-                <div class="border rounded p-3 mb-2 d-flex justify-content-between">
-
+                <div 
+                    class="border rounded p-3 mb-2 d-flex justify-content-between align-items-center"
+                    data-emergency-row
+                    data-emergency-id="{{ $ec->id }}"
+                    data-client-id="{{ $client->id }}"
+                    data-name="{{ $ec->name }}"
+                    data-relationship="{{ $ec->relationship }}"
+                    data-phone="{{ $ec->phone }}"
+                    data-contacted="{{ $ec->contacted ? 1 : 0 }}"
+                >
                     <div>
                         <strong>{{ $ec->name }}</strong><br>
                         <small>
@@ -180,29 +195,30 @@
 
                     <div class="d-flex gap-2">
                         <button 
+                            type="button"
                             class="btn btn-sm btn-outline-primary"
-                            onclick="editEmergency({{ $ec->id }})"
+                            onclick="editEmergency(this.closest('[data-emergency-row]'))"
                         >
                             Edit
                         </button>
 
                         <button 
+                            type="button"
                             class="btn btn-sm btn-outline-danger"
                             onclick="deleteEmergency({{ $client->id }}, {{ $ec->id }})"
                         >
                             Delete
                         </button>
                     </div>
-
                 </div>
             @empty
                 <p class="text-muted">No emergency contacts added.</p>
             @endforelse
-
         </div>
 
         <button 
-            class="btn-gold mt-2"
+            type="button"
+            class="btn-gold btn-gold-mini mt-2"
             onclick="openAddEmergency({{ $client->id }})"
         >
             + Add Emergency Contact
@@ -219,7 +235,6 @@
     </div>
 
 </div>
-
 
 
 <!-- ========================================================== -->
@@ -272,7 +287,6 @@
 </div>
 
 
-
 <!-- ========================================================== -->
 <!-- === EMERGENCY CONTACT MODAL ============================== -->
 <!-- ========================================================== -->
@@ -322,206 +336,3 @@
         </form>
     </div>
 </div>
-
-
-<!-- ========================================================== -->
-<!-- === AJAX JAVASCRIPT ====================================== -->
-<!-- ========================================================== -->
-@push('scripts')
-<script>
-
-/* ------------------------------------------------------ */
-/* OPEN ADD BENEFICIARY MODAL                             */
-/* ------------------------------------------------------ */
-function openAddBeneficiary(clientId) {
-    document.getElementById('beneficiaryModalTitle').innerText = "Add Beneficiary";
-    document.getElementById('beneficiary_id').value = "";
-    document.getElementById('beneficiary_client_id').value = clientId;
-
-    document.getElementById('beneficiary_name').value = "";
-    document.getElementById('beneficiary_relationship').value = "";
-    document.getElementById('beneficiary_phone').value = "";
-    document.getElementById('beneficiary_contacted').value = "0";
-
-    new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
-}
-
-
-/* ------------------------------------------------------ */
-/* EDIT BENEFICIARY                                       */
-/* ------------------------------------------------------ */
-function editBeneficiary(id) {
-    fetch(`/api/beneficiaries/${id}`)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('beneficiaryModalTitle').innerText = "Edit Beneficiary";
-
-            document.getElementById('beneficiary_id').value = data.id;
-            document.getElementById('beneficiary_client_id').value = data.contact_id;
-
-            document.getElementById('beneficiary_name').value = data.name;
-            document.getElementById('beneficiary_relationship').value = data.relationship ?? "";
-            document.getElementById('beneficiary_phone').value = data.phone ?? "";
-            document.getElementById('beneficiary_contacted').value = data.contacted ? "1" : "0";
-
-            new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
-        });
-}
-
-
-/* ------------------------------------------------------ */
-/* SAVE BENEFICIARY                                       */
-/* ------------------------------------------------------ */
-document.getElementById('beneficiaryForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-
-    let id = document.getElementById('beneficiary_id').value;
-    let clientId = document.getElementById('beneficiary_client_id').value;
-
-    let payload = {
-        name: document.getElementById('beneficiary_name').value,
-        relationship: document.getElementById('beneficiary_relationship').value,
-        phone: document.getElementById('beneficiary_phone').value,
-        contacted: document.getElementById('beneficiary_contacted').value,
-        _token: "{{ csrf_token() }}"
-    };
-
-    let url = id 
-        ? `/book/${clientId}/beneficiaries/${id}` 
-        : `/book/${clientId}/beneficiaries`;
-
-    let method = id ? "PUT" : "POST";
-
-    fetch(url, {
-        method: method,
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(() => {
-        bootstrap.Modal.getInstance(document.getElementById('beneficiaryModal')).hide();
-        loadBookPanel(`/book/${clientId}`);
-    });
-});
-
-
-/* ------------------------------------------------------ */
-/* DELETE BENEFICIARY                                     */
-/* ------------------------------------------------------ */
-function deleteBeneficiary(clientId, id) {
-    if (!confirm("Delete beneficiary?")) return;
-
-    fetch(`/book/${clientId}/beneficiaries/${id}`, {
-        method: "DELETE",
-        headers: {
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        }
-    })
-    .then(res => res.json())
-    .then(() => {
-        loadBookPanel(`/book/${clientId}`);
-    });
-}
-
-
-/* ------------------------------------------------------ */
-/* OPEN ADD EMERGENCY CONTACT                             */
-/* ------------------------------------------------------ */
-function openAddEmergency(clientId) {
-    document.getElementById('emergencyModalTitle').innerText = "Add Emergency Contact";
-    document.getElementById('emergency_id').value = "";
-    document.getElementById('emergency_client_id').value = clientId;
-
-    document.getElementById('emergency_name').value = "";
-    document.getElementById('emergency_relationship').value = "";
-    document.getElementById('emergency_phone').value = "";
-    document.getElementById('emergency_contacted').value = "0";
-
-    new bootstrap.Modal(document.getElementById('emergencyModal')).show();
-}
-
-
-/* ------------------------------------------------------ */
-/* EDIT EMERGENCY CONTACT                                 */
-/* ------------------------------------------------------ */
-function editEmergency(id) {
-    fetch(`/api/emergency/${id}`)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('emergencyModalTitle').innerText = "Edit Emergency Contact";
-
-            document.getElementById('emergency_id').value = data.id;
-            document.getElementById('emergency_client_id').value = data.contact_id;
-
-            document.getElementById('emergency_name').value = data.name;
-            document.getElementById('emergency_relationship').value = data.relationship ?? "";
-            document.getElementById('emergency_phone').value = data.phone ?? "";
-            document.getElementById('emergency_contacted').value = data.contacted ? "1" : "0";
-
-            new bootstrap.Modal(document.getElementById('emergencyModal')).show();
-        });
-}
-
-
-/* ------------------------------------------------------ */
-/* SAVE EMERGENCY CONTACT                                 */
-/* ------------------------------------------------------ */
-document.getElementById('emergencyForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-
-    let id = document.getElementById('emergency_id').value;
-    let clientId = document.getElementById('emergency_client_id').value;
-
-    let payload = {
-        name: document.getElementById('emergency_name').value,
-        relationship: document.getElementById('emergency_relationship').value,
-        phone: document.getElementById('emergency_phone').value,
-        contacted: document.getElementById('emergency_contacted').value,
-        _token: "{{ csrf_token() }}"
-    };
-
-    let url = id 
-        ? `/book/${clientId}/emergency/${id}` 
-        : `/book/${clientId}/emergency`;
-
-    let method = id ? "PUT" : "POST";
-
-    fetch(url, {
-        method: method,
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(() => {
-        bootstrap.Modal.getInstance(document.getElementById('emergencyModal')).hide();
-        loadBookPanel(`/book/${clientId}`);
-    });
-});
-
-
-/* ------------------------------------------------------ */
-/* DELETE EMERGENCY CONTACT                               */
-/* ------------------------------------------------------ */
-function deleteEmergency(clientId, id) {
-    if (!confirm("Delete emergency contact?")) return;
-
-    fetch(`/book/${clientId}/emergency/${id}`, {
-        method: "DELETE",
-        headers: {
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        }
-    })
-    .then(res => res.json())
-    .then(() => {
-        loadBookPanel(`/book/${clientId}`);
-    });
-}
-
-</script>
-@endpush
