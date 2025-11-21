@@ -109,12 +109,64 @@ Route::prefix('book')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| SERVICE
+| SERVICE (Full AJAX Master-Detail, MIRROR OF BOOK)
+|--------------------------------------------------------------------------
+|
+| IMPORTANT: Your old Service routes were incorrect.
+| The Service tab must be a perfect clone of Book routes.
 |--------------------------------------------------------------------------
 */
-Route::get('/service',        [ServiceController::class, 'index'])->name('service.index');
-Route::get('/service/create', [ServiceController::class, 'create'])->name('service.create');
-Route::get('/service/{id}',   [ServiceController::class, 'show'])->name('service.show');
+Route::prefix('service')->group(function () {
+
+    // Full index page
+    Route::get('/', [ServiceController::class, 'index'])
+        ->name('service.index');
+
+    // AJAX: Create panel
+    Route::get('/create-panel', [ServiceController::class, 'createPanel'])
+        ->name('service.create.panel');
+
+    // Store new service record
+    Route::post('/', [ServiceController::class, 'store'])
+        ->name('service.store');
+
+    // AJAX: Show client file
+    Route::get('/{client}', [ServiceController::class, 'show'])
+        ->name('service.show');
+
+    // AJAX: Edit panel
+    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])
+        ->name('service.edit.panel');
+
+    // Update service client
+    Route::put('/{client}', [ServiceController::class, 'update'])
+        ->name('service.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| SERVICE NOTES (reuse BookController methods)
+|--------------------------------------------------------------------------
+*/
+Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])
+    ->name('service.notes.store');
+
+Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
+    ->name('service.notes.update');
+
+/*
+|--------------------------------------------------------------------------
+| SERVICE Beneficiary / Emergency DELETE
+| Reusing BookController delete logic
+|--------------------------------------------------------------------------
+*/
+Route::delete('/service/{client}/beneficiaries/{beneficiary}', 
+    [BookController::class, 'deleteBeneficiary'])
+    ->name('service.beneficiaries.destroy');
+
+Route::delete('/service/{client}/emergencies/{contact}',
+    [BookController::class, 'deleteEmergency'])
+    ->name('service.emergencies.destroy');
 
 /*
 |--------------------------------------------------------------------------
