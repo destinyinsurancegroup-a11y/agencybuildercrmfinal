@@ -126,14 +126,19 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | UPDATE – SAVE CHANGES (NEW VERSION)
+    | UPDATE – SAVE CHANGES (FIXED VERSION)
     |--------------------------------------------------------------------------
+    |
+    | New behavior:
+    | • Only overwrite fields the user typed/changed
+    | • Blank inputs do NOT wipe existing data
+    |
     */
     public function update(Request $request, Contact $client)
     {
         $validated = $request->validate([
-            'first_name'        => 'required|string|max:255',
-            'last_name'         => 'required|string|max:255',
+            'first_name'        => 'nullable|string|max:255',
+            'last_name'         => 'nullable|string|max:255',
             'email'             => 'nullable|email|max:255',
             'phone'             => 'nullable|string|max:255',
 
@@ -157,11 +162,17 @@ class BookController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        $validated['contact_type'] = 'book';
+        // NEW LOGIC: Only update non-empty fields
+        foreach ($validated as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $client->$key = $value;
+            }
+        }
 
-        $client->update($validated);
+        $client->contact_type = 'book';
 
-        // Return back to list & reload the edited client panel
+        $client->save();
+
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
