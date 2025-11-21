@@ -44,16 +44,15 @@
     }
 
     .contacts-search-btn {
-        padding: 10px 16px;
-        border-radius: 10px;
+        padding: 7px 10px;
+        border-radius: 8px;
         border: none;
         background: #c9a227;
         color: #111827;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
         cursor: pointer;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        text-transform: uppercase;
     }
 
     .contacts-search-btn:hover {
@@ -64,13 +63,13 @@
         background: #c9a227;
         color: #111827;
         border: none;
-        padding: 7px 14px;
+        padding: 6px 10px;   /* smaller buttons */
         font-weight: 600;
-        border-radius: 10px;
+        border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        text-transform: uppercase;
         font-size: 12px;
         cursor: pointer;
+        white-space: nowrap;
     }
 
     .btn-gold:hover {
@@ -122,7 +121,7 @@
                         class="contacts-search-input"
                         placeholder="Search clients..."
                     >
-                    <button class="contacts-search-btn" disabled>Search</button>
+                    <button class="contacts-search-btn" disabled>Go</button>
                 </div>
 
                 <!-- Add Client + Upload -->
@@ -132,7 +131,7 @@
                         class="btn-gold"
                         data-create-url="{{ route('book.create.panel') }}"
                     >
-                        Add Client
+                        Add
                     </button>
 
                     <button 
@@ -176,7 +175,7 @@
     </div>
 </div>
 
-<!-- UPLOAD BOOK OF BUSINESS MODAL -->
+<!-- UPLOAD BOOK MODAL -->
 <div class="modal fade" id="uploadBookModal" tabindex="-1">
     <div class="modal-dialog">
         <form 
@@ -213,6 +212,11 @@
 
 @endsection
 
+
+
+{{-- ============================================================
+     JAVASCRIPT — GLOBAL BEC HANDLERS
+     ============================================================ --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -279,5 +283,171 @@ document.addEventListener('DOMContentLoaded', () => {
         loadBookPanel("{{ route('book.show', $selected) }}");
     @endif
 });
+
+
+/* ------------------------------------------------------
+   BEC SECTION — MOVED HERE SO AJAX PARTIALS CAN USE IT
+   ------------------------------------------------------ */
+
+/* ---------- ADD BENEFICIARY ---------- */
+function openAddBeneficiary(clientId) {
+    document.getElementById('beneficiaryModalTitle').innerText = "Add Beneficiary";
+    document.getElementById('beneficiary_id').value = "";
+    document.getElementById('beneficiary_client_id').value = clientId;
+
+    document.getElementById('beneficiary_name').value = "";
+    document.getElementById('beneficiary_relationship').value = "";
+    document.getElementById('beneficiary_phone').value = "";
+    document.getElementById('beneficiary_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
+}
+
+/* ---------- EDIT BENEFICIARY ---------- */
+function editBeneficiary(id) {
+    fetch(`/api/beneficiaries/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('beneficiaryModalTitle').innerText = "Edit Beneficiary";
+
+            document.getElementById('beneficiary_id').value = data.id;
+            document.getElementById('beneficiary_client_id').value = data.contact_id;
+
+            document.getElementById('beneficiary_name').value = data.name;
+            document.getElementById('beneficiary_relationship').value = data.relationship ?? "";
+            document.getElementById('beneficiary_phone').value = data.phone ?? "";
+            document.getElementById('beneficiary_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
+        });
+}
+
+/* ---------- SAVE BENEFICIARY ---------- */
+document.addEventListener("submit", function (e) {
+    if (e.target.id !== "beneficiaryForm") return;
+    e.preventDefault();
+
+    let id = document.getElementById('beneficiary_id').value;
+    let clientId = document.getElementById('beneficiary_client_id').value;
+
+    let url = id
+        ? `/book/${clientId}/beneficiaries/${id}`
+        : `/book/${clientId}/beneficiaries`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            name: document.getElementById('beneficiary_name').value,
+            relationship: document.getElementById('beneficiary_relationship').value,
+            phone: document.getElementById('beneficiary_phone').value,
+            contacted: document.getElementById('beneficiary_contacted').value
+        })
+    })
+    .then(r => r.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('beneficiaryModal')).hide();
+        loadBookPanel(`/book/${clientId}`);
+    });
+});
+
+/* ---------- DELETE BENEFICIARY ---------- */
+function deleteBeneficiary(clientId, id) {
+    if (!confirm("Delete beneficiary?")) return;
+
+    fetch(`/book/${clientId}/beneficiaries/${id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
+    })
+    .then(r => r.json())
+    .then(() => loadBookPanel(`/book/${clientId}`));
+}
+
+
+
+/* ---------- ADD EMERGENCY CONTACT ---------- */
+function openAddEmergency(clientId) {
+    document.getElementById('emergencyModalTitle').innerText = "Add Emergency Contact";
+    document.getElementById('emergency_id').value = "";
+    document.getElementById('emergency_client_id').value = clientId;
+
+    document.getElementById('emergency_name').value = "";
+    document.getElementById('emergency_relationship').value = "";
+    document.getElementById('emergency_phone').value = "";
+    document.getElementById('emergency_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+}
+
+/* ---------- EDIT EMERGENCY ---------- */
+function editEmergency(id) {
+    fetch(`/api/emergency/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('emergencyModalTitle').innerText = "Edit Emergency Contact";
+
+            document.getElementById('emergency_id').value = data.id;
+            document.getElementById('emergency_client_id').value = data.contact_id;
+
+            document.getElementById('emergency_name').value = data.name;
+            document.getElementById('emergency_relationship').value = data.relationship ?? "";
+            document.getElementById('emergency_phone').value = data.phone ?? "";
+            document.getElementById('emergency_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+        });
+}
+
+/* ---------- SAVE EMERGENCY ---------- */
+document.addEventListener("submit", function (e) {
+    if (e.target.id !== "emergencyForm") return;
+    e.preventDefault();
+
+    let id = document.getElementById('emergency_id').value;
+    let clientId = document.getElementById('emergency_client_id').value;
+
+    let url = id
+        ? `/book/${clientId}/emergency/${id}`
+        : `/book/${clientId}/emergency`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            name: document.getElementById('emergency_name').value,
+            relationship: document.getElementById('emergency_relationship').value,
+            phone: document.getElementById('emergency_phone').value,
+            contacted: document.getElementById('emergency_contacted').value
+        })
+    })
+    .then(r => r.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('emergencyModal')).hide();
+        loadBookPanel(`/book/${clientId}`);
+    });
+});
+
+/* ---------- DELETE EMERGENCY ---------- */
+function deleteEmergency(clientId, id) {
+    if (!confirm("Delete emergency contact?")) return;
+
+    fetch(`/book/${clientId}/emergency/${id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
+    })
+    .then(r => r.json())
+    .then(() => loadBookPanel(`/book/${clientId}`));
+}
+
 </script>
 @endpush
