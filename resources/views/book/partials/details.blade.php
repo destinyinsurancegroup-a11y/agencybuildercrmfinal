@@ -34,7 +34,6 @@
 </style>
 
 <div class="p-4">
-
     <div class="card shadow-sm border-0 p-4">
 
         <!-- HEADER -->
@@ -60,25 +59,15 @@
         <h4 class="text-gold fw-bold mb-3">Basic Information</h4>
 
         <div class="row mb-4">
-
             <div class="col-md-6">
                 <p><strong>Email:</strong> {{ $client->email ?: '—' }}</p>
                 <p><strong>Phone:</strong> {{ $client->phone ?: '—' }}</p>
-
-                <p><strong>Date of Birth:</strong>
-                    {{ $client->date_of_birth ? $client->date_of_birth->format('m/d/Y') : '—' }}
-                </p>
-
-                <p><strong>Age:</strong>
-                    {{ $client->age ?? '—' }}
-                </p>
+                <p><strong>Date of Birth:</strong> {{ $client->date_of_birth?->format('m/d/Y') ?: '—' }}</p>
+                <p><strong>Age:</strong> {{ $client->age ?? '—' }}</p>
             </div>
 
             <div class="col-md-6">
-                <p><strong>Anniversary:</strong>
-                    {{ $client->anniversary ? $client->anniversary->format('m/d/Y') : '—' }}
-                </p>
-
+                <p><strong>Anniversary:</strong> {{ $client->anniversary?->format('m/d/Y') ?: '—' }}</p>
                 <p><strong>Address:</strong><br>
                     @if($client->address_line1)
                         {{ $client->address_line1 }}<br>
@@ -89,7 +78,6 @@
                     @endif
                 </p>
             </div>
-
         </div>
 
         <hr>
@@ -100,34 +88,22 @@
         <h4 class="text-gold fw-bold mb-3">Policy Information</h4>
 
         <div class="row mb-4">
-
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-
-                <p><strong>Face Amount:</strong>
-                    {{ $client->face_amount ? '$' . number_format($client->face_amount, 2) : '—' }}
+                <p><strong>Face Amount:</strong> 
+                    {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-
-                <p><strong>Monthly Premium:</strong>
-                    {{ $client->premium_amount ? '$' . number_format($client->premium_amount, 2) : '—' }}
+                <p><strong>Monthly Premium:</strong> 
+                    {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
 
             <div class="col-md-6">
-                <p><strong>Issue Date:</strong>
-                    {{ $client->policy_issue_date ? $client->policy_issue_date->format('m/d/Y') : '—' }}
-                </p>
-
-                <p><strong>Monthly Due (Text):</strong>
-                    {{ $client->premium_due_text ?: '—' }}
-                </p>
-
-                <p><strong>Due Date (Calendar):</strong>
-                    {{ $client->premium_due_date ? $client->premium_due_date->format('m/d/Y') : '—' }}
-                </p>
+                <p><strong>Issue Date:</strong> {{ $client->policy_issue_date?->format('m/d/Y') ?: '—' }}</p>
+                <p><strong>Monthly Due (Text):</strong> {{ $client->premium_due_text ?: '—' }}</p>
+                <p><strong>Due Date (Calendar):</strong> {{ $client->premium_due_date?->format('m/d/Y') ?: '—' }}</p>
             </div>
-
         </div>
 
         <hr>
@@ -187,7 +163,7 @@
         <hr>
 
         <!-- ================================ -->
-        <!-- NOTES SECTION (AJAX ENABLED)     -->
+        <!-- NOTES SECTION (FULLY WORKING)   -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
@@ -205,10 +181,12 @@
 
         <!-- NOTES LIST -->
         <div id="notes-list">
-            @forelse ($client->notes()->latest()->get() as $note)
+            @forelse ($client->notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div style="white-space: pre-wrap;">{{ $note->body }}</div>
+                        <div style="white-space: pre-wrap;">
+                            {{ $note->body }}
+                        </div>
 
                         <div>
                             <button class="btn btn-sm btn-outline-secondary"
@@ -221,6 +199,10 @@
                                 Delete
                             </button>
                         </div>
+                    </div>
+
+                    <div class="text-muted small mt-1">
+                        {{ $note->created_at->format('m/d/Y h:i A') }}
                     </div>
                 </div>
             @empty
