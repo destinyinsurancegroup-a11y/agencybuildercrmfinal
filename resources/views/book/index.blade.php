@@ -152,7 +152,8 @@
                             data-id="{{ $client->id }}"
                             data-show-url="{{ route('book.show', $client->id) }}"
                         >
-                            {{ $client->full_name ?? ($client->first_name . ' ' . $client->last_name) }}
+                            {{ $client->full_name }}
+
                             @if($client->policy_type)
                                 <br><small class="text-muted">{{ $client->policy_type }}</small>
                             @endif
@@ -175,8 +176,7 @@
     </div>
 </div>
 
-
-<!-- UPLOAD BOOK CLIENTS MODAL -->
+<!-- UPLOAD BOOK OF BUSINESS MODAL -->
 <div class="modal fade" id="uploadBookModal" tabindex="-1">
     <div class="modal-dialog">
         <form 
@@ -213,13 +213,13 @@
 
 @endsection
 
-
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
     const container = document.getElementById('book-details-container');
 
+    // Loads right panel via AJAX
     window.loadBookPanel = function (url) {
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
     });
 
-    // Auto-load selected client if present
+    // Auto-load selected client
     @if(!empty($selected))
         loadBookPanel("{{ route('book.show', $selected) }}");
     @endif
