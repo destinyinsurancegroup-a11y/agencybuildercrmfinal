@@ -2,11 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Note;
-use App\Models\Document;
 use App\Models\Beneficiary;
 use App\Models\EmergencyContact;
 
@@ -33,90 +31,74 @@ class Contact extends Model
         'state',
         'postal_code',
         'date_of_birth',
-
-        // Policy info
         'policy_type',
         'face_amount',
         'premium_amount',
         'premium_due_date',
-
-        // Legacy notes column (ignored by new notes system)
         'notes',
+
+        // NEW BOOK FIELDS
+        'carrier',
+        'anniversary',
+        'policy_issue_date',
+        'premium_due_text',
     ];
 
     protected $casts = [
-        'tags'             => 'array',
-        'date_of_birth'    => 'date',
-        'premium_due_date' => 'date',
-        'face_amount'      => 'decimal:2',
-        'premium_amount'   => 'decimal:2',
+        'tags'               => 'array',
+        'date_of_birth'      => 'date',
+        'premium_due_date'   => 'date',
+        'policy_issue_date'  => 'date',
+        'anniversary'        => 'date',
+        'face_amount'        => 'decimal:2',
+        'premium_amount'     => 'decimal:2',
     ];
 
-    /**
-     * Auto-generate full_name when saving
-     */
     public static function booted(): void
     {
         static::saving(function (Contact $contact) {
-            $contact->full_name = trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+            $contact->full_name = trim($contact->first_name . ' ' . $contact->last_name);
         });
     }
 
-    /**
-     * Multi-tenant scope
-     */
-    public function scopeForCurrentTenant(Builder $query): Builder
+    public function scopeForCurrentTenant($query)
     {
         $tenantId = auth()->user()?->tenant_id;
-
         return $query->where('tenant_id', $tenantId);
     }
 
-    /**
-     * User who created the contact
-     */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /**
-     * User assigned to this contact
-     */
     public function assignee()
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
-    /**
-     * Contact Notes Relationship (new notes system)
-     */
     public function notes()
     {
         return $this->hasMany(Note::class, 'contact_id')->latest();
     }
 
-    /**
-     * Documents uploaded to this client
-     */
-    public function documents()
-    {
-        return $this->hasMany(Document::class, 'contact_id');
-    }
-
-    /**
-     * Beneficiaries for this client
-     */
+    // NEW — BENEFICIARIES RELATIONSHIP
     public function beneficiaries()
     {
-        return $this->hasMany(Beneficiary::class, 'contact_id');
+        return $this->hasMany(Beneficiary::class);
     }
 
-    /**
-     * Emergency Contacts for this client
-     */
+    // NEW — EMERGENCY CONTACT RELATIONSHIP
     public function emergencyContacts()
     {
-        return $this->hasMany(EmergencyContact::class, 'contact_id');
+        return $this->hasMany(EmergencyContact::class);
+    }
+
+    // Useful helper — Auto-calc age from DOB (not stored in DB)
+    public function getAgeAttribute()
+    {
+        return $this->date_of_birth
+            ? $this->date_of_birth->age
+            : null;
     }
 }
