@@ -13,16 +13,20 @@ class Note extends Model
         'contact_id',
         'created_by',
         'tenant_id',
-        'note',
+        'body',     // FIXED — This must match controller + DB
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
-     * Automatically enforce tenant assignment and created_by assignment.
+     * Auto-assign tenant + created_by.
      */
     protected static function booted()
     {
         static::creating(function (Note $note) {
-            // Auto-assign tenant_id from logged-in user
             if (auth()->check()) {
                 $note->tenant_id = auth()->user()->tenant_id;
                 $note->created_by = auth()->id();
@@ -31,7 +35,7 @@ class Note extends Model
     }
 
     /**
-     * Relationship: each note belongs to a single contact.
+     * Note belongs to a contact.
      */
     public function contact()
     {
@@ -39,7 +43,7 @@ class Note extends Model
     }
 
     /**
-     * Relationship: user who wrote the note.
+     * User who wrote the note.
      */
     public function user()
     {
@@ -47,7 +51,7 @@ class Note extends Model
     }
 
     /**
-     * Safety: Only allow querying notes belonging to the authenticated tenant.
+     * Multi-tenant protection.
      */
     public function scopeForCurrentTenant($query)
     {
