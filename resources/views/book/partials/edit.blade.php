@@ -1,15 +1,63 @@
 <div class="p-4">
 
-    <!-- Compact CSS -->
+    <!-- Ultra-Compact CSS -->
     <style>
-        .card { padding: 1.25rem !important; }
-        .p-4 { padding: 1.5rem !important; }
-        h5.text-gold, h6.text-gold { margin: .5rem 0 !important; }
-        .row.mb-3 { margin-bottom: .75rem !important; }
-        hr { margin: 1rem 0 !important; }
-        .form-label { margin-bottom: .15rem !important; }
-        .mb-2, .mb-3, .mb-4 { margin-bottom: .65rem !important; }
-        .beneficiary-row, .emergency-row { padding: .75rem !important; }
+        /* Overall compact wrappers */
+        .p-4 { padding: 1rem !important; }
+        .card { padding: 1rem !important; }
+
+        /* Tight section headings */
+        h5.text-gold, h6.text-gold {
+            margin-top: .4rem !important;
+            margin-bottom: .4rem !important;
+        }
+
+        /* Reduce spacing between rows */
+        .row {
+            margin-bottom: .55rem !important;
+        }
+
+        /* Labels more compact */
+        .form-label {
+            margin-bottom: .1rem !important;
+            font-size: .85rem !important;
+        }
+
+        /* Ultra-compact inputs */
+        .form-control, .form-select {
+            padding: .35rem .5rem !important;
+            font-size: .85rem !important;
+            height: 32px !important;
+        }
+
+        /* 3-column rows tighter */
+        .col-md-4, .col-md-3, .col-md-2, .col-md-6 {
+            padding-right: .35rem !important;
+            padding-left: .35rem !important;
+        }
+
+        /* HR spacing small */
+        hr { margin: .7rem 0 !important; }
+
+        /* Compact beneficiary & emergency blocks */
+        .beneficiary-row, .emergency-row {
+            padding: .6rem !important;
+            margin-bottom: .6rem !important;
+        }
+
+        /* Remove outer large spacing */
+        .mb-4, .mb-3, .mb-2 { margin-bottom: .5rem !important; }
+
+        /* Buttons compact */
+        .btn-gold, .btn.btn-sm.btn-gold {
+            padding: 4px 10px !important;
+            font-size: .8rem !important;
+        }
+
+        .btn-gold.btn-lg {
+            padding: 6px 14px !important;
+            font-size: .85rem !important;
+        }
     </style>
 
     <div class="card shadow-sm border-0">
@@ -21,7 +69,7 @@
             <!-- BASIC INFORMATION -->
             <h5 class="text-gold fw-bold">Basic Information</h5>
 
-            <div class="row mb-3">
+            <div class="row">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">First Name</label>
                     <input type="text" name="first_name" class="form-control"
@@ -35,7 +83,7 @@
                 </div>
             </div>
 
-            <div class="row mb-3">
+            <div class="row">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Date of Birth</label>
                     <input type="date" name="date_of_birth" class="form-control"
@@ -69,7 +117,7 @@
                        value="{{ old('address_line2', $client->address_line2) }}">
             </div>
 
-            <div class="row mb-3">
+            <div class="row">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">City</label>
                     <input type="text" name="city" class="form-control"
@@ -89,7 +137,7 @@
                 </div>
             </div>
 
-            <div class="row mb-4">
+            <div class="row mb-1">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Phone</label>
                     <input type="text" name="phone" class="form-control"
@@ -108,7 +156,7 @@
             <!-- POLICY INFORMATION -->
             <h5 class="text-gold fw-bold">Policy Information</h5>
 
-            <div class="row mb-3">
+            <div class="row">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Carrier</label>
                     <input type="text" name="carrier" class="form-control"
@@ -122,7 +170,7 @@
                 </div>
             </div>
 
-            <div class="row mb-3">
+            <div class="row">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Face Amount</label>
                     <input type="number" step="0.01" name="face_amount" class="form-control"
@@ -142,7 +190,7 @@
                 </div>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-2">
                 <label class="form-label fw-semibold">Monthly Due Date (text)</label>
                 <input type="text" name="premium_due_text" class="form-control"
                        value="{{ old('premium_due_text', $client->premium_due_text) }}">
@@ -150,13 +198,13 @@
 
             <hr>
 
-            <!-- BENEFICIARIES (2 fixed rows) -->
+            <!-- BENEFICIARIES (2 compact rows) -->
             <h5 class="text-gold fw-bold">Beneficiaries</h5>
 
             @for ($i = 0; $i < 2; $i++)
                 @php $b = $client->beneficiaries[$i] ?? null; @endphp
 
-                <div class="beneficiary-row border rounded mb-3">
+                <div class="beneficiary-row border rounded">
                     <div class="row">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Name</label>
@@ -189,13 +237,13 @@
 
             <hr>
 
-            <!-- EMERGENCY CONTACTS (2 fixed rows) -->
+            <!-- EMERGENCY CONTACTS (2 compact rows) -->
             <h5 class="text-gold fw-bold">Emergency Contacts</h5>
 
             @for ($i = 0; $i < 2; $i++)
                 @php $e = $client->emergencyContacts[$i] ?? null; @endphp
 
-                <div class="emergency-row border rounded mb-3">
+                <div class="emergency-row border rounded">
                     <div class="row">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Name</label>
@@ -228,15 +276,7 @@
 
             <hr>
 
-            <!-- NOTES -->
-            <h5 class="text-gold fw-bold">Notes</h5>
-
-            <div class="mb-4">
-                <textarea name="notes" class="form-control" rows="4"
-                          placeholder="Enter client notes...">{{ old('notes', $client->notes) }}</textarea>
-            </div>
-
-            <!-- SUBMIT BUTTON -->
+            <!-- Save -->
             <div class="text-end">
                 <button class="btn-gold btn-lg">Save Client</button>
             </div>
