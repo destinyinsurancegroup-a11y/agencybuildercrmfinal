@@ -1,16 +1,13 @@
-<div class="p-4">
+<div class="p-4" data-client-id="{{ $client->id }}">
 
     <div class="card shadow-sm border-0 p-4">
 
-        {{-- ===========================
-             HEADER
-        ============================ --}}
+        {{-- HEADER --}}
         <div class="d-flex justify-content-between align-items-start mb-3">
             <h1 class="fw-bold mb-0" style="font-size: 32px;">
                 {{ trim($client->first_name . ' ' . $client->last_name) ?: 'Unnamed Client' }}
             </h1>
 
-            <!-- TOP RIGHT EDIT BUTTON (AJAX) -->
             <button
                 type="button"
                 class="btn-gold"
@@ -23,9 +20,7 @@
 
         <hr>
 
-        {{-- ===========================
-             SUMMARY ROW (EMAIL / PHONE / TYPE)
-        ============================ --}}
+        {{-- SUMMARY --}}
         <div class="row mb-4">
             <div class="col-md-6">
                 <p><strong>Email:</strong> {{ $client->email ?: '—' }}</p>
@@ -37,9 +32,7 @@
             </div>
         </div>
 
-        {{-- ===========================
-             TABS
-        ============================ --}}
+        {{-- TABS --}}
         <ul class="nav nav-tabs mb-4">
             <li class="nav-item">
                 <a class="nav-link active" data-bs-toggle="tab" href="#detailsTab">Details</a>
@@ -56,40 +49,34 @@
 
         <div class="tab-content">
 
-            {{-- ===========================
-                 TAB 1: DETAILS
-                 (Basic Info + Policy + Beneficiaries + Emergency Contacts)
-            ============================ --}}
+            {{-- DETAILS TAB --}}
             <div class="tab-pane fade show active" id="detailsTab">
 
-                {{-- 1. BASIC INFORMATION --}}
+                {{-- BASIC INFORMATION --}}
                 <h5 class="fw-bold mb-3">Basic Information</h5>
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <p>
                             <strong>Date of Birth:</strong>
                             @if($client->date_of_birth)
-                                {{ \Carbon\Carbon::parse($client->date_of_birth)->format('m/d/Y') }}
+                                {{ $client->date_of_birth->format('m/d/Y') }}
                             @else
                                 —
                             @endif
                         </p>
-
                         <p>
                             <strong>Age:</strong>
                             {{ $client->age ?? '—' }}
                         </p>
-
                         <p>
                             <strong>Anniversary:</strong>
-                            @if(!empty($client->anniversary))
-                                {{ \Carbon\Carbon::parse($client->anniversary)->format('m/d/Y') }}
+                            @if($client->anniversary)
+                                {{ $client->anniversary->format('m/d/Y') }}
                             @else
                                 —
                             @endif
                         </p>
                     </div>
-
                     <div class="col-md-6">
                         <p><strong>Email:</strong> {{ $client->email ?: '—' }}</p>
                         <p><strong>Phone:</strong> {{ $client->phone ?: '—' }}</p>
@@ -99,7 +86,6 @@
                 {{-- ADDRESS --}}
                 <div class="mb-4">
                     <p><strong>Address</strong></p>
-
                     @if($client->address_line1 || $client->city || $client->state || $client->postal_code)
                         <p class="mb-0">
                             {{ $client->address_line1 }}<br>
@@ -113,26 +99,17 @@
 
                 <hr>
 
-                {{-- 2. POLICY INFORMATION --}}
+                {{-- POLICY INFORMATION --}}
                 <h5 class="fw-bold mb-3">Policy Information</h5>
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <p>
-                            <strong>Carrier:</strong><br>
-                            {{ $client->carrier ?? '—' }}
-                        </p>
+                        <p><strong>Carrier:</strong><br>{{ $client->carrier ?? '—' }}</p>
                     </div>
-
                     <div class="col-md-4">
-                        <p>
-                            <strong>Policy Type:</strong><br>
-                            {{ $client->policy_type ?? '—' }}
-                        </p>
+                        <p><strong>Policy Type:</strong><br>{{ $client->policy_type ?? '—' }}</p>
                     </div>
-
                     <div class="col-md-4">
-                        <p>
-                            <strong>Face Amount:</strong><br>
+                        <p><strong>Face Amount:</strong><br>
                             {{ $client->face_amount ? '$' . number_format($client->face_amount, 2) : '—' }}
                         </p>
                     </div>
@@ -140,29 +117,23 @@
 
                 <div class="row mb-4">
                     <div class="col-md-4">
-                        <p>
-                            <strong>Monthly Premium:</strong><br>
+                        <p><strong>Monthly Premium:</strong><br>
                             {{ $client->premium_amount ? '$' . number_format($client->premium_amount, 2) : '—' }}
                         </p>
                     </div>
-
                     <div class="col-md-4">
-                        <p>
-                            <strong>Issue Date:</strong><br>
-                            @if(!empty($client->policy_issue_date))
-                                {{ \Carbon\Carbon::parse($client->policy_issue_date)->format('m/d/Y') }}
+                        <p><strong>Issue Date:</strong><br>
+                            @if($client->policy_issue_date)
+                                {{ $client->policy_issue_date->format('m/d/Y') }}
                             @else
                                 —
                             @endif
                         </p>
                     </div>
-
                     <div class="col-md-4">
-                        <p>
-                            <strong>Monthly Due Date:</strong><br>
-                            {{-- You can store text like "3rd" or "2nd Wednesday" in a string column --}}
-                            {{ $client->billing_cycle_text ?? ($client->premium_due_date
-                                ? \Carbon\Carbon::parse($client->premium_due_date)->format('m/d/Y')
+                        <p><strong>Monthly Due Date:</strong><br>
+                            {{ $client->premium_due_text ?? ($client->premium_due_date
+                                ? $client->premium_due_date->format('m/d/Y')
                                 : '—') }}
                         </p>
                     </div>
@@ -170,15 +141,16 @@
 
                 <hr>
 
-                {{-- 3. BENEFICIARIES --}}
+                {{-- BENEFICIARIES --}}
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5 class="fw-bold mb-0">Beneficiaries</h5>
                         <button
                             type="button"
                             class="btn-gold btn-sm"
+                            id="add-beneficiary-btn"
                             data-bs-toggle="modal"
-                            data-bs-target="#addBeneficiaryModal"
+                            data-bs-target="#beneficiaryModal"
                         >
                             + Add Beneficiary
                         </button>
@@ -192,22 +164,45 @@
 
                     @if($beneficiaries->count())
                         <div class="table-responsive">
-                            <table class="table table-sm align-middle">
+                            <table class="table table-sm align-middle mb-0">
                                 <thead>
                                     <tr>
                                         <th>Name</th>
                                         <th>Relationship</th>
                                         <th>Phone</th>
                                         <th>Contacted?</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($beneficiaries as $b)
-                                        <tr>
+                                        <tr
+                                            data-beneficiary-id="{{ $b->id }}"
+                                            data-name="{{ $b->name }}"
+                                            data-relationship="{{ $b->relationship }}"
+                                            data-phone="{{ $b->phone }}"
+                                            data-contacted="{{ $b->contacted ? 1 : 0 }}"
+                                        >
                                             <td>{{ $b->name }}</td>
                                             <td>{{ $b->relationship ?: '—' }}</td>
                                             <td>{{ $b->phone ?: '—' }}</td>
                                             <td>{{ $b->contacted ? 'Yes' : 'No' }}</td>
+                                            <td class="text-end">
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-sm btn-outline-secondary me-1 edit-beneficiary-btn"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#beneficiaryModal"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-sm btn-outline-danger delete-beneficiary-btn"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -220,15 +215,16 @@
 
                 <hr>
 
-                {{-- 4. EMERGENCY CONTACTS --}}
+                {{-- EMERGENCY CONTACTS --}}
                 <div class="mb-2">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h5 class="fw-bold mb-0">Emergency Contacts</h5>
                         <button
                             type="button"
                             class="btn-gold btn-sm"
+                            id="add-emergency-btn"
                             data-bs-toggle="modal"
-                            data-bs-target="#addEmergencyContactModal"
+                            data-bs-target="#emergencyModal"
                         >
                             + Add Emergency Contact
                         </button>
@@ -242,22 +238,45 @@
 
                     @if($emergencyContacts->count())
                         <div class="table-responsive">
-                            <table class="table table-sm align-middle">
+                            <table class="table table-sm align-middle mb-0">
                                 <thead>
                                     <tr>
                                         <th>Name</th>
                                         <th>Relationship</th>
                                         <th>Phone</th>
                                         <th>Contacted?</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($emergencyContacts as $c)
-                                        <tr>
+                                        <tr
+                                            data-emergency-id="{{ $c->id }}"
+                                            data-name="{{ $c->name }}"
+                                            data-relationship="{{ $c->relationship }}"
+                                            data-phone="{{ $c->phone }}"
+                                            data-contacted="{{ $c->contacted ? 1 : 0 }}"
+                                        >
                                             <td>{{ $c->name }}</td>
                                             <td>{{ $c->relationship ?: '—' }}</td>
                                             <td>{{ $c->phone ?: '—' }}</td>
                                             <td>{{ $c->contacted ? 'Yes' : 'No' }}</td>
+                                            <td class="text-end">
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-sm btn-outline-secondary me-1 edit-emergency-btn"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#emergencyModal"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-sm btn-outline-danger delete-emergency-btn"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -268,48 +287,128 @@
                     @endif
                 </div>
 
-            </div> {{-- /#detailsTab --}}
+            </div>
 
-            {{-- ===========================
-                 TAB 2: NOTES
-            ============================ --}}
+            {{-- NOTES TAB --}}
             <div class="tab-pane fade" id="notesTab">
                 <h5 class="fw-bold mb-3">Notes</h5>
-
-                {{-- This is using the legacy "notes" column.
-                     Later we can wire this to the new notes table like Contacts/Leads --}}
                 <p>{{ $client->notes ?: 'No notes added.' }}</p>
             </div>
 
-            {{-- ===========================
-                 TAB 3: DOCUMENTS
-            ============================ --}}
+            {{-- DOCUMENTS TAB --}}
             <div class="tab-pane fade" id="docsTab">
                 <h5 class="fw-bold mb-3">Documents</h5>
-
-                @php
-                    $documents = method_exists($client, 'documents')
-                        ? $client->documents
-                        : collect();
-                @endphp
-
-                @if($documents->count())
-                    <ul class="mb-0">
-                        @foreach($documents as $doc)
-                            <li>
-                                <a href="{{ $doc->url ?? '#' }}" target="_blank">
-                                    {{ $doc->original_name ?? 'Document' }}
-                                </a>
-                            </li>
-                        @endforeach
-                    </ul>
-                @else
-                    <p class="text-muted mb-0">No documents uploaded.</p>
-                @endif
+                <p class="text-muted mb-0">Document uploads coming soon…</p>
             </div>
 
-        </div> {{-- /.tab-content --}}
+        </div>
 
     </div>
 
+</div>
+
+{{-- ===========================
+     MODAL: BENEFICIARY
+=========================== --}}
+<div class="modal fade" id="beneficiaryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form
+            class="modal-content"
+            id="beneficiary-form"
+            data-store-url="{{ route('book.beneficiaries.store', $client->id) }}"
+            data-update-base="{{ url('/book/'.$client->id.'/beneficiaries') }}"
+            data-delete-base="{{ url('/book/'.$client->id.'/beneficiaries') }}"
+        >
+            @csrf
+            <input type="hidden" name="_method" value="POST">
+            <input type="hidden" name="beneficiary_id" id="beneficiary_id">
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title" id="beneficiaryModalTitle">Add Beneficiary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Name</label>
+                    <input type="text" name="name" id="beneficiary_name" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Relationship</label>
+                    <input type="text" name="relationship" id="beneficiary_relationship" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Phone</label>
+                    <input type="text" name="phone" id="beneficiary_phone" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Contacted?</label>
+                    <select name="contacted" id="beneficiary_contacted" class="form-select">
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ===========================
+     MODAL: EMERGENCY CONTACT
+=========================== --}}
+<div class="modal fade" id="emergencyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form
+            class="modal-content"
+            id="emergency-form"
+            data-store-url="{{ route('book.emergency.store', $client->id) }}"
+            data-update-base="{{ url('/book/'.$client->id.'/emergency-contacts') }}"
+            data-delete-base="{{ url('/book/'.$client->id.'/emergency-contacts') }}"
+        >
+            @csrf
+            <input type="hidden" name="_method" value="POST">
+            <input type="hidden" name="emergency_id" id="emergency_id">
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title" id="emergencyModalTitle">Add Emergency Contact</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Name</label>
+                    <input type="text" name="name" id="emergency_name" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Relationship</label>
+                    <input type="text" name="relationship" id="emergency_relationship" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Phone</label>
+                    <input type="text" name="phone" id="emergency_phone" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Contacted?</label>
+                    <select name="contacted" id="emergency_contacted" class="form-select">
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Save</button>
+            </div>
+        </form>
+    </div>
 </div>
