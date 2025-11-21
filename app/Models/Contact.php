@@ -35,9 +35,9 @@ class Contact extends Model
         'face_amount',
         'premium_amount',
         'premium_due_date',
-        'notes',
+        'notes',   // single text field
 
-        // NEW BOOK FIELDS
+        // BOOK FIELDS
         'carrier',
         'anniversary',
         'policy_issue_date',
@@ -77,35 +77,22 @@ class Contact extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
-    /* =======================================================
-     * NOTES RELATIONSHIP (CORRECTED)
-     * Loads ALL notes ever made for this client
-     * Ordered newest → oldest
-     * ======================================================= */
-    public function notes()
+    // FIXED: renamed to avoid conflict with 'notes' column
+    public function allNotes()
     {
-        return $this->hasMany(Note::class, 'contact_id')->orderBy('created_at', 'desc');
+        return $this->hasMany(Note::class, 'contact_id')->latest();
     }
 
-    /* =======================================================
-     * BENEFICIARIES RELATIONSHIP
-     * ======================================================= */
     public function beneficiaries()
     {
         return $this->hasMany(Beneficiary::class);
     }
 
-    /* =======================================================
-     * EMERGENCY CONTACTS RELATIONSHIP
-     * ======================================================= */
     public function emergencyContacts()
     {
         return $this->hasMany(EmergencyContact::class);
     }
 
-    /* =======================================================
-     * AUTO-CALCULATED AGE
-     * ======================================================= */
     public function getAgeAttribute()
     {
         return $this->date_of_birth
