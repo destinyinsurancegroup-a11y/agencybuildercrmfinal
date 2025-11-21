@@ -66,6 +66,7 @@
         <h4 class="text-gold fw-bold mb-3">Policy Information</h4>
 
         <div class="row mb-4">
+
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
@@ -92,6 +93,7 @@
                     {{ $client->premium_due_date ? $client->premium_due_date->format('m/d/Y') : '—' }}
                 </p>
             </div>
+
         </div>
 
         <hr>
@@ -102,6 +104,7 @@
         <h4 class="text-gold fw-bold mb-3">Beneficiaries</h4>
 
         <div id="beneficiaries-list">
+
             @forelse ($client->beneficiaries as $b)
                 <div class="border rounded p-3 mb-2 d-flex justify-content-between">
 
@@ -139,6 +142,7 @@
             @empty
                 <p class="text-muted">No beneficiaries added.</p>
             @endforelse
+
         </div>
 
         <button 
@@ -156,6 +160,7 @@
         <h4 class="text-gold fw-bold mb-3">Emergency Contacts</h4>
 
         <div id="emergency-list">
+
             @forelse ($client->emergencyContacts as $ec)
                 <div class="border rounded p-3 mb-2 d-flex justify-content-between">
 
@@ -193,6 +198,7 @@
             @empty
                 <p class="text-muted">No emergency contacts added.</p>
             @endforelse
+
         </div>
 
         <button 
@@ -208,14 +214,11 @@
         <!-- NOTES SECTION                    -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
-
         <p>{{ $client->notes ?: 'No notes added.' }}</p>
 
     </div>
 
 </div>
-
-
 
 
 
@@ -284,6 +287,7 @@
             </div>
 
             <div class="modal-body">
+
                 <input type="hidden" id="emergency_id">
                 <input type="hidden" id="emergency_client_id">
 
@@ -318,3 +322,206 @@
         </form>
     </div>
 </div>
+
+
+<!-- ========================================================== -->
+<!-- === AJAX JAVASCRIPT ====================================== -->
+<!-- ========================================================== -->
+@push('scripts')
+<script>
+
+/* ------------------------------------------------------ */
+/* OPEN ADD BENEFICIARY MODAL                             */
+/* ------------------------------------------------------ */
+function openAddBeneficiary(clientId) {
+    document.getElementById('beneficiaryModalTitle').innerText = "Add Beneficiary";
+    document.getElementById('beneficiary_id').value = "";
+    document.getElementById('beneficiary_client_id').value = clientId;
+
+    document.getElementById('beneficiary_name').value = "";
+    document.getElementById('beneficiary_relationship').value = "";
+    document.getElementById('beneficiary_phone').value = "";
+    document.getElementById('beneficiary_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
+}
+
+
+/* ------------------------------------------------------ */
+/* EDIT BENEFICIARY                                       */
+/* ------------------------------------------------------ */
+function editBeneficiary(id) {
+    fetch(`/api/beneficiaries/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('beneficiaryModalTitle').innerText = "Edit Beneficiary";
+
+            document.getElementById('beneficiary_id').value = data.id;
+            document.getElementById('beneficiary_client_id').value = data.contact_id;
+
+            document.getElementById('beneficiary_name').value = data.name;
+            document.getElementById('beneficiary_relationship').value = data.relationship ?? "";
+            document.getElementById('beneficiary_phone').value = data.phone ?? "";
+            document.getElementById('beneficiary_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
+        });
+}
+
+
+/* ------------------------------------------------------ */
+/* SAVE BENEFICIARY                                       */
+/* ------------------------------------------------------ */
+document.getElementById('beneficiaryForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    let id = document.getElementById('beneficiary_id').value;
+    let clientId = document.getElementById('beneficiary_client_id').value;
+
+    let payload = {
+        name: document.getElementById('beneficiary_name').value,
+        relationship: document.getElementById('beneficiary_relationship').value,
+        phone: document.getElementById('beneficiary_phone').value,
+        contacted: document.getElementById('beneficiary_contacted').value,
+        _token: "{{ csrf_token() }}"
+    };
+
+    let url = id 
+        ? `/book/${clientId}/beneficiaries/${id}` 
+        : `/book/${clientId}/beneficiaries`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('beneficiaryModal')).hide();
+        loadBookPanel(`/book/${clientId}`);
+    });
+});
+
+
+/* ------------------------------------------------------ */
+/* DELETE BENEFICIARY                                     */
+/* ------------------------------------------------------ */
+function deleteBeneficiary(clientId, id) {
+    if (!confirm("Delete beneficiary?")) return;
+
+    fetch(`/book/${clientId}/beneficiaries/${id}`, {
+        method: "DELETE",
+        headers: {
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        }
+    })
+    .then(res => res.json())
+    .then(() => {
+        loadBookPanel(`/book/${clientId}`);
+    });
+}
+
+
+/* ------------------------------------------------------ */
+/* OPEN ADD EMERGENCY CONTACT                             */
+/* ------------------------------------------------------ */
+function openAddEmergency(clientId) {
+    document.getElementById('emergencyModalTitle').innerText = "Add Emergency Contact";
+    document.getElementById('emergency_id').value = "";
+    document.getElementById('emergency_client_id').value = clientId;
+
+    document.getElementById('emergency_name').value = "";
+    document.getElementById('emergency_relationship').value = "";
+    document.getElementById('emergency_phone').value = "";
+    document.getElementById('emergency_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+}
+
+
+/* ------------------------------------------------------ */
+/* EDIT EMERGENCY CONTACT                                 */
+/* ------------------------------------------------------ */
+function editEmergency(id) {
+    fetch(`/api/emergency/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('emergencyModalTitle').innerText = "Edit Emergency Contact";
+
+            document.getElementById('emergency_id').value = data.id;
+            document.getElementById('emergency_client_id').value = data.contact_id;
+
+            document.getElementById('emergency_name').value = data.name;
+            document.getElementById('emergency_relationship').value = data.relationship ?? "";
+            document.getElementById('emergency_phone').value = data.phone ?? "";
+            document.getElementById('emergency_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+        });
+}
+
+
+/* ------------------------------------------------------ */
+/* SAVE EMERGENCY CONTACT                                 */
+/* ------------------------------------------------------ */
+document.getElementById('emergencyForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    let id = document.getElementById('emergency_id').value;
+    let clientId = document.getElementById('emergency_client_id').value;
+
+    let payload = {
+        name: document.getElementById('emergency_name').value,
+        relationship: document.getElementById('emergency_relationship').value,
+        phone: document.getElementById('emergency_phone').value,
+        contacted: document.getElementById('emergency_contacted').value,
+        _token: "{{ csrf_token() }}"
+    };
+
+    let url = id 
+        ? `/book/${clientId}/emergency/${id}` 
+        : `/book/${clientId}/emergency`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('emergencyModal')).hide();
+        loadBookPanel(`/book/${clientId}`);
+    });
+});
+
+
+/* ------------------------------------------------------ */
+/* DELETE EMERGENCY CONTACT                               */
+/* ------------------------------------------------------ */
+function deleteEmergency(clientId, id) {
+    if (!confirm("Delete emergency contact?")) return;
+
+    fetch(`/book/${clientId}/emergency/${id}`, {
+        method: "DELETE",
+        headers: {
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        }
+    })
+    .then(res => res.json())
+    .then(() => {
+        loadBookPanel(`/book/${clientId}`);
+    });
+}
+
+</script>
+@endpush
