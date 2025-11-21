@@ -80,8 +80,8 @@
 
             <hr>
 
-            <!-- POLICY INFORMATION -->
-            <h5 class="mb-3 text-gold fw-bold">Policy Information</h5>
+            <!-- POLICY / SERVICE INFO -->
+            <h5 class="mb-3 text-gold fw-bold">Service Policy Info</h5>
 
             <div class="row mb-3">
                 <div class="col-md-6">
@@ -107,100 +107,87 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">Issue Date</label>
+                    <label class="form-label fw-semibold">Service Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="Active">Active</option>
+                        <option value="Lapsed">Lapsed</option>
+                        <option value="Pending Reinstatement">Pending Reinstatement</option>
+                        <option value="Deceased">Deceased</option>
+                        <option value="Service Issue">Service Issue</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Date Issued</label>
+                    {{-- reuse policy_issue_date --}}
                     <input type="date" name="policy_issue_date" class="form-control">
                 </div>
-            </div>
 
-            <div class="mb-4">
-                <label class="form-label fw-semibold">Monthly Due Date (Text)</label>
-                <input type="text" name="premium_due_text" class="form-control">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Date Lapsed</label>
+                    {{-- reuse premium_due_date as "lapsed" for service tab --}}
+                    <input type="date" name="premium_due_date" class="form-control">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Monthly Due Text (optional)</label>
+                    <input type="text" name="premium_due_text" class="form-control" placeholder="Ex: 15th of every month">
+                </div>
             </div>
 
             <hr>
 
-            <!-- BENEFICIARIES -->
-            <h5 class="mb-3 text-gold fw-bold">Beneficiaries</h5>
+            <!-- SERVICE EVENTS -->
+            <h5 class="mb-3 text-gold fw-bold">Service Events</h5>
 
-            <div id="beneficiary-wrapper">
+            <div id="service-events-wrapper">
 
-                <!-- Inline row (NO includes) -->
-                <div class="beneficiary-row border rounded p-3 mb-3">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Name</label>
-                            <input type="text" name="beneficiaries[0][name]" class="form-control">
+                <div class="service-event-row border rounded p-3 mb-3">
+                    <div class="row g-2 align-items-start">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Date</label>
+                            <input type="date" name="events[0][event_date]" class="form-control">
                         </div>
 
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Relationship</label>
-                            <input type="text" name="beneficiaries[0][relationship]" class="form-control">
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Phone</label>
-                            <input type="text" name="beneficiaries[0][phone]" class="form-control">
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label fw-semibold">Contacted?</label>
-                            <select name="beneficiaries[0][contacted]" class="form-select">
-                                <option value="0">No</option>
-                                <option value="1">Yes</option>
+                            <label class="form-label fw-semibold">Type</label>
+                            <select name="events[0][event_type]" class="form-select">
+                                <option value="">Select...</option>
+                                <option value="Lapsed">Lapsed</option>
+                                <option value="Payment Late">Payment Late</option>
+                                <option value="Payment Received">Payment Received</option>
+                                <option value="Reinstatement">Reinstatement</option>
+                                <option value="Client Deceased">Client Deceased</option>
+                                <option value="Carrier Call">Carrier Call</option>
+                                <option value="Client Call">Client Call</option>
+                                <option value="Other">Other</option>
                             </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Notes</label>
+                            <textarea name="events[0][notes]" class="form-control" rows="2"
+                                      placeholder="Describe what happened..."></textarea>
                         </div>
                     </div>
                 </div>
 
             </div>
 
-            <button type="button" class="btn btn-sm btn-gold mb-3" id="add-beneficiary-btn">+ Add Beneficiary</button>
-
-            <hr>
-
-            <!-- EMERGENCY CONTACTS -->
-            <h5 class="mb-3 text-gold fw-bold">Emergency Contacts</h5>
-
-            <div id="emergency-wrapper">
-
-                <!-- Inline row -->
-                <div class="emergency-row border rounded p-3 mb-3">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Name</label>
-                            <input type="text" name="emergency_contacts[0][name]" class="form-control">
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Relationship</label>
-                            <input type="text" name="emergency_contacts[0][relationship]" class="form-control">
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Phone</label>
-                            <input type="text" name="emergency_contacts[0][phone]" class="form-control">
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label fw-semibold">Contacted?</label>
-                            <select name="emergency_contacts[0][contacted]" class="form-select">
-                                <option value="0">No</option>
-                                <option value="1">Yes</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <button type="button" class="btn btn-sm btn-gold mb-3" id="add-emergency-btn">+ Add Emergency Contact</button>
+            <button type="button" class="btn btn-sm btn-gold mb-3" id="add-service-event-btn">
+                + Add Service Event
+            </button>
 
             <hr>
 
             <!-- NOTES -->
-            <h5 class="mb-3 text-gold fw-bold">Notes</h5>
+            <h5 class="mb-3 text-gold fw-bold">Internal Notes</h5>
             <div class="mb-4">
-                <textarea name="notes" class="form-control" rows="4"></textarea>
+                <textarea name="notes" class="form-control" rows="4"
+                          placeholder="Internal notes about this service case..."></textarea>
             </div>
 
             <div class="text-start">
@@ -213,66 +200,43 @@
 </div>
 
 <script>
-let serviceBeneficiaryIndex = 1;
-let serviceEmergencyIndex = 1;
+let serviceEventIndex = 1;
 
-document.getElementById('add-beneficiary-btn').addEventListener('click', () => {
-    const wrapper = document.getElementById('beneficiary-wrapper');
+document.getElementById('add-service-event-btn').addEventListener('click', () => {
+    const wrapper = document.getElementById('service-events-wrapper');
+
     wrapper.insertAdjacentHTML('beforeend', `
-        <div class="beneficiary-row border rounded p-3 mb-3">
-            <div class="row">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Name</label>
-                    <input type="text" name="beneficiaries[${serviceBeneficiaryIndex}][name]" class="form-control">
-                </div>
+        <div class="service-event-row border rounded p-3 mb-3">
+            <div class="row g-2 align-items-start">
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Relationship</label>
-                    <input type="text" name="beneficiaries[${serviceBeneficiaryIndex}][relationship]" class="form-control">
+                    <label class="form-label fw-semibold">Date</label>
+                    <input type="date" name="events[${serviceEventIndex}][event_date]" class="form-control">
                 </div>
+
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Phone</label>
-                    <input type="text" name="beneficiaries[${serviceBeneficiaryIndex}][phone]" class="form-control">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Contacted?</label>
-                    <select name="beneficiaries[${serviceBeneficiaryIndex}][contacted]" class="form-select">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
+                    <label class="form-label fw-semibold">Type</label>
+                    <select name="events[${serviceEventIndex}][event_type]" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="Lapsed">Lapsed</option>
+                        <option value="Payment Late">Payment Late</option>
+                        <option value="Payment Received">Payment Received</option>
+                        <option value="Reinstatement">Reinstatement</option>
+                        <option value="Client Deceased">Client Deceased</option>
+                        <option value="Carrier Call">Carrier Call</option>
+                        <option value="Client Call">Client Call</option>
+                        <option value="Other">Other</option>
                     </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Notes</label>
+                    <textarea name="events[${serviceEventIndex}][notes]" class="form-control" rows="2"
+                              placeholder="Describe what happened..."></textarea>
                 </div>
             </div>
         </div>
     `);
-    serviceBeneficiaryIndex++;
-});
 
-document.getElementById('add-emergency-btn').addEventListener('click', () => {
-    const wrapper = document.getElementById('emergency-wrapper');
-    wrapper.insertAdjacentHTML('beforeend', `
-        <div class="emergency-row border rounded p-3 mb-3">
-            <div class="row">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Name</label>
-                    <input type="text" name="emergency_contacts[${serviceEmergencyIndex}][name]" class="form-control">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Relationship</label>
-                    <input type="text" name="emergency_contacts[${serviceEmergencyIndex}][relationship]" class="form-control">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Phone</label>
-                    <input type="text" name="emergency_contacts[${serviceEmergencyIndex}][phone]" class="form-control">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Contacted?</label>
-                    <select name="emergency_contacts[${serviceEmergencyIndex}][contacted]" class="form-select">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-    `);
-    serviceEmergencyIndex++;
+    serviceEventIndex++;
 });
 </script>
