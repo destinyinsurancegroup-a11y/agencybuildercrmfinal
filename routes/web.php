@@ -15,6 +15,9 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\ServiceController;
 
+// NEW ACTIVITY CONTROLLER
+use App\Http\Controllers\ActivityController;
+
 /*
 |--------------------------------------------------------------------------
 | TEST ROUTE
@@ -109,43 +112,39 @@ Route::prefix('book')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| SERVICE (Full AJAX Master-Detail, MIRROR OF BOOK)
-|--------------------------------------------------------------------------
-|
-| IMPORTANT: Your old Service routes were incorrect.
-| The Service tab must be a perfect clone of Book routes.
+| SERVICE (Clone of BOOK)
 |--------------------------------------------------------------------------
 */
 Route::prefix('service')->group(function () {
 
-    // Full index page
+    // Full index
     Route::get('/', [ServiceController::class, 'index'])
         ->name('service.index');
 
-    // AJAX: Create panel
+    // Create panel
     Route::get('/create-panel', [ServiceController::class, 'createPanel'])
         ->name('service.create.panel');
 
-    // Store new service record
+    // Store
     Route::post('/', [ServiceController::class, 'store'])
         ->name('service.store');
 
-    // AJAX: Show client file
+    // Show client
     Route::get('/{client}', [ServiceController::class, 'show'])
         ->name('service.show');
 
-    // AJAX: Edit panel
+    // Edit panel
     Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])
         ->name('service.edit.panel');
 
-    // Update service client
+    // Update
     Route::put('/{client}', [ServiceController::class, 'update'])
         ->name('service.update');
 });
 
 /*
 |--------------------------------------------------------------------------
-| SERVICE NOTES (reuse BookController methods)
+| SERVICE NOTES (reuse BookController)
 |--------------------------------------------------------------------------
 */
 Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])
@@ -157,7 +156,6 @@ Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote
 /*
 |--------------------------------------------------------------------------
 | SERVICE Beneficiary / Emergency DELETE
-| Reusing BookController delete logic
 |--------------------------------------------------------------------------
 */
 Route::delete('/service/{client}/beneficiaries/{beneficiary}', 
@@ -167,6 +165,22 @@ Route::delete('/service/{client}/beneficiaries/{beneficiary}',
 Route::delete('/service/{client}/emergencies/{contact}',
     [BookController::class, 'deleteEmergency'])
     ->name('service.emergencies.destroy');
+
+/*
+|--------------------------------------------------------------------------
+| ACTIVITY (NEW)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('activity')->group(function () {
+
+    // Full page
+    Route::get('/', [ActivityController::class, 'index'])
+        ->name('activity.index');
+
+    // Ajax panel
+    Route::get('/panel', [ActivityController::class, 'panel'])
+        ->name('activity.panel');
+});
 
 /*
 |--------------------------------------------------------------------------
