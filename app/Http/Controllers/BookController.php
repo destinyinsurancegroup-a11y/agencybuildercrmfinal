@@ -92,7 +92,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | SHOW – LOAD CLIENT FILE INTO RIGHT PANEL (AJAX ONLY)
+    | SHOW PANEL (AJAX ONLY)
     |--------------------------------------------------------------------------
     */
     public function show(Contact $client)
@@ -106,7 +106,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | EDIT PANEL – AJAX
+    | EDIT PANEL (AJAX)
     |--------------------------------------------------------------------------
     */
     public function editPanel(Contact $client)
@@ -116,7 +116,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | (OPTIONAL) FULL PAGE EDIT
+    | FULL PAGE EDIT (OPTIONAL)
     |--------------------------------------------------------------------------
     */
     public function edit(Contact $client)
@@ -126,16 +126,12 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | UPDATE – SAVE CHANGES (FIXED VERSION)
+    | UPDATE – FINAL FIXED VERSION (SAVES EVERYTHING)
     |--------------------------------------------------------------------------
-    |
-    | New behavior:
-    | • Only overwrite fields the user typed/changed
-    | • Blank inputs do NOT wipe existing data
-    |
     */
     public function update(Request $request, Contact $client)
     {
+        // 1. Validate incoming core client fields
         $validated = $request->validate([
             'first_name'        => 'nullable|string|max:255',
             'last_name'         => 'nullable|string|max:255',
@@ -158,20 +154,95 @@ class BookController extends Controller
             'premium_due_date'  => 'nullable|date',
             'policy_issue_date' => 'nullable|date',
             'premium_due_text'  => 'nullable|string|max:255',
-
-            'notes'             => 'nullable|string',
         ]);
 
-        // NEW LOGIC: Only update non-empty fields
+        // 2. Update ONLY the fields filled out (true partial update)
         foreach ($validated as $key => $value) {
             if ($value !== null && $value !== '') {
-                $client->$key = $value;
+                $client->{$key} = $value;
             }
         }
 
         $client->contact_type = 'book';
-
         $client->save();
+
+        /*
+        |--------------------------------------------------------------------------
+        | BENEFICIARIES (2 max)
+        |--------------------------------------------------------------------------
+        */
+        if ($request->has('beneficiaries')) {
+            foreach ($request->beneficiaries as $row) {
+                if (!isset($row['name']) || $row['name'] === '') {
+                    continue;
+                }
+
+                // Update existing
+                if (isset($row['id'])) {
+                    $b = Beneficiary::where('id', $row['id'])
+                        ->where('contact_id', $client->id)
+                        ->first();
+
+                    if ($b) {
+                        $b->update([
+                            'name'        => $row['name'],
+                            'relationship'=> $row['relationship'] ?? null,
+                            'phone'       => $row['phone'] ?? null,
+                            'contacted'   => $row['contacted'] ?? 0,
+                        ]);
+                    }
+                }
+                else {
+                    // Create new
+                    Beneficiary::create([
+                        'contact_id'  => $client->id,
+                        'name'        => $row['name'],
+                        'relationship'=> $row['relationship'] ?? null,
+                        'phone'       => $row['phone'] ?? null,
+                        'contacted'   => $row['contacted'] ?? 0,
+                    ]);
+                }
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | EMERGENCY CONTACTS (2 max)
+        |--------------------------------------------------------------------------
+        */
+        if ($request->has('emergency_contacts')) {
+            foreach ($request->emergency_contacts as $row) {
+                if (!isset($row['name']) || $row['name'] === '') {
+                    continue;
+                }
+
+                // Update existing
+                if (isset($row['id'])) {
+                    $e = EmergencyContact::where('id', $row['id'])
+                        ->where('contact_id', $client->id)
+                        ->first();
+
+                    if ($e) {
+                        $e->update([
+                            'name'        => $row['name'],
+                            'relationship'=> $row['relationship'] ?? null,
+                            'phone'       => $row['phone'] ?? null,
+                            'contacted'   => $row['contacted'] ?? 0,
+                        ]);
+                    }
+                }
+                else {
+                    // Create new
+                    EmergencyContact::create([
+                        'contact_id'  => $client->id,
+                        'name'        => $row['name'],
+                        'relationship'=> $row['relationship'] ?? null,
+                        'phone'       => $row['phone'] ?? null,
+                        'contacted'   => $row['contacted'] ?? 0,
+                    ]);
+                }
+            }
+        }
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
@@ -215,54 +286,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | BENEFICIARIES – STORE
-    |--------------------------------------------------------------------------
-    */
-    public function storeBeneficiary(Request $request, Contact $client)
-    {
-        $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'relationship'=> 'nullable|string|max:255',
-            'phone'       => 'nullable|string|max:50',
-            'contacted'   => 'nullable|boolean',
-        ]);
-
-        $data['contact_id'] = $client->id;
-        $data['contacted']  = $data['contacted'] ?? false;
-
-        Beneficiary::create($data);
-
-        return response()->json(['success' => true]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | BENEFICIARIES – UPDATE
-    |--------------------------------------------------------------------------
-    */
-    public function updateBeneficiary(Request $request, Contact $client, Beneficiary $beneficiary)
-    {
-        if ($beneficiary->contact_id !== $client->id) {
-            abort(403);
-        }
-
-        $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'relationship'=> 'nullable|string|max:255',
-            'phone'       => 'nullable|string|max:50',
-            'contacted'   => 'nullable|boolean',
-        ]);
-
-        $data['contacted'] = $data['contacted'] ?? false;
-
-        $beneficiary->update($data);
-
-        return response()->json(['success' => true]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | BENEFICIARIES – DELETE
+    | BENEFICIARY DELETE (AJAX)
     |--------------------------------------------------------------------------
     */
     public function deleteBeneficiary(Request $request, Contact $client, Beneficiary $beneficiary)
@@ -278,54 +302,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | EMERGENCY CONTACTS – STORE
-    |--------------------------------------------------------------------------
-    */
-    public function storeEmergency(Request $request, Contact $client)
-    {
-        $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'relationship'=> 'nullable|string|max:255',
-            'phone'       => 'nullable|string|max:50',
-            'contacted'   => 'nullable|boolean',
-        ]);
-
-        $data['contact_id'] = $client->id;
-        $data['contacted']  = $data['contacted'] ?? false;
-
-        EmergencyContact::create($data);
-
-        return response()->json(['success' => true]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | EMERGENCY CONTACTS – UPDATE
-    |--------------------------------------------------------------------------
-    */
-    public function updateEmergency(Request $request, Contact $client, EmergencyContact $contact)
-    {
-        if ($contact->contact_id !== $client->id) {
-            abort(403);
-        }
-
-        $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'relationship'=> 'nullable|string|max:255',
-            'phone'       => 'nullable|string|max:50',
-            'contacted'   => 'nullable|boolean',
-        ]);
-
-        $data['contacted'] = $data['contacted'] ?? false;
-
-        $contact->update($data);
-
-        return response()->json(['success' => true]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | EMERGENCY CONTACTS – DELETE
+    | EMERGENCY DELETE (AJAX)
     |--------------------------------------------------------------------------
     */
     public function deleteEmergency(Request $request, Contact $client, EmergencyContact $contact)
@@ -337,15 +314,5 @@ class BookController extends Controller
         $contact->delete();
 
         return response()->json(['success' => true]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | IMPORT – (NOT IMPLEMENTED YET)
-    |--------------------------------------------------------------------------
-    */
-    public function import(Request $request)
-    {
-        return back()->with('message', 'Import not implemented yet.');
     }
 }
