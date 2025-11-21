@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Note;
 use App\Models\Beneficiary;
 use App\Models\EmergencyContact;
+use App\Models\ServiceEvent;   // ⭐ NEW – required for STEP 3
 
 class Contact extends Model
 {
@@ -35,9 +36,9 @@ class Contact extends Model
         'face_amount',
         'premium_amount',
         'premium_due_date',
-        'notes',   // single text field
+        'notes',
 
-        // BOOK FIELDS
+        // BOOK / SERVICE FIELDS
         'carrier',
         'anniversary',
         'policy_issue_date',
@@ -91,6 +92,12 @@ class Contact extends Model
     public function emergencyContacts()
     {
         return $this->hasMany(EmergencyContact::class);
+    }
+
+    // ⭐ NEW — SERVICE EVENTS RELATIONSHIP
+    public function serviceEvents()
+    {
+        return $this->hasMany(ServiceEvent::class)->orderBy('event_date', 'desc');
     }
 
     public function getAgeAttribute()
