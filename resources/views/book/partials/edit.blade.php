@@ -1,3 +1,69 @@
+<style>
+    /* ===== COMPACT SPACING FOR EDIT PAGE ===== */
+
+    /* Reduce main wrapper padding */
+    .p-4 {
+        padding: 1.25rem !important;
+    }
+
+    /* Compact card padding */
+    .card .p-4 {
+        padding: 1.25rem !important;
+    }
+
+    /* Heading spacing */
+    h5.text-gold,
+    h6.text-gold {
+        margin-top: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Row spacing */
+    .row.mb-3,
+    .row.mb-4 {
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* Form group spacing */
+    .mb-2,
+    .mb-3,
+    .mb-4 {
+        margin-bottom: 0.6rem !important;
+    }
+
+    /* Form control compact */
+    .form-control,
+    .form-select {
+        padding: 0.45rem 0.75rem !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* Beneficiary / Emergency block compact */
+    .beneficiary-row,
+    .emergency-row {
+        padding: 0.75rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* HR compact */
+    hr {
+        margin: 0.9rem 0 !important;
+    }
+
+    /* Button compact */
+    .btn-gold,
+    .btn.btn-sm.btn-gold {
+        padding: 5px 12px !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Save button compact */
+    .btn-gold.btn-lg {
+        padding: 8px 18px !important;
+        font-size: 0.95rem !important;
+    }
+</style>
+
 <div class="p-4">
 
     <div class="card shadow-sm border-0">
@@ -7,7 +73,7 @@
             @method('PUT')
 
             <!-- BASIC INFORMATION -->
-            <h5 class="mb-3 text-gold fw-bold">Basic Information</h5>
+            <h5 class="text-gold fw-bold">Basic Information</h5>
 
             <div class="row mb-3">
                 <div class="col-md-6">
@@ -54,7 +120,7 @@
             </div>
 
             <!-- ADDRESS -->
-            <h6 class="fw-bold mt-3 mb-2 text-gold">Address / Contact</h6>
+            <h6 class="fw-bold text-gold">Address / Contact</h6>
 
             <div class="mb-2">
                 <label class="form-label fw-semibold">Address Line 1</label>
@@ -98,7 +164,7 @@
                 </div>
             </div>
 
-            <div class="row mb-4">
+            <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Phone</label>
                     <input type="text"
@@ -119,7 +185,7 @@
             <hr>
 
             <!-- POLICY INFORMATION -->
-            <h5 class="mb-3 text-gold fw-bold">Policy Information</h5>
+            <h5 class="text-gold fw-bold">Policy Information</h5>
 
             <div class="row mb-3">
                 <div class="col-md-6">
@@ -167,7 +233,7 @@
                 </div>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-3">
                 <label class="form-label fw-semibold">Monthly Due Date (text)</label>
                 <input type="text"
                        name="premium_due_text"
@@ -179,7 +245,7 @@
             <hr>
 
             <!-- BENEFICIARIES -->
-            <h5 class="mb-3 text-gold fw-bold">Beneficiaries</h5>
+            <h5 class="text-gold fw-bold">Beneficiaries</h5>
 
             <div id="beneficiary-wrapper">
 
@@ -228,7 +294,7 @@
             <hr>
 
             <!-- EMERGENCY CONTACTS -->
-            <h5 class="mb-3 text-gold fw-bold">Emergency Contacts</h5>
+            <h5 class="text-gold fw-bold">Emergency Contacts</h5>
 
             <div id="emergency-wrapper">
 
@@ -277,9 +343,9 @@
             <hr>
 
             <!-- NOTES -->
-            <h5 class="mb-3 text-gold fw-bold">Notes</h5>
+            <h5 class="text-gold fw-bold">Notes</h5>
 
-            <div class="mb-4">
+            <div class="mb-3">
                 <textarea 
                     name="notes" 
                     class="form-control" 
