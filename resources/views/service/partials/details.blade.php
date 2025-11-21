@@ -15,11 +15,37 @@
 <div class="p-4">
     <div class="card shadow-sm border-0 p-4">
 
-        <!-- HEADER -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1 class="fw-bold" style="font-size: 32px;">
-                {{ $client->first_name }} {{ $client->last_name }}
-            </h1>
+        <!-- HEADER WITH STATUS BUTTONS -->
+        <div class="d-flex justify-content-between align-items-start mb-3">
+
+            <div>
+                <h1 class="fw-bold" style="font-size: 32px; margin-bottom:10px;">
+                    {{ $client->first_name }} {{ $client->last_name }}
+                </h1>
+
+                <!-- STATUS BUTTONS -->
+                <div class="d-flex gap-2">
+
+                    <!-- BACK ON BOOKS (Green) -->
+                    <button class="btn btn-sm"
+                            style="background:#28a745; color:white; font-weight:600; border-radius:6px;">
+                        Back on Books
+                    </button>
+
+                    <!-- FOLLOW UP (Yellow) -->
+                    <button class="btn btn-sm"
+                            style="background:#f0ad4e; color:black; font-weight:600; border-radius:6px;">
+                        Follow Up
+                    </button>
+
+                    <!-- NOT INTERESTED (Red) -->
+                    <button class="btn btn-sm"
+                            style="background:#dc3545; color:white; font-weight:600; border-radius:6px;">
+                        Not Interested
+                    </button>
+
+                </div>
+            </div>
 
             <button 
                 class="btn-gold"
