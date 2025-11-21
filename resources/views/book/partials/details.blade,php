@@ -1,0 +1,36 @@
+<div class="p-4">
+
+    <h3 class="text-gold fw-bold mb-3">
+        {{ $client->full_name }}
+    </h3>
+
+    <div class="mb-3">
+        <strong>Email:</strong><br>
+        {{ $client->email ?? '—' }}
+    </div>
+
+    <div class="mb-3">
+        <strong>Phone:</strong><br>
+        {{ $client->phone ?? '—' }}
+    </div>
+
+    <div class="mb-3">
+        <strong>Address:</strong><br>
+        @if($client->address_line1)
+            {{ $client->address_line1 }}<br>
+            @if($client->address_line2) {{ $client->address_line2 }}<br>@endif
+            {{ $client->city }} {{ $client->state }} {{ $client->postal_code }}
+        @else
+            <span class="text-muted">No address on file.</span>
+        @endif
+    </div>
+
+    <button 
+        class="btn-gold mt-3"
+        data-url="{{ route('book.edit', $client->id) }}"
+        onclick="loadBookPanel(this.dataset.url)"
+    >
+        Edit Client
+    </button>
+
+</div>
