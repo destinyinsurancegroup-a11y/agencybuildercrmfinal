@@ -1,60 +1,72 @@
 <div class="p-4">
 
-    <!-- Compact 75% CSS with max-width 500px -->
+    <!-- SUPER COMPACT CSS — 4 INPUTS PER ROW -->
     <style>
-        /* Outer wrappers */
-        .p-4 { padding: 1.5rem !important; }
-        .card { padding: 1.25rem !important; }
+        /* Page padding */
+        .p-4 { padding: 1.25rem !important; }
+        .card { padding: 1rem !important; }
 
-        /* Compact headers */
+        /* Section headers */
         h5.text-gold, h6.text-gold {
-            margin-top: .6rem !important;
-            margin-bottom: .6rem !important;
+            margin-top: .4rem !important;
+            margin-bottom: .4rem !important;
         }
 
-        /* Row spacing */
+        /* Compact rows */
         .row {
-            margin-bottom: .7rem !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            margin-bottom: .5rem !important;
         }
 
         /* Labels */
         .form-label {
-            margin-bottom: .1rem !important;
-            font-size: .9rem !important;
-        }
-
-        /* Input fields compact + capped width */
-        .form-control, .form-select {
-            padding: .45rem .6rem !important;
-            font-size: .9rem !important;
-            height: 36px !important;
-            max-width: 500px !important; /* <<< MAIN UPDATE */
-        }
-
-        /* Form columns tighter */
-        .col-md-4, .col-md-3, .col-md-2, .col-md-6 {
-            padding-right: .4rem !important;
-            padding-left: .4rem !important;
-        }
-
-        /* Tightened HR */
-        hr { margin: .9rem 0 !important; }
-
-        /* Beneficiary & Emergency blocks */
-        .beneficiary-row, .emergency-row {
-            padding: .75rem !important;
-            margin-bottom: .7rem !important;
-        }
-
-        /* Buttons compact */
-        .btn-gold, .btn.btn-sm.btn-gold {
-            padding: 6px 12px !important;
+            margin-bottom: .15rem !important;
             font-size: .85rem !important;
         }
 
+        /*************************************
+        *  MAIN UPDATE: VERY SHORT INPUTS
+        *  Fits 4 fields per row
+        *************************************/
+        .form-control,
+        .form-select {
+            width: 100% !important;
+            max-width: 250px !important;    /* <<< SHORT INPUTS */
+            display: inline-block !important;
+            padding: .35rem .55rem !important;
+            font-size: .85rem !important;
+            height: 34px !important;
+        }
+
+        /* Prevent Bootstrap columns from forcing width */
+        .col-md-6, .col-md-4, .col-md-3, .col-md-2 {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            padding-left: .3rem !important;
+            padding-right: .3rem !important;
+        }
+
+        /* Beneficiary & emergency row spacing */
+        .beneficiary-row,
+        .emergency-row {
+            padding: .6rem !important;
+            margin-bottom: .5rem !important;
+        }
+
+        /* Tight HR */
+        hr { margin: .7rem 0 !important; }
+
+        /* Buttons */
+        .btn-gold, .btn.btn-sm.btn-gold {
+            padding: 5px 10px !important;
+            font-size: .8rem !important;
+        }
+
         .btn-gold.btn-lg {
-            padding: 7px 15px !important;
-            font-size: .9rem !important;
+            padding: 6px 12px !important;
+            font-size: .85rem !important;
         }
     </style>
 
@@ -103,13 +115,13 @@
             <!-- ADDRESS -->
             <h6 class="fw-bold text-gold">Address / Contact</h6>
 
-            <div class="mb-2">
+            <div>
                 <label class="form-label fw-semibold">Address Line 1</label>
                 <input type="text" name="address_line1" class="form-control"
                        value="{{ old('address_line1', $client->address_line1) }}">
             </div>
 
-            <div class="mb-2">
+            <div>
                 <label class="form-label fw-semibold">Address Line 2</label>
                 <input type="text" name="address_line2" class="form-control"
                        value="{{ old('address_line2', $client->address_line2) }}">
@@ -188,7 +200,7 @@
                 </div>
             </div>
 
-            <div class="mb-2">
+            <div>
                 <label class="form-label fw-semibold">Monthly Due Date (text)</label>
                 <input type="text" name="premium_due_text" class="form-control"
                        value="{{ old('premium_due_text', $client->premium_due_text) }}">
@@ -196,12 +208,11 @@
 
             <hr>
 
-            <!-- BENEFICIARIES (2 compact rows) -->
+            <!-- BENEFICIARIES -->
             <h5 class="text-gold fw-bold">Beneficiaries</h5>
 
             @for ($i = 0; $i < 2; $i++)
                 @php $b = $client->beneficiaries[$i] ?? null; @endphp
-
                 <div class="beneficiary-row border rounded">
                     <div class="row">
                         <div class="col-md-4">
@@ -235,12 +246,11 @@
 
             <hr>
 
-            <!-- EMERGENCY CONTACTS (2 compact rows) -->
+            <!-- EMERGENCY CONTACTS -->
             <h5 class="text-gold fw-bold">Emergency Contacts</h5>
 
             @for ($i = 0; $i < 2; $i++)
                 @php $e = $client->emergencyContacts[$i] ?? null; @endphp
-
                 <div class="emergency-row border rounded">
                     <div class="row">
                         <div class="col-md-4">
