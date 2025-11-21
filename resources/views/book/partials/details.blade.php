@@ -84,7 +84,7 @@
                     {{ $client->policy_issue_date ? $client->policy_issue_date->format('m/d/Y') : '—' }}
                 </p>
 
-                <p><strong>Monthly Due Date (Text):</strong>
+                <p><strong>Monthly Due (Text):</strong>
                     {{ $client->premium_due_text ?: '—' }}
                 </p>
 
@@ -102,16 +102,15 @@
         <h4 class="text-gold fw-bold mb-3">Beneficiaries</h4>
 
         <div id="beneficiaries-list">
-
             @forelse ($client->beneficiaries as $b)
                 <div class="border rounded p-3 mb-2 d-flex justify-content-between">
 
                     <div>
                         <strong>{{ $b->name }}</strong><br>
                         <small>
-                            {{ $b->relationship ?: '—' }} / 
+                            {{ $b->relationship ?: '—' }} /
                             {{ $b->phone ?: '—' }} /
-                            Contacted: 
+                            Contacted:
                             @if($b->contacted)
                                 <span class="text-success fw-bold">Yes</span>
                             @else
@@ -140,7 +139,6 @@
             @empty
                 <p class="text-muted">No beneficiaries added.</p>
             @endforelse
-
         </div>
 
         <button 
@@ -158,14 +156,13 @@
         <h4 class="text-gold fw-bold mb-3">Emergency Contacts</h4>
 
         <div id="emergency-list">
-
             @forelse ($client->emergencyContacts as $ec)
                 <div class="border rounded p-3 mb-2 d-flex justify-content-between">
 
                     <div>
                         <strong>{{ $ec->name }}</strong><br>
                         <small>
-                            {{ $ec->relationship ?: '—' }} / 
+                            {{ $ec->relationship ?: '—' }} /
                             {{ $ec->phone ?: '—' }} /
                             Contacted:
                             @if($ec->contacted)
@@ -196,7 +193,6 @@
             @empty
                 <p class="text-muted">No emergency contacts added.</p>
             @endforelse
-
         </div>
 
         <button 
@@ -217,4 +213,108 @@
 
     </div>
 
+</div>
+
+
+
+
+
+<!-- ========================================================== -->
+<!-- === BENEFICIARY MODAL ==================================== -->
+<!-- ========================================================== -->
+<div class="modal fade" id="beneficiaryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form id="beneficiaryForm" class="modal-content">
+            @csrf
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title" id="beneficiaryModalTitle">Add Beneficiary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="beneficiary_id">
+                <input type="hidden" id="beneficiary_client_id">
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Name</label>
+                    <input type="text" class="form-control" id="beneficiary_name" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Relationship</label>
+                    <input type="text" class="form-control" id="beneficiary_relationship">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Phone</label>
+                    <input type="text" class="form-control" id="beneficiary_phone">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Contacted?</label>
+                    <select class="form-select" id="beneficiary_contacted">
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<!-- ========================================================== -->
+<!-- === EMERGENCY CONTACT MODAL ============================== -->
+<!-- ========================================================== -->
+<div class="modal fade" id="emergencyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form id="emergencyForm" class="modal-content">
+            @csrf
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title" id="emergencyModalTitle">Add Emergency Contact</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="emergency_id">
+                <input type="hidden" id="emergency_client_id">
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Name</label>
+                    <input type="text" class="form-control" id="emergency_name" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Relationship</label>
+                    <input type="text" class="form-control" id="emergency_relationship">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Phone</label>
+                    <input type="text" class="form-control" id="emergency_phone">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Contacted?</label>
+                    <select class="form-select" id="emergency_contacted">
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Save</button>
+            </div>
+        </form>
+    </div>
 </div>
