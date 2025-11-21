@@ -181,7 +181,7 @@
 
         <!-- NOTES LIST -->
         <div id="notes-list">
-            @forelse ($client->notes as $note)
+            @forelse ($client->allNotes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div style="white-space: pre-wrap;">
