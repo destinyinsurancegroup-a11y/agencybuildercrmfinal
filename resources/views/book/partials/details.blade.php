@@ -99,7 +99,7 @@
         <hr>
 
         <!-- ================================ -->
-        <!-- BENEFICIARIES SECTION            -->
+        <!-- BENEFICIARIES SECTION (READ ONLY) -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Beneficiaries</h4>
 
@@ -107,13 +107,6 @@
             @forelse ($client->beneficiaries as $b)
                 <div 
                     class="border rounded p-3 mb-2 d-flex justify-content-between align-items-center"
-                    data-beneficiary-row
-                    data-beneficiary-id="{{ $b->id }}"
-                    data-client-id="{{ $client->id }}"
-                    data-name="{{ $b->name }}"
-                    data-relationship="{{ $b->relationship }}"
-                    data-phone="{{ $b->phone }}"
-                    data-contacted="{{ $b->contacted ? 1 : 0 }}"
                 >
                     <div>
                         <strong>{{ $b->name }}</strong><br>
@@ -129,41 +122,20 @@
                         </small>
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <button 
-                            type="button"
-                            class="btn btn-sm btn-outline-primary"
-                            onclick="editBeneficiary(this.closest('[data-beneficiary-row]'))"
-                        >
-                            Edit
-                        </button>
-
-                        <button 
-                            type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            onclick="deleteBeneficiary({{ $client->id }}, {{ $b->id }})"
-                        >
-                            Delete
-                        </button>
-                    </div>
+                    <!-- *** ACTION BUTTONS REMOVED *** -->
                 </div>
             @empty
                 <p class="text-muted">No beneficiaries added.</p>
             @endforelse
         </div>
 
-        <button 
-            type="button"
-            class="btn-gold btn-gold-mini mt-2"
-            onclick="openAddBeneficiary({{ $client->id }})"
-        >
-            + Add Beneficiary
-        </button>
+        <!-- *** REMOVE ADD BUTTON *** -->
+        {{-- <button class="btn-gold btn-gold-mini mt-2">+ Add Beneficiary</button> --}}
 
         <hr>
 
         <!-- ================================ -->
-        <!-- EMERGENCY CONTACTS SECTION       -->
+        <!-- EMERGENCY CONTACTS (READ ONLY)  -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Emergency Contacts</h4>
 
@@ -171,13 +143,6 @@
             @forelse ($client->emergencyContacts as $ec)
                 <div 
                     class="border rounded p-3 mb-2 d-flex justify-content-between align-items-center"
-                    data-emergency-row
-                    data-emergency-id="{{ $ec->id }}"
-                    data-client-id="{{ $client->id }}"
-                    data-name="{{ $ec->name }}"
-                    data-relationship="{{ $ec->relationship }}"
-                    data-phone="{{ $ec->phone }}"
-                    data-contacted="{{ $ec->contacted ? 1 : 0 }}"
                 >
                     <div>
                         <strong>{{ $ec->name }}</strong><br>
@@ -193,41 +158,20 @@
                         </small>
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <button 
-                            type="button"
-                            class="btn btn-sm btn-outline-primary"
-                            onclick="editEmergency(this.closest('[data-emergency-row]'))"
-                        >
-                            Edit
-                        </button>
-
-                        <button 
-                            type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            onclick="deleteEmergency({{ $client->id }}, {{ $ec->id }})"
-                        >
-                            Delete
-                        </button>
-                    </div>
+                    <!-- *** ACTION BUTTONS REMOVED *** -->
                 </div>
             @empty
                 <p class="text-muted">No emergency contacts added.</p>
             @endforelse
         </div>
 
-        <button 
-            type="button"
-            class="btn-gold btn-gold-mini mt-2"
-            onclick="openAddEmergency({{ $client->id }})"
-        >
-            + Add Emergency Contact
-        </button>
+        <!-- *** REMOVE ADD BUTTON *** -->
+        {{-- <button class="btn-gold btn-gold-mini mt-2">+ Add Emergency Contact</button> --}}
 
         <hr>
 
         <!-- ================================ -->
-        <!-- NOTES SECTION                    -->
+        <!-- NOTES SECTION (EDITABLE)         -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
         <p>{{ $client->notes ?: 'No notes added.' }}</p>
@@ -238,7 +182,7 @@
 
 
 <!-- ========================================================== -->
-<!-- === BENEFICIARY MODAL ==================================== -->
+<!-- === BENEFICIARY MODAL (kept but unused) ================== -->
 <!-- ========================================================== -->
 <div class="modal fade" id="beneficiaryModal" tabindex="-1">
     <div class="modal-dialog">
@@ -288,7 +232,7 @@
 
 
 <!-- ========================================================== -->
-<!-- === EMERGENCY CONTACT MODAL ============================== -->
+<!-- === EMERGENCY CONTACT MODAL (kept but unused) ============ -->
 <!-- ========================================================== -->
 <div class="modal fade" id="emergencyModal" tabindex="-1">
     <div class="modal-dialog">
