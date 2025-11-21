@@ -77,24 +77,35 @@ class Contact extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    /* =======================================================
+     * NOTES RELATIONSHIP (CORRECTED)
+     * Loads ALL notes ever made for this client
+     * Ordered newest → oldest
+     * ======================================================= */
     public function notes()
     {
-        return $this->hasMany(Note::class, 'contact_id')->latest();
+        return $this->hasMany(Note::class, 'contact_id')->orderBy('created_at', 'desc');
     }
 
-    // NEW — BENEFICIARIES RELATIONSHIP
+    /* =======================================================
+     * BENEFICIARIES RELATIONSHIP
+     * ======================================================= */
     public function beneficiaries()
     {
         return $this->hasMany(Beneficiary::class);
     }
 
-    // NEW — EMERGENCY CONTACT RELATIONSHIP
+    /* =======================================================
+     * EMERGENCY CONTACTS RELATIONSHIP
+     * ======================================================= */
     public function emergencyContacts()
     {
         return $this->hasMany(EmergencyContact::class);
     }
 
-    // Useful helper — Auto-calc age from DOB (not stored in DB)
+    /* =======================================================
+     * AUTO-CALCULATED AGE
+     * ======================================================= */
     public function getAgeAttribute()
     {
         return $this->date_of_birth
