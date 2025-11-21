@@ -106,7 +106,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | EDIT PANEL – AJAX (RIGHT SIDE)
+    | EDIT PANEL – AJAX
     |--------------------------------------------------------------------------
     */
     public function editPanel(Contact $client)
@@ -116,7 +116,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | EDIT – FULL PAGE (OPTIONAL / LEGACY)
+    | (OPTIONAL) FULL PAGE EDIT
     |--------------------------------------------------------------------------
     */
     public function edit(Contact $client)
@@ -126,7 +126,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | UPDATE – SAVE CHANGES
+    | UPDATE – SAVE CHANGES (NEW VERSION)
     |--------------------------------------------------------------------------
     */
     public function update(Request $request, Contact $client)
@@ -161,6 +161,7 @@ class BookController extends Controller
 
         $client->update($validated);
 
+        // Return back to list & reload the edited client panel
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
@@ -180,11 +181,7 @@ class BookController extends Controller
             'body'       => $request->body,
         ]);
 
-        if ($request->ajax()) {
-            return response()->json(['success' => true]);
-        }
-
-        return back();
+        return response()->json(['success' => true]);
     }
 
     /*
@@ -202,16 +199,12 @@ class BookController extends Controller
             'body' => $request->body,
         ]);
 
-        if ($request->ajax()) {
-            return response()->json(['success' => true]);
-        }
-
-        return back();
+        return response()->json(['success' => true]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | BENEFICIARIES – STORE (AJAX)
+    | BENEFICIARIES – STORE
     |--------------------------------------------------------------------------
     */
     public function storeBeneficiary(Request $request, Contact $client)
@@ -233,12 +226,11 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | BENEFICIARIES – UPDATE (AJAX)
+    | BENEFICIARIES – UPDATE
     |--------------------------------------------------------------------------
     */
     public function updateBeneficiary(Request $request, Contact $client, Beneficiary $beneficiary)
     {
-        // Ensure the beneficiary belongs to this client
         if ($beneficiary->contact_id !== $client->id) {
             abort(403);
         }
@@ -259,7 +251,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | BENEFICIARIES – DELETE (AJAX)
+    | BENEFICIARIES – DELETE
     |--------------------------------------------------------------------------
     */
     public function deleteBeneficiary(Request $request, Contact $client, Beneficiary $beneficiary)
@@ -275,7 +267,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | EMERGENCY CONTACTS – STORE (AJAX)
+    | EMERGENCY CONTACTS – STORE
     |--------------------------------------------------------------------------
     */
     public function storeEmergency(Request $request, Contact $client)
@@ -297,7 +289,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | EMERGENCY CONTACTS – UPDATE (AJAX)
+    | EMERGENCY CONTACTS – UPDATE
     |--------------------------------------------------------------------------
     */
     public function updateEmergency(Request $request, Contact $client, EmergencyContact $contact)
@@ -322,7 +314,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | EMERGENCY CONTACTS – DELETE (AJAX)
+    | EMERGENCY CONTACTS – DELETE
     |--------------------------------------------------------------------------
     */
     public function deleteEmergency(Request $request, Contact $client, EmergencyContact $contact)
@@ -338,7 +330,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | IMPORT (STUB)
+    | IMPORT – (NOT IMPLEMENTED YET)
     |--------------------------------------------------------------------------
     */
     public function import(Request $request)
