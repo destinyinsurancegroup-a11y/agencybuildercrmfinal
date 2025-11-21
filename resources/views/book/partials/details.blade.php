@@ -1,40 +1,33 @@
 <style>
     /* ===== COMPACT SPACING FOR CONTACT PAGE ===== */
 
-    /* Reduce padding inside the main card */
     .card.p-4 {
         padding: 1.25rem !important;
     }
 
-    /* Reduce spacing between section headers */
     h4.text-gold {
         margin-top: 0.5rem !important;
         margin-bottom: 0.5rem !important;
     }
 
-    /* Reduce spacing between the row sections */
     .row.mb-4 {
         margin-bottom: 0.75rem !important;
     }
 
-    /* Tighten horizontal rule spacing */
     .card hr {
         margin: 0.75rem 0 !important;
     }
 
-    /* Reduce spacing between paragraph lines */
     .card p {
         margin-bottom: 0.25rem !important;
     }
 
-    /* Beneficiaries + Emergency row padding compact */
     #beneficiaries-list .p-3,
     #emergency-list .p-3 {
         padding: 0.65rem !important;
         margin-bottom: 0.5rem !important;
     }
 
-    /* Main wrapper compactness */
     .p-4 {
         padding: 1.25rem !important;
     }
@@ -50,7 +43,6 @@
                 {{ $client->first_name }} {{ $client->last_name }}
             </h1>
 
-            <!-- AJAX EDIT BUTTON -->
             <button 
                 class="btn-gold"
                 data-edit-url="{{ route('book.edit.panel', $client->id) }}"
@@ -141,28 +133,24 @@
         <hr>
 
         <!-- ================================ -->
-        <!-- BENEFICIARIES SECTION (READ ONLY) -->
+        <!-- BENEFICIARIES SECTION            -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Beneficiaries</h4>
 
         <div id="beneficiaries-list">
             @forelse ($client->beneficiaries as $b)
-                <div 
-                    class="border rounded p-3 mb-2 d-flex justify-content-between align-items-center"
-                >
-                    <div>
-                        <strong>{{ $b->name }}</strong><br>
-                        <small>
-                            {{ $b->relationship ?: '—' }} /
-                            {{ $b->phone ?: '—' }} /
-                            Contacted:
-                            @if($b->contacted)
-                                <span class="text-success fw-bold">Yes</span>
-                            @else
-                                <span class="text-danger fw-bold">No</span>
-                            @endif
-                        </small>
-                    </div>
+                <div class="border rounded p-3 mb-2">
+                    <strong>{{ $b->name }}</strong><br>
+                    <small>
+                        {{ $b->relationship ?: '—' }} /
+                        {{ $b->phone ?: '—' }} /
+                        Contacted:
+                        @if($b->contacted)
+                            <span class="text-success fw-bold">Yes</span>
+                        @else
+                            <span class="text-danger fw-bold">No</span>
+                        @endif
+                    </small>
                 </div>
             @empty
                 <p class="text-muted">No beneficiaries added.</p>
@@ -172,28 +160,24 @@
         <hr>
 
         <!-- ================================ -->
-        <!-- EMERGENCY CONTACTS (READ ONLY)  -->
+        <!-- EMERGENCY CONTACTS SECTION       -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Emergency Contacts</h4>
 
         <div id="emergency-list">
             @forelse ($client->emergencyContacts as $ec)
-                <div 
-                    class="border rounded p-3 mb-2 d-flex justify-content-between align-items-center"
-                >
-                    <div>
-                        <strong>{{ $ec->name }}</strong><br>
-                        <small>
-                            {{ $ec->relationship ?: '—' }} /
-                            {{ $ec->phone ?: '—' }} /
-                            Contacted:
-                            @if($ec->contacted)
-                                <span class="text-success fw-bold">Yes</span>
-                            @else
-                                <span class="text-danger fw-bold">No</span>
-                            @endif
-                        </small>
-                    </div>
+                <div class="border rounded p-3 mb-2">
+                    <strong>{{ $ec->name }}</strong><br>
+                    <small>
+                        {{ $ec->relationship ?: '—' }} /
+                        {{ $ec->phone ?: '—' }} /
+                        Contacted:
+                        @if($ec->contacted)
+                            <span class="text-success fw-bold">Yes</span>
+                        @else
+                            <span class="text-danger fw-bold">No</span>
+                        @endif
+                    </small>
                 </div>
             @empty
                 <p class="text-muted">No emergency contacts added.</p>
@@ -203,110 +187,97 @@
         <hr>
 
         <!-- ================================ -->
-        <!-- NOTES SECTION (EDITABLE)         -->
+        <!-- NOTES SECTION (AJAX ENABLED)     -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
-        <p>{{ $client->notes ?: 'No notes added.' }}</p>
 
-    </div>
+        <!-- ADD NEW NOTE -->
+        <div class="mb-3">
+            <textarea id="new_note_body"
+                      class="form-control"
+                      rows="2"
+                      placeholder="Write a new note..."></textarea>
 
-</div>
+            <button class="btn-gold mt-2" onclick="saveNote({{ $client->id }})">
+                Add Note
+            </button>
+        </div>
 
-<!-- ========================================================== -->
-<!-- === BENEFICIARY MODAL (kept but unused) ================== -->
-<!-- ========================================================== -->
-<div class="modal fade" id="beneficiaryModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form id="beneficiaryForm" class="modal-content">
-            @csrf
+        <!-- NOTES LIST -->
+        <div id="notes-list">
+            @forelse ($client->notes()->latest()->get() as $note)
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div style="white-space: pre-wrap;">{{ $note->body }}</div>
 
-            <div class="modal-header bg-black text-gold">
-                <h5 class="modal-title" id="beneficiaryModalTitle">Add Beneficiary</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="editNote({{ $client->id }}, {{ $note->id }})">
+                                Edit
+                            </button>
 
-            <div class="modal-body">
-                <input type="hidden" id="beneficiary_id">
-                <input type="hidden" id="beneficiary_client_id">
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Name</label>
-                    <input type="text" class="form-control" id="beneficiary_name" required>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
                 </div>
+            @empty
+                <p class="text-muted">No notes yet.</p>
+            @endforelse
+        </div>
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Relationship</label>
-                    <input type="text" class="form-control" id="beneficiary_relationship">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Phone</label>
-                    <input type="text" class="form-control" id="beneficiary_phone">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Contacted?</label>
-                    <select class="form-select" id="beneficiary_contacted">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
-                    </select>
-                </div>
-
-            </div>
-
-            <div class="modal-footer">
-                <button type="submit" class="btn-gold">Save</button>
-            </div>
-        </form>
     </div>
 </div>
 
-<!-- ========================================================== -->
-<!-- === EMERGENCY CONTACT MODAL (kept but unused) ============ -->
-<!-- ========================================================== -->
-<div class="modal fade" id="emergencyModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form id="emergencyForm" class="modal-content">
-            @csrf
+<!-- ====================================== -->
+<!-- NOTES AJAX SCRIPT                      -->
+<!-- ====================================== -->
+<script>
+function saveNote(clientId) {
+    const body = document.getElementById('new_note_body').value.trim();
+    if (!body) return alert("Note cannot be empty.");
 
-            <div class="modal-header bg-black text-gold">
-                <h5 class="modal-title" id="emergencyModalTitle">Add Emergency Contact</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+    fetch(`/book/${clientId}/notes`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body })
+    })
+    .then(() => loadBookPanel(`/book/${clientId}`));
+}
 
-            <div class="modal-body">
+function editNote(clientId, noteId) {
+    const existing = document.querySelector(`#note-${noteId} div:first-child`).innerText;
+    const updated = prompt("Edit note:", existing);
+    if (updated === null) return;
 
-                <input type="hidden" id="emergency_id">
-                <input type="hidden" id="emergency_client_id">
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'PUT',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body: updated })
+    })
+    .then(() => loadBookPanel(`/book/${clientId}`));
+}
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Name</label>
-                    <input type="text" class="form-control" id="emergency_name" required>
-                </div>
+function deleteNote(clientId, noteId) {
+    if (!confirm("Delete this note?")) return;
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Relationship</label>
-                    <input type="text" class="form-control" id="emergency_relationship">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Phone</label>
-                    <input type="text" class="form-control" id="emergency_phone">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Contacted?</label>
-                    <select class="form-select" id="emergency_contacted">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
-                    </select>
-                </div>
-
-            </div>
-
-            <div class="modal-footer">
-                <button type="submit" class="btn-gold">Save</button>
-            </div>
-        </form>
-    </div>
-</div>
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        }
+    })
+    .then(() => loadBookPanel(`/book/${clientId}`));
+}
+</script>
