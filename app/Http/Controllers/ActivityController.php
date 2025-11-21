@@ -6,15 +6,19 @@ use Illuminate\Http\Request;
 
 class ActivityController extends Controller
 {
-    // The activity page
+    /**
+     * Full Activity page view
+     */
     public function index()
     {
         return view('activity.index');
     }
 
-    // The slide-in panel that contains the Current Production card
+    /**
+     * AJAX: Right-panel view (will show the Production Card)
+     */
     public function panel()
     {
-        return view('activity.partials.panel');
+        return view('activity.panel');
     }
 }
