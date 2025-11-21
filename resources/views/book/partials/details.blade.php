@@ -1,3 +1,45 @@
+<style>
+    /* ===== COMPACT SPACING FOR CONTACT PAGE ===== */
+
+    /* Reduce padding inside the main card */
+    .card.p-4 {
+        padding: 1.25rem !important;
+    }
+
+    /* Reduce spacing between section headers */
+    h4.text-gold {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Reduce spacing between the row sections */
+    .row.mb-4 {
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* Tighten horizontal rule spacing */
+    .card hr {
+        margin: 0.75rem 0 !important;
+    }
+
+    /* Reduce spacing between paragraph lines */
+    .card p {
+        margin-bottom: 0.25rem !important;
+    }
+
+    /* Beneficiaries + Emergency row padding compact */
+    #beneficiaries-list .p-3,
+    #emergency-list .p-3 {
+        padding: 0.65rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Main wrapper compactness */
+    .p-4 {
+        padding: 1.25rem !important;
+    }
+</style>
+
 <div class="p-4">
 
     <div class="card shadow-sm border-0 p-4">
@@ -121,16 +163,11 @@
                             @endif
                         </small>
                     </div>
-
-                    <!-- *** ACTION BUTTONS REMOVED *** -->
                 </div>
             @empty
                 <p class="text-muted">No beneficiaries added.</p>
             @endforelse
         </div>
-
-        <!-- *** REMOVE ADD BUTTON *** -->
-        {{-- <button class="btn-gold btn-gold-mini mt-2">+ Add Beneficiary</button> --}}
 
         <hr>
 
@@ -157,16 +194,11 @@
                             @endif
                         </small>
                     </div>
-
-                    <!-- *** ACTION BUTTONS REMOVED *** -->
                 </div>
             @empty
                 <p class="text-muted">No emergency contacts added.</p>
             @endforelse
         </div>
-
-        <!-- *** REMOVE ADD BUTTON *** -->
-        {{-- <button class="btn-gold btn-gold-mini mt-2">+ Add Emergency Contact</button> --}}
 
         <hr>
 
@@ -179,7 +211,6 @@
     </div>
 
 </div>
-
 
 <!-- ========================================================== -->
 <!-- === BENEFICIARY MODAL (kept but unused) ================== -->
@@ -229,7 +260,6 @@
         </form>
     </div>
 </div>
-
 
 <!-- ========================================================== -->
 <!-- === EMERGENCY CONTACT MODAL (kept but unused) ============ -->
