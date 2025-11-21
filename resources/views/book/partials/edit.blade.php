@@ -16,11 +16,11 @@
         .form-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px 18px; /* row gap, column gap */
+            gap: 10px 18px;
         }
 
         .field {
-            flex: 0 0 260px;          /* <-- compact width requested */
+            flex: 0 0 260px;
             display: flex;
             flex-direction: column;
         }
@@ -35,26 +35,41 @@
         .form-control,
         .form-select {
             width: 100% !important;
-            max-width: 260px !important; /* <-- final width */
+            max-width: 260px !important;
             padding: .38rem .55rem !important;
             font-size: .85rem !important;
             height: 34px !important;
         }
 
-        /* Beneficiary + Emergency rows */
-        .beneficiary-row,
-        .emergency-row {
+        /* CONTACT SECTION OVERRIDES (Option A) */
+        .contact-row {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: 14px;
+            padding: .55rem .75rem !important;
             border: 1px solid #ddd;
-            padding: .6rem !important;
-            margin-bottom: .6rem !important;
             border-radius: 6px;
+            margin-bottom: .55rem !important;
         }
 
-        .beneficiary-grid,
-        .emergency-grid {
+        .contact-col {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px 18px;
+            flex-direction: column;
+        }
+
+        /* Four tight columns */
+        .contact-name   { flex: 0 0 230px; }
+        .contact-rel    { flex: 0 0 180px; }
+        .contact-phone  { flex: 0 0 180px; }
+        .contact-cont   { flex: 0 0 80px; } /* 90% smaller */
+
+        .contact-col .form-control,
+        .contact-col .form-select {
+            max-width: 100% !important;
+            height: 32px !important;
+            padding: .32rem .45rem !important;
+            font-size: .8rem !important;
         }
 
         /* Compact HR */
@@ -197,83 +212,83 @@
 
             <hr>
 
-            <!-- BENEFICIARIES -->
-            <h5 class="text-gold fw-bold">Beneficiaries</h5>
+            <!-- ============================== -->
+            <!--   COMBINED CONTACTS SECTION   -->
+            <!-- ============================== -->
+            <h5 class="text-gold fw-bold">Contacts</h5>
 
+            @php
+                $beneficiaries = $client->beneficiaries;
+                $emergencies = $client->emergencyContacts;
+            @endphp
+
+            <!-- BENEFICIARIES (Two) -->
             @for ($i = 0; $i < 2; $i++)
-                @php $b = $client->beneficiaries[$i] ?? null; @endphp
+                @php $b = $beneficiaries[$i] ?? null; @endphp
 
-                <div class="beneficiary-row">
-                    <div class="beneficiary-grid">
+                <div class="contact-row">
 
-                        <div class="field">
-                            <label class="form-label">Name</label>
-                            <input type="text" name="beneficiaries[{{ $i }}][name]"
-                                   class="form-control" value="{{ $b->name ?? '' }}">
-                        </div>
-
-                        <div class="field">
-                            <label class="form-label">Relationship</label>
-                            <input type="text" name="beneficiaries[{{ $i }}][relationship]"
-                                   class="form-control" value="{{ $b->relationship ?? '' }}">
-                        </div>
-
-                        <div class="field">
-                            <label class="form-label">Phone</label>
-                            <input type="text" name="beneficiaries[{{ $i }}][phone]"
-                                   class="form-control" value="{{ $b->phone ?? '' }}">
-                        </div>
-
-                        <div class="field">
-                            <label class="form-label">Contacted?</label>
-                            <select name="beneficiaries[{{ $i }}][contacted]" class="form-select">
-                                <option value="0" {{ !$b || !$b->contacted ? 'selected' : '' }}>No</option>
-                                <option value="1" {{ $b && $b->contacted ? 'selected' : '' }}>Yes</option>
-                            </select>
-                        </div>
-
+                    <div class="contact-col contact-name">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="beneficiaries[{{ $i }}][name]"
+                               class="form-control" value="{{ $b->name ?? '' }}">
                     </div>
+
+                    <div class="contact-col contact-rel">
+                        <label class="form-label">Relationship</label>
+                        <input type="text" name="beneficiaries[{{ $i }}][relationship]"
+                               class="form-control" value="{{ $b->relationship ?? '' }}">
+                    </div>
+
+                    <div class="contact-col contact-phone">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="beneficiaries[{{ $i }}][phone]"
+                               class="form-control" value="{{ $b->phone ?? '' }}">
+                    </div>
+
+                    <div class="contact-col contact-cont">
+                        <label class="form-label">Contact?</label>
+                        <select name="beneficiaries[{{ $i }}][contacted]" class="form-select">
+                            <option value="0" {{ !$b || !$b->contacted ? 'selected' : '' }}>No</option>
+                            <option value="1" {{ $b && $b->contacted ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
                 </div>
             @endfor
 
-            <hr>
-
-            <!-- EMERGENCY CONTACTS -->
-            <h5 class="text-gold fw-bold">Emergency Contacts</h5>
-
+            <!-- EMERGENCY CONTACTS (Two) -->
             @for ($i = 0; $i < 2; $i++)
-                @php $e = $client->emergencyContacts[$i] ?? null; @endphp
+                @php $e = $emergencies[$i] ?? null; @endphp
 
-                <div class="emergency-row">
-                    <div class="emergency-grid">
+                <div class="contact-row">
 
-                        <div class="field">
-                            <label class="form-label">Name</label>
-                            <input type="text" name="emergency_contacts[{{ $i }}][name]"
-                                   class="form-control" value="{{ $e->name ?? '' }}">
-                        </div>
-
-                        <div class="field">
-                            <label class="form-label">Relationship</label>
-                            <input type="text" name="emergency_contacts[{{ $i }}][relationship]"
-                                   class="form-control" value="{{ $e->relationship ?? '' }}">
-                        </div>
-
-                        <div class="field">
-                            <label class="form-label">Phone</label>
-                            <input type="text" name="emergency_contacts[{{ $i }}][phone]"
-                                   class="form-control" value="{{ $e->phone ?? '' }}">
-                        </div>
-
-                        <div class="field">
-                            <label class="form-label">Contacted?</label>
-                            <select name="emergency_contacts[{{ $i }}][contacted]" class="form-select">
-                                <option value="0" {{ !$e || !$e->contacted ? 'selected' : '' }}>No</option>
-                                <option value="1" {{ $e && $e->contacted ? 'selected' : '' }}>Yes</option>
-                            </select>
-                        </div>
-
+                    <div class="contact-col contact-name">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="emergency_contacts[{{ $i }}][name]"
+                               class="form-control" value="{{ $e->name ?? '' }}">
                     </div>
+
+                    <div class="contact-col contact-rel">
+                        <label class="form-label">Relationship</label>
+                        <input type="text" name="emergency_contacts[{{ $i }}][relationship]"
+                               class="form-control" value="{{ $e->relationship ?? '' }}">
+                    </div>
+
+                    <div class="contact-col contact-phone">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="emergency_contacts[{{ $i }}][phone]"
+                               class="form-control" value="{{ $e->phone ?? '' }}">
+                    </div>
+
+                    <div class="contact-col contact-cont">
+                        <label class="form-label">Contact?</label>
+                        <select name="emergency_contacts[{{ $i }}][contacted]" class="form-select">
+                            <option value="0" {{ !$e || !$e->contacted ? 'selected' : '' }}>No</option>
+                            <option value="1" {{ $e && $e->contacted ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
                 </div>
             @endfor
 
