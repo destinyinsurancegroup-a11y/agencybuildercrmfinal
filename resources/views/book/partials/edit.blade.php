@@ -1,62 +1,60 @@
 <div class="p-4">
 
-    <!-- Ultra-Compact CSS -->
+    <!-- Compact 75% CSS with max-width 500px -->
     <style>
-        /* Overall compact wrappers */
-        .p-4 { padding: 1rem !important; }
-        .card { padding: 1rem !important; }
+        /* Outer wrappers */
+        .p-4 { padding: 1.5rem !important; }
+        .card { padding: 1.25rem !important; }
 
-        /* Tight section headings */
+        /* Compact headers */
         h5.text-gold, h6.text-gold {
-            margin-top: .4rem !important;
-            margin-bottom: .4rem !important;
-        }
-
-        /* Reduce spacing between rows */
-        .row {
-            margin-bottom: .55rem !important;
-        }
-
-        /* Labels more compact */
-        .form-label {
-            margin-bottom: .1rem !important;
-            font-size: .85rem !important;
-        }
-
-        /* Ultra-compact inputs */
-        .form-control, .form-select {
-            padding: .35rem .5rem !important;
-            font-size: .85rem !important;
-            height: 32px !important;
-        }
-
-        /* 3-column rows tighter */
-        .col-md-4, .col-md-3, .col-md-2, .col-md-6 {
-            padding-right: .35rem !important;
-            padding-left: .35rem !important;
-        }
-
-        /* HR spacing small */
-        hr { margin: .7rem 0 !important; }
-
-        /* Compact beneficiary & emergency blocks */
-        .beneficiary-row, .emergency-row {
-            padding: .6rem !important;
+            margin-top: .6rem !important;
             margin-bottom: .6rem !important;
         }
 
-        /* Remove outer large spacing */
-        .mb-4, .mb-3, .mb-2 { margin-bottom: .5rem !important; }
+        /* Row spacing */
+        .row {
+            margin-bottom: .7rem !important;
+        }
+
+        /* Labels */
+        .form-label {
+            margin-bottom: .1rem !important;
+            font-size: .9rem !important;
+        }
+
+        /* Input fields compact + capped width */
+        .form-control, .form-select {
+            padding: .45rem .6rem !important;
+            font-size: .9rem !important;
+            height: 36px !important;
+            max-width: 500px !important; /* <<< MAIN UPDATE */
+        }
+
+        /* Form columns tighter */
+        .col-md-4, .col-md-3, .col-md-2, .col-md-6 {
+            padding-right: .4rem !important;
+            padding-left: .4rem !important;
+        }
+
+        /* Tightened HR */
+        hr { margin: .9rem 0 !important; }
+
+        /* Beneficiary & Emergency blocks */
+        .beneficiary-row, .emergency-row {
+            padding: .75rem !important;
+            margin-bottom: .7rem !important;
+        }
 
         /* Buttons compact */
         .btn-gold, .btn.btn-sm.btn-gold {
-            padding: 4px 10px !important;
-            font-size: .8rem !important;
+            padding: 6px 12px !important;
+            font-size: .85rem !important;
         }
 
         .btn-gold.btn-lg {
-            padding: 6px 14px !important;
-            font-size: .85rem !important;
+            padding: 7px 15px !important;
+            font-size: .9rem !important;
         }
     </style>
 
