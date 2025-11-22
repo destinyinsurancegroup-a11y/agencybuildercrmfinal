@@ -61,7 +61,6 @@
     </div>
 </div>
 
-
 <!-- AJAX HANDLER -->
 <script>
 document.addEventListener("click", async function (e) {
@@ -78,12 +77,11 @@ document.addEventListener("click", async function (e) {
             body: formData,
             headers: {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json",              // ⭐ REQUIRED FIX
-                "X-Requested-With": "XMLHttpRequest"       // ⭐ Guarantees JSON response
+                "Accept": "application/json",              // ⭐ Required fix
+                "X-Requested-With": "XMLHttpRequest"       // ⭐ Ensures JSON response
             }
         });
 
-        // Safely parse JSON (Laravel may return non-JSON on error)
         let data = await res.json().catch(() => null);
 
         if (!data || !data.success) {
@@ -91,9 +89,12 @@ document.addEventListener("click", async function (e) {
             return;
         }
 
-        // Close the modal
+        // Close modal
         let modalEl = document.querySelector(".modal.show");
-        if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
+        if (modalEl) {
+            let instance = bootstrap.Modal.getInstance(modalEl);
+            instance.hide();
+        }
 
         // Reset form
         form.reset();
