@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Auth;
 class ActivityController extends Controller
 {
     /**
+     * Show the activity entry page.
+     */
+    public function index()
+    {
+        // You can return an activity view later
+        return view('activities.index');
+    }
+
+    /**
      * Store a new activity entry.
      */
     public function store(Request $request)
