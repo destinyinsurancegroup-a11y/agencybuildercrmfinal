@@ -40,12 +40,12 @@
 
                     <div class="mb-3">
                         <label>Premium Collected ($):</label>
-                        <input type="number" step="0.01" class="form-control" name="premium_collected" placeholder="0.00">
+                        <input id="premiumInput" type="number" step="0.01" class="form-control" name="premium_collected" placeholder="0.00">
                     </div>
 
                     <div class="mb-3">
                         <label>AP ($):</label>
-                        <input type="number" step="0.01" class="form-control" name="ap" placeholder="0.00" readonly>
+                        <input id="apInput" type="number" step="0.01" class="form-control" name="ap" placeholder="0.00" readonly>
                     </div>
 
                 </form>
@@ -63,12 +63,10 @@
 
 <!-- AUTO-CALCULATE AP -->
 <script>
-document.addEventListener("input", function (e) {
-    if (e.target.name === "premium_collected") {
-        let premium = parseFloat(e.target.value) || 0;
-        let apField = document.querySelector('input[name="ap"]');
-        apField.value = (premium * 12).toFixed(2);
-    }
+document.addEventListener("input", function () {
+    let premium = parseFloat(document.getElementById("premiumInput").value) || 0;
+    let ap = (premium * 12).toFixed(2);
+    document.getElementById("apInput").value = ap;
 });
 </script>
 
