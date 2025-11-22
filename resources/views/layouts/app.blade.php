@@ -64,10 +64,32 @@
             margin-left: 250px;
             padding: 25px;
         }
+
+        /* ⭐ RIGHT PANEL FOR POPUPS ⭐ */
+        #right-panel {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 450px;
+            height: 100%;
+            background: #ffffff;
+            box-shadow: -3px 0 10px rgba(0,0,0,0.2);
+            transition: right 0.3s ease;
+            z-index: 2000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        #right-panel.open {
+            right: 0;
+        }
     </style>
 </head>
 
 <body>
+
+    <!-- ⭐ RIGHT PANEL (CRITICAL FOR ACTIVITY POPUP) ⭐ -->
+    <div id="right-panel"></div>
 
     <!-- SIDEBAR -->
     <div class="sidebar">
@@ -78,7 +100,6 @@
         <a class="nav-item" href="{{ route('dashboard') }}">Dashboard</a>
         <a class="nav-item" href="{{ route('contacts.index') }}">All Contacts</a>
 
-        <!-- ⭐ FIXED BOOK OF BUSINESS LINK ⭐ -->
         <a class="nav-item" href="{{ route('book.index') }}">Book of Business</a>
 
         <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
@@ -92,7 +113,7 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- ⭐ WRAP CONTENT IN BOOTSTRAP CONTAINER ⭐ -->
+    <!-- MAIN CONTENT WRAPPER -->
     <div class="main-content">
         <div class="container-fluid">
             @yield('content')
@@ -130,63 +151,42 @@
     <!-- ⭐ GLOBAL HANDLER FOR ACTIVITY POPUP SAVE ⭐ -->
     <script>
         document.addEventListener('click', function (e) {
-            // Only handle clicks on the Save Activity button in the popup
-            if (!e.target || e.target.id !== 'saveActivityBtn') {
-                return;
-            }
+
+            if (!e.target || e.target.id !== 'saveActivityBtn') return;
 
             e.preventDefault();
 
             const form = document.getElementById('activityForm');
-            if (!form) {
-                console.warn('Activity form not found');
-                return;
-            }
+            if (!form) return;
 
             const formData = new FormData(form);
-            const url = form.getAttribute('action');
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-            fetch(url, {
+            fetch(form.getAttribute('action'), {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': csrf
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
                 body: formData
             })
             .then(res => res.json())
             .then(data => {
-                if (!data || !data.success) {
+
+                if (!data.success) {
                     alert('Error saving activity.');
                     return;
                 }
 
-                // Close the modal (assumes id="activityModal", fallback: any open .modal.show)
-                let modalEl = document.getElementById('activityModal') || document.querySelector('.modal.show');
-                if (modalEl && window.bootstrap) {
-                    let instance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                    instance.hide();
-                }
-
-                // Reset form
                 form.reset();
 
-                // Refresh dashboard production card if function exists
+                document.getElementById('right-panel').classList.remove('open');
+
                 if (typeof window.refreshProductionCard === 'function') {
                     window.refreshProductionCard();
                 }
-
-                // Also dispatch the custom event, in case anything else listens
-                document.dispatchEvent(new CustomEvent('activitySaved'));
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Request failed.');
             });
         });
     </script>
 
-    <!-- ⭐ REQUIRED FOR AJAX IN contacts.index ⭐ -->
     @stack('scripts')
 
 </body>
