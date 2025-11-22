@@ -61,40 +61,49 @@
     </div>
 </div>
 
+
 <!-- AJAX HANDLER -->
 <script>
-document.addEventListener("click", function (e) {
-    if (e.target.id !== "saveActivityBtn") return;
+document.addEventListener("click", async function (e) {
 
+    if (e.target.id !== "saveActivityBtn") return;
     e.preventDefault();
 
     let form = document.getElementById("activityForm");
     let formData = new FormData(form);
 
-    fetch("{{ route('activity.store') }}", {
-        method: "POST",
-        body: formData,
-        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
+    try {
+        let res = await fetch("{{ route('activity.store') }}", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json",              // ⭐ REQUIRED FIX
+                "X-Requested-With": "XMLHttpRequest"       // ⭐ Guarantees JSON response
+            }
+        });
 
-            // close modal
-            let modalEl = document.querySelector(".modal.show");
-            if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
+        // Safely parse JSON (Laravel may return non-JSON on error)
+        let data = await res.json().catch(() => null);
 
-            form.reset();
-
-            // refresh dashboard production card
-            document.dispatchEvent(new CustomEvent("activitySaved"));
-        } else {
+        if (!data || !data.success) {
             alert("Error saving activity.");
+            return;
         }
-    })
-    .catch(err => {
+
+        // Close the modal
+        let modalEl = document.querySelector(".modal.show");
+        if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
+
+        // Reset form
+        form.reset();
+
+        // Refresh dashboard production card
+        document.dispatchEvent(new CustomEvent("activitySaved"));
+
+    } catch (err) {
         console.error(err);
         alert("Request failed.");
-    });
+    }
 });
 </script>
