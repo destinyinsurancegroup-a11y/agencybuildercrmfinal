@@ -20,17 +20,12 @@ use App\Http\Controllers\ActivityController;
 
 /*
 |--------------------------------------------------------------------------
-| ⭐ DEBUG LARAVEL LOG (TEMPORARY)
-|--------------------------------------------------------------------------
-| This allows us to SEE the real error stopping your Activity Save.
-| Visit: https://YOUR-APP-URL/debug-laravel-log
+| DEBUG LARAVEL LOG
 |--------------------------------------------------------------------------
 */
 Route::get('/debug-laravel-log', function () {
     $path = storage_path('logs/laravel.log');
-    if (!file_exists($path)) {
-        return "No laravel.log file found.";
-    }
+    if (!file_exists($path)) return "No laravel.log file found.";
     return nl2br(e(file_get_contents($path)));
 });
 
@@ -39,9 +34,7 @@ Route::get('/debug-laravel-log', function () {
 | TEST ROUTE
 |--------------------------------------------------------------------------
 */
-Route::get('/test', function () {
-    return 'ROUTES ARE WORKING';
-});
+Route::get('/test', fn() => 'ROUTES ARE WORKING');
 
 /*
 |--------------------------------------------------------------------------
@@ -56,18 +49,33 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 | CONTACTS (FULL CRUD + AJAX RIGHT PANEL)
 |--------------------------------------------------------------------------
 */
-Route::get('/all-contacts', function () {
-    return redirect()->route('contacts.index');
-});
+Route::get('/all-contacts', fn() => redirect()->route('contacts.index'));
 
-Route::get('/contacts/create-panel', function () {
-    return view('contacts.partials.create');
-})->name('contacts.create.panel');
+Route::get('/contacts/create-panel', fn() => view('contacts.partials.create'))
+    ->name('contacts.create.panel');
 
 Route::resource('contacts', ContactsController::class);
 
 Route::post('/contacts/import', [ContactsController::class, 'import'])
     ->name('contacts.import');
+
+/*
+|--------------------------------------------------------------------------
+| CONTACT NOTES (This is the correct working system)
+|--------------------------------------------------------------------------
+|
+| IMPORTANT: These are already implemented in your app.
+| We will use contacts.notes.store for saving notes.
+|--------------------------------------------------------------------------
+*/
+Route::get('/contacts/{contact}/notes', [NoteController::class, 'index'])
+    ->name('contacts.notes.index');
+
+Route::post('/contacts/{contact}/notes', [NoteController::class, 'store'])
+    ->name('contacts.notes.store');
+
+Route::get('/contacts/{contact}/notes/list', [NoteController::class, 'list'])
+    ->name('contacts.notes.list');
 
 /*
 |--------------------------------------------------------------------------
@@ -80,7 +88,7 @@ Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show')
 
 /*
 |--------------------------------------------------------------------------
-| BOOK OF BUSINESS (AJAX Master-Detail)
+| BOOK OF BUSINESS (MASTER-DETAIL AJAX)
 |--------------------------------------------------------------------------
 */
 Route::prefix('book')->group(function () {
@@ -92,8 +100,8 @@ Route::prefix('book')->group(function () {
     Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])->name('book.edit.panel');
     Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
 
-    Route::post('/{client}/notes', [BookController::class, 'storeNote'])->name('book.notes.store');
-    Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])->name('book.notes.update');
+    Route::post('/{client}/notes',        [BookController::class, 'storeNote'])->name('book.notes.store');
+    Route::put('/{client}/notes/{note}',  [BookController::class, 'updateNote'])->name('book.notes.update');
 
     Route::post('/import', [BookController::class, 'import'])->name('book.import');
 });
@@ -109,9 +117,9 @@ Route::prefix('service')->group(function () {
     Route::get('/create-panel', [ServiceController::class, 'createPanel'])->name('service.create.panel');
     Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
-    Route::get('/{client}', [ServiceController::class, 'show'])->name('service.show');
+    Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
     Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
-    Route::put('/{client}', [ServiceController::class, 'update'])->name('service.update');
+    Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
 });
 
 /*
@@ -119,8 +127,8 @@ Route::prefix('service')->group(function () {
 | SERVICE NOTES
 |--------------------------------------------------------------------------
 */
-Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])->name('service.notes.store');
-Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])->name('service.notes.update');
+Route::post('/service/{client}/notes',      [BookController::class, 'storeNote'])->name('service.notes.store');
+Route::put('/service/{client}/notes/{note}',[BookController::class, 'updateNote'])->name('service.notes.update');
 
 /*
 |--------------------------------------------------------------------------
@@ -138,106 +146,68 @@ Route::delete('/service/{client}/emergencies/{contact}',
 | ACTIVITY
 |--------------------------------------------------------------------------
 */
-
 Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
 Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
 Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store');
 
-// ⭐ LIVE TOTALS FOR DASHBOARD
 Route::get('/activity/totals/{range}', [ActivityController::class, 'totals'])
     ->name('activity.totals');
-
-/*
-|--------------------------------------------------------------------------
-| CONTACT NOTES
-|--------------------------------------------------------------------------
-*/
-Route::get('/contacts/{contact}/notes', [NoteController::class, 'index'])
-    ->name('contacts.notes.index');
-
-Route::post('/contacts/{contact}/notes', [NoteController::class, 'store'])
-    ->name('contacts.notes.store');
-
-Route::get('/contacts/{contact}/notes/list', [NoteController::class, 'list'])
-    ->name('contacts.notes.list');
 
 /*
 |--------------------------------------------------------------------------
 | CALENDAR
 |--------------------------------------------------------------------------
 */
-Route::get('/calendar', function () {
-    return view('calendar.index');
-});
+Route::get('/calendar', fn() => view('calendar.index'));
 
 /*
 |--------------------------------------------------------------------------
 | CALENDAR API
 |--------------------------------------------------------------------------
 */
-Route::get('/calendar/events', function () {
-    try { return Event::all(); }
-    catch (\Throwable $e) { return response()->json(['error'=>true,'message'=>$e->getMessage()], 500); }
-});
+Route::get('/calendar/events', fn() => Event::all());
 
 Route::post('/calendar/events', function (Request $request) {
-    try {
-        $data = $request->validate([
-            'title'    => 'required|string|max:255',
-            'start'    => 'required|string',
-            'location' => 'nullable|string|max:255',
-        ]);
+    $data = $request->validate([
+        'title'    => 'required|string|max:255',
+        'start'    => 'required|string',
+        'location' => 'nullable|string|max:255',
+    ]);
 
-        $event = Event::create([
-            'title'      => $data['title'],
-            'start'      => $data['start'],
-            'end'        => $data['start'],
-            'location'   => $data['location'] ?? null,
-            'tenant_id'  => 1,
-            'created_by' => 1,
-        ]);
+    $event = Event::create([
+        'title'      => $data['title'],
+        'start'      => $data['start'],
+        'end'        => $data['start'],
+        'location'   => $data['location'] ?? null,
+        'tenant_id'  => 1,
+        'created_by' => 1,
+    ]);
 
-        return response()->json($event, 201);
-
-    } catch (\Throwable $e) {
-        return response()->json(['error'=>true,'message'=>$e->getMessage()], 500);
-    }
+    return response()->json($event, 201);
 });
 
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
-    try {
-        $data = $request->validate([
-            'title'    => 'required|string|max:255',
-            'start'    => 'required|string',
-            'location' => 'nullable|string|max:255',
-        ]);
+    $data = $request->validate([
+        'title'    => 'required|string|max:255',
+        'start'    => 'required|string',
+        'location' => 'nullable|string|max:255',
+    ]);
 
-        $event = Event::findOrFail($id);
+    $event = Event::findOrFail($id);
 
-        $event->update([
-            'title'    => $data['title'],
-            'start'    => $data['start'],
-            'end'      => $data['start'],
-            'location' => $data['location'] ?? null,
-        ]);
+    $event->update([
+        'title'    => $data['title'],
+        'start'    => $data['start'],
+        'end'      => $data['start'],
+        'location' => $data['location'] ?? null,
+    ]);
 
-        return response()->json(['success'=>true,'event'=>$event]);
-
-    } catch (\Throwable $e) {
-        return response()->json(['error'=>true,'message'=>$e->getMessage()], 500);
-    }
+    return response()->json(['success'=>true,'event'=>$event]);
 });
 
 Route::delete('/calendar/events/{id}', function ($id) {
-    try {
-        $event = Event::findOrFail($id);
-        $event->delete();
-
-        return response()->json(['success'=>true, 'message'=>'Event deleted successfully']);
-
-    } catch (\Throwable $e) {
-        return response()->json(['error'=>true,'message'=>$e->getMessage()], 500);
-    }
+    Event::findOrFail($id)->delete();
+    return response()->json(['success'=>true]);
 });
 
 /*
@@ -245,19 +215,10 @@ Route::delete('/calendar/events/{id}', function ($id) {
 | MAINTENANCE UTILITIES
 |--------------------------------------------------------------------------
 */
-Route::get('/migrate', function () {
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        return 'Migrations ran successfully!';
-    } catch (\Throwable $e) {
-        return 'Migration error: ' . $e->getMessage();
-    }
-});
-
-Route::get('/clear-cache', function () {
+Route::get('/migrate', fn() => Artisan::call('migrate', ['--force' => true]) ? 'Migrations ran successfully!' : 'Error');
+Route::get('/clear-cache', fn() => tap('Laravel cache cleared!', function () {
     Artisan::call('route:clear');
     Artisan::call('config:clear');
     Artisan::call('cache:clear');
     Artisan::call('view:clear');
-    return 'Laravel cache cleared!';
-});
+}));
