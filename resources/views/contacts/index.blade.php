@@ -3,17 +3,22 @@
 @section('content')
 
 <style>
-    /* Match dashboard card styling */
-    .contacts-card {
-        background: #ffffff;
-        border-radius: 18px;
-        padding: 22px;
-        height: calc(100vh - 120px);
-        overflow-y: auto;
-        box-shadow:
+    :root {
+        --ab-bg-light: #f3f4f6;
+        --ab-card-bg: #ffffff;
+        --ab-border-subtle: #e5e7eb;
+        --ab-text-main: #111827;
+        --ab-text-muted: #6b7280;
+        --ab-gold: #c9a227;
+        --ab-gold-dark: #b5901f;
+        --ab-gold-soft: #f3e6b8;
+        --ab-shadow-soft:
             0 18px 30px -12px rgba(0,0,0,0.35),
             0 8px 16px -8px rgba(0,0,0,0.18);
-        border: 1px solid #e5e7eb;
+    }
+
+    .dashboard-page {
+        padding-top: 10px;
     }
 
     .contacts-card-wrapper {
@@ -21,87 +26,158 @@
         max-width: 320px !important;
     }
 
-    .contacts-header {
-        font-size: 24px;
-        font-weight: 700;
-        margin-bottom: 18px;
+    .contacts-card {
+        background: var(--ab-card-bg);
+        border-radius: 18px;
+        padding: 22px 20px 18px;
+        height: calc(100vh - 120px);
+        overflow-y: auto;
+        box-shadow: var(--ab-shadow-soft);
+        border: 1px solid var(--ab-border-subtle);
+        display: flex;
+        flex-direction: column;
     }
 
+    .contacts-header {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--ab-text-main);
+        margin-bottom: 16px;
+        letter-spacing: 0.01em;
+    }
+
+    /* SEARCH BAR */
     .contacts-search-wrapper {
         display: flex;
-        align-items: center;
+        align-items: stretch;
         gap: 10px;
-        margin-bottom: 18px;
+        margin-bottom: 14px;
     }
 
     .contacts-search-input {
         width: 100%;
         padding: 10px 12px;
-        border-radius: 10px;
+        border-radius: 999px;
         border: 1px solid #d1d5db;
         background: #ffffff;
         font-size: 14px;
+        outline: none;
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .contacts-search-input:focus {
+        border-color: var(--ab-gold);
+        box-shadow: 0 0 0 1px rgba(201,162,39,0.3);
     }
 
     .contacts-search-btn {
-        padding: 10px 16px;
-        border-radius: 10px;
+        padding: 0 18px;
+        border-radius: 999px;
         border: none;
-        background: #c9a227;
+        background: var(--ab-gold);
         color: #111827;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
         cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         text-transform: uppercase;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .contacts-search-btn:hover {
-        background: #b5901f;
+        background: var(--ab-gold-dark);
     }
 
+    /* GOLD BUTTON */
     .btn-gold {
-        background: #c9a227;
+        background: var(--ab-gold);
         color: #111827;
         border: none;
-        padding: 7px 14px;
+        padding: 8px 16px;
         font-weight: 600;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        border-radius: 999px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.20);
         text-transform: uppercase;
-        font-size: 12px;
+        font-size: 11px;
+        letter-spacing: 0.07em;
         cursor: pointer;
     }
 
     .btn-gold:hover {
-        background: #b5901f;
+        background: var(--ab-gold-dark);
     }
 
     .button-row {
-        margin-bottom: 20px;
+        margin-bottom: 16px;
         display: flex;
         gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    /* CONTACT LIST */
+    .contacts-list-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 2px;
     }
 
     .contact-list-item {
         padding: 10px 6px;
-        font-size: 15px;
-        border-bottom: 1px solid #eee;
+        font-size: 14px;
+        border-radius: 10px;
         cursor: pointer;
+        color: var(--ab-text-main);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
     }
 
     .contact-list-item:hover {
         background: #f9fafb;
+        transform: translateY(-1px);
     }
 
     .active-contact-row {
-        background: #eae6d1 !important;
+        background: var(--ab-gold-soft) !important;
         font-weight: 600;
+        box-shadow: 0 0 0 1px rgba(201,162,39,0.4);
+    }
+
+    .contact-list-empty {
+        font-size: 13px;
+        color: var(--ab-text-muted);
+    }
+
+    /* RIGHT PANEL */
+    #contact-details-container {
+        width: 100%;
+        min-height: 400px;
     }
 
     .empty-right-panel {
-        height: 100%;
-        background: transparent !important;
+        height: calc(100vh - 120px);
+        border-radius: 18px;
+        border: 1px dashed #d1d5db;
+        background: radial-gradient(circle at top left, #fdf6e3, #f3f4f6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        text-align: center;
+        padding: 32px;
+        color: var(--ab-text-muted);
+    }
+
+    .empty-right-panel h2 {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: var(--ab-text-main);
     }
 </style>
 
@@ -128,9 +204,8 @@
                     </div>
                 </form>
 
-                <!-- Add Contact (AJAX) + Upload -->
+                <!-- Add Contact + Upload -->
                 <div class="button-row">
-
                     <button 
                         id="add-contact-btn"
                         class="btn-gold"
@@ -149,35 +224,37 @@
                 </div>
 
                 <!-- Contact List -->
-                <div>
+                <div class="contacts-list-scroll">
                     @forelse ($contacts as $contact)
                         <div 
                             class="contact-list-item js-contact-row"
                             data-contact-url="{{ route('contacts.show', $contact->id) }}"
-                            data-contact-id="{{ $contact->id }}"   {{-- ← REQUIRED FOR AUTO-SELECT --}}
+                            data-contact-id="{{ $contact->id }}"
                         >
                             {{ $contact->full_name }}
                         </div>
                     @empty
-                        <p class="text-muted">No contacts found.</p>
+                        <p class="contact-list-empty">No contacts found.</p>
                     @endforelse
                 </div>
 
             </div>
         </div>
 
-        <!-- RIGHT PANEL -->
+        <!-- RIGHT COLUMN -->
         <div class="col-md-8 col-lg-9">
-            <div id="contact-details-container" style="width:100%; min-height:400px;">
-                <div class="empty-right-panel"></div>
+            <div id="contact-details-container">
+                <div class="empty-right-panel">
+                    <h2>Select a contact</h2>
+                    <p>Or click <strong>Add Contact</strong> to create a new one.</p>
+                </div>
             </div>
         </div>
 
     </div>
 </div>
 
-
-<!-- UPLOAD FILE MODAL -->
+<!-- UPLOAD MODAL -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <form 
@@ -214,7 +291,6 @@
 
 @endsection
 
-
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -222,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('contact-details-container');
 
     function loadPanel(url) {
-
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
@@ -231,61 +306,4 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         fetch(url, {
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        })
-        .then(res => res.text())
-        .then(html => {
-            console.log("Loaded HTML:", html);
-            container.innerHTML = html;
-            container.style.display = "block";
-        })
-        .catch(err => {
-            console.error(err);
-            container.innerHTML = `
-                <div style="padding:40px; text-align:center; color:red;">
-                    Failed to load.
-                </div>
-            `;
-        });
-    }
-
-    /* ----- Load Contact Details ----- */
-    document.querySelectorAll('.js-contact-row').forEach(row => {
-        row.addEventListener('click', () => {
-
-            document
-                .querySelectorAll('.js-contact-row')
-                .forEach(r => r.classList.remove('active-contact-row'));
-
-            row.classList.add('active-contact-row');
-
-            loadPanel(row.dataset.contactUrl);
-        });
-    });
-
-    /* ----- Load Create Form ----- */
-    const addBtn = document.getElementById('add-contact-btn');
-
-    addBtn.addEventListener('click', () => {
-        loadPanel(addBtn.dataset.createUrl);
-    });
-
-
-    /* ============================================================
-       AUTO-LOAD SELECTED CONTACT AFTER SAVING AN EDIT
-       ============================================================ */
-    const selectedId = "{{ $selected ?? '' }}";  // ← comes from controller
-
-    if (selectedId) {
-        const target = document.querySelector(
-            `.js-contact-row[data-contact-id='${selectedId}']`
-        );
-
-        if (target) {
-            target.click();    // ← auto-open the edited contact
-        }
-    }
-
-});
-</script>
-@endpush
+            headers: {'X-Requested-With': 'XML
