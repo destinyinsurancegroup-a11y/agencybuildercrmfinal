@@ -40,21 +40,16 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 | CONTACTS (FULL CRUD + AJAX RIGHT PANEL)
 |--------------------------------------------------------------------------
 */
-
-// Friendly alias for menu
 Route::get('/all-contacts', function () {
     return redirect()->route('contacts.index');
 });
 
-// AJAX right-panel create
 Route::get('/contacts/create-panel', function () {
     return view('contacts.partials.create');
 })->name('contacts.create.panel');
 
-// Full resource CRUD
 Route::resource('contacts', ContactsController::class);
 
-// Import
 Route::post('/contacts/import', [ContactsController::class, 'import'])
     ->name('contacts.import');
 
@@ -69,37 +64,22 @@ Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show')
 
 /*
 |--------------------------------------------------------------------------
-| BOOK OF BUSINESS (Full AJAX Master-Detail)
+| BOOK OF BUSINESS (AJAX Master-Detail)
 |--------------------------------------------------------------------------
 */
 Route::prefix('book')->group(function () {
 
-    Route::get('/', [BookController::class, 'index'])
-        ->name('book.index');
+    Route::get('/', [BookController::class, 'index'])->name('book.index');
+    Route::get('/create-panel', [BookController::class, 'createPanel'])->name('book.create.panel');
+    Route::post('/', [BookController::class, 'store'])->name('book.store');
+    Route::get('/{client}', [BookController::class, 'show'])->name('book.show');
+    Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])->name('book.edit.panel');
+    Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
 
-    Route::get('/create-panel', [BookController::class, 'createPanel'])
-        ->name('book.create.panel');
+    Route::post('/{client}/notes', [BookController::class, 'storeNote'])->name('book.notes.store');
+    Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])->name('book.notes.update');
 
-    Route::post('/', [BookController::class, 'store'])
-        ->name('book.store');
-
-    Route::get('/{client}', [BookController::class, 'show'])
-        ->name('book.show');
-
-    Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])
-        ->name('book.edit.panel');
-
-    Route::put('/{client}', [BookController::class, 'update'])
-        ->name('book.update');
-
-    Route::post('/{client}/notes', [BookController::class, 'storeNote'])
-        ->name('book.notes.store');
-
-    Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
-        ->name('book.notes.update');
-
-    Route::post('/import', [BookController::class, 'import'])
-        ->name('book.import');
+    Route::post('/import', [BookController::class, 'import'])->name('book.import');
 });
 
 /*
@@ -109,23 +89,13 @@ Route::prefix('book')->group(function () {
 */
 Route::prefix('service')->group(function () {
 
-    Route::get('/', [ServiceController::class, 'index'])
-        ->name('service.index');
+    Route::get('/', [ServiceController::class, 'index'])->name('service.index');
+    Route::get('/create-panel', [ServiceController::class, 'createPanel'])->name('service.create.panel');
+    Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
-    Route::get('/create-panel', [ServiceController::class, 'createPanel'])
-        ->name('service.create.panel');
-
-    Route::post('/', [ServiceController::class, 'store'])
-        ->name('service.store');
-
-    Route::get('/{client}', [ServiceController::class, 'show'])
-        ->name('service.show');
-
-    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])
-        ->name('service.edit.panel');
-
-    Route::put('/{client}', [ServiceController::class, 'update'])
-        ->name('service.update');
+    Route::get('/{client}', [ServiceController::class, 'show'])->name('service.show');
+    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
+    Route::put('/{client}', [ServiceController::class, 'update'])->name('service.update');
 });
 
 /*
@@ -133,24 +103,19 @@ Route::prefix('service')->group(function () {
 | SERVICE NOTES (reuse BookController)
 |--------------------------------------------------------------------------
 */
-Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])
-    ->name('service.notes.store');
-
-Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
-    ->name('service.notes.update');
+Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])->name('service.notes.store');
+Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])->name('service.notes.update');
 
 /*
 |--------------------------------------------------------------------------
 | SERVICE Beneficiary / Emergency DELETE
 |--------------------------------------------------------------------------
 */
-Route::delete('/service/{client}/beneficiaries/{beneficiary}', 
-    [BookController::class, 'deleteBeneficiary'])
-    ->name('service.beneficiaries.destroy');
+Route::delete('/service/{client}/beneficiaries/{beneficiary}',
+    [BookController::class, 'deleteBeneficiary'])->name('service.beneficiaries.destroy');
 
 Route::delete('/service/{client}/emergencies/{contact}',
-    [BookController::class, 'deleteEmergency'])
-    ->name('service.emergencies.destroy');
+    [BookController::class, 'deleteEmergency'])->name('service.emergencies.destroy');
 
 /*
 |--------------------------------------------------------------------------
@@ -159,11 +124,13 @@ Route::delete('/service/{client}/emergencies/{contact}',
 */
 Route::prefix('activity')->group(function () {
 
-    // Full page
+    // Full Activity Page
     Route::get('/', [ActivityController::class, 'index'])
         ->name('activity.index');
 
-    // Removed broken panel() route
+    // Right Panel Popup
+    Route::get('/panel', [ActivityController::class, 'panel'])
+        ->name('activity.panel');
 });
 
 /*
