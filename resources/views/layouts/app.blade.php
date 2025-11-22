@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agency Builder CRM</title>
 
+    <!-- CSRF for AJAX -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <!-- GOOGLE FONTS -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-    <!-- ⭐ ADD BOOTSTRAP (CRITICAL FOR GRID LAYOUT & MODALS) ⭐ -->
+    <!-- ⭐ ADD BOOTSTRAP (CRITICAL FOR GRID LAYOUT) ⭐ -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- GLOBAL STYLES -->
@@ -74,13 +77,14 @@
 
         <a class="nav-item" href="{{ route('dashboard') }}">Dashboard</a>
         <a class="nav-item" href="{{ route('contacts.index') }}">All Contacts</a>
+
+        <!-- ⭐ FIXED BOOK OF BUSINESS LINK ⭐ -->
         <a class="nav-item" href="{{ route('book.index') }}">Book of Business</a>
+
         <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
         <a class="nav-item" href="{{ route('service.index') }}">Service</a>
 
-        <!-- ⭐ CHANGED THIS LINE ⭐ -->
-        <a class="nav-item" href="#" id="openActivity">Activity</a>
-
+        <a class="nav-item" href="/activity">Activity</a>
         <a class="nav-item" href="/calendar">Calendar</a>
 
         <a class="nav-item" href="/settings">Settings</a>
@@ -88,21 +92,10 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- ⭐ MAIN PAGE CONTENT ⭐ -->
+    <!-- ⭐ WRAP CONTENT IN BOOTSTRAP CONTAINER ⭐ -->
     <div class="main-content">
         <div class="container-fluid">
             @yield('content')
-        </div>
-    </div>
-
-    <!-- ⭐ ACTIVITY POPUP MODAL ⭐ -->
-    <div class="modal fade" id="activityModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content" id="activityModalContent">
-                <div class="p-4 text-center">
-                    <h4>Loading...</h4>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -134,31 +127,66 @@
         });
     </script>
 
-    <!-- ⭐ ACTIVITY POPUP JS ⭐ -->
+    <!-- ⭐ GLOBAL HANDLER FOR ACTIVITY POPUP SAVE ⭐ -->
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('click', function (e) {
+            // Only handle clicks on the Save Activity button in the popup
+            if (!e.target || e.target.id !== 'saveActivityBtn') {
+                return;
+            }
 
-            const activityBtn = document.getElementById('openActivity');
-            const activityModal = new bootstrap.Modal(document.getElementById('activityModal'));
+            e.preventDefault();
 
-            activityBtn.addEventListener('click', function (e) {
-                e.preventDefault();
+            const form = document.getElementById('activityForm');
+            if (!form) {
+                console.warn('Activity form not found');
+                return;
+            }
 
-                fetch('/activity/popup')
-                    .then(response => response.text())
-                    .then(html => {
-                        document.getElementById('activityModalContent').innerHTML = html;
-                        activityModal.show();
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert("Error loading Activity popup");
-                    });
+            const formData = new FormData(form);
+            const url = form.getAttribute('action');
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data || !data.success) {
+                    alert('Error saving activity.');
+                    return;
+                }
+
+                // Close the modal (assumes id="activityModal", fallback: any open .modal.show)
+                let modalEl = document.getElementById('activityModal') || document.querySelector('.modal.show');
+                if (modalEl && window.bootstrap) {
+                    let instance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    instance.hide();
+                }
+
+                // Reset form
+                form.reset();
+
+                // Refresh dashboard production card if function exists
+                if (typeof window.refreshProductionCard === 'function') {
+                    window.refreshProductionCard();
+                }
+
+                // Also dispatch the custom event, in case anything else listens
+                document.dispatchEvent(new CustomEvent('activitySaved'));
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Request failed.');
             });
-
         });
     </script>
 
+    <!-- ⭐ REQUIRED FOR AJAX IN contacts.index ⭐ -->
     @stack('scripts')
 
 </body>
