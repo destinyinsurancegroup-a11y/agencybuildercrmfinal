@@ -108,12 +108,12 @@
                 </p>
             </div>
 
-            {{-- 🔥 NOTES TAB (Option B) --}}
+            {{-- NOTES TAB --}}
             <div class="tab-pane fade" id="tab-notes">
 
                 <h5 class="fw-bold mb-3">Contact Notes</h5>
 
-                <form method="POST" action="{{ route('contacts.saveNotes', $contact->id) }}">
+                <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
                     @csrf
 
                     <textarea name="notes"
