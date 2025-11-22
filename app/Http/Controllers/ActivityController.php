@@ -43,7 +43,6 @@ class ActivityController extends Controller
 
         /**
          * ⭐ DEFAULT EMPTY VALUES TO 0
-         * Prevents MySQL errors: "Column X cannot be null"
          */
         $data['leads_worked']      = $data['leads_worked']      ?? 0;
         $data['calls']             = $data['calls']             ?? 0;
@@ -54,8 +53,12 @@ class ActivityController extends Controller
         $data['ap']                = $data['ap']                ?? 0;
 
         /**
+         * ⭐ REQUIRED FOR MULTI-TENANT SYSTEM
+         */
+        $data['tenant_id'] = Auth::user()->tenant_id ?? 1;
+
+        /**
          * ⭐ Make sure user_id is never null
-         * (prevents SQL errors if Auth::id() is unavailable)
          */
         $data['user_id'] = Auth::id() ?? 1;
 
@@ -77,7 +80,10 @@ class ActivityController extends Controller
     public function totals($range)
     {
         $userId = Auth::id();
-        $query  = Activity::where('user_id', $userId);
+        $tenantId = Auth::user()->tenant_id;
+
+        $query  = Activity::where('user_id', $userId)
+                          ->where('tenant_id', $tenantId);
 
         $now = Carbon::now();
 
