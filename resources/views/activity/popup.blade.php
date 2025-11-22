@@ -48,9 +48,48 @@
 </div>
 
 <div class="modal-footer">
-    <button class="btn btn-warning" onclick="document.getElementById('activityForm').submit();">
+    <button class="btn btn-warning" id="saveActivityBtn">
         Save Activity
     </button>
 
     <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
 </div>
+
+<!-- ✅ AJAX SCRIPT (this is the only part added) -->
+<script>
+document.getElementById("saveActivityBtn").addEventListener("click", function (e) {
+    e.preventDefault(); // stop page redirect
+
+    let form = document.getElementById("activityForm");
+    let formData = new FormData(form);
+
+    fetch("{{ route('activity.store') }}", {
+        method: "POST",
+        body: formData,
+        headers: {
+            "X-CSRF-TOKEN": '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+
+            // ✅ Close popup
+            let modal = bootstrap.Modal.getInstance(
+                document.querySelector(".modal.show")
+            );
+            modal.hide();
+
+            // ✅ Reload production stats using an event the dashboard listens for
+            document.dispatchEvent(new CustomEvent("activitySaved"));
+
+        } else {
+            alert("Error saving activity.");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Request failed.");
+    });
+});
+</script>
