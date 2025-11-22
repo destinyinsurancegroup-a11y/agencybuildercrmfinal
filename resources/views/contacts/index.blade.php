@@ -82,8 +82,7 @@
         box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        white-space: nowrap;
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
     }
@@ -134,7 +133,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+        transition: background 0.12s ease, transform 0.08s ease;
     }
 
     .contact-list-item:hover {
@@ -144,7 +143,7 @@
 
     .active-contact-row {
         background: var(--ab-gold-soft) !important;
-        font-weight: 600;
+        font-weight: 700;
         box-shadow: 0 0 0 1px rgba(201,162,39,0.4);
     }
 
@@ -306,4 +305,54 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         fetch(url, {
-            headers: {'X-Requested-With': 'XML
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        })
+        .then(res => res.text())
+        .then(html => {
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = `
+                <div style="padding:40px; text-align:center; color:red;">
+                    Failed to load.
+                </div>
+            `;
+        });
+    }
+
+    // Contact row click handler
+    document.querySelectorAll('.js-contact-row').forEach(row => {
+        row.addEventListener('click', () => {
+            document
+                .querySelectorAll('.js-contact-row')
+                .forEach(r => r.classList.remove('active-contact-row'));
+
+            row.classList.add('active-contact-row');
+            loadPanel(row.dataset.contactUrl);
+        });
+    });
+
+    // Add Contact button
+    const addBtn = document.getElementById('add-contact-btn');
+
+    addBtn.addEventListener('click', () => {
+        loadPanel(addBtn.dataset.createUrl);
+    });
+
+    // Auto-load selected contact after edit
+    const selectedId = "{{ $selected ?? '' }}";
+
+    if (selectedId) {
+        const target = document.querySelector(
+            `.js-contact-row[data-contact-id='${selectedId}']`
+        );
+
+        if (target) {
+            target.click();
+        }
+    }
+
+});
+</script>
+@endpush
