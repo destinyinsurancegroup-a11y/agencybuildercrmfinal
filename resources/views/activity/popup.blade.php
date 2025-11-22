@@ -9,39 +9,40 @@
         @csrf
 
         <div class="mb-3">
-            <label>Calls:</label>
-            <input type="number" class="form-control" name="calls">
+            <label>Leads Worked:</label>
+            <input type="number" class="form-control" name="leads_worked" placeholder="0">
         </div>
 
         <div class="mb-3">
-            <label>Answered:</label>
-            <input type="number" class="form-control" name="answered">
+            <label>Calls:</label>
+            <input type="number" class="form-control" name="calls" placeholder="0">
         </div>
 
         <div class="mb-3">
             <label>Stops:</label>
-            <input type="number" class="form-control" name="stops">
+            <input type="number" class="form-control" name="stops" placeholder="0">
         </div>
 
         <div class="mb-3">
             <label>Presentations:</label>
-            <input type="number" class="form-control" name="presentations">
+            <input type="number" class="form-control" name="presentations" placeholder="0">
         </div>
 
         <div class="mb-3">
-            <label>No’s:</label>
-            <input type="number" class="form-control" name="nos">
+            <label>Apps Written:</label>
+            <input type="number" class="form-control" name="apps_written" placeholder="0">
         </div>
 
         <div class="mb-3">
-            <label>Sales (Apps):</label>
-            <input type="number" class="form-control" name="sales_apps">
+            <label>Premium Collected ($):</label>
+            <input type="number" step="0.01" class="form-control" name="premium_collected" placeholder="0.00">
         </div>
 
         <div class="mb-3">
-            <label>Sales (Premium $):</label>
-            <input type="number" class="form-control" name="sales_premium">
+            <label>AP ($):</label>
+            <input type="number" step="0.01" class="form-control" name="ap" placeholder="0.00">
         </div>
+
     </form>
 
 </div>
