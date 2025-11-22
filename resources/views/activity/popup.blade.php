@@ -55,7 +55,7 @@
     <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
 </div>
 
-<!-- ✅ AJAX SCRIPT (this is the only part added) -->
+<!-- ✅ AJAX SCRIPT (this is the ONLY added part) -->
 <script>
 document.getElementById("saveActivityBtn").addEventListener("click", function (e) {
     e.preventDefault(); // stop page redirect
@@ -70,17 +70,21 @@ document.getElementById("saveActivityBtn").addEventListener("click", function (e
             "X-CSRF-TOKEN": '{{ csrf_token() }}'
         }
     })
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
         if (data.success) {
 
             // ✅ Close popup
-            let modal = bootstrap.Modal.getInstance(
-                document.querySelector(".modal.show")
-            );
-            modal.hide();
+            let modalEl = document.querySelector(".modal.show");
+            if (modalEl) {
+                let modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) modalInstance.hide();
+            }
 
-            // ✅ Reload production stats using an event the dashboard listens for
+            // ✅ Clear form fields
+            form.reset();
+
+            // ✅ Tell dashboard to refresh numbers
             document.dispatchEvent(new CustomEvent("activitySaved"));
 
         } else {
