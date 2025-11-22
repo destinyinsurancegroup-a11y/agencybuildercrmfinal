@@ -25,7 +25,7 @@ class ContactsController extends Controller
 
         return view('contacts.index', [
             'contacts' => $contacts,
-            'selected' => $request->selected, // ✔ Load selected contact if provided
+            'selected' => $request->selected, // Auto-open after create/update
         ]);
     }
 
@@ -61,6 +61,7 @@ class ContactsController extends Controller
 
     /**
      * Store a newly created contact.
+     * FIX APPLIED: returns to contacts.index with auto-selected ID
      */
     public function store(Request $request)
     {
@@ -85,13 +86,14 @@ class ContactsController extends Controller
 
         $contact = Contact::create($validated);
 
+        // ⭐ FIXED: return to All Contacts & auto-load newly created contact
         return redirect()
-            ->route('contacts.show', $contact->id)
+            ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact created successfully.');
     }
 
     /**
-     * Load the correct edit partial.
+     * Load the edit partial.
      */
     public function edit(Contact $contact)
     {
@@ -99,17 +101,15 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update contact and return to edited contact's details page.
+     * Update contact and return to edited contact inside AJAX panel.
      */
     public function update(Request $request, Contact $contact)
     {
-        // Multi-tenant security
         $tenantId = 1;
         if ($contact->tenant_id !== $tenantId) {
             abort(403, 'Unauthorized tenant access.');
         }
 
-        // Validation
         $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
@@ -126,10 +126,9 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Save the update
         $contact->update($validated);
 
-        // ✔ Return to All Contacts page with the edited contact auto-loaded
+        // ⭐ FIXED: redirect to All Contacts and auto-load edited contact
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact updated successfully.');
