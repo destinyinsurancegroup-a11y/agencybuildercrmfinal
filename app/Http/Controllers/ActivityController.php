@@ -14,8 +14,15 @@ class ActivityController extends Controller
      */
     public function index()
     {
-        // You can return an activity view later
-        return view('activities.index');
+        return view('activity.index');
+    }
+
+    /**
+     * Show the right-side activity panel (AJAX panel view).
+     */
+    public function panel()
+    {
+        return view('activity.panel');
     }
 
     /**
@@ -36,7 +43,7 @@ class ActivityController extends Controller
 
         $data['user_id'] = Auth::id();
 
-        // Force created_at so entries show on correct day
+        // Force created_at so entries land on the correct reporting day
         if (!empty($data['created_at'])) {
             $data['created_at'] = Carbon::parse($data['created_at']);
         }
@@ -47,7 +54,7 @@ class ActivityController extends Controller
     }
 
     /**
-     * Get totals for day/week/month/quarter/year for dashboard.
+     * Get totals for day/week/month/quarter/year.
      */
     public function totals($range)
     {
