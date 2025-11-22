@@ -25,71 +25,40 @@
         font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    /* HEADER AREA */
-    .dashboard-header {
-        margin-bottom: 32px;
-    }
+    .dashboard-header { margin-bottom: 32px; }
     .dashboard-title {
-        font-size: 32px;
-        font-weight: 700;
-        color: var(--text-main);
-        margin-bottom: 8px;
-        letter-spacing: 0.01em;
+        font-size: 32px; font-weight: 700; color: var(--text-main);
+        margin-bottom: 8px; letter-spacing: 0.01em;
     }
     .dashboard-subtitle {
-        font-size: 22px;
-        font-weight: 600;
-        color: var(--text-subtle);
-        margin-bottom: 6px;
+        font-size: 22px; font-weight: 600;
+        color: var(--text-subtle); margin-bottom: 6px;
         text-transform: capitalize;
     }
     .dashboard-datetime {
-        font-size: 18px;
-        font-weight: 500;
-        color: var(--text-faint);
+        font-size: 18px; font-weight: 500; color: var(--text-faint);
     }
 
-    /* SEARCH */
-    .dashboard-search-row {
-        margin-top: 24px;
-        margin-bottom: 28px;
-    }
+    .dashboard-search-row { margin-top: 24px; margin-bottom: 28px; }
     .dashboard-search-wrapper {
-        max-width: 480px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+        max-width: 480px; display: flex; align-items: center; gap: 10px;
     }
     .dashboard-search-input {
-        flex: 1;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid #d1d5db;
-        font-size: 14px;
-        background: #ffffff;
+        flex: 1; padding: 10px 12px; border-radius: 10px;
+        border: 1px solid #d1d5db; font-size: 14px; background: #ffffff;
     }
     .dashboard-search-button {
-        padding: 10px 16px;
-        border-radius: 10px;
-        border: none;
-        background: var(--gold);
-        color: #111827;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
+        padding: 10px 16px; border-radius: 10px; border: none;
+        background: var(--gold); color: #111827; font-size: 14px;
+        font-weight: 600; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        letter-spacing: 0.03em; text-transform: uppercase;
     }
 
-    /* GRID */
     .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 20px;
     }
 
-    /* CARD */
     .dashboard-card {
         background: #ffffff;
         border-radius: 18px;
@@ -101,74 +70,46 @@
     }
 
     .dashboard-card-title-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 14px;
-        gap: 8px;
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 14px; gap: 8px;
     }
 
     .dashboard-card-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 20px;
-        font-weight: 700;
-        color: var(--text-main);
+        display: flex; align-items: center; gap: 10px;
+        font-size: 20px; font-weight: 700; color: var(--text-main);
     }
 
     .dashboard-card-icon {
-        width: 26px;
-        height: 26px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        background: var(--gold-soft);
-        color: #7c5a00;
-        font-size: 14px;
+        width: 26px; height: 26px; display: inline-flex;
+        align-items: center; justify-content: center;
+        border-radius: 999px; background: var(--gold-soft);
+        color: #7c5a00; font-size: 14px;
         box-shadow: 0 3px 5px rgba(0,0,0,0.25);
     }
 
-    /* PRODUCTION CARD */
     .production-title {
-        text-align:center;
-        font-size:20px;
-        font-weight:700;
-        color:var(--text-main);
-        margin-bottom:14px;
+        text-align:center; font-size:20px; font-weight:700;
+        color:var(--text-main); margin-bottom:14px;
     }
 
     .production-tabs-wrapper {
-        display:flex;
-        justify-content:center;
-        margin-bottom:18px;
+        display:flex; justify-content:center; margin-bottom:10px;
     }
 
     .production-tabs {
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        background:#f9fafb;
-        padding:4px;
-        border-radius:999px;
+        display:inline-flex; align-items:center; gap:6px;
+        background:#f9fafb; padding:4px; border-radius:999px;
         border:1px solid #e5e7eb;
     }
 
     .production-tab {
-        border:none;
-        background:transparent;
-        font-size:14px;
-        padding:6px 12px;
-        border-radius:999px;
-        cursor:pointer;
-        color:#6b7280;
-        font-weight:600;
+        border:none; background:transparent; font-size:14px;
+        padding:6px 12px; border-radius:999px; cursor:pointer;
+        color:#6b7280; font-weight:600;
     }
 
     .production-tab-active {
-        background:var(--gold);
-        color:#111827;
+        background:var(--gold); color:#111827;
         box-shadow:0 3px 6px rgba(0,0,0,0.25);
     }
 
@@ -179,12 +120,8 @@
     .production-range-active { display:block; }
 
     .badge-new {
-        padding:4px 8px;
-        font-size:11px;
-        border-radius:999px;
-        background:#dbeafe;
-        color:#1d4ed8;
-        font-weight:700;
+        padding:4px 8px; font-size:11px; border-radius:999px;
+        background:#dbeafe; color:#1d4ed8; font-weight:700;
         text-transform:uppercase;
     }
 </style>
@@ -195,10 +132,8 @@
     <div class="dashboard-header">
         <div class="dashboard-title">Dashboard</div>
 
-        {{-- JavaScript greeting --}}
         <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
 
-        {{-- JavaScript time --}}
         <div class="dashboard-datetime local-time" data-server-time="{{ $serverTime }}">Loading time…</div>
 
         <div class="dashboard-search-row">
@@ -226,6 +161,16 @@
                 </div>
             </div>
 
+            <!-- 🔥🔥🔥 INSERTED HISTORY BUTTON BLOCK 🔥🔥🔥 -->
+            <div style="text-align:center; margin-bottom:18px;">
+                <a href="/activity/history"
+                   class="btn btn-sm btn-outline-dark"
+                   style="border-radius: 20px; padding: 6px 18px;">
+                    History
+                </a>
+            </div>
+            <!-- 🔥🔥🔥 END INSERTED BLOCK 🔥🔥🔥 -->
+
             <div class="dashboard-card-body production-stats">
 
                 <div class="production-range production-range-active" data-production-range="day">
@@ -240,7 +185,7 @@
                     </table>
                 </div>
 
-                {{-- Other ranges unchanged below --}}
+                {{-- OTHER RANGES UNCHANGED --}}
                 <div class="production-range" data-production-range="week">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -360,26 +305,20 @@
 <!-- LOCAL TIME + GREETING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
 
     const serverTime = timeEl.getAttribute("data-server-time");
-
-    // Convert server UTC → local timezone
     const localDate = new Date(serverTime + " UTC");
+
     timeEl.innerText = localDate.toLocaleString();
 
     const hour = localDate.getHours();
-
     let greeting = "Good ";
-    if (hour < 12) {
-        greeting += "morning";
-    } else if (hour < 17) {
-        greeting += "afternoon";
-    } else {
-        greeting += "evening";
-    }
+
+    if (hour < 12) greeting += "morning";
+    else if (hour < 17) greeting += "afternoon";
+    else greeting += "evening";
 
     greetEl.innerText = greeting + " — here’s your daily overview.";
 });
@@ -432,10 +371,9 @@ window.refreshProductionCard = function() {
 };
 </script>
 
-<!-- ✅ AUTO-REFRESH WHEN ACTIVITY POPUP SAVES -->
+<!-- AUTO-REFRESH WHEN ACTIVITY POPUP SAVES -->
 <script>
 document.addEventListener("activitySaved", function () {
-    // Refresh whichever tab is active (day/week/month/etc)
     refreshProductionCard();
 });
 </script>
