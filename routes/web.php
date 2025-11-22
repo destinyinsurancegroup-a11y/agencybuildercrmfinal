@@ -129,8 +129,12 @@ Route::get('/activity', [ActivityController::class, 'index'])->name('activity.in
 // popup modal
 Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
 
-// ⭐ SAVE activity form
+// save activity form
 Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store');
+
+// ⭐ LIVE DASHBOARD TOTALS (NEW)
+Route::get('/activity/totals/{range}', [ActivityController::class, 'totals'])
+    ->name('activity.totals');
 
 /*
 |--------------------------------------------------------------------------
@@ -199,7 +203,7 @@ Route::put('/calendar/events/{id}', function (Request $request, $id) {
 
         $event = Event::findOrFail($id);
 
-        $event->update([
+        $event.update([
             'title'    => $data['title'],
             'start'    => $data['start'],
             'end'      => $data['start'],
