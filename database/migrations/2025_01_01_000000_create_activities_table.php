@@ -10,8 +10,14 @@ return new class extends Migration
     {
         Schema::create('activities', function (Blueprint $table) {
             $table->id();
+
+            // Multi-tenant support
+            $table->unsignedBigInteger('tenant_id');
+
+            // Who performed the activity
             $table->unsignedBigInteger('user_id');
 
+            // Activity metrics
             $table->integer('leads_worked')->default(0);
             $table->integer('calls')->default(0);
             $table->integer('stops')->default(0);
@@ -21,6 +27,8 @@ return new class extends Migration
             $table->decimal('ap', 10, 2)->default(0);
 
             $table->timestamps();
+
+            $table->index(['tenant_id', 'user_id']);
         });
     }
 
