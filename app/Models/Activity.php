@@ -11,7 +11,8 @@ class Activity extends Model
 
     protected $fillable = [
         'user_id',
-        'tenant_id',           // ⭐ REQUIRED FOR MULTI-TENANT SYSTEM
+        'tenant_id',           // ⭐ Required for multi-tenant system
+
         'leads_worked',
         'calls',
         'stops',
@@ -19,5 +20,11 @@ class Activity extends Model
         'apps_written',
         'premium_collected',
         'ap',
+
+        // ⭐ REQUIRED because your controller sets created_at manually
+        'created_at',
     ];
+
+    // Allow Laravel to auto-manage timestamps unless you disable updated_at only
+    public $timestamps = true;
 }
