@@ -126,8 +126,11 @@ Route::delete('/service/{client}/emergencies/{contact}',
 // full page Activity (kept)
 Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
 
-// ⭐ NEW: POPUP version
+// popup modal
 Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
+
+// ⭐ SAVE activity form
+Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store');
 
 /*
 |--------------------------------------------------------------------------
