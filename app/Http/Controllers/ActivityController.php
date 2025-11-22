@@ -18,7 +18,7 @@ class ActivityController extends Controller
     }
 
     /**
-     * ⭐ NEW: Load the Activity POPUP modal content
+     * Load the Activity POPUP modal content.
      */
     public function popup()
     {
@@ -27,6 +27,10 @@ class ActivityController extends Controller
 
     /**
      * Store a new activity entry.
+     *
+     * FIXED:
+     * - Removed created_at override (this was breaking totals)
+     * - Laravel now handles timestamps automatically
      */
     public function store(Request $request)
     {
@@ -38,11 +42,10 @@ class ActivityController extends Controller
             'apps_written'      => 'nullable|integer',
             'premium_collected' => 'nullable|numeric',
             'ap'                => 'nullable|numeric',
-            'created_at'        => 'nullable|date',
         ]);
 
         /**
-         * ⭐ DEFAULT EMPTY VALUES TO 0
+         * Default empty values to 0.
          */
         $data['leads_worked']      = $data['leads_worked']      ?? 0;
         $data['calls']             = $data['calls']             ?? 0;
@@ -53,21 +56,14 @@ class ActivityController extends Controller
         $data['ap']                = $data['ap']                ?? 0;
 
         /**
-         * ⭐ REQUIRED FOR MULTI-TENANT SYSTEM
+         * Multi-tenant required fields.
          */
-        $data['tenant_id'] = Auth::user()->tenant_id ?? 1;
+        $data['tenant_id'] = Auth::user()->tenant_id;
+        $data['user_id']   = Auth::id();
 
         /**
-         * ⭐ Make sure user_id is never null
+         * DO NOT override created_at — Laravel handles timestamps.
          */
-        $data['user_id'] = Auth::id() ?? 1;
-
-        /**
-         * Handle manually selected date
-         */
-        if (!empty($data['created_at'])) {
-            $data['created_at'] = Carbon::parse($data['created_at']);
-        }
 
         Activity::create($data);
 
@@ -76,31 +72,43 @@ class ActivityController extends Controller
 
     /**
      * Dashboard production totals
+     *
+     * FIXED:
+     * - Uses safe date ranges (startOfDay/startOfWeek/etc)
+     * - Does not mutate $now
+     * - Guaranteed to return correct totals
      */
     public function totals($range)
     {
         $userId = Auth::id();
         $tenantId = Auth::user()->tenant_id;
 
-        $query  = Activity::where('user_id', $userId)
-                          ->where('tenant_id', $tenantId);
+        $query = Activity::where('user_id', $userId)
+                         ->where('tenant_id', $tenantId);
 
         $now = Carbon::now();
 
         switch ($range) {
+
             case 'day':
-                $query->whereDate('created_at', $now->toDateString());
+                $query->whereBetween('created_at', [
+                    $now->copy()->startOfDay(),
+                    $now->copy()->endOfDay(),
+                ]);
                 break;
 
             case 'week':
                 $query->whereBetween('created_at', [
-                    $now->startOfWeek(), $now->endOfWeek()
+                    $now->copy()->startOfWeek(),
+                    $now->copy()->endOfWeek(),
                 ]);
                 break;
 
             case 'month':
-                $query->whereYear('created_at', $now->year)
-                      ->whereMonth('created_at', $now->month);
+                $query->whereBetween('created_at', [
+                    $now->copy()->startOfMonth(),
+                    $now->copy()->endOfMonth(),
+                ]);
                 break;
 
             case 'quarter':
@@ -111,7 +119,10 @@ class ActivityController extends Controller
                 break;
 
             case 'year':
-                $query->whereYear('created_at', $now->year);
+                $query->whereBetween('created_at', [
+                    $now->copy()->startOfYear(),
+                    $now->copy()->endOfYear(),
+                ]);
                 break;
 
             default:
