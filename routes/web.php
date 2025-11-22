@@ -20,6 +20,22 @@ use App\Http\Controllers\ActivityController;
 
 /*
 |--------------------------------------------------------------------------
+| ⭐ DEBUG LARAVEL LOG (TEMPORARY)
+|--------------------------------------------------------------------------
+| This allows us to SEE the real error stopping your Activity Save.
+| Visit: https://YOUR-APP-URL/debug-laravel-log
+|--------------------------------------------------------------------------
+*/
+Route::get('/debug-laravel-log', function () {
+    $path = storage_path('logs/laravel.log');
+    if (!file_exists($path)) {
+        return "No laravel.log file found.";
+    }
+    return nl2br(e(file_get_contents($path)));
+});
+
+/*
+|--------------------------------------------------------------------------
 | TEST ROUTE
 |--------------------------------------------------------------------------
 */
@@ -84,7 +100,7 @@ Route::prefix('book')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| SERVICE (Clone of BOOK)
+| SERVICE
 |--------------------------------------------------------------------------
 */
 Route::prefix('service')->group(function () {
@@ -100,7 +116,7 @@ Route::prefix('service')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| SERVICE NOTES (reuse BookController)
+| SERVICE NOTES
 |--------------------------------------------------------------------------
 */
 Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])->name('service.notes.store');
@@ -119,20 +135,15 @@ Route::delete('/service/{client}/emergencies/{contact}',
 
 /*
 |--------------------------------------------------------------------------
-| ACTIVITY (UPDATED FOR MODAL POPUP)
+| ACTIVITY
 |--------------------------------------------------------------------------
 */
 
-// full page Activity (kept)
 Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
-
-// popup modal
 Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
-
-// save activity form
 Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store');
 
-// ⭐ LIVE DASHBOARD TOTALS (NEW)
+// ⭐ LIVE TOTALS FOR DASHBOARD
 Route::get('/activity/totals/{range}', [ActivityController::class, 'totals'])
     ->name('activity.totals');
 
@@ -203,7 +214,6 @@ Route::put('/calendar/events/{id}', function (Request $request, $id) {
 
         $event = Event::findOrFail($id);
 
-        // FIXED — MUST USE ->update() NOT .update
         $event->update([
             'title'    => $data['title'],
             'start'    => $data['start'],
