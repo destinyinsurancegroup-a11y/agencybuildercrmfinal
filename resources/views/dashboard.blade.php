@@ -240,7 +240,7 @@
                     </table>
                 </div>
 
-                {{-- Other tabs unchanged --}}
+                {{-- Other ranges unchanged below --}}
                 <div class="production-range" data-production-range="week">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -430,6 +430,14 @@ window.refreshProductionCard = function() {
             }
         });
 };
+</script>
+
+<!-- ✅ AUTO-REFRESH WHEN ACTIVITY POPUP SAVES -->
+<script>
+document.addEventListener("activitySaved", function () {
+    // Refresh whichever tab is active (day/week/month/etc)
+    refreshProductionCard();
+});
 </script>
 
 @endsection
