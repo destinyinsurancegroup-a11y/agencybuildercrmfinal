@@ -11,6 +11,7 @@ class Activity extends Model
 
     protected $fillable = [
         'user_id',
+        'tenant_id',           // ⭐ REQUIRED FOR MULTI-TENANT SYSTEM
         'leads_worked',
         'calls',
         'stops',
