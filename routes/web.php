@@ -74,38 +74,30 @@ Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show')
 */
 Route::prefix('book')->group(function () {
 
-    // Full index page
     Route::get('/', [BookController::class, 'index'])
         ->name('book.index');
 
-    // AJAX: Create Panel
     Route::get('/create-panel', [BookController::class, 'createPanel'])
         ->name('book.create.panel');
 
-    // Store
     Route::post('/', [BookController::class, 'store'])
         ->name('book.store');
 
-    // AJAX: Show client file
     Route::get('/{client}', [BookController::class, 'show'])
         ->name('book.show');
 
-    // AJAX: Edit panel (right panel edit)
     Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])
         ->name('book.edit.panel');
 
-    // Update record
     Route::put('/{client}', [BookController::class, 'update'])
         ->name('book.update');
 
-    // Notes
     Route::post('/{client}/notes', [BookController::class, 'storeNote'])
         ->name('book.notes.store');
 
     Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
         ->name('book.notes.update');
 
-    // Import
     Route::post('/import', [BookController::class, 'import'])
         ->name('book.import');
 });
@@ -117,27 +109,21 @@ Route::prefix('book')->group(function () {
 */
 Route::prefix('service')->group(function () {
 
-    // Full index
     Route::get('/', [ServiceController::class, 'index'])
         ->name('service.index');
 
-    // Create panel
     Route::get('/create-panel', [ServiceController::class, 'createPanel'])
         ->name('service.create.panel');
 
-    // Store
     Route::post('/', [ServiceController::class, 'store'])
         ->name('service.store');
 
-    // Show client
     Route::get('/{client}', [ServiceController::class, 'show'])
         ->name('service.show');
 
-    // Edit panel
     Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])
         ->name('service.edit.panel');
 
-    // Update
     Route::put('/{client}', [ServiceController::class, 'update'])
         ->name('service.update');
 });
@@ -177,9 +163,7 @@ Route::prefix('activity')->group(function () {
     Route::get('/', [ActivityController::class, 'index'])
         ->name('activity.index');
 
-    // Ajax panel
-    Route::get('/panel', [ActivityController::class, 'panel'])
-        ->name('activity.panel');
+    // Removed broken panel() route
 });
 
 /*
