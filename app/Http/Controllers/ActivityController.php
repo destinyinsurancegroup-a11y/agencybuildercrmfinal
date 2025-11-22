@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 class ActivityController extends Controller
 {
     /**
-     * Show the activity entry page.
+     * Show the full Activity page (normal web page).
      */
     public function index()
     {
@@ -18,11 +18,11 @@ class ActivityController extends Controller
     }
 
     /**
-     * Load the right-panel activity summary (AJAX)
+     * ⭐ NEW: Load the Activity POPUP modal content
      */
-    public function panel()
+    public function popup()
     {
-        return view('activity.panel');
+        return view('activity.popup');
     }
 
     /**
