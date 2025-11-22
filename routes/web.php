@@ -119,19 +119,15 @@ Route::delete('/service/{client}/emergencies/{contact}',
 
 /*
 |--------------------------------------------------------------------------
-| ACTIVITY (NEW)
+| ACTIVITY (UPDATED FOR MODAL POPUP)
 |--------------------------------------------------------------------------
 */
-Route::prefix('activity')->group(function () {
 
-    // Full Activity Page
-    Route::get('/', [ActivityController::class, 'index'])
-        ->name('activity.index');
+// full page Activity (kept)
+Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
 
-    // Right Panel Popup
-    Route::get('/panel', [ActivityController::class, 'panel'])
-        ->name('activity.panel');
-});
+// ⭐ NEW: POPUP version
+Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
 
 /*
 |--------------------------------------------------------------------------
