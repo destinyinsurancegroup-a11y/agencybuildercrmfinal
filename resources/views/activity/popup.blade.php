@@ -45,7 +45,7 @@
 
                     <div class="mb-3">
                         <label>AP ($):</label>
-                        <input type="number" step="0.01" class="form-control" name="ap" placeholder="0.00">
+                        <input type="number" step="0.01" class="form-control" name="ap" placeholder="0.00" readonly>
                     </div>
 
                 </form>
@@ -60,6 +60,17 @@
         </div>
     </div>
 </div>
+
+<!-- AUTO-CALCULATE AP -->
+<script>
+document.addEventListener("input", function (e) {
+    if (e.target.name === "premium_collected") {
+        let premium = parseFloat(e.target.value) || 0;
+        let apField = document.querySelector('input[name="ap"]');
+        apField.value = (premium * 12).toFixed(2);
+    }
+});
+</script>
 
 <!-- AJAX HANDLER -->
 <script>
@@ -77,8 +88,8 @@ document.addEventListener("click", async function (e) {
             body: formData,
             headers: {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json",              // ⭐ Required fix
-                "X-Requested-With": "XMLHttpRequest"       // ⭐ Ensures JSON response
+                "Accept": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
             }
         });
 
@@ -96,10 +107,10 @@ document.addEventListener("click", async function (e) {
             instance.hide();
         }
 
-        // Reset form
+        // Reset
         form.reset();
 
-        // Refresh dashboard production card
+        // Refresh dashboard
         document.dispatchEvent(new CustomEvent("activitySaved"));
 
     } catch (err) {
