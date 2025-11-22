@@ -21,7 +21,9 @@
 
 <script>
 function openActivityPanel() {
-    fetch("{{ route('activity.panel') }}")
+
+    // ✅ FIXED: Use existing route that actually exists
+    fetch("{{ route('activity.popup') }}")
         .then(res => res.text())
         .then(html => {
             document.getElementById('right-panel').innerHTML = html;
