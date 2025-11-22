@@ -8,7 +8,7 @@
     <!-- GOOGLE FONTS -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-    <!-- ⭐ ADD BOOTSTRAP (CRITICAL FOR GRID LAYOUT) ⭐ -->
+    <!-- ⭐ ADD BOOTSTRAP (CRITICAL FOR GRID LAYOUT & MODALS) ⭐ -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- GLOBAL STYLES -->
@@ -74,14 +74,13 @@
 
         <a class="nav-item" href="{{ route('dashboard') }}">Dashboard</a>
         <a class="nav-item" href="{{ route('contacts.index') }}">All Contacts</a>
-
-        <!-- ⭐ FIXED BOOK OF BUSINESS LINK ⭐ -->
         <a class="nav-item" href="{{ route('book.index') }}">Book of Business</a>
-
         <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
         <a class="nav-item" href="{{ route('service.index') }}">Service</a>
 
-        <a class="nav-item" href="/activity">Activity</a>
+        <!-- ⭐ CHANGED THIS LINE ⭐ -->
+        <a class="nav-item" href="#" id="openActivity">Activity</a>
+
         <a class="nav-item" href="/calendar">Calendar</a>
 
         <a class="nav-item" href="/settings">Settings</a>
@@ -89,10 +88,21 @@
         <a class="nav-item" href="/logout">Logout</a>
     </div>
 
-    <!-- ⭐ WRAP CONTENT IN BOOTSTRAP CONTAINER ⭐ -->
+    <!-- ⭐ MAIN PAGE CONTENT ⭐ -->
     <div class="main-content">
         <div class="container-fluid">
             @yield('content')
+        </div>
+    </div>
+
+    <!-- ⭐ ACTIVITY POPUP MODAL ⭐ -->
+    <div class="modal fade" id="activityModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" id="activityModalContent">
+                <div class="p-4 text-center">
+                    <h4>Loading...</h4>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -124,7 +134,31 @@
         });
     </script>
 
-    <!-- ⭐ REQUIRED FOR AJAX IN contacts.index ⭐ -->
+    <!-- ⭐ ACTIVITY POPUP JS ⭐ -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const activityBtn = document.getElementById('openActivity');
+            const activityModal = new bootstrap.Modal(document.getElementById('activityModal'));
+
+            activityBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                fetch('/activity/popup')
+                    .then(response => response.text())
+                    .then(html => {
+                        document.getElementById('activityModalContent').innerHTML = html;
+                        activityModal.show();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("Error loading Activity popup");
+                    });
+            });
+
+        });
+    </script>
+
     @stack('scripts')
 
 </body>
