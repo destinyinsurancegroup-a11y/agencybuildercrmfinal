@@ -203,7 +203,8 @@ Route::put('/calendar/events/{id}', function (Request $request, $id) {
 
         $event = Event::findOrFail($id);
 
-        $event.update([
+        // FIXED — MUST USE ->update() NOT .update
+        $event->update([
             'title'    => $data['title'],
             'start'    => $data['start'],
             'end'      => $data['start'],
