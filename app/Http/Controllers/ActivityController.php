@@ -41,8 +41,27 @@ class ActivityController extends Controller
             'created_at'        => 'nullable|date',
         ]);
 
-        $data['user_id'] = Auth::id();
+        /**
+         * ⭐ DEFAULT EMPTY VALUES TO 0
+         * Prevents MySQL errors: "Column X cannot be null"
+         */
+        $data['leads_worked']      = $data['leads_worked']      ?? 0;
+        $data['calls']             = $data['calls']             ?? 0;
+        $data['stops']             = $data['stops']             ?? 0;
+        $data['presentations']     = $data['presentations']     ?? 0;
+        $data['apps_written']      = $data['apps_written']      ?? 0;
+        $data['premium_collected'] = $data['premium_collected'] ?? 0;
+        $data['ap']                = $data['ap']                ?? 0;
 
+        /**
+         * ⭐ Make sure user_id is never null
+         * (prevents SQL errors if Auth::id() is unavailable)
+         */
+        $data['user_id'] = Auth::id() ?? 1;
+
+        /**
+         * Handle manually selected date
+         */
         if (!empty($data['created_at'])) {
             $data['created_at'] = Carbon::parse($data['created_at']);
         }
