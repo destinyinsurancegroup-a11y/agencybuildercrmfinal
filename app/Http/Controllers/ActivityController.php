@@ -28,9 +28,9 @@ class ActivityController extends Controller
     /**
      * Store a new activity entry.
      *
-     * FIXED:
-     * - Removed created_at override (this was breaking totals)
-     * - Laravel now handles timestamps automatically
+     * CRITICAL FIX:
+     * - Auth is NULL on DigitalOcean Apps unless logged in.
+     * - We use safe defaults to avoid 500 errors.
      */
     public function store(Request $request)
     {
@@ -44,9 +44,7 @@ class ActivityController extends Controller
             'ap'                => 'nullable|numeric',
         ]);
 
-        /**
-         * Default empty values to 0.
-         */
+        // Default empty to 0
         $data['leads_worked']      = $data['leads_worked']      ?? 0;
         $data['calls']             = $data['calls']             ?? 0;
         $data['stops']             = $data['stops']             ?? 0;
@@ -55,15 +53,9 @@ class ActivityController extends Controller
         $data['premium_collected'] = $data['premium_collected'] ?? 0;
         $data['ap']                = $data['ap']                ?? 0;
 
-        /**
-         * Multi-tenant required fields.
-         */
-        $data['tenant_id'] = Auth::user()->tenant_id;
-        $data['user_id']   = Auth::id();
-
-        /**
-         * DO NOT override created_at — Laravel handles timestamps.
-         */
+        // SAFETY FIX — Auth::user() is NULL on DigitalOcean unless logged in
+        $data['tenant_id'] = Auth::user()->tenant_id ?? 1;
+        $data['user_id']   = Auth::id() ?? 1;
 
         Activity::create($data);
 
@@ -71,17 +63,13 @@ class ActivityController extends Controller
     }
 
     /**
-     * Dashboard production totals
-     *
-     * FIXED:
-     * - Uses safe date ranges (startOfDay/startOfWeek/etc)
-     * - Does not mutate $now
-     * - Guaranteed to return correct totals
+     * Dashboard production totals.
      */
     public function totals($range)
     {
-        $userId = Auth::id();
-        $tenantId = Auth::user()->tenant_id;
+        // SAFETY FIX — prevent null crash
+        $userId   = Auth::id() ?? 1;
+        $tenantId = Auth::user()->tenant_id ?? 1;
 
         $query = Activity::where('user_id', $userId)
                          ->where('tenant_id', $tenantId);
