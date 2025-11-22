@@ -240,7 +240,7 @@
                     </table>
                 </div>
 
-                {{-- Other ranges unchanged below --}}
+                {{-- Other ranges --}}
                 <div class="production-range" data-production-range="week">
                     <table>
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -292,7 +292,7 @@
             </div>
         </div>
 
-        {{-- OTHER CARDS UNCHANGED --}}
+        {{-- OTHER CARDS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
@@ -432,10 +432,29 @@ window.refreshProductionCard = function() {
 };
 </script>
 
-<!-- ✅ AUTO-REFRESH WHEN ACTIVITY POPUP SAVES -->
+<!-- AUTO-REFRESH AFTER SAVE -->
 <script>
 document.addEventListener("activitySaved", function () {
-    // Refresh whichever tab is active (day/week/month/etc)
+    refreshProductionCard();
+});
+</script>
+
+<!-- ✅ FIX 1 — AUTO CALCULATE AP -->
+<script>
+document.addEventListener("input", function (e) {
+    if (e.target.name === "premium_collected") {
+        let premium = parseFloat(e.target.value) || 0;
+        let apField = document.querySelector('input[name="ap"]');
+        if (apField) {
+            apField.value = (premium * 12).toFixed(2);
+        }
+    }
+});
+</script>
+
+<!-- ✅ FIX 2 — LOAD PRODUCTION ON PAGE LOAD -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
     refreshProductionCard();
 });
 </script>
