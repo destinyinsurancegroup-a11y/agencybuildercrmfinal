@@ -11,55 +11,59 @@ class DashboardController extends Controller
     public function index()
     {
         // ================================
-        // 1. DATE RANGE (Next 7 days)
+        // 1. DATE RANGE FOR INSIGHTS (Next 7 Days)
         // ================================
         $startDate = Carbon::now();
         $endDate   = Carbon::now()->addDays(7);
 
         // ================================
-        // 2. Upcoming CRM Events
+        // 2. UPCOMING APPOINTMENTS
         // ================================
         $events = CrmEvent::whereBetween('start', [$startDate, $endDate])
             ->orderBy('start', 'asc')
             ->get();
 
         // ================================
-        // 3. UPCOMING BIRTHDAYS
+        // 3. UPCOMING BIRTHDAYS (Next 7 Days)
         // ================================
-        $upcomingBirthdays = Contact::whereNotNull('date_of_birth')->get()
+        $birthdays = Contact::whereNotNull('date_of_birth')
+            ->get()
             ->filter(function ($contact) use ($startDate, $endDate) {
 
-                $birthday = $contact->date_of_birth->copy()->year(now()->year);
+                // Build this year's birthday
+                $next = $contact->date_of_birth->copy()->year(now()->year);
 
-                if ($birthday->isPast()) {
-                    $birthday->addYear();
+                // If passed already → move to next year
+                if ($next->isPast()) {
+                    $next->addYear();
                 }
 
-                return $birthday->between($startDate, $endDate);
+                return $next->between($startDate, $endDate);
             });
 
         // ================================
-        // 4. UPCOMING ANNIVERSARIES
+        // 4. UPCOMING ANNIVERSARIES (Next 7 Days)
         // ================================
-        $upcomingAnniversaries = Contact::whereNotNull('anniversary')->get()
+        $anniversaries = Contact::whereNotNull('anniversary')
+            ->get()
             ->filter(function ($contact) use ($startDate, $endDate) {
 
-                $anniv = $contact->anniversary->copy()->year(now()->year);
+                $next = $contact->anniversary->copy()->year(now()->year);
 
-                if ($anniv->isPast()) {
-                    $anniv->addYear();
+                if ($next->isPast()) {
+                    $next->addYear();
                 }
 
-                return $anniv->between($startDate, $endDate);
+                return $next->between($startDate, $endDate);
             });
 
         // ================================
-        // 5. RETURN VIEW WITH CORRECT VARIABLES
+        // 5. SEND ALL DATA TO VIEW
         // ================================
         return view('dashboard', [
-            'events'                => $events,
-            'upcomingBirthdays'     => $upcomingBirthdays,
-            'upcomingAnniversaries' => $upcomingAnniversaries,
+            'events'        => $events,
+            'birthdays'     => $birthdays,
+            'anniversaries' => $anniversaries,
         ]);
     }
 }
