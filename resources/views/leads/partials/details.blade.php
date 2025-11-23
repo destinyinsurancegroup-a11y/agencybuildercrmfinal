@@ -178,7 +178,6 @@
      LEAD ACTIONS JS
 =========================== --}}
 <script>
-    // make CSRF token available for fetch calls
     const LEADS_CSRF_TOKEN = '{{ csrf_token() }}';
 
     let followUpModalInstance = null;
@@ -191,25 +190,18 @@
     });
 
     function getLeadContext() {
-        const idEl = document.getElementById('leadContactId');
-        const nameEl = document.getElementById('leadContactName');
         return {
-            id: idEl ? idEl.value : null,
-            name: nameEl ? nameEl.value : ''
+            id: document.getElementById('leadContactId')?.value,
+            name: document.getElementById('leadContactName')?.value
         };
     }
 
-    // SOLD: convert lead -> client/contact + move to Book of Business
+    // SOLD: convert lead -> client/contact
     function handleLeadSold() {
         const ctx = getLeadContext();
-        if (!ctx.id) {
-            alert('Unable to determine lead ID.');
-            return;
-        }
+        if (!ctx.id) return alert('Lead ID missing.');
 
-        if (!confirm('Mark this lead as SOLD and move to your Book of Business?')) {
-            return;
-        }
+        if (!confirm('Mark this lead as SOLD and move to your Book of Business?')) return;
 
         fetch(`/leads/${ctx.id}/sold`, {
             method: 'POST',
@@ -218,57 +210,34 @@
                 'Accept': 'application/json'
             }
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Request failed');
-            }
-            return response.json().catch(() => ({}));
-        })
-        .then(() => {
-            // After conversion, just send user back to Leads index
-            window.location.href = "{{ route('leads.index') }}";
-        })
-        .catch(() => {
-            alert('There was a problem converting this lead. Please try again.');
-        });
+        .then(r => r.json())
+        .then(() => window.location.href = "{{ route('leads.index') }}")
+        .catch(() => alert('Error converting lead. Try again.'));
     }
 
-    // FOLLOW UP: open modal prefilled
+    // FOLLOW UP: open modal
     function openFollowUpModal() {
         const ctx = getLeadContext();
-        if (!followUpModalInstance) {
-            alert('Follow-up modal is not available.');
-            return;
-        }
+        if (!followUpModalInstance) return alert('Modal not available.');
 
-        document.getElementById('followUpContactId').value = ctx.id || '';
-        document.getElementById('followUpTitle').value = ctx.name
-            ? `Follow Up – ${ctx.name}`
-            : 'Follow Up';
+        document.getElementById('followUpContactId').value = ctx.id;
+        document.getElementById('followUpTitle').value = `Follow Up – ${ctx.name}`;
 
-        // default to "now" in local time (YYYY-MM-DDTHH:MM)
         const now = new Date();
         const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-            .toISOString()
-            .slice(0,16);
+            .toISOString().slice(0, 16);
         document.getElementById('followUpStart').value = iso;
-
-        document.getElementById('followUpLocation').value = '';
 
         followUpModalInstance.show();
     }
 
-    // FOLLOW UP: save via calendar events API
+    // FOLLOW UP: save event
     function saveFollowUpEvent() {
-        const contactId = document.getElementById('followUpContactId').value;
         const title = document.getElementById('followUpTitle').value.trim();
         const start = document.getElementById('followUpStart').value;
         const location = document.getElementById('followUpLocation').value.trim();
 
-        if (!title || !start) {
-            alert('Title and Date/Time are required.');
-            return;
-        }
+        if (!title || !start) return alert('Title and date/time are required.');
 
         fetch('/calendar/events', {
             method: 'POST',
@@ -277,40 +246,19 @@
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': LEADS_CSRF_TOKEN
             },
-            body: JSON.stringify({
-                title: title,
-                start: start,
-                location: location,
-                // If later you add contact_id column to events table:
-                // contact_id: contactId || null
-            })
+            body: JSON.stringify({ title, start, location })
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to save follow up.');
-            }
-            return response.json().catch(() => ({}));
-        })
+        .then(r => r.json())
         .then(() => {
-            if (followUpModalInstance) {
-                followUpModalInstance.hide();
-            }
-            alert('Follow-up event scheduled successfully.');
+            followUpModalInstance.hide();
+            alert('Follow-up saved successfully.');
         })
-        .catch(() => {
-            alert('There was a problem saving the follow-up. Please try again.');
-        });
+        .catch(() => alert('Could not save follow-up.'));
     }
 
-    // NOT INTERESTED: stub for later wiring
+    // NOT INTERESTED
     function handleLeadNotInterested() {
         const ctx = getLeadContext();
-        if (!ctx.id) {
-            alert('Unable to determine lead ID.');
-            return;
-        }
-
         alert('Not Interested action coming soon. (Lead ID: ' + ctx.id + ')');
-        // Later: POST to /leads/{id}/not-interested to update status and hide from list
     }
 </script>
