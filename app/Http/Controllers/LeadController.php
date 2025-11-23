@@ -30,4 +30,30 @@ class LeadController extends Controller
         // Loads the create form into the right panel
         return view('leads.partials.create');
     }
+
+    /**
+     * Convert a LEAD into a CLIENT (Sold button)
+     */
+    public function markSold(Contact $contact, Request $request)
+    {
+        // Convert record → Client
+        $contact->update([
+            'contact_type' => 'client',
+            'status'       => 'Sold',
+        ]);
+
+        // If request was AJAX
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Lead converted to client successfully.',
+                'contact' => $contact
+            ]);
+        }
+
+        // Standard redirect fallback
+        return redirect()
+            ->route('leads.index')
+            ->with('success', 'Lead converted to client successfully.');
+    }
 }
