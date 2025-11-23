@@ -27,7 +27,7 @@
                 Follow Up
             </button>
 
-            {{-- NOT INTERESTED: placeholder (can wire later) --}}
+            {{-- NOT INTERESTED --}}
             <button type="button"
                     class="btn btn-danger btn-sm px-3"
                     onclick="handleLeadNotInterested()">
@@ -179,7 +179,6 @@
 =========================== --}}
 <script>
     const LEADS_CSRF_TOKEN = '{{ csrf_token() }}';
-
     let followUpModalInstance = null;
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -196,7 +195,7 @@
         };
     }
 
-    // SOLD: convert lead -> client/contact
+    // ⭐ SOLD → Convert Lead to Client + Move to Book of Business
     function handleLeadSold() {
         const ctx = getLeadContext();
         if (!ctx.id) return alert('Lead ID missing.');
@@ -211,11 +210,17 @@
             }
         })
         .then(r => r.json())
-        .then(() => window.location.href = "{{ route('leads.index') }}")
+        .then(res => {
+            if (res.redirect) {
+                window.location.href = res.redirect; // redirect to Book of Business
+            } else {
+                window.location.href = "{{ route('book.index') }}";
+            }
+        })
         .catch(() => alert('Error converting lead. Try again.'));
     }
 
-    // FOLLOW UP: open modal
+    // ⭐ FOLLOW UP → Open modal with defaults
     function openFollowUpModal() {
         const ctx = getLeadContext();
         if (!followUpModalInstance) return alert('Modal not available.');
@@ -228,10 +233,12 @@
             .toISOString().slice(0, 16);
         document.getElementById('followUpStart').value = iso;
 
+        document.getElementById('followUpLocation').value = '';
+
         followUpModalInstance.show();
     }
 
-    // FOLLOW UP: save event
+    // ⭐ FOLLOW UP → Save event to Calendar
     function saveFollowUpEvent() {
         const title = document.getElementById('followUpTitle').value.trim();
         const start = document.getElementById('followUpStart').value;
@@ -256,7 +263,7 @@
         .catch(() => alert('Could not save follow-up.'));
     }
 
-    // NOT INTERESTED
+    // ⭐ NOT INTERESTED → Later will update backend
     function handleLeadNotInterested() {
         const ctx = getLeadContext();
         alert('Not Interested action coming soon. (Lead ID: ' + ctx.id + ')');
