@@ -4,17 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
-// Missing before — now added:
 use App\Models\User;
-
 use App\Models\Note;
-use App\Models\ContactRelation;   // Destiny unified relations table
+use App\Models\ContactRelation;   // Destiny unified relations
 use App\Models\ServiceEvent;
 
 class Contact extends Model
 {
     use HasFactory;
+
+    protected $table = 'contacts';   // Explicit for safety
 
     protected $fillable = [
         'tenant_id',
@@ -49,7 +48,7 @@ class Contact extends Model
         'policy_issue_date',
         'anniversary',
 
-        // Old basic notes column
+        // Legacy free-text notes column
         'notes',
 
         // BOOK / SERVICE FIELDS
@@ -68,7 +67,7 @@ class Contact extends Model
     ];
 
     /**
-     * Auto-compile full_name before saving to DB.
+     * Build full_name automatically.
      */
     protected static function booted(): void
     {
@@ -78,7 +77,7 @@ class Contact extends Model
     }
 
     /**
-     * -- Multi-tenant scope
+     * Scope: multi-tenant filtering.
      */
     public function scopeForCurrentTenant($query)
     {
@@ -87,7 +86,7 @@ class Contact extends Model
     }
 
     /**
-     * Creator + Assigned agent
+     * Contact creator and assigned agent.
      */
     public function creator()
     {
@@ -100,7 +99,7 @@ class Contact extends Model
     }
 
     /**
-     * FIX: custom notes relationship (because 'notes' is a column)
+     * Relationship: full Note model (separate from "notes" text field).
      */
     public function allNotes()
     {
@@ -108,8 +107,8 @@ class Contact extends Model
     }
 
     /* ============================================================
-     |  DESTINY CRM – UNIFIED RELATION SYSTEM
-     |  contact_relations table structure:
+     |  DESTINY RELATION SYSTEM — Unified Table
+     |  contact_relations:
      |  id, contact_id, type, name, relationship, phone,
      |  contacted, tenant_id, created_by, timestamps
      * ============================================================ */
@@ -139,7 +138,7 @@ class Contact extends Model
     }
 
     /**
-     * Calculated age based on date_of_birth
+     * Accessor: contact age.
      */
     public function getAgeAttribute()
     {
