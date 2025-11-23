@@ -61,11 +61,7 @@ Route::post('/contacts/import', [ContactsController::class, 'import'])
 
 /*
 |--------------------------------------------------------------------------
-| CONTACT NOTES (This is the correct working system)
-|--------------------------------------------------------------------------
-|
-| IMPORTANT: These are already implemented in your app.
-| We will use contacts.notes.store for saving notes.
+| CONTACT NOTES
 |--------------------------------------------------------------------------
 */
 Route::get('/contacts/{contact}/notes', [NoteController::class, 'index'])
@@ -85,6 +81,10 @@ Route::get('/contacts/{contact}/notes/list', [NoteController::class, 'list'])
 Route::get('/leads',        [LeadController::class, 'index'])->name('leads.index');
 Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
 Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show');
+
+/* ⭐ NEW ROUTE — CONVERT LEAD TO CLIENT ⭐ */
+Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
+    ->name('leads.sold');
 
 /*
 |--------------------------------------------------------------------------
@@ -118,7 +118,7 @@ Route::prefix('service')->group(function () {
     Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
     Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
-    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
+    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel'];
     Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
 });
 
