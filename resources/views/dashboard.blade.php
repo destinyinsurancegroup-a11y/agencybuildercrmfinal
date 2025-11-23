@@ -187,6 +187,18 @@
         font-weight:700;
         text-transform:uppercase;
     }
+
+    /* small helper for lists inside cards */
+    .dashboard-list {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+    }
+    .dashboard-list li {
+        margin-bottom: 6px;
+        font-size: 14px;
+        color: var(--text-subtle);
+    }
 </style>
 
 <div class="dashboard-page">
@@ -292,7 +304,7 @@
             </div>
         </div>
 
-        {{-- OTHER CARDS --}}
+        {{-- UPCOMING APPOINTMENTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
@@ -320,6 +332,7 @@
             </div>
         </div>
 
+        {{-- TODAY'S INSIGHTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
@@ -328,13 +341,55 @@
                 </div>
             </div>
             <div class="dashboard-card-body">
+                {{-- Summary line --}}
                 <ul class="dashboard-list">
-                    <li>Birthdays this week: --</li>
-                    <li>Anniversaries this week: --</li>
+                    <li>Birthdays in next 7 days: {{ $birthdays->count() }}</li>
+                    <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
                 </ul>
+
+                {{-- Upcoming birthdays list --}}
+                @if($birthdays->isNotEmpty())
+                    <hr style="margin: 8px 0;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">
+                        🎂 Upcoming Birthdays
+                    </div>
+                    <ul class="dashboard-list">
+                        @foreach($birthdays as $contact)
+                            <li>
+                                <strong>{{ $contact->full_name }}</strong>
+                                <span style="color: var(--text-faint); font-size: 13px;">
+                                    • {{ optional($contact->date_of_birth)->format('M j') }}
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-muted small mb-1" style="margin-top: 8px;">No birthdays coming up in the next 7 days.</p>
+                @endif
+
+                {{-- Upcoming anniversaries list --}}
+                @if($anniversaries->isNotEmpty())
+                    <hr style="margin: 8px 0;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">
+                        💍 Upcoming Anniversaries
+                    </div>
+                    <ul class="dashboard-list">
+                        @foreach($anniversaries as $contact)
+                            <li>
+                                <strong>{{ $contact->full_name }}</strong>
+                                <span style="color: var(--text-faint); font-size: 13px;">
+                                    • {{ optional($contact->anniversary)->format('M j') }}
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-muted small mb-0" style="margin-top: 8px;">No anniversaries coming up in the next 7 days.</p>
+                @endif
             </div>
         </div>
 
+        {{-- RECENTLY ADDED --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
