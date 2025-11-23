@@ -1,12 +1,69 @@
 <div class="p-4" style="margin-top:-28px;">
 
+    <style>
+        .p-4 { padding: 1.25rem !important; }
+        .card { padding: 1.2rem !important; }
+
+        h5.text-gold, h6.text-gold {
+            margin: .4rem 0 .6rem 0 !important;
+        }
+
+        .contact-row {
+            border: 1px solid #ddd;
+            padding: .6rem .7rem;
+            margin-bottom: .6rem;
+            border-radius: 6px;
+        }
+
+        .contact-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            align-items: center;
+        }
+
+        .field {
+            flex: 0 0 240px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-label {
+            margin-bottom: .2rem;
+            font-size: .83rem;
+        }
+
+        .form-control,
+        .form-select {
+            width: 100%;
+            padding: .38rem .55rem;
+            font-size: .83rem;
+            height: 34px;
+        }
+
+        .btn-remove {
+            color: #D4AF37;
+            font-weight: bold;
+            font-size: 20px;
+            background: none;
+            border: none;
+            margin-left: 8px;
+            cursor: pointer;
+        }
+        .btn-remove:hover {
+            color: #f3d266;
+        }
+
+        hr { margin: .75rem 0 !important; }
+    </style>
+
     <div class="card shadow-sm border-0">
 
         <form method="POST" action="{{ route('book.store') }}" class="p-4">
             @csrf
 
             <!-- BASIC INFORMATION -->
-            <h5 class="mb-3 text-gold fw-bold">Basic Information</h5>
+            <h5 class="text-gold fw-bold mb-2">Basic Information</h5>
 
             <div class="row mb-3">
                 <div class="col-md-6">
@@ -27,8 +84,8 @@
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">Age (auto if DOB added)</label>
-                    <input type="number" class="form-control" disabled placeholder="Auto-calculated">
+                    <label class="form-label fw-semibold">Age (auto)</label>
+                    <input type="number" class="form-control" disabled>
                 </div>
 
                 <div class="col-md-4">
@@ -80,8 +137,8 @@
 
             <hr>
 
-            <!-- POLICY INFORMATION -->
-            <h5 class="mb-3 text-gold fw-bold">Policy Information</h5>
+            <!-- POLICY -->
+            <h5 class="text-gold fw-bold mb-2">Policy Information</h5>
 
             <div class="row mb-3">
                 <div class="col-md-6">
@@ -113,106 +170,103 @@
             </div>
 
             <div class="mb-4">
-                <label class="form-label fw-semibold">Monthly Due Date (text)</label>
+                <label class="form-label fw-semibold">Monthly Due (Text)</label>
                 <input 
                     type="text"
                     name="premium_due_text"
                     class="form-control"
-                    placeholder="Ex: 2nd Wednesday, 15th of every month"
+                    placeholder="2nd Wednesday, 15th of every month"
                 >
             </div>
 
             <hr>
 
             <!-- BENEFICIARIES -->
-            <h5 class="mb-3 text-gold fw-bold">Beneficiaries</h5>
+            <h5 class="text-gold fw-bold">Beneficiaries</h5>
 
             <div id="beneficiary-wrapper">
+                <!-- First row -->
+                <div class="contact-row">
+                    <div class="contact-grid">
 
-                <div class="beneficiary-row border rounded p-3 mb-3">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Name</label>
+                        <div class="field">
+                            <label class="form-label">Name</label>
                             <input type="text" name="beneficiaries[0][name]" class="form-control">
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Relationship</label>
+                        <div class="field">
+                            <label class="form-label">Relationship</label>
                             <input type="text" name="beneficiaries[0][relationship]" class="form-control">
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Phone</label>
+                        <div class="field">
+                            <label class="form-label">Phone</label>
                             <input type="text" name="beneficiaries[0][phone]" class="form-control">
                         </div>
 
-                        <div class="col-md-2">
-                            <label class="form-label fw-semibold">Contacted?</label>
+                        <div class="field">
+                            <label class="form-label">Contacted?</label>
                             <select name="beneficiaries[0][contacted]" class="form-select">
                                 <option value="0">No</option>
                                 <option value="1">Yes</option>
                             </select>
                         </div>
+
                     </div>
                 </div>
-
             </div>
 
-            <button type="button" class="btn btn-sm btn-gold mb-3" id="add-beneficiary-btn">+ Add Beneficiary</button>
+            <button type="button" id="add-beneficiary-btn" class="btn btn-sm btn-gold mb-3">
+                + Add Beneficiary
+            </button>
 
             <hr>
 
             <!-- EMERGENCY CONTACTS -->
-            <h5 class="mb-3 text-gold fw-bold">Emergency Contacts</h5>
+            <h5 class="text-gold fw-bold">Emergency Contacts</h5>
 
             <div id="emergency-wrapper">
+                <div class="contact-row">
+                    <div class="contact-grid">
 
-                <div class="emergency-row border rounded p-3 mb-3">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Name</label>
+                        <div class="field">
+                            <label class="form-label">Name</label>
                             <input type="text" name="emergency_contacts[0][name]" class="form-control">
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Relationship</label>
+                        <div class="field">
+                            <label class="form-label">Relationship</label>
                             <input type="text" name="emergency_contacts[0][relationship]" class="form-control">
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Phone</label>
+                        <div class="field">
+                            <label class="form-label">Phone</label>
                             <input type="text" name="emergency_contacts[0][phone]" class="form-control">
                         </div>
 
-                        <div class="col-md-2">
-                            <label class="form-label fw-semibold">Contacted?</label>
+                        <div class="field">
+                            <label class="form-label">Contacted?</label>
                             <select name="emergency_contacts[0][contacted]" class="form-select">
                                 <option value="0">No</option>
                                 <option value="1">Yes</option>
                             </select>
                         </div>
+
                     </div>
                 </div>
-
             </div>
 
-            <button type="button" class="btn btn-sm btn-gold mb-3" id="add-emergency-btn">+ Add Emergency Contact</button>
+            <button type="button" id="add-emergency-btn" class="btn btn-sm btn-gold mb-3">
+                + Add Emergency Contact
+            </button>
 
             <hr>
 
             <!-- NOTES -->
-            <h5 class="mb-3 text-gold fw-bold">Notes</h5>
-            <div class="mb-4">
-                <textarea 
-                    name="notes" 
-                    class="form-control" 
-                    rows="4"
-                    placeholder="Enter notes..."
-                ></textarea>
-            </div>
+            <h5 class="text-gold fw-bold">Notes</h5>
+            <textarea name="notes" class="form-control" rows="4"></textarea>
 
-            <!-- SUBMIT BUTTON -->
-            <div class="text-start">
+            <div class="text-start mt-3">
                 <button class="btn btn-gold btn-lg">Save Client</button>
             </div>
 
@@ -225,35 +279,41 @@
 let beneficiaryIndex = 1;
 let emergencyIndex = 1;
 
-/* ADD BENEFICIARY */
+/* --------------------------
+   ADD BENEFICIARY
+--------------------------- */
 document.getElementById('add-beneficiary-btn').addEventListener('click', () => {
     const wrapper = document.getElementById('beneficiary-wrapper');
 
     wrapper.insertAdjacentHTML('beforeend', `
-        <div class="beneficiary-row border rounded p-3 mb-3">
-            <div class="row">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Name</label>
+        <div class="contact-row">
+            <div class="contact-grid">
+
+                <div class="field">
+                    <label class="form-label">Name</label>
                     <input type="text" name="beneficiaries[${beneficiaryIndex}][name]" class="form-control">
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Relationship</label>
+                <div class="field">
+                    <label class="form-label">Relationship</label>
                     <input type="text" name="beneficiaries[${beneficiaryIndex}][relationship]" class="form-control">
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Phone</label>
+                <div class="field">
+                    <label class="form-label">Phone</label>
                     <input type="text" name="beneficiaries[${beneficiaryIndex}][phone]" class="form-control">
                 </div>
 
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Contacted?</label>
+                <div class="field">
+                    <label class="form-label">Contacted?</label>
                     <select name="beneficiaries[${beneficiaryIndex}][contacted]" class="form-select">
                         <option value="0">No</option>
                         <option value="1">Yes</option>
                     </select>
                 </div>
+
+                <button type="button" class="btn-remove" onclick="this.closest('.contact-row').remove()">×</button>
+
             </div>
         </div>
     `);
@@ -261,35 +321,41 @@ document.getElementById('add-beneficiary-btn').addEventListener('click', () => {
     beneficiaryIndex++;
 });
 
-/* ADD EMERGENCY CONTACT */
+/* --------------------------
+   ADD EMERGENCY CONTACT
+--------------------------- */
 document.getElementById('add-emergency-btn').addEventListener('click', () => {
     const wrapper = document.getElementById('emergency-wrapper');
 
     wrapper.insertAdjacentHTML('beforeend', `
-        <div class="emergency-row border rounded p-3 mb-3">
-            <div class="row">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Name</label>
+        <div class="contact-row">
+            <div class="contact-grid">
+
+                <div class="field">
+                    <label class="form-label">Name</label>
                     <input type="text" name="emergency_contacts[${emergencyIndex}][name]" class="form-control">
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Relationship</label>
+                <div class="field">
+                    <label class="form-label">Relationship</label>
                     <input type="text" name="emergency_contacts[${emergencyIndex}][relationship]" class="form-control">
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Phone</label>
+                <div class="field">
+                    <label class="form-label">Phone</label>
                     <input type="text" name="emergency_contacts[${emergencyIndex}][phone]" class="form-control">
                 </div>
 
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Contacted?</label>
+                <div class="field">
+                    <label class="form-label">Contacted?</label>
                     <select name="emergency_contacts[${emergencyIndex}][contacted]" class="form-select">
                         <option value="0">No</option>
                         <option value="1">Yes</option>
                     </select>
                 </div>
+
+                <button type="button" class="btn-remove" onclick="this.closest('.contact-row').remove()">×</button>
+
             </div>
         </div>
     `);
