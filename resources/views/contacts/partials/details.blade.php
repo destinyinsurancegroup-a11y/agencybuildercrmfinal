@@ -37,6 +37,7 @@
 
         {{-- TOP DETAILS --}}
         <div class="row mb-4">
+
             <div class="col-md-6 mb-3">
                 <label class="text-muted small fw-semibold">Email</label>
                 <div class="fw-bold">{{ $contact->email ?: '—' }}</div>
@@ -58,6 +59,22 @@
                       style="font-size:12px; padding:6px 10px; border-radius:8px;">
                     {{ $contact->status ?: '—' }}
                 </span>
+            </div>
+
+            {{-- ★ ADDED: DATE OF BIRTH --}}
+            <div class="col-md-6 mb-3">
+                <label class="text-muted small fw-semibold">Date of Birth</label>
+                <div class="fw-bold">
+                    {{ $contact->date_of_birth ? $contact->date_of_birth->format('m/d/Y') : '—' }}
+                </div>
+            </div>
+
+            {{-- ★ ADDED: ANNIVERSARY --}}
+            <div class="col-md-6 mb-3">
+                <label class="text-muted small fw-semibold">Anniversary</label>
+                <div class="fw-bold">
+                    {{ $contact->anniversary ? $contact->anniversary->format('m/d/Y') : '—' }}
+                </div>
             </div>
         </div>
 
