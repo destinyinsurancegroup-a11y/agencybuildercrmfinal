@@ -45,6 +45,23 @@
                         </div>
                     </div>
 
+                    <!-- BIRTHDAY + ANNIVERSARY (NEW FIELDS) -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Date of Birth</label>
+                            <input type="date" 
+                                   name="date_of_birth" 
+                                   class="form-control">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Anniversary</label>
+                            <input type="date" 
+                                   name="anniversary" 
+                                   class="form-control">
+                        </div>
+                    </div>
+
                     <hr>
 
                     <!-- CONTACT DETAILS -->
