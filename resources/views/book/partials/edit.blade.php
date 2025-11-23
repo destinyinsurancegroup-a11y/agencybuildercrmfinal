@@ -2,36 +2,30 @@
 
     <!-- COMPACT CRM GRID SYSTEM -->
     <style>
-        /* Overall page padding */
         .p-4 { padding: 1.25rem !important; }
-
         .card { padding: 1.2rem !important; }
 
-        /* Section headers */
         h5.text-gold, h6.text-gold {
             margin: .4rem 0 .6rem 0 !important;
         }
 
-        /* Custom compact grid */
         .form-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px 18px; /* row gap, column gap */
+            gap: 10px 18px;
         }
 
         .field {
-            flex: 0 0 260px;          /* base width */
+            flex: 0 0 260px;
             display: flex;
             flex-direction: column;
         }
 
-        /* Labels */
         .form-label {
             margin-bottom: .15rem !important;
             font-size: .85rem !important;
         }
 
-        /* Input compact style */
         .form-control,
         .form-select {
             width: 100% !important;
@@ -41,7 +35,6 @@
             height: 34px !important;
         }
 
-        /* Beneficiary + Emergency rows (compact) */
         .beneficiary-row,
         .emergency-row {
             border: 1px solid #ddd;
@@ -53,26 +46,23 @@
         .beneficiary-grid,
         .emergency-grid {
             display: flex;
-            flex-wrap: nowrap;   /* force in a single line */
+            flex-wrap: nowrap;
             gap: 10px;
             align-items: center;
         }
 
-        /* Shrink fields ONLY inside these grids */
         .beneficiary-grid .field,
         .emergency-grid .field {
-            flex: 0 0 180px !important;      /* shrink form fields */
+            flex: 0 0 180px !important;
             max-width: 180px !important;
         }
 
-        /* Make Contacted extremely small (last field in each row) */
         .beneficiary-grid .field:last-child,
         .emergency-grid .field:last-child {
             flex: 0 0 80px !important;
             max-width: 80px !important;
         }
 
-        /* Inputs inside these rows match new width */
         .beneficiary-grid .form-control,
         .emergency-grid .form-control,
         .beneficiary-grid .form-select,
@@ -83,27 +73,23 @@
             font-size: .8rem !important;
         }
 
-        /* Contacts section subtitles */
         .contact-subtitle {
             font-size: .9rem;
             font-weight: 600;
             margin: .2rem 0 .3rem 0;
         }
 
-        /* Compact HR */
         hr { margin: .75rem 0 !important; }
 
-        /* Buttons */
         .btn-gold, .btn-gold.btn-lg {
             padding: 6px 12px !important;
             font-size: .85rem !important;
         }
 
-        /* Delete (×) button for existing rows */
         .contact-delete-btn {
             border: none;
             background: transparent;
-            color: #D4AF37; /* gold */
+            color: #D4AF37;
             font-weight: 700;
             font-size: 1rem;
             line-height: 1;
@@ -112,7 +98,7 @@
         }
 
         .contact-delete-btn:hover {
-            color: #f3d266; /* brighter gold */
+            color: #f3d266;
         }
     </style>
 
@@ -246,10 +232,10 @@
 
             <hr>
 
-            <!-- CONTACTS SECTION: Beneficiaries + Emergency Contacts -->
+            <!-- CONTACTS SECTION -->
             <h5 class="text-gold fw-bold">Contacts</h5>
 
-            {{-- BENEFICIARIES SUBSECTION --}}
+            <!-- BENEFICIARIES -->
             <div class="contact-subtitle">Beneficiaries</div>
 
             @for ($i = 0; $i < 2; $i++)
@@ -258,7 +244,6 @@
                 <div class="beneficiary-row">
                     <div class="beneficiary-grid">
 
-                        {{-- hidden id so backend can tell existing vs new if you later wire it --}}
                         @if($b)
                             <input type="hidden" name="beneficiaries[{{ $i }}][id]" value="{{ $b->id }}">
                         @endif
@@ -303,7 +288,7 @@
                 </div>
             @endfor
 
-            {{-- EMERGENCY CONTACTS SUBSECTION --}}
+            <!-- EMERGENCY CONTACTS -->
             <div class="contact-subtitle mt-2">Emergency Contacts</div>
 
             @for ($i = 0; $i < 2; $i++)
@@ -312,7 +297,6 @@
                 <div class="emergency-row">
                     <div class="emergency-grid">
 
-                        {{-- hidden id for future backend sync --}}
                         @if($e)
                             <input type="hidden" name="emergency_contacts[{{ $i }}][id]" value="{{ $e->id }}">
                         @endif
@@ -359,7 +343,6 @@
 
             <hr>
 
-            <!-- Save button -->
             <div class="text-end">
                 <button class="btn-gold btn-lg">Save Client</button>
             </div>
@@ -375,7 +358,9 @@
 
     function deleteContactRow(button, type) {
         const url = button.dataset.url;
-        const rowEl = button.closest(type === 'beneficiary' ? '.beneficiary-row' : '.emergency-row');
+        const rowEl = button.closest(
+            type === 'beneficiary' ? '.beneficiary-row' : '.emergency-row'
+        );
 
         const label = type === 'beneficiary' ? 'beneficiary' : 'emergency contact';
 
@@ -395,14 +380,10 @@
             if (!resp.ok) throw new Error('Delete failed');
             return resp.json();
         })
-        .then(data => {
-            // Soft fade-out then remove
+        .then(() => {
             rowEl.style.opacity = '0.3';
             setTimeout(() => rowEl.remove(), 150);
         })
-        .catch(err => {
-            console.error(err);
-            alert('Unable to delete. Please try again.');
-        });
+        .catch(() => alert('Unable to delete. Please try again.'));
     }
 </script>
