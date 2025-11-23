@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Note;
 use App\Models\ContactRelation;   // Destiny unified relations
 use App\Models\ServiceEvent;
+use Carbon\Carbon;
 
 class Contact extends Model
 {
@@ -145,5 +146,47 @@ class Contact extends Model
         return $this->date_of_birth
             ? $this->date_of_birth->age
             : null;
+    }
+
+    /* ============================================================
+     |  UPCOMING DATE CHECKERS for Dashboard Insights
+     * ============================================================ */
+
+    /**
+     * Is the contact's birthday within the next 7 days?
+     */
+    public function birthdayIsSoon(): bool
+    {
+        if (!$this->date_of_birth) {
+            return false;
+        }
+
+        $dob = $this->date_of_birth->copy();
+        $next = Carbon::create(now()->year, $dob->month, $dob->day);
+
+        if ($next->isPast()) {
+            $next->addYear();
+        }
+
+        return now()->diffInDays($next) <= 7;
+    }
+
+    /**
+     * Is the contact's anniversary within the next 7 days?
+     */
+    public function anniversaryIsSoon(): bool
+    {
+        if (!$this->anniversary) {
+            return false;
+        }
+
+        $ann = $this->anniversary->copy();
+        $next = Carbon::create(now()->year, $ann->month, $ann->day);
+
+        if ($next->isPast()) {
+            $next->addYear();
+        }
+
+        return now()->diffInDays($next) <= 7;
     }
 }
