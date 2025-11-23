@@ -49,6 +49,25 @@
                     </div>
                 </div>
 
+                <!-- BIRTHDAY + ANNIVERSARY -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="text-muted">Date of Birth</label>
+                        <input type="date"
+                               name="date_of_birth"
+                               class="form-control"
+                               value="{{ old('date_of_birth', optional($contact->date_of_birth)->format('Y-m-d')) }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="text-muted">Anniversary</label>
+                        <input type="date"
+                               name="anniversary"
+                               class="form-control"
+                               value="{{ old('anniversary', optional($contact->anniversary)->format('Y-m-d')) }}">
+                    </div>
+                </div>
+
                 <!-- CONTACT TYPE + STATUS -->
                 <div class="row mb-3">
                     <div class="col-md-6">
