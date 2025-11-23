@@ -4,8 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Contact;
 use App\Models\Note;
-use App\Models\Beneficiary;
-use App\Models\EmergencyContact;
+use App\Models\ContactRelation;   // <-- UNIFIED relations table
 use Illuminate\Http\Request;
 
 class BookController extends Controller
@@ -22,9 +21,9 @@ class BookController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
@@ -116,7 +115,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | FULL PAGE EDIT (OPTIONAL)
+    | FULL PAGE EDIT
     |--------------------------------------------------------------------------
     */
     public function edit(Contact $client)
@@ -126,12 +125,12 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | UPDATE – FINAL FIXED VERSION (SAVES EVERYTHING)
+    | UPDATE – SAVES EVERYTHING INCLUDING DESTINY RELATIONS
     |--------------------------------------------------------------------------
     */
     public function update(Request $request, Contact $client)
     {
-        // 1. Validate incoming core client fields
+        // 1. Validate base fields
         $validated = $request->validate([
             'first_name'        => 'nullable|string|max:255',
             'last_name'         => 'nullable|string|max:255',
@@ -156,7 +155,7 @@ class BookController extends Controller
             'premium_due_text'  => 'nullable|string|max:255',
         ]);
 
-        // 2. Update ONLY the fields filled out (true partial update)
+        // 2. Partial update
         foreach ($validated as $key => $value) {
             if ($value !== null && $value !== '') {
                 $client->{$key} = $value;
@@ -168,88 +167,70 @@ class BookController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | BENEFICIARIES (2 max)
+        | DESTINY: BENEFICIARIES & EMERGENCY CONTACTS
         |--------------------------------------------------------------------------
         */
-        if ($request->has('beneficiaries')) {
-            foreach ($request->beneficiaries as $row) {
-                if (!isset($row['name']) || $row['name'] === '') {
-                    continue;
-                }
-
-                // Update existing
-                if (isset($row['id'])) {
-                    $b = Beneficiary::where('id', $row['id'])
-                        ->where('contact_id', $client->id)
-                        ->first();
-
-                    if ($b) {
-                        $b->update([
-                            'name'        => $row['name'],
-                            'relationship'=> $row['relationship'] ?? null,
-                            'phone'       => $row['phone'] ?? null,
-                            'contacted'   => $row['contacted'] ?? 0,
-                        ]);
-                    }
-                }
-                else {
-                    // Create new
-                    Beneficiary::create([
-                        'contact_id'  => $client->id,
-                        'name'        => $row['name'],
-                        'relationship'=> $row['relationship'] ?? null,
-                        'phone'       => $row['phone'] ?? null,
-                        'contacted'   => $row['contacted'] ?? 0,
-                    ]);
-                }
-            }
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | EMERGENCY CONTACTS (2 max)
-        |--------------------------------------------------------------------------
-        */
-        if ($request->has('emergency_contacts')) {
-            foreach ($request->emergency_contacts as $row) {
-                if (!isset($row['name']) || $row['name'] === '') {
-                    continue;
-                }
-
-                // Update existing
-                if (isset($row['id'])) {
-                    $e = EmergencyContact::where('id', $row['id'])
-                        ->where('contact_id', $client->id)
-                        ->first();
-
-                    if ($e) {
-                        $e->update([
-                            'name'        => $row['name'],
-                            'relationship'=> $row['relationship'] ?? null,
-                            'phone'       => $row['phone'] ?? null,
-                            'contacted'   => $row['contacted'] ?? 0,
-                        ]);
-                    }
-                }
-                else {
-                    // Create new
-                    EmergencyContact::create([
-                        'contact_id'  => $client->id,
-                        'name'        => $row['name'],
-                        'relationship'=> $row['relationship'] ?? null,
-                        'phone'       => $row['phone'] ?? null,
-                        'contacted'   => $row['contacted'] ?? 0,
-                    ]);
-                }
-            }
-        }
+        $this->saveRelations($request, $client, 'beneficiary');
+        $this->saveRelations($request, $client, 'emergency');
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | NOTES – ADD (AJAX)
+    | SAVE RELATIONS (Unified Destiny Logic)
+    |--------------------------------------------------------------------------
+    */
+    private function saveRelations(Request $request, Contact $client, string $type)
+    {
+        $key = $type === 'beneficiary'
+            ? 'beneficiaries'
+            : 'emergency_contacts';
+
+        if (!$request->has($key)) {
+            return;
+        }
+
+        foreach ($request->$key as $row) {
+            if (!isset($row['name']) || trim($row['name']) === '') {
+                continue;
+            }
+
+            // Update existing
+            if (!empty($row['id'])) {
+                $relation = ContactRelation::where('id', $row['id'])
+                    ->where('contact_id', $client->id)
+                    ->where('type', $type)
+                    ->first();
+
+                if ($relation) {
+                    $relation->update([
+                        'name'         => $row['name'],
+                        'relationship' => $row['relationship'] ?? null,
+                        'phone'        => $row['phone'] ?? null,
+                        'contacted'    => $row['contacted'] ?? 0,
+                    ]);
+                }
+                continue;
+            }
+
+            // Create new
+            ContactRelation::create([
+                'contact_id'   => $client->id,
+                'type'         => $type,
+                'name'         => $row['name'],
+                'relationship' => $row['relationship'] ?? null,
+                'phone'        => $row['phone'] ?? null,
+                'contacted'    => $row['contacted'] ?? 0,
+                'tenant_id'    => 1,
+                'created_by'   => 1,
+            ]);
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NOTES – ADD
     |--------------------------------------------------------------------------
     */
     public function storeNote(Request $request, Contact $client)
@@ -268,7 +249,7 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | NOTES – UPDATE (AJAX)
+    | NOTES – UPDATE
     |--------------------------------------------------------------------------
     */
     public function updateNote(Request $request, Contact $client, Note $note)
@@ -286,32 +267,16 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | BENEFICIARY DELETE (AJAX)
+    | DELETE RELATIONS (Destiny Style)
     |--------------------------------------------------------------------------
     */
-    public function deleteBeneficiary(Request $request, Contact $client, Beneficiary $beneficiary)
+    public function deleteRelation(Request $request, Contact $client, ContactRelation $relation)
     {
-        if ($beneficiary->contact_id !== $client->id) {
+        if ($relation->contact_id !== $client->id) {
             abort(403);
         }
 
-        $beneficiary->delete();
-
-        return response()->json(['success' => true]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | EMERGENCY DELETE (AJAX)
-    |--------------------------------------------------------------------------
-    */
-    public function deleteEmergency(Request $request, Contact $client, EmergencyContact $contact)
-    {
-        if ($contact->contact_id !== $client->id) {
-            abort(403);
-        }
-
-        $contact->delete();
+        $relation->delete();
 
         return response()->json(['success' => true]);
     }
