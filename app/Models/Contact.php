@@ -4,8 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+
+// Missing before — now added:
+use App\Models\User;
+
 use App\Models\Note;
-use App\Models\ContactRelation;   // ⭐ NEW: Destiny unified relations
+use App\Models\ContactRelation;   // Destiny unified relations table
 use App\Models\ServiceEvent;
 
 class Contact extends Model
@@ -45,7 +49,7 @@ class Contact extends Model
         'policy_issue_date',
         'anniversary',
 
-        // OLD notes column (separate from Note model)
+        // Old basic notes column
         'notes',
 
         // BOOK / SERVICE FIELDS
@@ -64,9 +68,9 @@ class Contact extends Model
     ];
 
     /**
-     * Auto-build full_name before saving.
+     * Auto-compile full_name before saving to DB.
      */
-    public static function booted(): void
+    protected static function booted(): void
     {
         static::saving(function (Contact $contact) {
             $contact->full_name = trim($contact->first_name . ' ' . $contact->last_name);
@@ -74,7 +78,7 @@ class Contact extends Model
     }
 
     /**
-     * Scope to current tenant.
+     * -- Multi-tenant scope
      */
     public function scopeForCurrentTenant($query)
     {
@@ -82,6 +86,9 @@ class Contact extends Model
         return $query->where('tenant_id', $tenantId);
     }
 
+    /**
+     * Creator + Assigned agent
+     */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -93,7 +100,7 @@ class Contact extends Model
     }
 
     /**
-     * FIXED: avoids conflict with "notes" column.
+     * FIX: custom notes relationship (because 'notes' is a column)
      */
     public function allNotes()
     {
@@ -101,17 +108,10 @@ class Contact extends Model
     }
 
     /* ============================================================
-     |  DESTINY RELATION SYSTEM (Unified Table)
-     |  ------------------------------------------------------------
-     |  contact_relations table fields:
-     |  - id
-     |  - contact_id
-     |  - type = 'beneficiary' or 'emergency'
-     |  - name
-     |  - relationship
-     |  - phone
-     |  - contacted
-     |  - tenant_id, created_by, timestamps
+     |  DESTINY CRM – UNIFIED RELATION SYSTEM
+     |  contact_relations table structure:
+     |  id, contact_id, type, name, relationship, phone,
+     |  contacted, tenant_id, created_by, timestamps
      * ============================================================ */
 
     public function relations()
@@ -130,15 +130,16 @@ class Contact extends Model
     }
 
     /* ============================================================
-     |  SERVICE EVENTS (you already had this)
+     |  SERVICE EVENTS
      * ============================================================ */
     public function serviceEvents()
     {
-        return $this->hasMany(ServiceEvent::class)->orderBy('event_date', 'desc');
+        return $this->hasMany(ServiceEvent::class)
+                    ->orderBy('event_date', 'desc');
     }
 
     /**
-     * Helpful age accessor.
+     * Calculated age based on date_of_birth
      */
     public function getAgeAttribute()
     {
