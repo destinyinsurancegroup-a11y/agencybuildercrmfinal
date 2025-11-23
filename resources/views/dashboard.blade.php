@@ -130,53 +130,14 @@
         box-shadow: 0 3px 5px rgba(0,0,0,0.25);
     }
 
-    /* PRODUCTION CARD */
-    .production-title {
-        text-align:center;
-        font-size:20px;
-        font-weight:700;
-        color:var(--text-main);
-        margin-bottom:14px;
+    .insight-name {
+        font-weight: 600;
+        color: var(--text-main);
     }
-
-    .production-tabs-wrapper {
-        display:flex;
-        justify-content:center;
-        margin-bottom:18px;
+    .insight-date {
+        font-size: 12px;
+        color: var(--text-faint);
     }
-
-    .production-tabs {
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        background:#f9fafb;
-        padding:4px;
-        border-radius:999px;
-        border:1px solid #e5e7eb;
-    }
-
-    .production-tab {
-        border:none;
-        background:transparent;
-        font-size:14px;
-        padding:6px 12px;
-        border-radius:999px;
-        cursor:pointer;
-        color:#6b7280;
-        font-weight:600;
-    }
-
-    .production-tab-active {
-        background:var(--gold);
-        color:#111827;
-        box-shadow:0 3px 6px rgba(0,0,0,0.25);
-    }
-
-    .production-label { font-size:18px; font-weight:500; color:#4b5563; }
-    .production-value { font-size:28px; font-weight:700; text-align:right; color:#111827; }
-
-    .production-range { display:none; }
-    .production-range-active { display:block; }
 
     .badge-new {
         padding:4px 8px;
@@ -216,83 +177,10 @@
         <div class="dashboard-card">
             <div class="production-title">Current Production</div>
 
-            <div class="production-tabs-wrapper">
-                <div class="production-tabs">
-                    <button class="production-tab production-tab-active" data-production-tab="day">Day</button>
-                    <button class="production-tab" data-production-tab="week">Week</button>
-                    <button class="production-tab" data-production-tab="month">Month</button>
-                    <button class="production-tab" data-production-tab="quarter">Quarter</button>
-                    <button class="production-tab" data-production-tab="year">Year</button>
-                </div>
-            </div>
-
-            <div class="dashboard-card-body production-stats">
-
-                <div class="production-range production-range-active" data-production-range="day">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                {{-- Other ranges --}}
-                <div class="production-range" data-production-range="week">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                <div class="production-range" data-production-range="month">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                <div class="production-range" data-production-range="quarter">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-                <div class="production-range" data-production-range="year">
-                    <table>
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value">--</td></tr>
-                    </table>
-                </div>
-
-            </div>
+            @include('dashboard.partials.production-tabs')
         </div>
 
-        {{-- OTHER CARDS --}}
+        {{-- UPCOMING APPOINTMENTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
@@ -310,7 +198,7 @@
                         @foreach($events as $event)
                             <li>
                                 <strong>{{ $event->title }}</strong><br>
-                                <span style="color: var(--text-faint); font-size: 13px;">
+                                <span class="insight-date">
                                     {{ \Carbon\Carbon::parse($event->start)->format('M j, g:i A') }}
                                 </span>
                             </li>
@@ -320,6 +208,7 @@
             </div>
         </div>
 
+        {{-- TODAY'S INSIGHTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
@@ -327,14 +216,54 @@
                     Today’s Insights
                 </div>
             </div>
+
             <div class="dashboard-card-body">
-                <ul class="dashboard-list">
-                    <li>Birthdays this week: --</li>
-                    <li>Anniversaries this week: --</li>
-                </ul>
+
+                {{-- BIRTHDAYS --}}
+                <h4 style="font-size:16px; font-weight:700; margin-bottom:6px;">🎉 Birthdays (Next 7 Days)</h4>
+                @if($upcomingBirthdays->isEmpty())
+                    <p class="insight-date">No upcoming birthdays.</p>
+                @else
+                    <ul class="dashboard-list">
+                        @foreach($upcomingBirthdays as $c)
+                            @php
+                                // compute correct birthday date
+                                $dob = $c->date_of_birth->copy()->year(now()->year);
+                                if ($dob->isPast()) $dob->addYear();
+                            @endphp
+                            <li>
+                                <span class="insight-name">{{ $c->full_name }}</span><br>
+                                <span class="insight-date">🎂 {{ $dob->format('M j') }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                <hr style="margin:12px 0;">
+
+                {{-- ANNIVERSARIES --}}
+                <h4 style="font-size:16px; font-weight:700; margin-bottom:6px;">💍 Anniversaries (Next 7 Days)</h4>
+                @if($upcomingAnniversaries->isEmpty())
+                    <p class="insight-date">No upcoming anniversaries.</p>
+                @else
+                    <ul class="dashboard-list">
+                        @foreach($upcomingAnniversaries as $c)
+                            @php
+                                $ann = $c->anniversary->copy()->year(now()->year);
+                                if ($ann->isPast()) $ann->addYear();
+                            @endphp
+                            <li>
+                                <span class="insight-name">{{ $c->full_name }}</span><br>
+                                <span class="insight-date">💍 {{ $ann->format('M j') }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
             </div>
         </div>
 
+        {{-- RECENTLY ADDED --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
@@ -357,106 +286,7 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-
-    const timeEl = document.querySelector(".local-time");
-    const greetEl = document.querySelector(".local-greeting");
-
-    const serverTime = timeEl.getAttribute("data-server-time");
-
-    // Convert server UTC → local timezone
-    const localDate = new Date(serverTime + " UTC");
-    timeEl.innerText = localDate.toLocaleString();
-
-    const hour = localDate.getHours();
-
-    let greeting = "Good ";
-    if (hour < 12) {
-        greeting += "morning";
-    } else if (hour < 17) {
-        greeting += "afternoon";
-    } else {
-        greeting += "evening";
-    }
-
-    greetEl.innerText = greeting + " — here’s your daily overview.";
-});
-</script>
-
-<!-- TAB LOGIC -->
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const tabs = document.querySelectorAll('.production-tab');
-    const ranges = document.querySelectorAll('.production-range');
-
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const range = tab.getAttribute('data-production-tab');
-
-            tabs.forEach(t => t.classList.remove('production-tab-active'));
-            tab.classList.add('production-tab-active');
-
-            ranges.forEach(r => {
-                r.classList.toggle('production-range-active',
-                    r.getAttribute('data-production-range') === range
-                );
-            });
-        });
-    });
-});
-</script>
-
-<!-- LIVE UPDATE PRODUCTION AFTER SUBMIT -->
-<script>
-window.refreshProductionCard = function() {
-    const active = document.querySelector(".production-tab-active").dataset.productionTab;
-
-    fetch(`/activity/totals/${active}`)
-        .then(r => r.json())
-        .then(data => {
-            const rows = document.querySelectorAll(
-                `.production-range[data-production-range="${active}"] .production-value`
-            );
-            if (rows.length === 7) {
-                rows[0].innerText = data.leads_worked;
-                rows[1].innerText = data.calls;
-                rows[2].innerText = data.stops;
-                rows[3].innerText = data.presentations;
-                rows[4].innerText = data.apps_written;
-                rows[5].innerText = data.premium_collected;
-                rows[6].innerText = data.ap;
-            }
-        });
-};
-</script>
-
-<!-- AUTO-REFRESH AFTER SAVE -->
-<script>
-document.addEventListener("activitySaved", function () {
-    refreshProductionCard();
-});
-</script>
-
-<!-- ✅ FIX 1 — AUTO CALCULATE AP -->
-<script>
-document.addEventListener("input", function (e) {
-    if (e.target.name === "premium_collected") {
-        let premium = parseFloat(e.target.value) || 0;
-        let apField = document.querySelector('input[name="ap"]');
-        if (apField) {
-            apField.value = (premium * 12).toFixed(2);
-        }
-    }
-});
-</script>
-
-<!-- ✅ FIX 2 — LOAD PRODUCTION ON PAGE LOAD -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    refreshProductionCard();
-});
-</script>
+@include('dashboard.partials.js-local-time')
+@include('dashboard.partials.js-production-tabs')
 
 @endsection
