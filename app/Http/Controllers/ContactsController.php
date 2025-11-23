@@ -61,7 +61,6 @@ class ContactsController extends Controller
 
     /**
      * Store a newly created contact.
-     * FIX APPLIED: returns to contacts.index with auto-selected ID
      */
     public function store(Request $request)
     {
@@ -79,6 +78,10 @@ class ContactsController extends Controller
             'state'          => 'nullable|string|max:50',
             'postal_code'    => 'nullable|string|max:20',
             'notes'          => 'nullable|string',
+
+            // ⭐ NEW FIELDS
+            'date_of_birth'  => 'nullable|date',
+            'anniversary'    => 'nullable|date',
         ]);
 
         $validated['tenant_id']  = 1;
@@ -86,7 +89,6 @@ class ContactsController extends Controller
 
         $contact = Contact::create($validated);
 
-        // ⭐ FIXED: return to All Contacts & auto-load newly created contact
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact created successfully.');
@@ -124,11 +126,14 @@ class ContactsController extends Controller
             'state'          => 'nullable|string|max:50',
             'postal_code'    => 'nullable|string|max:20',
             'notes'          => 'nullable|string',
+
+            // ⭐ NEW FIELDS (Fixes display issue!)
+            'date_of_birth'  => 'nullable|date',
+            'anniversary'    => 'nullable|date',
         ]);
 
         $contact->update($validated);
 
-        // ⭐ FIXED: redirect to All Contacts and auto-load edited contact
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact updated successfully.');
