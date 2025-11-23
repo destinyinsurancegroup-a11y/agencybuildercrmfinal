@@ -118,7 +118,7 @@ Route::prefix('service')->group(function () {
     Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
     Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
-    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel'];
+    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel'); // ✔ FIXED HERE
     Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
 });
 
@@ -168,6 +168,7 @@ Route::get('/calendar', fn() => view('calendar.index'));
 Route::get('/calendar/events', fn() => Event::all());
 
 Route::post('/calendar/events', function (Request $request) {
+
     $data = $request->validate([
         'title'    => 'required|string|max:255',
         'start'    => 'required|string',
@@ -187,6 +188,7 @@ Route::post('/calendar/events', function (Request $request) {
 });
 
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
+
     $data = $request->validate([
         'title'    => 'required|string|max:255',
         'start'    => 'required|string',
@@ -216,6 +218,7 @@ Route::delete('/calendar/events/{id}', function ($id) {
 |--------------------------------------------------------------------------
 */
 Route::get('/migrate', fn() => Artisan::call('migrate', ['--force' => true]) ? 'Migrations ran successfully!' : 'Error');
+
 Route::get('/clear-cache', fn() => tap('Laravel cache cleared!', function () {
     Artisan::call('route:clear');
     Artisan::call('config:clear');
