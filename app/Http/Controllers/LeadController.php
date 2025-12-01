@@ -57,30 +57,30 @@ class LeadController extends Controller
             return response()->json(['error' => 'Unauthorized tenant.'], 403);
         }
 
-        if ($contact->contact_type !== 'lead') {
+        // Make this check case-insensitive just in case
+        if (strtolower($contact->contact_type ?? '') !== 'lead') {
             return response()->json(['error' => 'This record is not a lead.'], 400);
         }
 
-        // 1️⃣ UPDATE CONTACT TYPE → CLIENT
-        $contact->contact_type = 'Client';
-        $contact->status = 'Sold';
+        // 1️⃣ UPDATE CONTACT TYPE → client (lowercase to match BookController filter)
+        $contact->contact_type = 'client';
+        $contact->status       = 'Sold';
 
-        // Clear any irrelevant lead fields if needed
-        // (Optional depending on design)
+        // Clear any irrelevant lead fields if needed (optional)
         // $contact->lead_received_date = null;
         // $contact->lead_assigned_date = null;
 
         $contact->save();
 
-        // 2️⃣ AUTO-CREATE "Book of Business" entry
-        // NOTE: BookController normally uses the same Contact model.
-        // Therefore: no duplication — just classification.
-        // If Book of Business later becomes a separate table, we expand this.
+        // 2️⃣ No separate Book row is needed, BookController uses Contact model.
+        //    It will now include this record because:
+        //    - contact_type = 'client'
+        //    - status       = 'Sold'
 
         return response()->json([
             'success' => true,
             'message' => 'Lead converted to client successfully.',
-            'redirect' => route('book.index')
+            'redirect' => route('book.index'),
         ]);
     }
 
@@ -95,7 +95,7 @@ class LeadController extends Controller
             return response()->json(['error' => 'Unauthorized tenant.'], 403);
         }
 
-        if ($contact->contact_type !== 'lead') {
+        if (strtolower($contact->contact_type ?? '') !== 'lead') {
             return response()->json(['error' => 'This record is not a lead.'], 400);
         }
 
@@ -104,7 +104,7 @@ class LeadController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Lead marked as Not Interested.'
+            'message' => 'Lead marked as Not Interested.',
         ]);
     }
 }
