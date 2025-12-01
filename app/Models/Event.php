@@ -18,15 +18,19 @@ class Event extends Model
         'location',
         'reminder',
         'color',
+        'contact_id', // ← NEW: associate event with a specific contact/lead
     ];
 
     protected $casts = [
-        'start' => 'datetime',
-        'end'   => 'datetime',
+        'start'    => 'datetime',
+        'end'      => 'datetime',
         'reminder' => 'integer',
+        'contact_id' => 'integer', // ← NEW: ensure proper casting
     ];
 
-    // Auto-assign tenant_id and created_by
+    /**
+     * Auto-assign tenant_id and created_by for new events.
+     */
     protected static function booted()
     {
         static::creating(function ($event) {
@@ -37,9 +41,19 @@ class Event extends Model
         });
     }
 
-    // Relationships (optional but correct)
+    /**
+     * User who created this event.
+     */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Contact / lead this event is associated with (for follow-ups).
+     */
+    public function contact()
+    {
+        return $this->belongsTo(Contact::class);
     }
 }
