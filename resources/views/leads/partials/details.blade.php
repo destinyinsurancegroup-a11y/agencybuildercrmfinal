@@ -198,39 +198,65 @@
     // ⭐ SOLD → Convert Lead to Client + Move to Book of Business
     function handleLeadSold() {
         const ctx = getLeadContext();
-        if (!ctx.id) return alert('Lead ID missing.');
+        if (!ctx.id) {
+            alert('Lead ID missing.');
+            return;
+        }
 
-        if (!confirm('Mark this lead as SOLD and move to your Book of Business?')) return;
+        if (!confirm('Mark this lead as SOLD and move to your Book of Business?')) {
+            return;
+        }
 
         fetch(`/leads/${ctx.id}/sold`, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': LEADS_CSRF_TOKEN,
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(r => r.json())
-        .then(res => {
-            if (res.redirect) {
-                window.location.href = res.redirect; // redirect to Book of Business
+        .then(async (response) => {
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                const message = data && (data.error || data.message)
+                    ? data.error || data.message
+                    : 'Error converting lead. Please try again.';
+                throw new Error(message);
+            }
+
+            if (!data || !data.success) {
+                throw new Error((data && (data.error || data.message)) || 'Unexpected server response.');
+            }
+
+            if (data.redirect) {
+                window.location.href = data.redirect;   // e.g. Book of Business
             } else {
                 window.location.href = "{{ route('book.index') }}";
             }
         })
-        .catch(() => alert('Error converting lead. Try again.'));
+        .catch(err => {
+            alert(err.message || 'Error converting lead. Try again.');
+        });
     }
 
     // ⭐ FOLLOW UP → Open modal with defaults
     function openFollowUpModal() {
         const ctx = getLeadContext();
-        if (!followUpModalInstance) return alert('Modal not available.');
+        if (!followUpModalInstance) {
+            alert('Modal not available.');
+            return;
+        }
 
-        document.getElementById('followUpContactId').value = ctx.id;
-        document.getElementById('followUpTitle').value = `Follow Up – ${ctx.name}`;
+        document.getElementById('followUpContactId').value = ctx.id || '';
+        document.getElementById('followUpTitle').value = ctx.name
+            ? `Follow Up – ${ctx.name}`
+            : 'Follow Up';
 
         const now = new Date();
         const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-            .toISOString().slice(0, 16);
+            .toISOString()
+            .slice(0, 16);
         document.getElementById('followUpStart').value = iso;
 
         document.getElementById('followUpLocation').value = '';
@@ -240,18 +266,22 @@
 
     // ⭐ FOLLOW UP → Save event to Calendar
     function saveFollowUpEvent() {
-        const title = document.getElementById('followUpTitle').value.trim();
-        const start = document.getElementById('followUpStart').value;
+        const title    = document.getElementById('followUpTitle').value.trim();
+        const start    = document.getElementById('followUpStart').value;
         const location = document.getElementById('followUpLocation').value.trim();
 
-        if (!title || !start) return alert('Title and date/time are required.');
+        if (!title || !start) {
+            alert('Title and date/time are required.');
+            return;
+        }
 
         fetch('/calendar/events', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': LEADS_CSRF_TOKEN
+                'X-CSRF-TOKEN': LEADS_CSRF_TOKEN,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({ title, start, location })
         })
@@ -263,7 +293,7 @@
         .catch(() => alert('Could not save follow-up.'));
     }
 
-    // ⭐ NOT INTERESTED → Later will update backend
+    // ⭐ NOT INTERESTED → placeholder for future backend wiring
     function handleLeadNotInterested() {
         const ctx = getLeadContext();
         alert('Not Interested action coming soon. (Lead ID: ' + ctx.id + ')');
