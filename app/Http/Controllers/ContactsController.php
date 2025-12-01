@@ -9,18 +9,30 @@ class ContactsController extends Controller
 {
     /**
      * Display the contacts index page (master-detail layout).
+     * NOTE: Leads (contact_type = 'lead') are EXCLUDED.
      */
     public function index(Request $request)
     {
-        $tenantId = 1;
+        $tenantId = 1; // TODO: replace with auth()->user()->tenant_id when multi-tenant is wired
 
         $contacts = Contact::where('tenant_id', $tenantId)
-            ->orderBy('last_name')
-            ->when($request->search, function ($q) use ($request) {
-                $q->where('full_name', 'like', '%' . $request->search . '%')
-                    ->orWhere('email', 'like', '%' . $request->search . '%')
-                    ->orWhere('phone', 'like', '%' . $request->search . '%');
+            // 👇 do NOT treat leads as contacts
+            ->where(function ($q) {
+                $q->whereNull('contact_type')
+                  ->orWhere('contact_type', '!=', 'lead');
             })
+            ->when($request->search, function ($query) use ($request) {
+                $search = $request->search;
+
+                // group the OR conditions so they don't break tenant/contact filters
+                $query->where(function ($q) use ($search) {
+                    $q->where('full_name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name')
             ->get();
 
         return view('contacts.index', [
@@ -61,6 +73,7 @@ class ContactsController extends Controller
 
     /**
      * Store a newly created contact.
+     * Returns to contacts.index with auto-selected ID.
      */
     public function store(Request $request)
     {
@@ -77,11 +90,9 @@ class ContactsController extends Controller
             'city'           => 'nullable|string|max:100',
             'state'          => 'nullable|string|max:50',
             'postal_code'    => 'nullable|string|max:20',
-            'notes'          => 'nullable|string',
-
-            // ⭐ NEW FIELDS
             'date_of_birth'  => 'nullable|date',
             'anniversary'    => 'nullable|date',
+            'notes'          => 'nullable|string',
         ]);
 
         $validated['tenant_id']  = 1;
@@ -125,11 +136,9 @@ class ContactsController extends Controller
             'city'           => 'nullable|string|max:100',
             'state'          => 'nullable|string|max:50',
             'postal_code'    => 'nullable|string|max:20',
-            'notes'          => 'nullable|string',
-
-            // ⭐ NEW FIELDS (Fixes display issue!)
             'date_of_birth'  => 'nullable|date',
             'anniversary'    => 'nullable|date',
+            'notes'          => 'nullable|string',
         ]);
 
         $contact->update($validated);
