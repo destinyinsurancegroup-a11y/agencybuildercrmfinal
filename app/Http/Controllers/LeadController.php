@@ -48,63 +48,91 @@ class LeadController extends Controller
 
     /**
      * ⭐ CONVERT LEAD → CLIENT + MOVE TO BOOK OF BUSINESS ⭐
+     *
+     * 1. Removes from Leads tab (no longer contact_type = 'lead')
+     * 2. Appears in All Contacts (ContactsController excludes only 'lead')
+     * 3. Appears in Book of Business (BookController includes 'client' / 'Sold')
      */
-    public function markSold(Contact $contact)
+    public function markSold(Request $request, Contact $contact)
     {
         $tenantId = auth()->user()->tenant_id ?? 1;
 
+        // Tenant safety
         if ($contact->tenant_id !== $tenantId) {
-            return response()->json(['error' => 'Unauthorized tenant.'], 403);
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Unauthorized tenant.'], 403);
+            }
+            abort(403, 'Unauthorized tenant.');
         }
 
-        // Make this check case-insensitive just in case
+        // Make sure this is actually a lead (case-insensitive)
         if (strtolower($contact->contact_type ?? '') !== 'lead') {
-            return response()->json(['error' => 'This record is not a lead.'], 400);
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'This record is not a lead.'], 400);
+            }
+            return redirect()
+                ->route('leads.index')
+                ->with('error', 'This record is not a lead.');
         }
 
-        // 1️⃣ UPDATE CONTACT TYPE → client (lowercase to match BookController filter)
+        // 1️⃣ UPDATE CONTACT TYPE → client (lowercase)
         $contact->contact_type = 'client';
         $contact->status       = 'Sold';
-
-        // Clear any irrelevant lead fields if needed (optional)
-        // $contact->lead_received_date = null;
-        // $contact->lead_assigned_date = null;
+        // Optional: archive metadata could go here (sold_at, archived_at, etc.)
 
         $contact->save();
 
-        // 2️⃣ No separate Book row is needed, BookController uses Contact model.
-        //    It will now include this record because:
-        //    - contact_type = 'client'
-        //    - status       = 'Sold'
+        // If the request is AJAX / fetch → return JSON
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success'     => true,
+                'message'     => 'Lead converted to client successfully.',
+                'contact_id'  => $contact->id,
+                'redirect'    => route('book.index'),
+            ]);
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lead converted to client successfully.',
-            'redirect' => route('book.index'),
-        ]);
+        // Fallback: standard form POST → redirect
+        return redirect()
+            ->route('book.index')
+            ->with('success', 'Lead converted to client successfully.');
     }
 
     /**
      * UPDATE LEAD → NOT INTERESTED (future filtering)
      */
-    public function markNotInterested(Contact $contact)
+    public function markNotInterested(Request $request, Contact $contact)
     {
         $tenantId = auth()->user()->tenant_id ?? 1;
 
         if ($contact->tenant_id !== $tenantId) {
-            return response()->json(['error' => 'Unauthorized tenant.'], 403);
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Unauthorized tenant.'], 403);
+            }
+            abort(403, 'Unauthorized tenant.');
         }
 
         if (strtolower($contact->contact_type ?? '') !== 'lead') {
-            return response()->json(['error' => 'This record is not a lead.'], 400);
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'This record is not a lead.'], 400);
+            }
+            return redirect()
+                ->route('leads.index')
+                ->with('error', 'This record is not a lead.');
         }
 
         $contact->status = 'Not Interested';
         $contact->save();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lead marked as Not Interested.',
-        ]);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Lead marked as Not Interested.',
+            ]);
+        }
+
+        return redirect()
+            ->route('leads.index')
+            ->with('success', 'Lead marked as Not Interested.');
     }
 }
