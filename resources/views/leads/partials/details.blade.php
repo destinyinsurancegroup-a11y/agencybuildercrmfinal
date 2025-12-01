@@ -7,18 +7,23 @@
             {{ $contact->first_name }} {{ $contact->last_name }}
         </h1>
 
-        <!-- Hidden helpers for JS -->
+        <!-- Hidden helpers for JS (for follow-up / future actions) -->
         <input type="hidden" id="leadContactId" value="{{ $contact->id }}">
         <input type="hidden" id="leadContactName" value="{{ $contact->full_name }}">
 
         <!-- DISPOSITION BUTTONS UNDER NAME -->
         <div class="d-flex gap-2 mb-4">
-            {{-- SOLD: convert lead -> client/contact --}}
-            <button type="button"
-                    class="btn btn-success btn-sm px-3"
-                    onclick="handleLeadSold()">
-                Sold
-            </button>
+
+            {{-- SOLD: convert lead -> client/contact via regular POST --}}
+            <form method="POST"
+                  action="{{ route('leads.sold', $contact) }}"
+                  onsubmit="return confirm('Mark this lead as SOLD and move to your Book of Business?');">
+                @csrf
+                <button type="submit"
+                        class="btn btn-success btn-sm px-3">
+                    Sold
+                </button>
+            </form>
 
             {{-- FOLLOW UP: open calendar modal --}}
             <button type="button"
@@ -27,7 +32,7 @@
                 Follow Up
             </button>
 
-            {{-- NOT INTERESTED --}}
+            {{-- NOT INTERESTED (placeholder) --}}
             <button type="button"
                     class="btn btn-danger btn-sm px-3"
                     onclick="handleLeadNotInterested()">
@@ -193,51 +198,6 @@
             id: document.getElementById('leadContactId')?.value,
             name: document.getElementById('leadContactName')?.value
         };
-    }
-
-    // ⭐ SOLD → Convert Lead to Client + Move to Book of Business
-    function handleLeadSold() {
-        const ctx = getLeadContext();
-        if (!ctx.id) {
-            alert('Lead ID missing.');
-            return;
-        }
-
-        if (!confirm('Mark this lead as SOLD and move to your Book of Business?')) {
-            return;
-        }
-
-        fetch(`/leads/${ctx.id}/sold`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': LEADS_CSRF_TOKEN,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(async (response) => {
-            const data = await response.json().catch(() => null);
-
-            if (!response.ok) {
-                const message = data && (data.error || data.message)
-                    ? data.error || data.message
-                    : 'Error converting lead. Please try again.';
-                throw new Error(message);
-            }
-
-            if (!data || !data.success) {
-                throw new Error((data && (data.error || data.message)) || 'Unexpected server response.');
-            }
-
-            if (data.redirect) {
-                window.location.href = data.redirect;   // e.g. Book of Business
-            } else {
-                window.location.href = "{{ route('book.index') }}";
-            }
-        })
-        .catch(err => {
-            alert(err.message || 'Error converting lead. Try again.');
-        });
     }
 
     // ⭐ FOLLOW UP → Open modal with defaults
