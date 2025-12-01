@@ -101,7 +101,7 @@ Route::prefix('book')->group(function () {
     Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
 
     Route::post('/{client}/notes',        [BookController::class, 'storeNote'])->name('book.notes.store');
-    Route::put('/{client}/notes/{note}',  [BookController::class, 'updateNote'])->name('book.notes.update');
+    Route::put('/{client}/notes/{note}',  [BookController::class, 'updateNote'])->name('book.notes.update']);
 
     Route::post('/import', [BookController::class, 'import'])->name('book.import');
 });
@@ -127,8 +127,8 @@ Route::prefix('service')->group(function () {
 | SERVICE NOTES
 |--------------------------------------------------------------------------
 */
-Route::post('/service/{client}/notes',      [BookController::class, 'storeNote'])->name('service.notes.store');
-Route::put('/service/{client}/notes/{note}',[BookController::class, 'updateNote'])->name('service.notes.update');
+Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])->name('service.notes.store');
+Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])->name('service.notes.update');
 
 /*
 |--------------------------------------------------------------------------
@@ -165,14 +165,20 @@ Route::get('/calendar', fn() => view('calendar.index'));
 | CALENDAR API
 |--------------------------------------------------------------------------
 */
-Route::get('/calendar/events', fn() => Event::all());
+Route::get('/calendar/events', function (Request $request) {
+    // Multi-tenant filter (fallback to 1 if not logged in, to avoid crashes)
+    $tenantId = auth()->user()->tenant_id ?? 1;
+
+    return Event::where('tenant_id', $tenantId)->get();
+});
 
 Route::post('/calendar/events', function (Request $request) {
 
     $data = $request->validate([
-        'title'    => 'required|string|max:255',
-        'start'    => 'required|string',
-        'location' => 'nullable|string|max:255',
+        'title'      => 'required|string|max:255',
+        'start'      => 'required|string',
+        'location'   => 'nullable|string|max:255',
+        'contact_id' => 'nullable|integer|exists:contacts,id', // NEW
     ]);
 
     $event = Event::create([
@@ -180,8 +186,8 @@ Route::post('/calendar/events', function (Request $request) {
         'start'      => $data['start'],
         'end'        => $data['start'],
         'location'   => $data['location'] ?? null,
-        'tenant_id'  => 1,
-        'created_by' => 1,
+        'contact_id' => $data['contact_id'] ?? null,           // NEW
+        // tenant_id and created_by are auto-set in Event::booted()
     ]);
 
     return response()->json($event, 201);
@@ -190,26 +196,28 @@ Route::post('/calendar/events', function (Request $request) {
 Route::put('/calendar/events/{id}', function (Request $request, $id) {
 
     $data = $request->validate([
-        'title'    => 'required|string|max:255',
-        'start'    => 'required|string',
-        'location' => 'nullable|string|max:255',
+        'title'      => 'required|string|max:255',
+        'start'      => 'required|string',
+        'location'   => 'nullable|string|max:255',
+        'contact_id' => 'nullable|integer|exists:contacts,id', // NEW
     ]);
 
     $event = Event::findOrFail($id);
 
     $event->update([
-        'title'    => $data['title'],
-        'start'    => $data['start'],
-        'end'      => $data['start'],
-        'location' => $data['location'] ?? null,
+        'title'      => $data['title'],
+        'start'      => $data['start'],
+        'end'        => $data['start'],
+        'location'   => $data['location'] ?? null,
+        'contact_id' => $data['contact_id'] ?? $event->contact_id, // preserve if omitted
     ]);
 
-    return response()->json(['success'=>true,'event'=>$event]);
+    return response()->json(['success' => true, 'event' => $event]);
 });
 
 Route::delete('/calendar/events/{id}', function ($id) {
     Event::findOrFail($id)->delete();
-    return response()->json(['success'=>true]);
+    return response()->json(['success' => true]);
 });
 
 /*
