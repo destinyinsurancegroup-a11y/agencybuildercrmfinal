@@ -16,7 +16,16 @@ class BookController extends Controller
     */
     public function index(Request $request)
     {
-        $query = Contact::where('contact_type', 'book');
+        // ✅ Include:
+        //    - traditional book contacts (contact_type = 'book')
+        //    - clients (contact_type = 'client')
+        //    - any record explicitly marked as Sold
+        $query = Contact::query()
+            ->where(function ($q) {
+                $q->where('contact_type', 'book')
+                  ->orWhere('contact_type', 'client')
+                  ->orWhere('status', 'Sold');
+            });
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -80,6 +89,7 @@ class BookController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
+        // New records created from Book are tagged as "book"
         $validated['contact_type'] = 'book';
         $validated['tenant_id']    = 1;
         $validated['created_by']   = 1;
@@ -155,13 +165,14 @@ class BookController extends Controller
             'premium_due_text'  => 'nullable|string|max:255',
         ]);
 
-        // 2. Partial update
+        // 2. Partial update – only overwrite non-empty values
         foreach ($validated as $key => $value) {
             if ($value !== null && $value !== '') {
                 $client->{$key} = $value;
             }
         }
 
+        // Ensure it's treated as a Book record after editing here
         $client->contact_type = 'book';
         $client->save();
 
