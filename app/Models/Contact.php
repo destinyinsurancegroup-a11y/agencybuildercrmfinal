@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Note;
 use App\Models\ContactRelation;   // Destiny unified relations
 use App\Models\ServiceEvent;
+use App\Models\Event;             // ← NEW: calendar events / follow-ups
 use Carbon\Carbon;
 
 class Contact extends Model
@@ -136,6 +137,14 @@ class Contact extends Model
     {
         return $this->hasMany(ServiceEvent::class)
                     ->orderBy('event_date', 'desc');
+    }
+
+    /**
+     * Calendar events / follow-ups associated with this contact.
+     */
+    public function events()
+    {
+        return $this->hasMany(Event::class);
     }
 
     /**
