@@ -34,7 +34,7 @@
 </style>
 
 @php
-    // Consider this client "already in active service" if:
+    // Consider this client "in active service" if:
     // - they are a service contact AND
     // - their service has not been archived yet
     $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
@@ -51,9 +51,12 @@
                 </h1>
 
                 @if($inActiveService)
-                    <span class="badge bg-danger mt-1">
-                        In Active Service
-                    </span>
+                    {{-- Clickable badge: goes to Service tab with this client selected --}}
+                    <a href="{{ route('service.index', ['selected' => $client->id]) }}"
+                       class="badge bg-danger mt-1 text-decoration-none"
+                       style="cursor:pointer;">
+                        Service Needs Service
+                    </a>
                 @endif
             </div>
 
@@ -65,20 +68,6 @@
                 >
                     Edit
                 </button>
-
-                @unless($inActiveService)
-                    {{-- ⭐ NEW: Service this Client --}}
-                    <form action="{{ route('book.send-to-service', $client->id) }}"
-                          method="POST"
-                          class="d-inline">
-                        @csrf
-                        <button type="submit"
-                                class="btn-gold"
-                                onclick="return confirm('Send this client to Service and mark as urgent in Book of Business?');">
-                            Service this Client
-                        </button>
-                    </form>
-                @endunless
             </div>
         </div>
 
