@@ -112,6 +112,10 @@ Route::prefix('book')->group(function () {
         ->name('book.notes.update');
 
     Route::post('/import', [BookController::class, 'import'])->name('book.import');
+
+    // ⭐ NEW: Send existing Book client into Service using the same contact record
+    Route::post('/{client}/send-to-service', [BookController::class, 'sendToService'])
+        ->name('book.send-to-service');
 });
 
 /*
