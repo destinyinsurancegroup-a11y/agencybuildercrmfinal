@@ -102,6 +102,12 @@
         height: 100%;
         background: transparent !important;
     }
+
+    /* NEW: urgent service contact styling */
+    .urgent-contact {
+        color: #b91c1c; /* red */
+        font-weight: 700;
+    }
 </style>
 
 <div class="dashboard-page">
@@ -146,12 +152,24 @@
                 <!-- Client List -->
                 <div id="book-list">
                     @forelse ($clients as $client)
+                        @php
+                            // Urgent if this is a service contact with an open service (not archived yet)
+                            $isServiceUrgent = $client->contact_type === 'service' && is_null($client->service_archived_at);
+                            $name = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+                        @endphp
+
                         <div 
-                            class="contact-list-item js-book-row {{ (isset($selected) && $selected == $client->id) ? 'active-contact-row' : '' }}"
+                            class="contact-list-item js-book-row
+                                   {{ (isset($selected) && $selected == $client->id) ? 'active-contact-row' : '' }}
+                                   {{ $isServiceUrgent ? 'urgent-contact' : '' }}"
                             data-id="{{ $client->id }}"
                             data-show-url="{{ route('book.show', $client->id) }}"
                         >
-                            {{ $client->full_name }}
+                            {{ $name }}
+
+                            @if($isServiceUrgent)
+                                <span class="badge bg-danger ms-1">Service</span>
+                            @endif
 
                             @if($client->policy_type)
                                 <br><small class="text-muted">{{ $client->policy_type }}</small>
