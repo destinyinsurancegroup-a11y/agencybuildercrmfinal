@@ -100,8 +100,11 @@ Route::prefix('book')->group(function () {
     Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])->name('book.edit.panel');
     Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
 
-    Route::post('/{client}/notes',        [BookController::class, 'storeNote'])->name('book.notes.store');
-    Route::put('/{client}/notes/{note}',  [BookController::class, 'updateNote'])->name('book.notes.update']);
+    Route::post('/{client}/notes', [BookController::class, 'storeNote'])
+        ->name('book.notes.store');
+
+    Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
+        ->name('book.notes.update');
 
     Route::post('/import', [BookController::class, 'import'])->name('book.import');
 });
@@ -127,8 +130,11 @@ Route::prefix('service')->group(function () {
 | SERVICE NOTES
 |--------------------------------------------------------------------------
 */
-Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])->name('service.notes.store');
-Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])->name('service.notes.update');
+Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])
+    ->name('service.notes.store');
+
+Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
+    ->name('service.notes.update');
 
 /*
 |--------------------------------------------------------------------------
