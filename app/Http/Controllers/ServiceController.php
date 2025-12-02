@@ -34,6 +34,9 @@ class ServiceController extends Controller
     /**
      * Ensure the contact is marked as in Book of Business.
      * Called when a serviced policy is Saved / Back on Books.
+     *
+     * NOTE: requires an `in_book_of_business` boolean column on contacts
+     * which we'll add via migration in a later step.
      */
     protected function ensureInBookOfBusinessForContact(Contact $client): void
     {
@@ -98,7 +101,13 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | STORE – NEW SERVICE CLIENT
+    | STORE – NEW / EXISTING SERVICE CLIENT
+    |--------------------------------------------------------------------------
+    |
+    | NEW BEHAVIOR:
+    | - If this person already exists in this tenant (by email/phone/name+dob),
+    |   reuse that Contact row, update details, and convert it to a service case.
+    | - If not found, create a brand-new Contact as service + in_book_of_business.
     |--------------------------------------------------------------------------
     */
     public function store(Request $request)
@@ -129,22 +138,57 @@ class ServiceController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        $user = auth()->user();
+        $user      = auth()->user();
+        $tenantId  = $user->tenant_id ?? 1;
+        $createdBy = $user->id ?? 1;
 
-        $validated['contact_type'] = 'service';
-        $validated['tenant_id']    = $user->tenant_id ?? 1;
-        $validated['created_by']   = $user->id ?? 1;
+        // Try to find an existing contact in this tenant that matches this person.
+        // Priority: email / phone, then name (+ DOB if provided).
+        $existing = Contact::query()
+            ->where('tenant_id', $tenantId)
+            ->where(function ($q) use ($validated) {
+                if (!empty($validated['email'])) {
+                    $q->orWhere('email', $validated['email']);
+                }
+                if (!empty($validated['phone'])) {
+                    $q->orWhere('phone', $validated['phone']);
+                }
 
-        // Initialize service flags; mass assignment may ignore some fields,
-        // so we will also set critical ones directly after create.
-        $validated['service_status']      = null;
-        $validated['service_archived_at'] = null;
+                $q->orWhere(function ($q2) use ($validated) {
+                    $q2->where('first_name', $validated['first_name'])
+                       ->where('last_name', $validated['last_name']);
 
-        $client = Contact::create($validated);
+                    if (!empty($validated['date_of_birth'])) {
+                        $q2->where('date_of_birth', $validated['date_of_birth']);
+                    }
+                });
+            })
+            ->first();
 
-        // EXPLICIT: any active service case should be in Book of Business
-        $client->in_book_of_business = true;
-        $client->save();
+        if ($existing) {
+            // Reuse this contact and convert it into a service case
+            foreach ($validated as $key => $value) {
+                if ($value !== null && $value !== '') {
+                    $existing->{$key} = $value;
+                }
+            }
+
+            $existing->contact_type        = 'service';
+            $existing->service_status      = null;  // open service
+            $existing->service_archived_at = null;  // not resolved yet
+            $existing->in_book_of_business = true;  // must show in BoB (red/urgent)
+            $existing->save();
+
+            $client = $existing;
+        } else {
+            // No existing record – create a brand new service contact
+            $validated['contact_type']        = 'service';
+            $validated['tenant_id']           = $tenantId;
+            $validated['created_by']          = $createdBy;
+            $validated['in_book_of_business'] = true; // also in Book of Business
+
+            $client = Contact::create($validated);
+        }
 
         return redirect()->route('service.index', ['selected' => $client->id]);
     }
@@ -319,12 +363,6 @@ class ServiceController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Mark service as Saved for this contact.
-     * - service_status = 'Saved'
-     * - service_archived_at = now
-     * - contact remains in Book of Business
-     */
     public function markSaved(Contact $client)
     {
         $this->assertTenant($client);
@@ -340,12 +378,6 @@ class ServiceController extends Controller
         return back()->with('status', 'Service marked Saved and archived. Client remains in Book of Business.');
     }
 
-    /**
-     * Mark service as Back on Books for this contact.
-     * - service_status = 'Back on Books'
-     * - service_archived_at = now
-     * - contact is ensured to be in Book of Business
-     */
     public function markBackOnBooks(Contact $client)
     {
         $this->assertTenant($client);
@@ -361,12 +393,6 @@ class ServiceController extends Controller
         return back()->with('status', 'Service marked Back on Books and archived. Client is in Book of Business.');
     }
 
-    /**
-     * Mark service as Not Interested (business not saved).
-     * - service_status = 'Not Interested'
-     * - service_archived_at = now
-     * - possibly remove from Book of Business
-     */
     public function markNotInterested(Contact $client)
     {
         $this->assertTenant($client);
@@ -382,12 +408,6 @@ class ServiceController extends Controller
         return back()->with('status', 'Service marked Not Interested and archived.');
     }
 
-    /**
-     * Mark service as Cancelled (business not saved).
-     * - service_status = 'Cancelled'
-     * - service_archived_at = now
-     * - possibly remove from Book of Business
-     */
     public function markCancelled(Contact $client)
     {
         $this->assertTenant($client);
@@ -403,10 +423,6 @@ class ServiceController extends Controller
         return back()->with('status', 'Service marked Cancelled and archived.');
     }
 
-    /**
-     * Generic "Archive" from Service tab without changing status.
-     * Sets service_archived_at if it is not already set.
-     */
     public function archiveSingle(Contact $client)
     {
         $this->assertTenant($client);
@@ -423,15 +439,7 @@ class ServiceController extends Controller
     |--------------------------------------------------------------------------
     | SERVICE ARCHIVE VIEWS
     |--------------------------------------------------------------------------
-    |
-    | Route: GET /service/archive            (service.archive)
-    |        GET /service/archive/not-saved (service.archive.not-saved)
-    |--------------------------------------------------------------------------
     */
-
-    /**
-     * Service Archive - All archived service outcomes for this tenant.
-     */
     public function archive(Request $request)
     {
         $user = auth()->user();
@@ -451,9 +459,6 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Service Archive - Business that could not be saved (Not Interested / Cancelled).
-     */
     public function notSavedArchive(Request $request)
     {
         $user = auth()->user();
