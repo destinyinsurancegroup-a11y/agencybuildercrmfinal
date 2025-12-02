@@ -79,12 +79,17 @@ Route::get('/contacts/{contact}/notes/list', [NoteController::class, 'list'])
 |--------------------------------------------------------------------------
 */
 Route::get('/leads',        [LeadController::class, 'index'])->name('leads.index');
+Route::get('/leads/archived',[LeadController::class, 'archived'])->name('leads.archived'); // ⭐ NEW: Archived leads
 Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
 Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show');
 
 /* ⭐ NEW ROUTE — CONVERT LEAD TO CLIENT ⭐ */
 Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
     ->name('leads.sold');
+
+/* ⭐ NEW ROUTE — ARCHIVE LEAD AS NOT INTERESTED ⭐ */
+Route::post('/leads/{contact}/archive', [LeadController::class, 'archive'])
+    ->name('leads.archive');
 
 /*
 |--------------------------------------------------------------------------
