@@ -29,10 +29,12 @@
         font-size: 12px;
         cursor: pointer;
         white-space: nowrap;
+        text-decoration: none;
     }
 
     .btn-gold:hover {
         background: #b5901f;
+        color: #111827;
     }
 
     .btn-outline-gold {
@@ -44,6 +46,7 @@
         background: #fff;
         color: #111827;
         cursor: pointer;
+        text-decoration: none;
     }
 
     .btn-outline-gold.active {
@@ -135,7 +138,11 @@
                                     </td>
 
                                     <td>
-                                        {{ optional($client->service_archived_at)->format('m/d/Y h:i A') ?: '—' }}
+                                        @if($client->service_archived_at)
+                                            {{ \Carbon\Carbon::parse($client->service_archived_at)->format('m/d/Y h:i A') }}
+                                        @else
+                                            —
+                                        @endif
                                     </td>
 
                                     <td>
