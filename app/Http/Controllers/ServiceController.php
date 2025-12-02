@@ -135,14 +135,16 @@ class ServiceController extends Controller
         $validated['tenant_id']    = $user->tenant_id ?? 1;
         $validated['created_by']   = $user->id ?? 1;
 
-        // NEW: any active service case should also be in Book of Business
-        $validated['in_book_of_business'] = true;
-
-        // NEW: service is "open" when created (no outcome yet)
+        // Initialize service flags; mass assignment may ignore some fields,
+        // so we will also set critical ones directly after create.
         $validated['service_status']      = null;
         $validated['service_archived_at'] = null;
 
         $client = Contact::create($validated);
+
+        // EXPLICIT: any active service case should be in Book of Business
+        $client->in_book_of_business = true;
+        $client->save();
 
         return redirect()->route('service.index', ['selected' => $client->id]);
     }
