@@ -23,26 +23,111 @@
                     {{ $client->first_name }} {{ $client->last_name }}
                 </h1>
 
-                <!-- STATUS BUTTONS -->
-                <div class="d-flex gap-2">
+                {{-- CURRENT SERVICE STATUS BADGE (if any) --}}
+                @if($client->service_status || $client->service_archived_at)
+                    <div class="mb-2">
+                        @php
+                            $status = $client->service_status;
+                        @endphp
 
-                    <!-- BACK ON BOOKS (Green) -->
-                    <button class="btn btn-sm"
-                            style="background:#28a745; color:white; font-weight:600; border-radius:6px;">
-                        Back on Books
-                    </button>
+                        @if(in_array($status, ['Saved', 'Back on Books']))
+                            <span class="badge bg-success">
+                                {{ $status ?? 'Saved' }}
+                            </span>
+                        @elseif(in_array($status, ['Not Interested', 'Cancelled']))
+                            <span class="badge bg-danger">
+                                {{ $status }}
+                            </span>
+                        @elseif($client->service_archived_at)
+                            <span class="badge bg-secondary">
+                                Archived
+                            </span>
+                        @endif
 
-                    <!-- FOLLOW UP (Yellow) -->
-                    <button class="btn btn-sm"
-                            style="background:#f0ad4e; color:black; font-weight:600; border-radius:6px;">
+                        @if($client->service_archived_at)
+                            <span class="text-muted small ms-2">
+                                Archived on {{ $client->service_archived_at->format('m/d/Y') }}
+                            </span>
+                        @endif
+                    </div>
+                @endif
+
+                <!-- ACTION BUTTONS -->
+                <div class="d-flex flex-wrap gap-2">
+
+                    {{-- FOLLOW UP (always available) --}}
+                    <a href="{{ route('service.follow-up', $client->id) }}"
+                       class="btn btn-sm"
+                       style="background:#f0ad4e; color:black; font-weight:600; border-radius:6px;">
                         Follow Up
-                    </button>
+                    </a>
 
-                    <!-- NOT INTERESTED (Red) -->
-                    <button class="btn btn-sm"
-                            style="background:#dc3545; color:white; font-weight:600; border-radius:6px;">
-                        Not Interested
-                    </button>
+                    @if(is_null($client->service_archived_at))
+                        <!-- BACK ON BOOKS (Green) -->
+                        <form action="{{ route('service.back-on-books', $client->id) }}"
+                              method="POST"
+                              class="d-inline">
+                            @csrf
+                            <button type="submit"
+                                    class="btn btn-sm"
+                                    style="background:#28a745; color:white; font-weight:600; border-radius:6px;"
+                                    onclick="return confirm('Mark this service as Back on Books and archive it?');">
+                                Back on Books
+                            </button>
+                        </form>
+
+                        <!-- SAVED (also Green) -->
+                        <form action="{{ route('service.saved', $client->id) }}"
+                              method="POST"
+                              class="d-inline">
+                            @csrf
+                            <button type="submit"
+                                    class="btn btn-sm"
+                                    style="background:#198754; color:white; font-weight:600; border-radius:6px;"
+                                    onclick="return confirm('Mark this service as Saved and archive it?');">
+                                Saved
+                            </button>
+                        </form>
+
+                        <!-- NOT INTERESTED (Red) -->
+                        <form action="{{ route('service.not-interested', $client->id) }}"
+                              method="POST"
+                              class="d-inline">
+                            @csrf
+                            <button type="submit"
+                                    class="btn btn-sm"
+                                    style="background:#dc3545; color:white; font-weight:600; border-radius:6px;"
+                                    onclick="return confirm('Mark this service as Not Interested and archive it?');">
+                                Not Interested
+                            </button>
+                        </form>
+
+                        <!-- CANCELLED (Orange) -->
+                        <form action="{{ route('service.cancelled', $client->id) }}"
+                              method="POST"
+                              class="d-inline">
+                            @csrf
+                            <button type="submit"
+                                    class="btn btn-sm"
+                                    style="background:#fd7e14; color:white; font-weight:600; border-radius:6px;"
+                                    onclick="return confirm('Mark this service as Cancelled and archive it?');">
+                                Cancelled
+                            </button>
+                        </form>
+
+                        <!-- ARCHIVE (no status change) -->
+                        <form action="{{ route('service.archive-single', $client->id) }}"
+                              method="POST"
+                              class="d-inline">
+                            @csrf
+                            <button type="submit"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    style="border-radius:6px;"
+                                    onclick="return confirm('Archive this service record without changing status?');">
+                                Archive
+                            </button>
+                        </form>
+                    @endif
 
                 </div>
             </div>
