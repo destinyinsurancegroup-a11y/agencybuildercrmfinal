@@ -33,22 +33,53 @@
     }
 </style>
 
+@php
+    // Consider this client "already in active service" if:
+    // - they are a service contact AND
+    // - their service has not been archived yet
+    $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
+@endphp
+
 <div class="p-4">
     <div class="card shadow-sm border-0 p-4">
 
         <!-- HEADER -->
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1 class="fw-bold" style="font-size: 32px;">
-                {{ $client->first_name }} {{ $client->last_name }}
-            </h1>
+            <div>
+                <h1 class="fw-bold" style="font-size: 32px;">
+                    {{ $client->first_name }} {{ $client->last_name }}
+                </h1>
 
-            <button 
-                class="btn-gold"
-                data-edit-url="{{ route('book.edit.panel', $client->id) }}"
-                onclick="loadBookPanel(this.dataset.editUrl)"
-            >
-                Edit
-            </button>
+                @if($inActiveService)
+                    <span class="badge bg-danger mt-1">
+                        In Active Service
+                    </span>
+                @endif
+            </div>
+
+            <div class="d-flex gap-2">
+                <button 
+                    class="btn-gold"
+                    data-edit-url="{{ route('book.edit.panel', $client->id) }}"
+                    onclick="loadBookPanel(this.dataset.editUrl)"
+                >
+                    Edit
+                </button>
+
+                @unless($inActiveService)
+                    {{-- ⭐ NEW: Service this Client --}}
+                    <form action="{{ route('book.send-to-service', $client->id) }}"
+                          method="POST"
+                          class="d-inline">
+                        @csrf
+                        <button type="submit"
+                                class="btn-gold"
+                                onclick="return confirm('Send this client to Service and mark as urgent in Book of Business?');">
+                            Service this Client
+                        </button>
+                    </form>
+                @endunless
+            </div>
         </div>
 
         <hr>
