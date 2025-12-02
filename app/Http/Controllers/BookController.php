@@ -116,7 +116,7 @@ class BookController extends Controller
 
         $client = Contact::create($validated);
 
-        // Explicitly mark as in Book of Business (bypasses $fillable issues)
+        // Explicitly mark as in Book of Business
         $client->in_book_of_business = true;
         $client->save();
 
@@ -299,6 +299,41 @@ class BookController extends Controller
         ]);
 
         return response()->json(['success' => true]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | SEND TO SERVICE – REUSE SAME CONTACT FOR SERVICE WORK
+    |--------------------------------------------------------------------------
+    |
+    | This turns an existing Book client into an active Service case:
+    |  - contact_type        = 'service'
+    |  - in_book_of_business = true   (still in the book)
+    |  - service_status      = null   (open)
+    |  - service_archived_at = null   (not resolved yet)
+    |
+    | Result:
+    |  - Appears in Service tab (contact_type = 'service')
+    |  - Floats to top of Book of Business & highlighted red (urgent)
+    |--------------------------------------------------------------------------
+    */
+    public function sendToService(Contact $client)
+    {
+        $user = auth()->user();
+
+        // Multi-tenant safety
+        if ($user && $client->tenant_id !== $user->tenant_id) {
+            abort(403, 'Unauthorized');
+        }
+
+        $client->contact_type        = 'service';
+        $client->in_book_of_business = true;
+        $client->service_status      = null;
+        $client->service_archived_at = null;
+        $client->save();
+
+        // Jump to Service tab with this client selected
+        return redirect()->route('service.index', ['selected' => $client->id]);
     }
 
     /*
