@@ -112,7 +112,28 @@
         <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
-                <div class="contacts-header">Leads</div>
+                {{-- Header + Active/Archived toggle --}}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="contacts-header mb-0">
+                        @if(!empty($showingArchived) && $showingArchived)
+                            Archived Leads
+                        @else
+                            Leads
+                        @endif
+                    </div>
+
+                    <div>
+                        @if(!empty($showingArchived) && $showingArchived)
+                            <a href="{{ route('leads.index') }}" class="btn btn-sm btn-outline-secondary">
+                                Back to Active
+                            </a>
+                        @else
+                            <a href="{{ route('leads.archived') }}" class="btn btn-sm btn-outline-secondary">
+                                View Archived
+                            </a>
+                        @endif
+                    </div>
+                </div>
 
                 <!-- Search (client-side only) -->
                 <div class="contacts-search-wrapper">
