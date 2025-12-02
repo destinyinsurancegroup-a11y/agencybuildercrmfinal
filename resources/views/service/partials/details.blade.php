@@ -46,7 +46,8 @@
 
                         @if($client->service_archived_at)
                             <span class="text-muted small ms-2">
-                                Archived on {{ $client->service_archived_at->format('m/d/Y') }}
+                                {{-- FIX: service_archived_at may be a string, so parse with Carbon --}}
+                                Archived on {{ \Carbon\Carbon::parse($client->service_archived_at)->format('m/d/Y') }}
                             </span>
                         @endif
                     </div>
