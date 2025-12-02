@@ -208,7 +208,9 @@
             return;
         }
 
+        // store the contact id for the save call
         document.getElementById('followUpContactId').value = ctx.id || '';
+
         document.getElementById('followUpTitle').value = ctx.name
             ? `Follow Up – ${ctx.name}`
             : 'Follow Up';
@@ -224,11 +226,12 @@
         followUpModalInstance.show();
     }
 
-    // ⭐ FOLLOW UP → Save event to Calendar
+    // ⭐ FOLLOW UP → Save event to Calendar (WITH contact_id)
     function saveFollowUpEvent() {
-        const title    = document.getElementById('followUpTitle').value.trim();
-        const start    = document.getElementById('followUpStart').value;
-        const location = document.getElementById('followUpLocation').value.trim();
+        const title      = document.getElementById('followUpTitle').value.trim();
+        const start      = document.getElementById('followUpStart').value;
+        const location   = document.getElementById('followUpLocation').value.trim();
+        const contact_id = document.getElementById('followUpContactId').value || null;
 
         if (!title || !start) {
             alert('Title and date/time are required.');
@@ -243,7 +246,12 @@
                 'X-CSRF-TOKEN': LEADS_CSRF_TOKEN,
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ title, start, location })
+            body: JSON.stringify({
+                title,
+                start,
+                location,
+                contact_id // 👈 this is the key new field
+            })
         })
         .then(r => r.json())
         .then(() => {
