@@ -55,7 +55,7 @@
                     <a href="{{ route('service.index', ['selected' => $client->id]) }}"
                        class="badge bg-danger mt-1 text-decoration-none"
                        style="cursor:pointer;">
-                        Service Needs Service
+                        Client Needs Service
                     </a>
                 @endif
             </div>
