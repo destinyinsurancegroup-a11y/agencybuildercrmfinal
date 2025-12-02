@@ -16,30 +16,39 @@ class BookController extends Controller
     */
     public function index(Request $request)
     {
-        // ✅ Include:
-        //    - traditional book contacts (contact_type = 'book')
-        //    - clients (contact_type = 'client')
-        //    - any record explicitly marked as Sold
+        $user = auth()->user();
+
         $query = Contact::query()
-            ->where(function ($q) {
-                $q->where('contact_type', 'book')
-                  ->orWhere('contact_type', 'client')
-                  ->orWhere('status', 'Sold');
+            // Only show contacts that are in Book of Business
+            ->where('in_book_of_business', true)
+            // Multi-tenant safety if tenant_id exists
+            ->when($user, function ($q) use ($user) {
+                $q->where('tenant_id', $user->tenant_id);
             });
 
+        // Optional search
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
-        $clients = $query
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
+        // ORDER:
+        // 1) Urgent service contacts first:
+        //      contact_type = 'service' AND service_archived_at IS NULL
+        // 2) Then by last name / first name
+        $query->orderByRaw("
+            CASE
+                WHEN contact_type = 'service' AND service_archived_at IS NULL THEN 0
+                ELSE 1
+            END
+        ")->orderBy('last_name')
+         ->orderBy('first_name');
+
+        $clients = $query->get();
 
         $selected = $request->get('selected');
 
@@ -90,9 +99,10 @@ class BookController extends Controller
         ]);
 
         // New records created from Book are tagged as "book"
-        $validated['contact_type'] = 'book';
-        $validated['tenant_id']    = 1;
-        $validated['created_by']   = 1;
+        $validated['contact_type']        = 'book';
+        $validated['tenant_id']           = 1;
+        $validated['created_by']          = 1;
+        $validated['in_book_of_business'] = true;
 
         $client = Contact::create($validated);
 
@@ -173,7 +183,8 @@ class BookController extends Controller
         }
 
         // Ensure it's treated as a Book record after editing here
-        $client->contact_type = 'book';
+        $client->contact_type        = 'book';
+        $client->in_book_of_business = true;
         $client->save();
 
         /*
