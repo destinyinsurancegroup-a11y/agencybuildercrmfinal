@@ -178,7 +178,8 @@
                             // - Archived + Sold (now client) → book.show
                             $isArchivedView = !empty($showingArchived) && $showingArchived;
                             $status         = $lead->status ?? '';
-                            $isSold         = strtolower($status) === 'sold';
+                            $statusLower    = strtolower($status);
+                            $isSold         = $statusLower === 'sold';
 
                             if ($isArchivedView && $isSold) {
                                 $rowUrl = route('book.show', $lead->id);
@@ -197,8 +198,14 @@
                             </span>
 
                             @if($isArchivedView)
-                                <span class="badge 
-                                    @if($isSold) bg-success @else bg-secondary @endif">
+                                <span class="badge
+                                    @if($statusLower === 'sold')
+                                        bg-success
+                                    @elseif($statusLower === 'not interested')
+                                        bg-danger
+                                    @else
+                                        bg-secondary
+                                    @endif">
                                     {{ $status }}
                                 </span>
                             @endif
