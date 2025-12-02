@@ -31,12 +31,16 @@
                 Follow Up
             </a>
 
-            {{-- NOT INTERESTED (placeholder) --}}
-            <button type="button"
-                    class="btn btn-danger btn-sm px-3"
-                    onclick="handleLeadNotInterested()">
-                Not Interested
-            </button>
+            {{-- NOT INTERESTED: archive lead and remove from active list --}}
+            <form method="POST"
+                  action="{{ route('leads.archive', $contact) }}"
+                  onsubmit="return confirm('Mark this lead as NOT INTERESTED and remove it from your active Leads list?');">
+                @csrf
+                <button type="submit"
+                        class="btn btn-danger btn-sm px-3">
+                    Not Interested
+                </button>
+            </form>
         </div>
 
         <!-- TOP RIGHT EDIT BUTTON -->
@@ -147,9 +151,5 @@
         };
     }
 
-    // ⭐ NOT INTERESTED → placeholder for future backend wiring
-    function handleLeadNotInterested() {
-        const ctx = getLeadContext();
-        alert('Not Interested action coming soon. (Lead ID: ' + ctx.id + ')');
-    }
+    // (No Not Interested JS needed anymore — handled via form POST)
 </script>
