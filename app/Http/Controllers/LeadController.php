@@ -8,7 +8,10 @@ use Illuminate\Http\Request;
 class LeadController extends Controller
 {
     /**
-     * LIST ALL LEADS
+     * LIST ALL ACTIVE LEADS
+     *
+     * Shows only leads that are still being worked.
+     * Excludes Sold + Not Interested (Archived) leads.
      */
     public function index()
     {
@@ -16,11 +19,38 @@ class LeadController extends Controller
 
         $leads = Contact::where('tenant_id', $tenantId)
             ->where('contact_type', 'lead')
+            ->whereNotIn('status', ['Sold', 'Not Interested'])
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
 
-        return view('leads.index', compact('leads'));
+        return view('leads.index', [
+            'leads'           => $leads,
+            'showingArchived' => false,
+        ]);
+    }
+
+    /**
+     * LIST ARCHIVED LEADS (Sold + Not Interested)
+     *
+     * This is your "archive" / outcomes view and is used for
+     * conversion tracking later (Sold vs Not Interested).
+     */
+    public function archived()
+    {
+        $tenantId = auth()->user()->tenant_id ?? 1;
+
+        $leads = Contact::where('tenant_id', $tenantId)
+            ->where('contact_type', 'lead')
+            ->whereIn('status', ['Sold', 'Not Interested'])
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
+
+        return view('leads.index', [
+            'leads'           => $leads,
+            'showingArchived' => true,
+        ]);
     }
 
     /**
@@ -77,7 +107,7 @@ class LeadController extends Controller
 
         // 1️⃣ UPDATE CONTACT TYPE → client (lowercase)
         $contact->contact_type = 'client';
-        $contact->status       = 'Sold';
+        $contact->status       = 'Sold'; // mark outcome as Sold
         // Optional: archive metadata could go here (sold_at, archived_at, etc.)
 
         $contact->save();
@@ -99,12 +129,17 @@ class LeadController extends Controller
     }
 
     /**
-     * UPDATE LEAD → NOT INTERESTED (future filtering)
+     * ARCHIVE LEAD → NOT INTERESTED
+     *
+     * - Sets status = 'Not Interested'
+     * - Lead is removed from active list (index)
+     * - Lead appears in Archived view (/leads/archived)
      */
-    public function markNotInterested(Request $request, Contact $contact)
+    public function archive(Request $request, Contact $contact)
     {
         $tenantId = auth()->user()->tenant_id ?? 1;
 
+        // Tenant safety
         if ($contact->tenant_id !== $tenantId) {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Unauthorized tenant.'], 403);
@@ -112,6 +147,7 @@ class LeadController extends Controller
             abort(403, 'Unauthorized tenant.');
         }
 
+        // Must be a lead to archive this way
         if (strtolower($contact->contact_type ?? '') !== 'lead') {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'This record is not a lead.'], 400);
@@ -127,12 +163,12 @@ class LeadController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Lead marked as Not Interested.',
+                'message' => 'Lead archived as Not Interested.',
             ]);
         }
 
         return redirect()
             ->route('leads.index')
-            ->with('success', 'Lead marked as Not Interested.');
+            ->with('success', 'Lead archived as Not Interested and removed from active leads.');
     }
 }
