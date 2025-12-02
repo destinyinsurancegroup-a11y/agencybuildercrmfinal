@@ -34,9 +34,6 @@ class ServiceController extends Controller
     /**
      * Ensure the contact is marked as in Book of Business.
      * Called when a serviced policy is Saved / Back on Books.
-     *
-     * NOTE: requires an `in_book_of_business` boolean column on contacts
-     * which we'll add via migration in a later step.
      */
     protected function ensureInBookOfBusinessForContact(Contact $client): void
     {
@@ -132,12 +129,18 @@ class ServiceController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        // TODO: replace fallback tenant/user with strict auth once multi-tenant auth is fully wired
         $user = auth()->user();
 
         $validated['contact_type'] = 'service';
         $validated['tenant_id']    = $user->tenant_id ?? 1;
         $validated['created_by']   = $user->id ?? 1;
+
+        // NEW: any active service case should also be in Book of Business
+        $validated['in_book_of_business'] = true;
+
+        // NEW: service is "open" when created (no outcome yet)
+        $validated['service_status']      = null;
+        $validated['service_archived_at'] = null;
 
         $client = Contact::create($validated);
 
@@ -311,8 +314,6 @@ class ServiceController extends Controller
     | These rely on two new columns on contacts:
     |   - service_status (string: Saved, Back on Books, Not Interested, Cancelled, etc.)
     |   - service_archived_at (timestamp)
-    |
-    | We'll add those in a migration in a later step.
     |--------------------------------------------------------------------------
     */
 
