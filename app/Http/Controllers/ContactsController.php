@@ -9,17 +9,18 @@ class ContactsController extends Controller
 {
     /**
      * Display the contacts index page (master-detail layout).
-     * NOTE: Leads (contact_type = 'lead') are EXCLUDED.
+     * NOTE: Leads (contact_type = 'lead') and Service cases (contact_type = 'service')
+     *       are EXCLUDED from this view to avoid duplicates with Leads/Service tabs.
      */
     public function index(Request $request)
     {
         $tenantId = 1; // TODO: replace with auth()->user()->tenant_id when multi-tenant is wired
 
         $contacts = Contact::where('tenant_id', $tenantId)
-            // 👇 do NOT treat leads as contacts
+            // 👇 do NOT treat leads or service cases as generic contacts
             ->where(function ($q) {
                 $q->whereNull('contact_type')
-                  ->orWhere('contact_type', '!=', 'lead');
+                  ->orWhereNotIn('contact_type', ['lead', 'service']);
             })
             ->when($request->search, function ($query) use ($request) {
                 $search = $request->search;
