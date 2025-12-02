@@ -19,8 +19,17 @@ class BookController extends Controller
         $user = auth()->user();
 
         $query = Contact::query()
-            // Only show contacts that are in Book of Business
-            ->where('in_book_of_business', true)
+            // Show:
+            //  - anything explicitly in Book of Business
+            //  - OR legacy book/client/Sold records
+            ->where(function ($q) {
+                $q->where('in_book_of_business', true)
+                  ->orWhere(function ($q2) {
+                      $q2->where('contact_type', 'book')
+                         ->orWhere('contact_type', 'client')
+                         ->orWhere('status', 'Sold');
+                  });
+            })
             // Multi-tenant safety if tenant_id exists
             ->when($user, function ($q) use ($user) {
                 $q->where('tenant_id', $user->tenant_id);
@@ -98,13 +107,18 @@ class BookController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
+        $user = auth()->user();
+
         // New records created from Book are tagged as "book"
-        $validated['contact_type']        = 'book';
-        $validated['tenant_id']           = 1;
-        $validated['created_by']          = 1;
-        $validated['in_book_of_business'] = true;
+        $validated['contact_type'] = 'book';
+        $validated['tenant_id']    = $user->tenant_id ?? 1;
+        $validated['created_by']   = $user->id ?? 1;
 
         $client = Contact::create($validated);
+
+        // Explicitly mark as in Book of Business (bypasses $fillable issues)
+        $client->in_book_of_business = true;
+        $client->save();
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
