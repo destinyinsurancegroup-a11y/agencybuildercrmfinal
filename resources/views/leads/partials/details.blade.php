@@ -7,7 +7,7 @@
             {{ $contact->first_name }} {{ $contact->last_name }}
         </h1>
 
-        <!-- Hidden helpers for JS (for follow-up / future actions) -->
+        <!-- Hidden helpers for JS (for future actions if needed) -->
         <input type="hidden" id="leadContactId" value="{{ $contact->id }}">
         <input type="hidden" id="leadContactName" value="{{ $contact->full_name }}">
 
@@ -25,12 +25,11 @@
                 </button>
             </form>
 
-            {{-- FOLLOW UP: open calendar modal --}}
-            <button type="button"
-                    class="btn btn-warning btn-sm px-3"
-                    onclick="openFollowUpModal()">
+            {{-- FOLLOW UP: go to Calendar screen, passing contact info --}}
+            <a href="{{ url('/calendar') }}?contact_id={{ $contact->id }}&contact_name={{ urlencode($contact->full_name) }}"
+               class="btn btn-warning btn-sm px-3">
                 Follow Up
-            </button>
+            </a>
 
             {{-- NOT INTERESTED (placeholder) --}}
             <button type="button"
@@ -138,141 +137,14 @@
 </div>
 
 {{-- ===========================
-     FOLLOW-UP EVENT MODAL
-=========================== --}}
-<div class="modal fade" id="followUpModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-
-            <div class="modal-header">
-                <h5 class="modal-title">Schedule Follow Up</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="modal-body">
-                <input type="hidden" id="followUpContactId">
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Title</label>
-                    <input type="text" id="followUpTitle" class="form-control">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Date &amp; Time</label>
-                    <input type="datetime-local" id="followUpStart" class="form-control">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Location (optional)</label>
-                    <input type="text" id="followUpLocation" class="form-control">
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-primary" onclick="saveFollowUpEvent()">
-                    Save Follow Up
-                </button>
-            </div>
-
-        </div>
-    </div>
-</div>
-
-{{-- ===========================
      LEAD ACTIONS JS
 =========================== --}}
 <script>
-    const LEADS_CSRF_TOKEN = '{{ csrf_token() }}';
-    let followUpModalInstance = null;
-
-    function getFollowUpModalInstance() {
-        if (followUpModalInstance) {
-            return followUpModalInstance;
-        }
-
-        const modalEl = document.getElementById('followUpModal');
-
-        // If Bootstrap JS isn't loaded or the element is missing
-        if (!modalEl || typeof bootstrap === 'undefined') {
-            return null;
-        }
-
-        followUpModalInstance = new bootstrap.Modal(modalEl);
-        return followUpModalInstance;
-    }
-
     function getLeadContext() {
         return {
             id: document.getElementById('leadContactId')?.value,
             name: document.getElementById('leadContactName')?.value
         };
-    }
-
-    // ⭐ FOLLOW UP → Open modal with defaults
-    function openFollowUpModal() {
-        const ctx   = getLeadContext();
-        const modal = getFollowUpModalInstance();
-
-        if (!modal) {
-            alert('Modal not available.');
-            return;
-        }
-
-        // store the contact id for the save call
-        document.getElementById('followUpContactId').value = ctx.id || '';
-
-        document.getElementById('followUpTitle').value = ctx.name
-            ? `Follow Up – ${ctx.name}`
-            : 'Follow Up';
-
-        const now = new Date();
-        const iso = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-            .toISOString()
-            .slice(0, 16);
-        document.getElementById('followUpStart').value = iso;
-
-        document.getElementById('followUpLocation').value = '';
-
-        modal.show();
-    }
-
-    // ⭐ FOLLOW UP → Save event to Calendar (WITH contact_id)
-    function saveFollowUpEvent() {
-        const title      = document.getElementById('followUpTitle').value.trim();
-        const start      = document.getElementById('followUpStart').value;
-        const location   = document.getElementById('followUpLocation').value.trim();
-        const contact_id = document.getElementById('followUpContactId').value || null;
-
-        if (!title || !start) {
-            alert('Title and date/time are required.');
-            return;
-        }
-
-        fetch('/calendar/events', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': LEADS_CSRF_TOKEN,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                title,
-                start,
-                location,
-                contact_id
-            })
-        })
-        .then(r => r.json())
-        .then(() => {
-            const modal = getFollowUpModalInstance();
-            if (modal) {
-                modal.hide();
-            }
-            alert('Follow-up saved successfully.');
-        })
-        .catch(() => alert('Could not save follow-up.'));
     }
 
     // ⭐ NOT INTERESTED → placeholder for future backend wiring
