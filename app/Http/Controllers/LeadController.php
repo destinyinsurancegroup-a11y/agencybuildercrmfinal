@@ -11,7 +11,8 @@ class LeadController extends Controller
      * LIST ALL ACTIVE LEADS
      *
      * Shows only leads that are still being worked.
-     * Excludes Sold + Not Interested (Archived) leads.
+     * Sold leads are now clients (contact_type = 'client') and are thus excluded
+     * automatically. We explicitly hide Not Interested as well.
      */
     public function index()
     {
@@ -19,7 +20,7 @@ class LeadController extends Controller
 
         $leads = Contact::where('tenant_id', $tenantId)
             ->where('contact_type', 'lead')
-            ->whereNotIn('status', ['Sold', 'Not Interested'])
+            ->where('status', '!=', 'Not Interested') // hide archived leads
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
@@ -35,13 +36,15 @@ class LeadController extends Controller
      *
      * This is your "archive" / outcomes view and is used for
      * conversion tracking later (Sold vs Not Interested).
+     *
+     * NOTE: We do NOT restrict by contact_type here so that
+     * Sold records (now contact_type = 'client') also appear.
      */
     public function archived()
     {
         $tenantId = auth()->user()->tenant_id ?? 1;
 
         $leads = Contact::where('tenant_id', $tenantId)
-            ->where('contact_type', 'lead')
             ->whereIn('status', ['Sold', 'Not Interested'])
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -82,6 +85,7 @@ class LeadController extends Controller
      * 1. Removes from Leads tab (no longer contact_type = 'lead')
      * 2. Appears in All Contacts (ContactsController excludes only 'lead')
      * 3. Appears in Book of Business (BookController includes 'client' / 'Sold')
+     * 4. Appears in Archived Leads (status = 'Sold')
      */
     public function markSold(Request $request, Contact $contact)
     {
