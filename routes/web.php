@@ -78,10 +78,10 @@ Route::get('/contacts/{contact}/notes/list', [NoteController::class, 'list'])
 | LEADS
 |--------------------------------------------------------------------------
 */
-Route::get('/leads',        [LeadController::class, 'index'])->name('leads.index');
+Route::get('/leads',         [LeadController::class, 'index'])->name('leads.index');
 Route::get('/leads/archived',[LeadController::class, 'archived'])->name('leads.archived'); // ⭐ NEW: Archived leads
-Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
-Route::get('/leads/{id}',   [LeadController::class, 'show'])->name('leads.show');
+Route::get('/leads/create',  [LeadController::class, 'create'])->name('leads.create');
+Route::get('/leads/{id}',    [LeadController::class, 'show'])->name('leads.show');
 
 /* ⭐ NEW ROUTE — CONVERT LEAD TO CLIENT ⭐ */
 Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
@@ -121,13 +121,45 @@ Route::prefix('book')->group(function () {
 */
 Route::prefix('service')->group(function () {
 
+    // Index + create/store
     Route::get('/', [ServiceController::class, 'index'])->name('service.index');
     Route::get('/create-panel', [ServiceController::class, 'createPanel'])->name('service.create.panel');
     Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
+    // ARCHIVE VIEWS (must come before /{client} so they aren't swallowed)
+    Route::get('/archive', [ServiceController::class, 'archive'])
+        ->name('service.archive');
+
+    Route::get('/archive/not-saved', [ServiceController::class, 'notSavedArchive'])
+        ->name('service.archive.not-saved');
+
+    // ROUTES OPERATING ON A SPECIFIC CLIENT/SERVICE RECORD
+
     Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
-    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel'); // ✔ FIXED HERE
+    Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
     Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
+
+    // Follow Up (opens calendar pre-filled from service record)
+    Route::get('/{client}/follow-up', [ServiceController::class, 'followUp'])
+        ->name('service.follow-up');
+
+    // Outcomes that KEEP / PUT client on books (and archive service)
+    Route::post('/{client}/saved', [ServiceController::class, 'markSaved'])
+        ->name('service.saved');
+
+    Route::post('/{client}/back-on-books', [ServiceController::class, 'markBackOnBooks'])
+        ->name('service.back-on-books');
+
+    // Outcomes that mark business as NOT SAVED (and may remove from book)
+    Route::post('/{client}/not-interested', [ServiceController::class, 'markNotInterested'])
+        ->name('service.not-interested');
+
+    Route::post('/{client}/cancelled', [ServiceController::class, 'markCancelled'])
+        ->name('service.cancelled');
+
+    // Generic archive action for a single service record
+    Route::post('/{client}/archive', [ServiceController::class, 'archiveSingle'])
+        ->name('service.archive-single');
 });
 
 /*
