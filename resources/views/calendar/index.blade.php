@@ -207,6 +207,17 @@ body,
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
+    // Read follow-up context from query string if coming from a Lead "Follow Up" button
+    const urlParams           = new URLSearchParams(window.location.search);
+    const followUpContactId   = urlParams.get('contact_id');    // e.g. "123"
+    const rawContactName      = urlParams.get('contact_name');  // URL-encoded from leads page
+    const followUpContactName = rawContactName ? decodeURIComponent(rawContactName) : null;
+
+    // This is the default title we want when creating a follow-up event
+    const followUpDefaultTitle = followUpContactName
+        ? `Follow Up – ${followUpContactName}`
+        : '';
+
     let modal = new bootstrap.Modal(document.getElementById("eventModal"));
 
     let calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
@@ -244,9 +255,11 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById("deleteEventBtn").classList.add("d-none");
 
             document.getElementById("eventId").value = "";
-            document.getElementById("eventTitle").value = "";
             document.getElementById("eventStart").value = info.dateStr + "T00:00";
             document.getElementById("eventLocation").value = "";
+
+            // 🔑 NEW: prefill title with "Follow Up – {Lead Name}" if we came from a lead
+            document.getElementById("eventTitle").value = followUpDefaultTitle || "";
 
             modal.show();
         },
@@ -277,6 +290,11 @@ document.addEventListener("DOMContentLoaded", function () {
             start: document.getElementById("eventStart").value,
             location: document.getElementById("eventLocation").value
         };
+
+        // 🔑 NEW: If this is a new event and we came from a lead, attach contact_id
+        if (!id && followUpContactId) {
+            payload.contact_id = followUpContactId;
+        }
 
         let url = id ? `/calendar/events/${id}` : "/calendar/events";
         let method = id ? "PUT" : "POST";
