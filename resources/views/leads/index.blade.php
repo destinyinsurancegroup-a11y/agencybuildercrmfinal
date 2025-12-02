@@ -88,6 +88,10 @@
         font-size: 15px;
         border-bottom: 1px solid #eee;
         cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
     }
 
     .contact-list-item:hover {
@@ -168,12 +172,36 @@
                 <!-- Lead List -->
                 <div id="lead-list">
                     @forelse ($leads as $lead)
+                        @php
+                            // Decide where clicking this row should go:
+                            // - Active view or Not Interested (still lead) → leads.show
+                            // - Archived + Sold (now client) → book.show
+                            $isArchivedView = !empty($showingArchived) && $showingArchived;
+                            $status         = $lead->status ?? '';
+                            $isSold         = strtolower($status) === 'sold';
+
+                            if ($isArchivedView && $isSold) {
+                                $rowUrl = route('book.show', $lead->id);
+                            } else {
+                                $rowUrl = route('leads.show', $lead->id);
+                            }
+                        @endphp
+
                         <div 
                             class="contact-list-item js-lead-row"
                             data-id="{{ $lead->id }}"
-                            data-show-url="{{ route('leads.show', $lead->id) }}"
+                            data-show-url="{{ $rowUrl }}"
                         >
-                            {{ $lead->full_name ?? ($lead->first_name . ' ' . $lead->last_name) }}
+                            <span>
+                                {{ $lead->full_name ?? ($lead->first_name . ' ' . $lead->last_name) }}
+                            </span>
+
+                            @if($isArchivedView)
+                                <span class="badge 
+                                    @if($isSold) bg-success @else bg-secondary @endif">
+                                    {{ $status }}
+                                </span>
+                            @endif
                         </div>
                     @empty
                         <p class="text-muted">No leads found.</p>
@@ -285,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#lead-list .js-lead-row')
             .forEach(row =>
                 row.style.display = row.textContent.toLowerCase().includes(term)
-                    ? 'block'
+                    ? 'flex'
                     : 'none'
             );
     });
