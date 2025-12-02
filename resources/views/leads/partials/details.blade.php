@@ -186,12 +186,21 @@
     const LEADS_CSRF_TOKEN = '{{ csrf_token() }}';
     let followUpModalInstance = null;
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const modalEl = document.getElementById('followUpModal');
-        if (modalEl && window.bootstrap) {
-            followUpModalInstance = new bootstrap.Modal(modalEl);
+    function getFollowUpModalInstance() {
+        if (followUpModalInstance) {
+            return followUpModalInstance;
         }
-    });
+
+        const modalEl = document.getElementById('followUpModal');
+
+        // If Bootstrap JS isn't loaded or the element is missing
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            return null;
+        }
+
+        followUpModalInstance = new bootstrap.Modal(modalEl);
+        return followUpModalInstance;
+    }
 
     function getLeadContext() {
         return {
@@ -202,8 +211,10 @@
 
     // ⭐ FOLLOW UP → Open modal with defaults
     function openFollowUpModal() {
-        const ctx = getLeadContext();
-        if (!followUpModalInstance) {
+        const ctx   = getLeadContext();
+        const modal = getFollowUpModalInstance();
+
+        if (!modal) {
             alert('Modal not available.');
             return;
         }
@@ -223,7 +234,7 @@
 
         document.getElementById('followUpLocation').value = '';
 
-        followUpModalInstance.show();
+        modal.show();
     }
 
     // ⭐ FOLLOW UP → Save event to Calendar (WITH contact_id)
@@ -250,12 +261,15 @@
                 title,
                 start,
                 location,
-                contact_id // 👈 this is the key new field
+                contact_id
             })
         })
         .then(r => r.json())
         .then(() => {
-            followUpModalInstance.hide();
+            const modal = getFollowUpModalInstance();
+            if (modal) {
+                modal.hide();
+            }
             alert('Follow-up saved successfully.');
         })
         .catch(() => alert('Could not save follow-up.'));
