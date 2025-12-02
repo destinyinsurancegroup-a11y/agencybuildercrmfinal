@@ -52,7 +52,7 @@
                     </div>
                 @endif
 
-                <!-- ACTION BUTTONS -->
+                <!-- ACTION BUTTONS (ONLY THREE) -->
                 <div class="d-flex flex-wrap gap-2">
 
                     {{-- FOLLOW UP (always available) --}}
@@ -63,33 +63,20 @@
                     </a>
 
                     @if(is_null($client->service_archived_at))
-                        <!-- BACK ON BOOKS (Green) -->
-                        <form action="{{ route('service.back-on-books', $client->id) }}"
-                              method="POST"
-                              class="d-inline">
-                            @csrf
-                            <button type="submit"
-                                    class="btn btn-sm"
-                                    style="background:#28a745; color:white; font-weight:600; border-radius:6px;"
-                                    onclick="return confirm('Mark this service as Back on Books and archive it?');">
-                                Back on Books
-                            </button>
-                        </form>
-
-                        <!-- SAVED (also Green) -->
+                        {{-- SAVED (Green) --}}
                         <form action="{{ route('service.saved', $client->id) }}"
                               method="POST"
                               class="d-inline">
                             @csrf
                             <button type="submit"
                                     class="btn btn-sm"
-                                    style="background:#198754; color:white; font-weight:600; border-radius:6px;"
+                                    style="background:#28a745; color:white; font-weight:600; border-radius:6px;"
                                     onclick="return confirm('Mark this service as Saved and archive it?');">
                                 Saved
                             </button>
                         </form>
 
-                        <!-- NOT INTERESTED (Red) -->
+                        {{-- NOT INTERESTED (Red) --}}
                         <form action="{{ route('service.not-interested', $client->id) }}"
                               method="POST"
                               class="d-inline">
@@ -99,32 +86,6 @@
                                     style="background:#dc3545; color:white; font-weight:600; border-radius:6px;"
                                     onclick="return confirm('Mark this service as Not Interested and archive it?');">
                                 Not Interested
-                            </button>
-                        </form>
-
-                        <!-- CANCELLED (Orange) -->
-                        <form action="{{ route('service.cancelled', $client->id) }}"
-                              method="POST"
-                              class="d-inline">
-                            @csrf
-                            <button type="submit"
-                                    class="btn btn-sm"
-                                    style="background:#fd7e14; color:white; font-weight:600; border-radius:6px;"
-                                    onclick="return confirm('Mark this service as Cancelled and archive it?');">
-                                Cancelled
-                            </button>
-                        </form>
-
-                        <!-- ARCHIVE (no status change) -->
-                        <form action="{{ route('service.archive-single', $client->id) }}"
-                              method="POST"
-                              class="d-inline">
-                            @csrf
-                            <button type="submit"
-                                    class="btn btn-sm btn-outline-secondary"
-                                    style="border-radius:6px;"
-                                    onclick="return confirm('Archive this service record without changing status?');">
-                                Archive
                             </button>
                         </form>
                     @endif
