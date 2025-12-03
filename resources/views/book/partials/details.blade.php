@@ -38,6 +38,9 @@
     // - they are a service contact AND
     // - their service has not been archived yet
     $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
+
+    // Load notes newest-first via the Note relationship
+    $notes = $client->notes()->latest()->get();
 @endphp
 
 <div class="p-4">
@@ -183,7 +186,7 @@
         <hr>
 
         <!-- ================================ -->
-        <!-- NOTES SECTION (FULLY WORKING)   -->
+        <!-- NOTES SECTION                    -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
@@ -201,7 +204,7 @@
 
         <!-- NOTES LIST -->
         <div id="notes-list">
-            @forelse ($client->allNotes as $note)
+            @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div style="white-space: pre-wrap;">
