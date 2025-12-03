@@ -4,17 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-// IMPORTANT: use the SAME TenantScoped trait import that your Contact/Document models use.
-// Example (adjust if your path is different):
-use App\Models\Traits\TenantScoped;
 
 class Note extends Model
 {
     use HasFactory;
-    use TenantScoped; // applies global scope + auto-fills agency_id
 
     protected $fillable = [
-        'agency_id',
+        'tenant_id',   // legacy tenant field (we'll migrate to agency_id later)
         'contact_id',
         'created_by',
         'body',
@@ -26,13 +22,20 @@ class Note extends Model
     ];
 
     /**
-     * Auto-assign created_by (agency_id is handled by TenantScoped).
+     * Auto-assign created_by and tenant_id if not set.
      */
     protected static function booted()
     {
         static::creating(function (Note $note) {
-            if (auth()->check() && ! $note->created_by) {
-                $note->created_by = auth()->id();
+            if (auth()->check()) {
+                if (! $note->created_by) {
+                    $note->created_by = auth()->id();
+                }
+
+                // Keep legacy tenant_id behavior until we fully move to agency_id
+                if (is_null($note->tenant_id) && property_exists(auth()->user(), 'tenant_id')) {
+                    $note->tenant_id = auth()->user()->tenant_id;
+                }
             }
         });
     }
@@ -46,10 +49,18 @@ class Note extends Model
     }
 
     /**
-     * User who wrote the note.
+     * User who wrote the note (canonical).
      */
     public function author()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Backwards-compat alias for templates expecting $note->user.
+     */
+    public function user()
+    {
+        return $this->author();
     }
 }
