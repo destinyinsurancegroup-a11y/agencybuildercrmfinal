@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 
 class NoteController extends Controller
 {
+    public function __construct()
+    {
+        // Ensure only logged-in users can hit these endpoints
+        $this->middleware('auth');
+    }
+
     /**
      * Store a new note for a contact (AJAX).
      */
@@ -18,21 +24,22 @@ class NoteController extends Controller
             'body' => 'required|string|max:5000',
         ]);
 
-        // Find the contact; TenantScoped on Contact will handle agency scoping.
+        // Find the contact. Tenant/agency scoping is handled by model scopes/middleware.
         $contact = Contact::with('notes')->findOrFail($contactId);
 
-        // Create the note. Note model has: contact_id, created_by, tenant_id, body
-        Note::create([
+        // Create the note. Note model still uses tenant_id + created_by for now.
+        $note = Note::create([
             'contact_id' => $contact->id,
             'body'       => $validated['body'],
             'created_by' => auth()->id(),
-            // keep legacy tenant_id behavior for now
-            'tenant_id'  => auth()->user()->tenant_id ?? null,
+            'tenant_id'  => auth()->user()->tenant_id ?? null, // legacy multi-tenant
         ]);
 
         // Reload updated notes list HTML
+        $contact->load('notes');
+
         $html = view('contacts.partials._notes_list', [
-            'contact' => $contact->fresh('notes'),
+            'contact' => $contact,
         ])->render();
 
         return response()->json(['html' => $html]);
@@ -43,7 +50,6 @@ class NoteController extends Controller
      */
     public function index($contactId)
     {
-        // TenantScoped on Contact ensures proper scoping.
         $contact = Contact::with('notes')->findOrFail($contactId);
 
         return view('contacts.partials.notes', compact('contact'));
