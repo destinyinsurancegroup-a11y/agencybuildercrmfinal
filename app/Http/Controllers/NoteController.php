@@ -21,21 +21,17 @@ class NoteController extends Controller
 
         Note::create([
             'contact_id' => $contact->id,
-            'body'       => trim($validated['body']),
+            // DB column is "note"
+            'note'       => trim($validated['body']),
             'created_by' => auth()->id(),
             'tenant_id'  => auth()->check() ? auth()->user()->tenant_id : null,
         ]);
 
-        // After saving, go back to All Contacts with this contact selected
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('status', 'Note added.');
     }
 
-    /**
-     * (Optional) These can stay for future use, but aren't required
-     * for the All Contacts flow anymore.
-     */
     public function index($contactId)
     {
         $contact = Contact::with('notes')->findOrFail($contactId);
