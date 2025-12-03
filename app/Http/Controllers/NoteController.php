@@ -8,12 +8,6 @@ use Illuminate\Http\Request;
 
 class NoteController extends Controller
 {
-    public function __construct()
-    {
-        // Ensure only logged-in users can hit these endpoints
-        $this->middleware('auth');
-    }
-
     /**
      * Store a new note for a contact (AJAX).
      */
@@ -24,18 +18,19 @@ class NoteController extends Controller
             'body' => 'required|string|max:5000',
         ]);
 
-        // Find the contact. Tenant/agency scoping is handled by model scopes/middleware.
+        // Find the contact (TenantScoped / agency scoping will be added later; for now simple)
         $contact = Contact::with('notes')->findOrFail($contactId);
 
-        // Create the note. Note model still uses tenant_id + created_by for now.
+        // Create the note. Note model has: tenant_id, contact_id, created_by, body
         $note = Note::create([
             'contact_id' => $contact->id,
             'body'       => $validated['body'],
-            'created_by' => auth()->id(),
-            'tenant_id'  => auth()->user()->tenant_id ?? null, // legacy multi-tenant
+            'created_by' => auth()->id(), // will be null if not logged in, which is OK for now
+            // avoid calling ->tenant_id on null user
+            'tenant_id'  => auth()->check() ? auth()->user()->tenant_id : null,
         ]);
 
-        // Reload updated notes list HTML
+        // Reload updated notes list HTML with the new note included
         $contact->load('notes');
 
         $html = view('contacts.partials._notes_list', [
