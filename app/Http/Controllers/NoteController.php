@@ -9,24 +9,31 @@ use Illuminate\Http\Request;
 class NoteController extends Controller
 {
     /**
-     * Store a new note for a contact (AJAX).
+     * Store a new note for a contact (AJAX or normal POST).
      */
     public function store(Request $request, $contactId)
     {
-        // Validate the note body (matches Note::$fillable 'body')
-        $validated = $request->validate([
-            'body' => 'required|string|max:5000',
-        ]);
+        // Accept either "body" (new) or "note" (old) from the form
+        $body = $request->input('body') ?? $request->input('note');
 
-        // Find the contact (TenantScoped / agency scoping will be added later; for now simple)
+        if (! $body || ! is_string($body) || trim($body) === '') {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => 'Note text is required.',
+                ], 422);
+            }
+
+            return back()->withErrors(['body' => 'Note text is required.']);
+        }
+
+        // Find the contact
         $contact = Contact::with('notes')->findOrFail($contactId);
 
         // Create the note. Note model has: tenant_id, contact_id, created_by, body
         $note = Note::create([
             'contact_id' => $contact->id,
-            'body'       => $validated['body'],
-            'created_by' => auth()->id(), // will be null if not logged in, which is OK for now
-            // avoid calling ->tenant_id on null user
+            'body'       => trim($body),
+            'created_by' => auth()->id(), // null if not logged in, that's fine for now
             'tenant_id'  => auth()->check() ? auth()->user()->tenant_id : null,
         ]);
 
@@ -37,7 +44,13 @@ class NoteController extends Controller
             'contact' => $contact,
         ])->render();
 
-        return response()->json(['html' => $html]);
+        // If this is AJAX (All Contacts), return JSON
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['html' => $html]);
+        }
+
+        // Fallback for non-AJAX usage
+        return back()->with('status', 'Note added.');
     }
 
     /**
