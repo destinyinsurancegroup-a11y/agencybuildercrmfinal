@@ -94,11 +94,24 @@ class Contact extends Model
     }
 
     /**
-     * Relationship: full Note model (separate from "notes" text field).
+     * Relationship: Note records (separate from the "notes" text column).
+     *
+     * IMPORTANT: Because there is also a "notes" TEXT column on this model,
+     * always access this relationship via the method:
+     *   $contact->notes()->get()
+     * not via $contact->notes (which will return the column value).
+     */
+    public function notes()
+    {
+        return $this->hasMany(Note::class, 'contact_id')->latest();
+    }
+
+    /**
+     * Backwards-compatible alias for any legacy code.
      */
     public function allNotes()
     {
-        return $this->hasMany(Note::class, 'contact_id')->latest();
+        return $this->notes();
     }
 
     /* ============================================================
