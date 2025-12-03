@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\TenantScoped;
 
 class ContactRelation extends Model
 {
-    use HasFactory;
+    use HasFactory, TenantScoped;
 
     protected $fillable = [
         'contact_id',
@@ -16,8 +17,9 @@ class ContactRelation extends Model
         'relationship',
         'phone',
         'contacted',
-        'tenant_id',
+        'tenant_id',   // legacy field, can be retired in Phase 2
         'created_by',
+        'agency_id',   // multi-tenant scoping field
     ];
 
     protected $casts = [
