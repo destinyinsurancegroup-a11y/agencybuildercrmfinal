@@ -23,8 +23,10 @@ class NoteController extends Controller
             'contact_id' => $contact->id,
             // DB column is "note"
             'note'       => trim($validated['body']),
-            'created_by' => auth()->id(),
-            'tenant_id'  => auth()->check() ? auth()->user()->tenant_id : null,
+            // fallback to contact->created_by if user is null (just in case)
+            'created_by' => auth()->id() ?? $contact->created_by,
+            // 🔑 use the contact's tenant_id so it is never null
+            'tenant_id'  => $contact->tenant_id,
         ]);
 
         return redirect()
