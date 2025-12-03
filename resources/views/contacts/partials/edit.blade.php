@@ -120,14 +120,6 @@
                     </div>
                 </div>
 
-                <!-- NOTES -->
-                <h5 class="fw-bold mt-4 mb-2">Notes</h5>
-
-                <div class="mb-4">
-                    <textarea name="notes" class="form-control" rows="4"
-                              placeholder="Add any notes...">{{ old('notes', $contact->notes) }}</textarea>
-                </div>
-
                 <!-- BUTTONS -->
                 <button class="btn fw-bold"
                         style="background:#c9a227; color:#111827; border:none; border-radius:8px; padding:10px 20px;">
