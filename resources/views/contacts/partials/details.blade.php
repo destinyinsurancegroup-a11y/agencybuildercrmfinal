@@ -61,7 +61,7 @@
                 </span>
             </div>
 
-            {{-- ★ ADDED: DATE OF BIRTH --}}
+            {{-- DATE OF BIRTH --}}
             <div class="col-md-6 mb-3">
                 <label class="text-muted small fw-semibold">Date of Birth</label>
                 <div class="fw-bold">
@@ -69,7 +69,7 @@
                 </div>
             </div>
 
-            {{-- ★ ADDED: ANNIVERSARY --}}
+            {{-- ANNIVERSARY --}}
             <div class="col-md-6 mb-3">
                 <label class="text-muted small fw-semibold">Anniversary</label>
                 <div class="fw-bold">
@@ -93,80 +93,67 @@
 
         <hr class="my-4">
 
-        {{-- TABS --}}
-        <ul class="nav nav-tabs" id="contactDetailTabs" style="font-weight:600; border-bottom:1px solid #ddd;">
-            <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-details">
-                    Details
-                </button>
-            </li>
+        {{-- ADDITIONAL DETAILS (simple text like Book of Business) --}}
+        <h5 class="fw-bold mb-2">Additional Details</h5>
+        <p class="text-muted small mb-4">
+            More custom contact details or policy information can be stored here.
+        </p>
 
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes">
-                    Notes
-                </button>
-            </li>
+        <hr class="my-4">
 
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs">
-                    Documents
-                </button>
-            </li>
-        </ul>
+        {{-- NOTES SECTION (Book-of-Business style) --}}
+        <h5 class="fw-bold mb-3">Notes</h5>
 
-        {{-- TAB CONTENT --}}
-        <div class="tab-content pt-4">
+        {{-- NEW NOTE FORM --}}
+        <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
+            @csrf
 
-            {{-- DETAILS TAB --}}
-            <div class="tab-pane fade show active" id="tab-details">
-                <h5 class="fw-bold mb-2">Additional Details</h5>
-                <p class="text-muted small">
-                    More custom contact details or policy information can be stored here.
-                </p>
-            </div>
+            <textarea
+                name="body"
+                class="form-control"
+                rows="3"
+                style="border-radius:10px; border:1px solid #d1d5db; font-size:14px;"
+                placeholder="Write a new note..."
+                required
+            >{{ old('body') }}</textarea>
 
-            {{-- NOTES TAB --}}
-            <div class="tab-pane fade" id="tab-notes">
+            @error('body')
+                <div class="text-danger small mt-1">{{ $message }}</div>
+            @enderror
 
-                <h5 class="fw-bold mb-3">Contact Notes</h5>
+            <button type="submit"
+                    class="btn mt-3"
+                    style="
+                        background:#c9a227;
+                        color:#111827;
+                        padding:8px 22px;
+                        border-radius:10px;
+                        font-size:13px;
+                        font-weight:700;
+                    ">
+                Add Note
+            </button>
+        </form>
 
-                <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
-                    @csrf
+        {{-- EXISTING NOTES --}}
+        <div class="mt-4">
+            @php
+                $notes = $contact->notes()->latest()->get();
+            @endphp
 
-                    <textarea name="notes"
-                              class="form-control"
-                              rows="6"
-                              style="
-                                border-radius:12px;
-                                border:1px solid #d1d5db;
-                                font-size:14px;
-                              "
-                              placeholder="Enter notes for this contact...">{{ old('notes', $contact->notes) }}</textarea>
-
-                    <div class="mt-3">
-                        <button class="btn"
-                                style="
-                                    background:#c9a227;
-                                    color:#111827;
-                                    padding:8px 22px;
-                                    border-radius:10px;
-                                    font-size:13px;
-                                    font-weight:700;
-                                ">
-                            Save Notes
-                        </button>
+            @forelse($notes as $note)
+                <div class="border rounded p-2 mb-2">
+                    <div class="small text-muted mb-1">
+                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                        @if($note->author ?? false)
+                            — {{ $note->author->name }}
+                        @endif
                     </div>
-
-                </form>
-
-            </div>
-
-            {{-- DOCUMENTS TAB --}}
-            <div class="tab-pane fade" id="tab-docs">
-                <h5 class="fw-bold mb-2">Documents</h5>
-                <p class="text-muted small">Document upload & preview coming soon.</p>
-            </div>
-
+                    <div>{{ $note->body }}</div>
+                </div>
+            @empty
+                <p class="text-muted small mb-0">No notes yet for this contact.</p>
+            @endforelse
         </div>
 
     </div>
