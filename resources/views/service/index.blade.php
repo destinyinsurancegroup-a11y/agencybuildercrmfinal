@@ -70,6 +70,7 @@
         font-size: 12px;
         cursor: pointer;
         white-space: nowrap;
+        text-decoration: none;
     }
     .btn-gold:hover {
         background: #b5901f;
@@ -110,7 +111,16 @@
         <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
-                <div class="contacts-header">Service Clients</div>
+                <!-- HEADER + ARCHIVE BUTTON -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="contacts-header mb-0">
+                        Service Clients
+                    </div>
+
+                    <a href="{{ route('service.archive') }}" class="btn-gold btn-sm">
+                        View Service Archive
+                    </a>
+                </div>
 
                 <!-- Search -->
                 <div class="contacts-search-wrapper">
