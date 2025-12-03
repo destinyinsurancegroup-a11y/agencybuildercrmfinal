@@ -36,6 +36,9 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+
+            // Ensure every authenticated user has an agency_id (tenant context)
+            \App\Http\Middleware\EnsureUserHasAgency::class,
         ],
 
         'api' => [
@@ -64,5 +67,8 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+
+        // Optional alias so you can use ->middleware('tenant') on routes if needed
+        'tenant' => \App\Http\Middleware\EnsureUserHasAgency::class,
     ];
 }
