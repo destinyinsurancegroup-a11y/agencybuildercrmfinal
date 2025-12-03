@@ -10,10 +10,10 @@ class Note extends Model
     use HasFactory;
 
     protected $fillable = [
-        'tenant_id',   // legacy tenant field (we'll migrate to agency_id later)
+        'tenant_id',   // legacy tenant field
         'contact_id',
         'created_by',
-        'body',
+        'note',        // <-- actual DB column
     ];
 
     protected $casts = [
@@ -32,12 +32,27 @@ class Note extends Model
                     $note->created_by = auth()->id();
                 }
 
-                // Keep legacy tenant_id behavior until we fully move to agency_id
-                if (is_null($note->tenant_id) && property_exists(auth()->user(), 'tenant_id')) {
+                if (is_null($note->tenant_id) && isset(auth()->user()->tenant_id)) {
                     $note->tenant_id = auth()->user()->tenant_id;
                 }
             }
         });
+    }
+
+    /**
+     * Accessor so views can use $note->body even though DB column is "note".
+     */
+    public function getBodyAttribute()
+    {
+        return $this->note;
+    }
+
+    /**
+     * Mutator so assigning $note->body updates the "note" column.
+     */
+    public function setBodyAttribute($value)
+    {
+        $this->attributes['note'] = $value;
     }
 
     /**
