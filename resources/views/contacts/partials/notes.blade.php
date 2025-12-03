@@ -1,14 +1,14 @@
 <div class="p-4">
 
     {{-- ADD NEW NOTE FORM --}}
-    <form id="add-note-form" data-contact-id="{{ $contact->id }}">
+    <form id="add-note-form" data-contact-id="{{ $contact->id }}" method="POST">
         @csrf
 
         <label class="form-label fw-bold">Add a Note</label>
-        <textarea 
-            name="note" 
-            class="form-control" 
-            rows="3" 
+        <textarea
+            name="body"
+            class="form-control"
+            rows="3"
             placeholder="Write a note..."
             required
         ></textarea>
