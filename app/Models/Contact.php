@@ -9,16 +9,18 @@ use App\Models\Note;
 use App\Models\ContactRelation;   // Destiny unified relations
 use App\Models\ServiceEvent;
 use App\Models\Event;             // ← NEW: calendar events / follow-ups
+use App\Models\Concerns\TenantScoped;
 use Carbon\Carbon;
 
 class Contact extends Model
 {
-    use HasFactory;
+    use HasFactory, TenantScoped;
 
     protected $table = 'contacts';   // Explicit for safety
 
     protected $fillable = [
-        'tenant_id',
+        'tenant_id',   // legacy field, can be retired later
+        'agency_id',   // NEW: multi-tenant scoping field
         'created_by',
         'assigned_to',
 
@@ -76,15 +78,6 @@ class Contact extends Model
         static::saving(function (Contact $contact) {
             $contact->full_name = trim($contact->first_name . ' ' . $contact->last_name);
         });
-    }
-
-    /**
-     * Scope: multi-tenant filtering.
-     */
-    public function scopeForCurrentTenant($query)
-    {
-        $tenantId = auth()->user()?->tenant_id;
-        return $query->where('tenant_id', $tenantId);
     }
 
     /**
