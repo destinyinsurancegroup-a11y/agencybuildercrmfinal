@@ -4,14 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Concerns\TenantScoped;
 
 class Activity extends Model
 {
-    use HasFactory;
+    use HasFactory, TenantScoped;
 
     protected $fillable = [
         'user_id',
-        'tenant_id',           // ⭐ Required for multi-tenant system
+        'tenant_id',           // legacy; will be retired in Phase 2
+        'agency_id',           // NEW: multi-tenant scoping field
 
         'leads_worked',
         'calls',
@@ -21,10 +23,8 @@ class Activity extends Model
         'premium_collected',
         'ap',
 
-        // ⭐ REQUIRED because your controller sets created_at manually
-        'created_at',
+        'created_at',          // you are manually setting this
     ];
 
-    // Allow Laravel to auto-manage timestamps unless you disable updated_at only
     public $timestamps = true;
 }
