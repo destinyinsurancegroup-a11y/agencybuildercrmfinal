@@ -4,16 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+// IMPORTANT: use the SAME TenantScoped trait import that your Contact/Document models use.
+// Example (adjust if your path is different):
+use App\Models\Traits\TenantScoped;
 
 class Note extends Model
 {
     use HasFactory;
+    use TenantScoped; // applies global scope + auto-fills agency_id
 
     protected $fillable = [
+        'agency_id',
         'contact_id',
         'created_by',
-        'tenant_id',
-        'body',     // FIXED — This must match controller + DB
+        'body',
     ];
 
     protected $casts = [
@@ -22,13 +26,12 @@ class Note extends Model
     ];
 
     /**
-     * Auto-assign tenant + created_by.
+     * Auto-assign created_by (agency_id is handled by TenantScoped).
      */
     protected static function booted()
     {
         static::creating(function (Note $note) {
-            if (auth()->check()) {
-                $note->tenant_id = auth()->user()->tenant_id;
+            if (auth()->check() && ! $note->created_by) {
                 $note->created_by = auth()->id();
             }
         });
@@ -45,20 +48,8 @@ class Note extends Model
     /**
      * User who wrote the note.
      */
-    public function user()
+    public function author()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Multi-tenant protection.
-     */
-    public function scopeForCurrentTenant($query)
-    {
-        if (auth()->check()) {
-            return $query->where('tenant_id', auth()->user()->tenant_id);
-        }
-
-        return $query;
     }
 }
