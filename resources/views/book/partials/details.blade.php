@@ -31,6 +31,12 @@
     .p-4 {
         padding: 1.25rem !important;
     }
+
+    /* NEW: make sure note text is left-aligned like All Contacts */
+    #notes-list .note-body {
+        text-align: left;
+        white-space: pre-wrap;
+    }
 </style>
 
 @php
@@ -202,24 +208,24 @@
             </button>
         </div>
 
-        <!-- NOTES LIST (aligned like All Contacts) -->
+        <!-- NOTES LIST (NOW MATCHES ALL CONTACTS LAYOUT) -->
         <div id="notes-list">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-
-                    {{-- Timestamp line, same as All Contacts --}}
-                    <div class="small text-muted mb-1">
-                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
-                    </div>
-
-                    {{-- Note body + buttons, left-justified like All Contacts/Leads --}}
                     <div class="d-flex justify-content-between align-items-start">
-                        <div class="note-body" style="white-space: pre-wrap; text-align:left;">
-                            {{ $note->body }}
+                        <!-- Left: timestamp + body (same as All Contacts) -->
+                        <div class="flex-grow-1">
+                            <div class="small text-muted mb-1">
+                                {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                            </div>
+                            <div class="note-body">
+                                {{ $note->body }}
+                            </div>
                         </div>
 
-                        <div class="ms-2">
-                            <button class="btn btn-sm btn-outline-secondary"
+                        <!-- Right: buttons -->
+                        <div class="ms-3">
+                            <button class="btn btn-sm btn-outline-secondary mb-1"
                                     onclick="editNote({{ $client->id }}, {{ $note->id }})">
                                 Edit
                             </button>
@@ -262,8 +268,8 @@ function saveNote(clientId) {
 function editNote(clientId, noteId) {
     const existingEl = document.querySelector(`#note-${noteId} .note-body`);
     if (!existingEl) return;
-    const existing = existingEl.innerText;
 
+    const existing = existingEl.innerText;
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
