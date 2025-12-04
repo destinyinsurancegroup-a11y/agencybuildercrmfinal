@@ -115,7 +115,13 @@
 
         <!-- EXISTING NOTES LIST -->
         <div id="lead-notes-list">
-            @forelse ($contact->allNotes as $note)
+            @php
+                // mirror Service/Book behavior
+                $notes = $contact->allNotes ?? $contact->notes ?? collect();
+                $notes = $notes->sortByDesc('created_at');
+            @endphp
+
+            @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="lead-note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div style="white-space: pre-wrap;">
@@ -139,7 +145,7 @@
                     </div>
 
                     <div class="text-muted small mt-1">
-                        {{ $note->created_at->format('m/d/Y h:i A') }}
+                        {{ optional($note->created_at)->format('m/d/Y h:i A') }}
                     </div>
                 </div>
             @empty
@@ -170,7 +176,8 @@
             return;
         }
 
-        fetch(`/leads/${contactId}/notes`, {
+        // Use the SAME working endpoint as Book/Service
+        fetch(`/book/${contactId}/notes`, {
             method: 'POST',
             headers: {
                 "Content-Type": "application/json",
@@ -179,11 +186,19 @@
             },
             body: JSON.stringify({ body })
         })
-        .then(() => {
-            // mimic Book/Service behavior: just reload UI
+        .then(async (res) => {
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error('Error saving note:', txt);
+                alert("Error saving note. See console or /debug-laravel-log.");
+                return;
+            }
             window.location.reload();
         })
-        .catch(() => alert("Error saving note."));
+        .catch((err) => {
+            console.error(err);
+            alert("Network error saving note.");
+        });
     }
 
     function editLeadNote(contactId, noteId) {
@@ -194,7 +209,7 @@
         const updated = prompt("Edit note:", existing);
         if (updated === null) return;
 
-        fetch(`/leads/${contactId}/notes/${noteId}`, {
+        fetch(`/book/${contactId}/notes/${noteId}`, {
             method: 'PUT',
             headers: {
                 "Content-Type": "application/json",
@@ -203,25 +218,43 @@
             },
             body: JSON.stringify({ body: updated })
         })
-        .then(() => {
+        .then(async (res) => {
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error('Error updating note:', txt);
+                alert("Error updating note. See console or /debug-laravel-log.");
+                return;
+            }
             window.location.reload();
         })
-        .catch(() => alert("Error updating note."));
+        .catch((err) => {
+            console.error(err);
+            alert("Network error updating note.");
+        });
     }
 
     function deleteLeadNote(contactId, noteId) {
         if (!confirm("Delete this note?")) return;
 
-        fetch(`/leads/${contactId}/notes/${noteId}`, {
+        fetch(`/book/${contactId}/notes/${noteId}`, {
             method: 'DELETE',
             headers: {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}",
                 "Accept": "application/json"
             }
         })
-        .then(() => {
+        .then(async (res) => {
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error('Error deleting note:', txt);
+                alert("Error deleting note. See console or /debug-laravel-log.");
+                return;
+            }
             window.location.reload();
         })
-        .catch(() => alert("Error deleting note."));
+        .catch((err) => {
+            console.error(err);
+            alert("Network error deleting note.");
+        });
     }
 </script>
