@@ -1,160 +1,160 @@
-<div class="card shadow-sm border-0"
-     style="border-radius:18px; height: calc(100vh - 120px); overflow-y:auto; background:#ffffff;">
+<div class="p-4">
 
-    {{-- HEADER --}}
-    <div class="d-flex justify-content-between align-items-center"
-         style="
-            padding:22px 28px;
-            border-radius:18px 18px 0 0;
-            border-bottom:1px solid #e5e7eb;
-         ">
-        
-        <div>
-            <div style="font-size:34px; font-weight:800; color:#111827; line-height:1;">
-                {{ $contact->full_name }}
-            </div>
-            <div style="font-size:13px; color:#6b7280; margin-top:4px;">
-                Contact ID: {{ $contact->id }}
-            </div>
+    <div class="card shadow-sm border-0 p-4">
+
+        <!-- BIG NAME HEADER -->
+        <h1 class="fw-bold mb-3" style="font-size: 32px;">
+            {{ $contact->first_name }} {{ $contact->last_name }}
+        </h1>
+
+        <!-- Hidden helpers for JS (for future actions if needed) -->
+        <input type="hidden" id="leadContactId" value="{{ $contact->id }}">
+        <input type="hidden" id="leadContactName" value="{{ $contact->full_name }}">
+
+        <!-- DISPOSITION BUTTONS UNDER NAME -->
+        <div class="d-flex gap-2 mb-4">
+
+            {{-- SOLD: convert lead -> client/contact via regular POST --}}
+            <form method="POST"
+                  action="{{ route('leads.sold', $contact) }}"
+                  onsubmit="return confirm('Mark this lead as SOLD and move to your Book of Business?');">
+                @csrf
+                <button type="submit"
+                        class="btn btn-success btn-sm px-3">
+                    Sold
+                </button>
+            </form>
+
+            {{-- FOLLOW UP: go to Calendar screen, passing contact info --}}
+            <a href="{{ url('/calendar') }}?contact_id={{ $contact->id }}&contact_name={{ urlencode($contact->full_name) }}"
+               class="btn btn-warning btn-sm px-3">
+                Follow Up
+            </a>
+
+            {{-- NOT INTERESTED: archive lead and remove from active list --}}
+            <form method="POST"
+                  action="{{ route('leads.archive', $contact) }}"
+                  onsubmit="return confirm('Mark this lead as NOT INTERESTED and remove it from your active Leads list?');">
+                @csrf
+                <button type="submit"
+                        class="btn btn-danger btn-sm px-3">
+                    Not Interested
+                </button>
+            </form>
         </div>
 
-        <a href="{{ route('contacts.edit', $contact->id) }}" 
-           class="btn btn-sm"
-           style="
-                background:#c9a227;
-                color:#111827;
-                font-weight:700;
-                padding:8px 18px;
-                border-radius:10px;
-                text-transform:uppercase;
-                font-size:12px;
-            ">
-            Edit
-        </a>
-    </div>
+        <!-- TOP RIGHT EDIT BUTTON -->
+        <div class="text-end mb-3">
+            <a href="{{ route('contacts.edit', $contact->id) }}" class="btn btn-gold">
+                Edit
+            </a>
+        </div>
 
-    <div class="card-body" style="padding:26px 28px;">
+        <hr>
 
-        {{-- TOP DETAILS --}}
+        <!-- DETAILS SECTION -->
         <div class="row mb-4">
 
-            <div class="col-md-6 mb-3">
-                <label class="text-muted small fw-semibold">Email</label>
-                <div class="fw-bold">{{ $contact->email ?: '—' }}</div>
+            <div class="col-md-6">
+                <p><strong>Email:</strong> {{ $contact->email ?: '—' }}</p>
+                <p><strong>Phone:</strong> {{ $contact->phone ?: '—' }}</p>
+                <p><strong>Age:</strong> {{ $contact->age ?: '—' }}</p>
             </div>
 
-            <div class="col-md-6 mb-3">
-                <label class="text-muted small fw-semibold">Phone</label>
-                <div class="fw-bold">{{ $contact->phone ?: '—' }}</div>
+            <div class="col-md-6">
+                <p><strong>Contact Type:</strong> Lead</p>
+
+                <p><strong>Status:</strong>
+                    <span class="badge bg-secondary">
+                        {{ $contact->status ?? 'New' }}
+                    </span>
+                </p>
+
+                <p><strong>Lead Received Date:</strong>
+                    {{ $contact->lead_received_date ? \Carbon\Carbon::parse($contact->lead_received_date)->format('m/d/Y') : '—' }}
+                </p>
+
+                <p><strong>Lead Assigned Date:</strong>
+                    {{ $contact->lead_assigned_date ? \Carbon\Carbon::parse($contact->lead_assigned_date)->format('m/d/Y') : '—' }}
+                </p>
             </div>
 
-            <div class="col-md-6 mb-3">
-                <label class="text-muted small fw-semibold">Contact Type</label>
-                <div class="fw-bold">{{ $contact->contact_type ?: '—' }}</div>
-            </div>
-
-            <div class="col-md-6 mb-3">
-                <label class="text-muted small fw-semibold">Status</label>
-                <span class="badge bg-secondary"
-                      style="font-size:12px; padding:6px 10px; border-radius:8px;">
-                    {{ $contact->status ?: '—' }}
-                </span>
-            </div>
-
-            {{-- DATE OF BIRTH --}}
-            <div class="col-md-6 mb-3">
-                <label class="text-muted small fw-semibold">Date of Birth</label>
-                <div class="fw-bold">
-                    {{ $contact->date_of_birth ? $contact->date_of_birth->format('m/d/Y') : '—' }}
-                </div>
-            </div>
-
-            {{-- ANNIVERSARY --}}
-            <div class="col-md-6 mb-3">
-                <label class="text-muted small fw-semibold">Anniversary</label>
-                <div class="fw-bold">
-                    {{ $contact->anniversary ? $contact->anniversary->format('m/d/Y') : '—' }}
-                </div>
-            </div>
         </div>
 
-        {{-- ADDRESS --}}
+        <!-- ADDRESS -->
         <div class="mb-4">
-            <label class="text-muted small fw-semibold">Address</label>
-            <div class="fw-bold" style="line-height:1.3;">
-                @if($contact->address_line1)
+            <p><strong>Address</strong></p>
+
+            @if($contact->address_line1)
+                <p>
                     {{ $contact->address_line1 }}<br>
+                    @if($contact->address_line2) {{ $contact->address_line2 }}<br> @endif
                     {{ $contact->city }} {{ $contact->state }} {{ $contact->postal_code }}
-                @else
-                    —
-                @endif
-            </div>
+                </p>
+            @else
+                <p class="text-muted">No address available.</p>
+            @endif
         </div>
 
-        <hr class="my-4">
+        <hr>
 
-        {{-- ADDITIONAL DETAILS (simple text like Book of Business) --}}
-        <h5 class="fw-bold mb-2">Additional Details</h5>
-        <p class="text-muted small mb-4">
-            More custom contact details or policy information can be stored here.
-        </p>
+        <!-- NOTES SECTION -->
+        <h4 class="fw-bold mb-3">Notes</h4>
 
-        <hr class="my-4">
+        <!-- ADD NEW NOTE -->
+        <div class="mb-3">
+            <textarea id="lead_new_note_body"
+                      class="form-control"
+                      rows="2"
+                      placeholder="Write a new note..."></textarea>
 
-        {{-- NOTES SECTION (Book-of-Business style) --}}
-        <h5 class="fw-bold mb-3">Notes</h5>
-
-        {{-- NEW NOTE FORM --}}
-        <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
-            @csrf
-
-            <textarea
-                name="body"
-                class="form-control"
-                rows="3"
-                style="border-radius:10px; border:1px solid #d1d5db; font-size:14px;"
-                placeholder="Write a new note..."
-                required
-            >{{ old('body') }}</textarea>
-
-            @error('body')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-            @enderror
-
-            <button type="submit"
-                    class="btn mt-3"
-                    style="
-                        background:#c9a227;
-                        color:#111827;
-                        padding:8px 22px;
-                        border-radius:10px;
-                        font-size:13px;
-                        font-weight:700;
-                    ">
+            <button type="button" class="btn btn-gold mt-2" onclick="saveLeadNote({{ $contact->id }})">
                 Add Note
             </button>
-        </form>
+        </div>
 
-        {{-- EXISTING NOTES --}}
-        <div class="mt-4">
+        <!-- EXISTING NOTES LIST -->
+        <div id="lead-notes-list" class="mt-4">
             @php
-                $notes = $contact->notes()->latest()->get();
+                // Collect notes same way as before, then newest first
+                $notes = $contact->allNotes ?? $contact->notes ?? collect();
+                $notes = $notes->sortByDesc('created_at');
             @endphp
 
-            @forelse($notes as $note)
+            @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2">
-                    <div class="small text-muted mb-1">
-                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
-                        @if($note->author ?? false)
-                            — {{ $note->author->name }}
-                        @endif
+
+                    {{-- timestamp + buttons row (like All Contacts + actions) --}}
+                    <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
+                        <span>
+                            {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                        </span>
+
+                        <span>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    type="button"
+                                    onclick="editLeadNote({{ $contact->id }}, {{ $note->id }})">
+                                Edit
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-danger"
+                                    type="button"
+                                    onclick="deleteLeadNote({{ $contact->id }}, {{ $note->id }})">
+                                Delete
+                            </button>
+                        </span>
                     </div>
-                    <div>{{ $note->body }}</div>
+
+                    {{-- note body, left-justified just like All Contacts --}}
+                    <div style="white-space: pre-wrap;">
+                        {{ $note->note ?? $note->body }}
+                    </div>
                 </div>
             @empty
-                <p class="text-muted small mb-0">No notes yet for this contact.</p>
+                <p class="text-muted small mb-0">No notes yet for this lead.</p>
             @endforelse
         </div>
 
     </div>
+
 </div>
