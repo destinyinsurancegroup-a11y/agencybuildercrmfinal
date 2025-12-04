@@ -191,7 +191,7 @@
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
         <!-- ADD NEW NOTE -->
-        <div class="mb-3">
+        <div class="mb-3 text-start">
             <textarea id="new_note_body"
                       class="form-control"
                       rows="2"
@@ -203,11 +203,11 @@
         </div>
 
         <!-- NOTES LIST -->
-        <div id="notes-list">
+        <div id="notes-list" class="text-start">
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
+                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div style="white-space: pre-wrap;">
+                        <div style="white-space: pre-wrap; text-align:left;">
                             {{ $note->body }}
                         </div>
 
