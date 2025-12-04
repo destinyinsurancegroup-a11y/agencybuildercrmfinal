@@ -266,12 +266,13 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | NOTES – ADD (BOOK + SERVICE)
+    | NOTES – ADD (BOOK + SERVICE + LEADS)
     |--------------------------------------------------------------------------
     |
     | Used by:
     |   POST /book/{client}/notes
     |   POST /service/{client}/notes
+    |   POST /leads/{client}/notes
     |--------------------------------------------------------------------------
     */
     public function storeNote(Request $request, Contact $client)
@@ -280,12 +281,16 @@ class BookController extends Controller
             'body' => 'required|string|max:5000',
         ]);
 
+        // Make sure tenant_id is NEVER null (this was breaking some leads)
+        $tenantId = $client->tenant_id
+            ?? (auth()->user()->tenant_id ?? 1);
+
         $note = Note::create([
             'contact_id' => $client->id,
             // actual DB column is "note"
             'note'       => trim($data['body']),
             'created_by' => auth()->id() ?? $client->created_by,
-            'tenant_id'  => $client->tenant_id,
+            'tenant_id'  => $tenantId,
         ]);
 
         return response()->json([
@@ -296,12 +301,13 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | NOTES – UPDATE (BOOK + SERVICE)
+    | NOTES – UPDATE (BOOK + SERVICE + LEADS)
     |--------------------------------------------------------------------------
     |
     | Used by:
     |   PUT /book/{client}/notes/{note}
     |   PUT /service/{client}/notes/{note}
+    |   PUT /leads/{client}/notes/{note}
     |--------------------------------------------------------------------------
     */
     public function updateNote(Request $request, Contact $client, Note $note)
@@ -327,12 +333,13 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | NOTES – DELETE (BOOK + SERVICE)
+    | NOTES – DELETE (BOOK + SERVICE + LEADS)
     |--------------------------------------------------------------------------
     |
     | Used by:
     |   DELETE /book/{client}/notes/{note}
     |   DELETE /service/{client}/notes/{note}
+    |   DELETE /leads/{client}/notes/{note}
     |--------------------------------------------------------------------------
     */
     public function destroyNote(Contact $client, Note $note)
@@ -351,17 +358,6 @@ class BookController extends Controller
     /*
     |--------------------------------------------------------------------------
     | SEND TO SERVICE – REUSE SAME CONTACT FOR SERVICE WORK
-    |--------------------------------------------------------------------------
-    |
-    | This turns an existing Book client into an active Service case:
-    |  - contact_type        = 'service'
-    |  - in_book_of_business = true   (still in the book)
-    |  - service_status      = null   (open)
-    |  - service_archived_at = null   (not resolved yet)
-    |
-    | Result:
-    |  - Appears in Service tab (contact_type = 'service')
-    |  - Floats to top of Book of Business & highlighted red (urgent)
     |--------------------------------------------------------------------------
     */
     public function sendToService(Contact $client)
