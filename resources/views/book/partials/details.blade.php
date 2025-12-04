@@ -64,7 +64,7 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button 
+                <button
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
@@ -114,10 +114,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong> 
+                <p><strong>Face Amount:</strong>
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong> 
+                <p><strong>Monthly Premium:</strong>
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -205,28 +205,29 @@
         <!-- NOTES LIST -->
         <div id="notes-list">
             @forelse ($notes as $note)
-                {{-- Force left alignment like All Contacts & Leads --}}
+                {{-- Match Contacts layout: timestamp row on top, body below --}}
                 <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="note-body" style="white-space: pre-wrap; text-align:left;">
-                            {{ $note->body }}
+                    <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
+                        <div>
+                            {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                         </div>
-
                         <div>
                             <button class="btn btn-sm btn-outline-secondary"
+                                    type="button"
                                     onclick="editNote({{ $client->id }}, {{ $note->id }})">
                                 Edit
                             </button>
 
                             <button class="btn btn-sm btn-outline-danger"
+                                    type="button"
                                     onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
                                 Delete
                             </button>
                         </div>
                     </div>
 
-                    <div class="text-muted small mt-1">
-                        {{ $note->created_at->format('m/d/Y h:i A') }}
+                    <div class="note-body" style="white-space: pre-wrap;">
+                        {{ $note->body }}
                     </div>
                 </div>
             @empty
@@ -258,7 +259,10 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const existing = document.querySelector(`#note-${noteId} .note-body`).innerText;
+    const existingEl = document.querySelector(`#note-${noteId} .note-body`);
+    if (!existingEl) return;
+
+    const existing = existingEl.innerText;
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
