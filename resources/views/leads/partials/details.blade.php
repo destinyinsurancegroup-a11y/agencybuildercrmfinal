@@ -116,20 +116,20 @@
         <!-- EXISTING NOTES LIST -->
         <div id="lead-notes-list">
             @php
-                // Use same pattern as Service/Book:
+                // Same pattern as Service/Book
                 $notes = $contact->allNotes ?? $contact->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2" id="lead-note-{{ $note->id }}" style="text-align:left;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div style="white-space: pre-wrap; text-align:left;">
+                <div class="border rounded p-2 mb-2 text-start" id="lead-note-{{ $note->id }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="note-text" style="white-space: pre-wrap; text-align:left;">
                             {{-- DB column is "note"; fall back to "body" if older --}}
                             {{ $note->note ?? $note->body }}
                         </div>
 
-                        <div>
+                        <div class="ms-3">
                             <button class="btn btn-sm btn-outline-secondary"
                                     type="button"
                                     onclick="editLeadNote({{ $contact->id }}, {{ $note->id }})">
