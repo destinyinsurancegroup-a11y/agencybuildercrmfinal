@@ -9,12 +9,10 @@ use App\Models\Event;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\NoteController;
-
 // NEW CONTROLLERS FOR LEADS / BOOK / SERVICE
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\ServiceController;
-
 // NEW ACTIVITY CONTROLLER
 use App\Http\Controllers\ActivityController;
 
@@ -79,24 +77,33 @@ Route::get('/contacts/{contact}/notes/list', [NoteController::class, 'list'])
 |--------------------------------------------------------------------------
 */
 Route::get('/leads',         [LeadController::class, 'index'])->name('leads.index');
-Route::get('/leads/archived',[LeadController::class, 'archived'])->name('leads.archived'); // ⭐ NEW: Archived leads
+Route::get('/leads/archived',[LeadController::class, 'archived'])->name('leads.archived'); // ⭐ Archived leads
 Route::get('/leads/create',  [LeadController::class, 'create'])->name('leads.create');
 Route::get('/leads/{id}',    [LeadController::class, 'show'])->name('leads.show');
 
-/* ⭐ NEW ROUTE — CONVERT LEAD TO CLIENT ⭐ */
+/* ⭐ CONVERT LEAD TO CLIENT ⭐ */
 Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
     ->name('leads.sold');
 
-/* ⭐ NEW ROUTE — ARCHIVE LEAD AS NOT INTERESTED ⭐ */
+/* ⭐ ARCHIVE LEAD AS NOT INTERESTED ⭐ */
 Route::post('/leads/{contact}/archive', [LeadController::class, 'archive'])
     ->name('leads.archive');
 
 /*
 |--------------------------------------------------------------------------
-| LEAD NOTES (reuse BookController note logic)
+| LEAD NOTES  ⭐ (NEW – reuse BookController note logic)
 |--------------------------------------------------------------------------
+|
+| These routes are what your leads notes JS is calling:
+|   POST   /leads/{id}/notes
+|   PUT    /leads/{id}/notes/{note}
+|   DELETE /leads/{id}/notes/{note}
+|
+| We use BookController::storeNote / updateNote / destroyNote
+| just like Book of Business and Service.
+|
 */
-Route::post('/leads/{client}/notes', [BookController::class, 'storeNote'])
+Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
     ->name('leads.notes.store');
 
 Route::put('/leads/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -126,13 +133,13 @@ Route::prefix('book')->group(function () {
     Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
         ->name('book.notes.update');
 
-    // 🔹 DELETE NOTE FOR BOOK CLIENT
+    // DELETE NOTE FOR BOOK CLIENT
     Route::delete('/{client}/notes/{note}', [BookController::class, 'destroyNote'])
         ->name('book.notes.destroy');
 
     Route::post('/import', [BookController::class, 'import'])->name('book.import');
 
-    // ⭐ NEW: Send existing Book client into Service using the same contact record
+    // Send existing Book client into Service using the same contact record
     Route::post('/{client}/send-to-service', [BookController::class, 'sendToService'])
         ->name('book.send-to-service');
 });
@@ -195,7 +202,7 @@ Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'
 Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
     ->name('service.notes.update');
 
-// 🔹 DELETE NOTE FOR SERVICE CLIENT
+// DELETE NOTE FOR SERVICE CLIENT
 Route::delete('/service/{client}/notes/{note}', [BookController::class, 'destroyNote'])
     ->name('service.notes.destroy');
 
