@@ -31,11 +31,6 @@
     .p-4 {
         padding: 1.25rem !important;
     }
-
-    /* Make sure note body behaves like Contacts notes */
-    .book-note-body {
-        white-space: pre-wrap;
-    }
 </style>
 
 @php
@@ -207,20 +202,21 @@
             </button>
         </div>
 
-        <!-- NOTES LIST -->
+        <!-- NOTES LIST (left-justified like All Contacts) -->
         <div id="notes-list">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    {{-- Match Contacts style: timestamp then body, both in a simple vertical stack --}}
+                    {{-- Timestamp line, same as All Contacts --}}
                     <div class="small text-muted mb-1">
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
-                    <div class="book-note-body">
+                    {{-- Note body: plain block, left-aligned --}}
+                    <div style="white-space: pre-wrap; text-align:left;">
                         {{ $note->body }}
                     </div>
 
-                    {{-- Actions on a separate row so they don't affect text alignment --}}
+                    {{-- Edit/Delete aligned to the right, on their own row --}}
                     <div class="mt-2 text-end">
                         <button class="btn btn-sm btn-outline-secondary"
                                 onclick="editNote({{ $client->id }}, {{ $note->id }})">
@@ -262,10 +258,7 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const existingEl = document.querySelector(`#note-${noteId} .book-note-body`);
-    if (!existingEl) return;
-
-    const existing = existingEl.innerText;
+    const existing = document.querySelector(`#note-${noteId} div:nth-child(2)`).innerText;
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
