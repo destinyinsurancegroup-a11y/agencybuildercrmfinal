@@ -1,401 +1,471 @@
-<?php
+@extends('layouts.app')
 
-namespace App\Http\Controllers;
+@section('content')
 
-use App\Models\Contact;
-use App\Models\Note;
-use App\Models\ContactRelation;   // <-- UNIFIED relations table
-use Illuminate\Http\Request;
-
-class BookController extends Controller
-{
-    /*
-    |--------------------------------------------------------------------------
-    | INDEX – LEFT LIST + RIGHT PANEL
-    |--------------------------------------------------------------------------
-    */
-    public function index(Request $request)
-    {
-        $user = auth()->user();
-
-        $query = Contact::query()
-            // Show:
-            //  - anything explicitly in Book of Business
-            //  - OR legacy book/client/Sold records
-            ->where(function ($q) {
-                $q->where('in_book_of_business', true)
-                  ->orWhere(function ($q2) {
-                      $q2->where('contact_type', 'book')
-                         ->orWhere('contact_type', 'client')
-                         ->orWhere('status', 'Sold');
-                  });
-            })
-            // Multi-tenant safety if tenant_id exists
-            ->when($user, function ($q) use ($user) {
-                $q->where('tenant_id', $user->tenant_id);
-            });
-
-        // Optional search
-        if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
-            });
-        }
-
-        // ORDER:
-        // 1) Urgent service contacts first:
-        //      contact_type = 'service' AND service_archived_at IS NULL
-        // 2) Then by last name / first name
-        $query->orderByRaw("
-            CASE
-                WHEN contact_type = 'service' AND service_archived_at IS NULL THEN 0
-                ELSE 1
-            END
-        ")->orderBy('last_name')
-         ->orderBy('first_name');
-
-        $clients = $query->get();
-
-        $selected = $request->get('selected');
-
-        return view('book.index', compact('clients', 'selected'));
+<style>
+    /* Same card/layout styling used on Leads/Contacts */
+    .contacts-card {
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 22px;
+        height: calc(100vh - 120px);
+        overflow-y: auto;
+        box-shadow:
+            0 18px 30px -12px rgba(0,0,0,0.35),
+            0 8px 16px -8px rgba(0,0,0,0.18);
+        border: 1px solid #e5e7eb;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE PANEL (AJAX)
-    |--------------------------------------------------------------------------
-    */
-    public function createPanel()
-    {
-        return view('book.partials.create');
+    .contacts-card-wrapper {
+        width: 320px !important;
+        max-width: 320px !important;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | STORE – NEW BOOK CLIENT
-    |--------------------------------------------------------------------------
-    */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'first_name'        => 'required|string|max:255',
-            'last_name'         => 'required|string|max:255',
-            'email'             => 'nullable|email|max:255',
-            'phone'             => 'nullable|string|max:255',
-
-            'address_line1'     => 'nullable|string|max:255',
-            'address_line2'     => 'nullable|string|max:255',
-            'city'              => 'nullable|string|max:255',
-            'state'             => 'nullable|string|max:255',
-            'postal_code'       => 'nullable|string|max:50',
-
-            'date_of_birth'     => 'nullable|date',
-            'anniversary'       => 'nullable|date',
-
-            'carrier'           => 'nullable|string|max:255',
-            'policy_type'       => 'nullable|string|max:255',
-            'face_amount'       => 'nullable|numeric',
-            'premium_amount'    => 'nullable|numeric',
-            'premium_due_date'  => 'nullable|date',
-            'policy_issue_date' => 'nullable|date',
-            'premium_due_text'  => 'nullable|string|max:255',
-
-            'notes'             => 'nullable|string',
-        ]);
-
-        $user = auth()->user();
-
-        // New records created from Book are tagged as "book"
-        $validated['contact_type'] = 'book';
-        $validated['tenant_id']    = $user->tenant_id ?? 1;
-        $validated['created_by']   = $user->id ?? 1;
-
-        $client = Contact::create($validated);
-
-        // Explicitly mark as in Book of Business
-        $client->in_book_of_business = true;
-        $client->save();
-
-        return redirect()->route('book.index', ['selected' => $client->id]);
+    .contacts-header {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 18px;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHOW PANEL (AJAX ONLY)
-    |--------------------------------------------------------------------------
-    */
-    public function show(Contact $client)
-    {
-        if (request()->ajax()) {
-            return view('book.partials.details', compact('client'));
-        }
-
-        return abort(404);
+    .contacts-search-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | EDIT PANEL (AJAX)
-    |--------------------------------------------------------------------------
-    */
-    public function editPanel(Contact $client)
-    {
-        return view('book.partials.edit', compact('client'));
+    .contacts-search-input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        font-size: 14px;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | FULL PAGE EDIT
-    |--------------------------------------------------------------------------
-    */
-    public function edit(Contact $client)
-    {
-        return view('book.edit', compact('client'));
+    .contacts-search-btn {
+        padding: 7px 10px;
+        border-radius: 8px;
+        border: none;
+        background: #c9a227;
+        color: #111827;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE – SAVES EVERYTHING INCLUDING DESTINY RELATIONS
-    |--------------------------------------------------------------------------
-    */
-    public function update(Request $request, Contact $client)
-    {
-        // 1. Validate base fields
-        $validated = $request->validate([
-            'first_name'        => 'nullable|string|max:255',
-            'last_name'         => 'nullable|string|max:255',
-            'email'             => 'nullable|email|max:255',
-            'phone'             => 'nullable|string|max:255',
-
-            'address_line1'     => 'nullable|string|max:255',
-            'address_line2'     => 'nullable|string|max:255',
-            'city'              => 'nullable|string|max:255',
-            'state'             => 'nullable|string|max:255',
-            'postal_code'       => 'nullable|string|max:50',
-
-            'date_of_birth'     => 'nullable|date',
-            'anniversary'       => 'nullable|date',
-
-            'carrier'           => 'nullable|string|max:255',
-            'policy_type'       => 'nullable|string|max:255',
-            'face_amount'       => 'nullable|numeric',
-            'premium_amount'    => 'nullable|numeric',
-            'premium_due_date'  => 'nullable|date',
-            'policy_issue_date' => 'nullable|date',
-            'premium_due_text'  => 'nullable|string|max:255',
-        ]);
-
-        // 2. Partial update – only overwrite non-empty values
-        foreach ($validated as $key => $value) {
-            if ($value !== null && $value !== '') {
-                $client->{$key} = $value;
-            }
-        }
-
-        // Ensure it's treated as a Book record after editing here
-        $client->contact_type        = 'book';
-        $client->in_book_of_business = true;
-        $client->save();
-
-        /*
-        |--------------------------------------------------------------------------
-        | DESTINY: BENEFICIARIES & EMERGENCY CONTACTS
-        |--------------------------------------------------------------------------
-        */
-        $this->saveRelations($request, $client, 'beneficiary');
-        $this->saveRelations($request, $client, 'emergency');
-
-        return redirect()->route('book.index', ['selected' => $client->id]);
+    .contacts-search-btn:hover {
+        background: #b5901f;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SAVE RELATIONS (Unified Destiny Logic)
-    |--------------------------------------------------------------------------
-    */
-    private function saveRelations(Request $request, Contact $client, string $type)
-    {
-        $key = $type === 'beneficiary'
-            ? 'beneficiaries'
-            : 'emergency_contacts';
-
-        if (!$request->has($key)) {
-            return;
-        }
-
-        foreach ($request->$key as $row) {
-            if (!isset($row['name']) || trim($row['name']) === '') {
-                continue;
-            }
-
-            // Update existing
-            if (!empty($row['id'])) {
-                $relation = ContactRelation::where('id', $row['id'])
-                    ->where('contact_id', $client->id)
-                    ->where('type', $type)
-                    ->first();
-
-                if ($relation) {
-                    $relation->update([
-                        'name'         => $row['name'],
-                        'relationship' => $row['relationship'] ?? null,
-                        'phone'        => $row['phone'] ?? null,
-                        'contacted'    => $row['contacted'] ?? 0,
-                    ]);
-                }
-                continue;
-            }
-
-            // Create new
-            ContactRelation::create([
-                'contact_id'   => $client->id,
-                'type'         => $type,
-                'name'         => $row['name'],
-                'relationship' => $row['relationship'] ?? null,
-                'phone'        => $row['phone'] ?? null,
-                'contacted'    => $row['contacted'] ?? 0,
-                'tenant_id'    => 1,
-                'created_by'   => 1,
-            ]);
-        }
+    .btn-gold {
+        background: #c9a227;
+        color: #111827;
+        border: none;
+        padding: 6px 10px;   /* smaller buttons */
+        font-weight: 600;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES – ADD (BOOK + SERVICE)
-    |--------------------------------------------------------------------------
-    |
-    | Used by:
-    |   POST /book/{client}/notes
-    |   POST /service/{client}/notes
-    |--------------------------------------------------------------------------
-    */
-    public function storeNote(Request $request, Contact $client)
-    {
-        $data = $request->validate([
-            'body' => 'required|string|max:5000',
-        ]);
-
-        $note = Note::create([
-            'contact_id' => $client->id,
-            // actual DB column is "note"
-            'note'       => trim($data['body']),
-            'created_by' => auth()->id() ?? $client->created_by,
-            'tenant_id'  => $client->tenant_id,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'note'    => $note,
-        ], 201);
+    .btn-gold:hover {
+        background: #b5901f;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES – UPDATE (BOOK + SERVICE)
-    |--------------------------------------------------------------------------
-    |
-    | Used by:
-    |   PUT /book/{client}/notes/{note}
-    |   PUT /service/{client}/notes/{note}
-    |--------------------------------------------------------------------------
-    */
-    public function updateNote(Request $request, Contact $client, Note $note)
-    {
-        // Ensure the note actually belongs to this client
-        if ($note->contact_id !== $client->id) {
-            abort(404);
-        }
-
-        $data = $request->validate([
-            'body' => 'required|string|max:5000',
-        ]);
-
-        $note->update([
-            'note' => trim($data['body']),
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'note'    => $note->fresh(),
-        ]);
+    .button-row {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 8px;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES – DELETE (BOOK + SERVICE)
-    |--------------------------------------------------------------------------
-    |
-    | Used by:
-    |   DELETE /book/{client}/notes/{note}
-    |   DELETE /service/{client}/notes/{note}
-    |--------------------------------------------------------------------------
-    */
-    public function destroyNote(Contact $client, Note $note)
-    {
-        if ($note->contact_id !== $client->id) {
-            abort(404);
-        }
-
-        $note->delete();
-
-        return response()->json([
-            'success' => true,
-        ]);
+    .contact-list-item {
+        padding: 10px 6px;
+        font-size: 15px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SEND TO SERVICE – REUSE SAME CONTACT FOR SERVICE WORK
-    |--------------------------------------------------------------------------
-    |
-    | This turns an existing Book client into an active Service case:
-    |  - contact_type        = 'service'
-    |  - in_book_of_business = true   (still in the book)
-    |  - service_status      = null   (open)
-    |  - service_archived_at = null   (not resolved yet)
-    |
-    | Result:
-    |  - Appears in Service tab (contact_type = 'service')
-    |  - Floats to top of Book of Business & highlighted red (urgent)
-    |--------------------------------------------------------------------------
-    */
-    public function sendToService(Contact $client)
-    {
-        $user = auth()->user();
-
-        // Multi-tenant safety
-        if ($user && $client->tenant_id !== $user->tenant_id) {
-            abort(403, 'Unauthorized');
-        }
-
-        $client->contact_type        = 'service';
-        $client->in_book_of_business = true;
-        $client->service_status      = null;
-        $client->service_archived_at = null;
-        $client->save();
-
-        // Jump to Service tab with this client selected
-        return redirect()->route('service.index', ['selected' => $client->id]);
+    .contact-list-item:hover {
+        background: #f9fafb;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | DELETE RELATIONS (Destiny Style)
-    |--------------------------------------------------------------------------
-    */
-    public function deleteRelation(Request $request, Contact $client, ContactRelation $relation)
-    {
-        if ($relation->contact_id !== $client->id) {
-            abort(403);
-        }
-
-        $relation->delete();
-
-        return response()->json(['success' => true]);
+    .active-contact-row {
+        background: #eae6d1 !important;
+        font-weight: 600;
     }
+
+    .empty-right-panel {
+        height: 100%;
+        background: transparent !important;
+    }
+
+    /* NEW: urgent service contact styling */
+    .urgent-contact {
+        color: #b91c1c; /* red */
+        font-weight: 700;
+    }
+</style>
+
+<div class="dashboard-page">
+    <div class="row g-4">
+
+        <!-- LEFT COLUMN -->
+        <div class="col-md-4 col-lg-3 contacts-card-wrapper">
+            <div class="contacts-card">
+
+                <div class="contacts-header">Book of Business</div>
+
+                <!-- Search (client-side only) -->
+                <div class="contacts-search-wrapper">
+                    <input 
+                        type="text"
+                        id="book-search"
+                        class="contacts-search-input"
+                        placeholder="Search clients..."
+                    >
+                    <button class="contacts-search-btn" disabled>Go</button>
+                </div>
+
+                <!-- Add Client + Upload -->
+                <div class="button-row">
+                    <button 
+                        id="add-book-client-btn"
+                        class="btn-gold"
+                        data-create-url="{{ route('book.create.panel') }}"
+                    >
+                        Add
+                    </button>
+
+                    <button 
+                        class="btn-gold"
+                        data-bs-toggle="modal"
+                        data-bs-target="#uploadBookModal"
+                    >
+                        Upload
+                    </button>
+                </div>
+
+                <!-- Client List -->
+                <div id="book-list">
+                    @forelse ($clients as $client)
+                        @php
+                            // Urgent if this is a service contact with an open service (not archived yet)
+                            $isServiceUrgent = $client->contact_type === 'service' && is_null($client->service_archived_at);
+                            $name = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+                        @endphp
+
+                        <div 
+                            class="contact-list-item js-book-row
+                                   {{ (isset($selected) && $selected == $client->id) ? 'active-contact-row' : '' }}
+                                   {{ $isServiceUrgent ? 'urgent-contact' : '' }}"
+                            data-id="{{ $client->id }}"
+                            data-show-url="{{ route('book.show', $client->id) }}"
+                        >
+                            {{ $name }}
+
+                            @if($isServiceUrgent)
+                                <span class="badge bg-danger ms-1">Service</span>
+                            @endif
+
+                            @if($client->policy_type)
+                                <br><small class="text-muted">{{ $client->policy_type }}</small>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="text-muted">No clients found.</p>
+                    @endforelse
+                </div>
+
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="col-md-8 col-lg-9">
+            <div id="book-details-container" style="width:100%; min-height:400px;">
+                <div class="empty-right-panel"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- UPLOAD BOOK MODAL -->
+<div class="modal fade" id="uploadBookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form 
+            action="{{ route('book.import') }}" 
+            method="POST" 
+            enctype="multipart/form-data"
+            class="modal-content"
+        >
+            @csrf
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title">Upload Book of Business</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <label class="form-label">Choose CSV or Excel file</label>
+                <input 
+                    type="file"
+                    name="file"
+                    class="form-control"
+                    accept=".csv, .xlsx, .xls"
+                    required
+                >
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Upload</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+@endsection
+
+
+
+{{-- ============================================================
+     JAVASCRIPT — GLOBAL BEC HANDLERS
+     ============================================================ --}}
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const container = document.getElementById('book-details-container');
+
+    // Loads right panel via AJAX
+    window.loadBookPanel = function (url) {
+        container.innerHTML = `
+            <div style="padding:40px; text-align:center;">
+                <div class="spinner-border text-warning" role="status"></div>
+                <p class="mt-3 text-muted">Loading...</p>
+            </div>
+        `;
+
+        fetch(url, {
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        })
+        .then(res => res.text())
+        .then(html => container.innerHTML = html)
+        .catch(() => {
+            container.innerHTML = `
+                <div style="padding:40px; text-align:center; color:red;">
+                    Failed to load.
+                </div>
+            `;
+        });
+    };
+
+    /* CLICK A CLIENT */
+    document.querySelectorAll('.js-book-row').forEach(row => {
+        row.addEventListener('click', () => {
+
+            document.querySelectorAll('.js-book-row')
+                .forEach(r => r.classList.remove('active-contact-row'));
+
+            row.classList.add('active-contact-row');
+
+            loadBookPanel(row.dataset.showUrl);
+        });
+    });
+
+    /* ADD CLIENT */
+    const addBtn = document.getElementById('add-book-client-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function () {
+            loadBookPanel(this.dataset.createUrl);
+        });
+    }
+
+    /* CLIENT SIDE SEARCH */
+    document.getElementById('book-search').addEventListener('keyup', function () {
+        const term = this.value.toLowerCase();
+        document.querySelectorAll('#book-list .js-book-row')
+            .forEach(row =>
+                row.style.display = row.textContent.toLowerCase().includes(term)
+                    ? 'block'
+                    : 'none'
+            );
+    });
+
+    // Auto-load selected client
+    @if(!empty($selected))
+        loadBookPanel("{{ route('book.show', $selected) }}");
+    @endif
+});
+
+
+/* ------------------------------------------------------
+   BEC SECTION — MOVED HERE SO AJAX PARTIALS CAN USE IT
+   ------------------------------------------------------ */
+
+/* ---------- ADD BENEFICIARY ---------- */
+function openAddBeneficiary(clientId) {
+    document.getElementById('beneficiaryModalTitle').innerText = "Add Beneficiary";
+    document.getElementById('beneficiary_id').value = "";
+    document.getElementById('beneficiary_client_id').value = clientId;
+
+    document.getElementById('beneficiary_name').value = "";
+    document.getElementById('beneficiary_relationship').value = "";
+    document.getElementById('beneficiary_phone').value = "";
+    document.getElementById('beneficiary_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
 }
+
+/* ---------- EDIT BENEFICIARY ---------- */
+function editBeneficiary(id) {
+    fetch(`/api/beneficiaries/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('beneficiaryModalTitle').innerText = "Edit Beneficiary";
+
+            document.getElementById('beneficiary_id').value = data.id;
+            document.getElementById('beneficiary_client_id').value = data.contact_id;
+
+            document.getElementById('beneficiary_name').value = data.name;
+            document.getElementById('beneficiary_relationship').value = data.relationship ?? "";
+            document.getElementById('beneficiary_phone').value = data.phone ?? "";
+            document.getElementById('beneficiary_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
+        });
+}
+
+/* ---------- SAVE BENEFICIARY ---------- */
+document.addEventListener("submit", function (e) {
+    if (e.target.id !== "beneficiaryForm") return;
+    e.preventDefault();
+
+    let id = document.getElementById('beneficiary_id').value;
+    let clientId = document.getElementById('beneficiary_client_id').value;
+
+    let url = id
+        ? `/book/${clientId}/beneficiaries/${id}`
+        : `/book/${clientId}/beneficiaries`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            name: document.getElementById('beneficiary_name').value,
+            relationship: document.getElementById('beneficiary_relationship').value,
+            phone: document.getElementById('beneficiary_phone').value,
+            contacted: document.getElementById('beneficiary_contacted').value
+        })
+    })
+    .then(r => r.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('beneficiaryModal')).hide();
+        loadBookPanel(`/book/${clientId}`);
+    });
+});
+
+/* ---------- DELETE BENEFICIARY ---------- */
+function deleteBeneficiary(clientId, id) {
+    if (!confirm("Delete beneficiary?")) return;
+
+    fetch(`/book/${clientId}/beneficiaries/${id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
+    })
+    .then(r => r.json())
+    .then(() => loadBookPanel(`/book/${clientId}`));
+}
+
+
+
+/* ---------- ADD EMERGENCY CONTACT ---------- */
+function openAddEmergency(clientId) {
+    document.getElementById('emergencyModalTitle').innerText = "Add Emergency Contact";
+    document.getElementById('emergency_id').value = "";
+    document.getElementById('emergency_client_id').value = clientId;
+
+    document.getElementById('emergency_name').value = "";
+    document.getElementById('emergency_relationship').value = "";
+    document.getElementById('emergency_phone').value = "";
+    document.getElementById('emergency_contacted').value = "0";
+
+    new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+}
+
+/* ---------- EDIT EMERGENCY ---------- */
+function editEmergency(id) {
+    fetch(`/api/emergency/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('emergencyModalTitle').innerText = "Edit Emergency Contact";
+
+            document.getElementById('emergency_id').value = data.id;
+            document.getElementById('emergency_client_id').value = data.contact_id;
+
+            document.getElementById('emergency_name').value = data.name;
+            document.getElementById('emergency_relationship').value = data.relationship ?? "";
+            document.getElementById('emergency_phone').value = data.phone ?? "";
+            document.getElementById('emergency_contacted').value = data.contacted ? "1" : "0";
+
+            new bootstrap.Modal(document.getElementById('emergencyModal')).show();
+        });
+}
+
+/* ---------- SAVE EMERGENCY ---------- */
+document.addEventListener("submit", function (e) {
+    if (e.target.id !== "emergencyForm") return;
+    e.preventDefault();
+
+    let id = document.getElementById('emergency_id').value;
+    let clientId = document.getElementById('emergency_client_id').value;
+
+    let url = id
+        ? `/book/${clientId}/emergency/${id}`
+        : `/book/${clientId}/emergency`;
+
+    let method = id ? "PUT" : "POST";
+
+    fetch(url, {
+        method: method,
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            name: document.getElementById('emergency_name').value,
+            relationship: document.getElementById('emergency_relationship').value,
+            phone: document.getElementById('emergency_phone').value,
+            contacted: document.getElementById('emergency_contacted').value
+        })
+    })
+    .then(r => r.json())
+    .then(() => {
+        bootstrap.Modal.getInstance(document.getElementById('emergencyModal')).hide();
+        loadBookPanel(`/book/${clientId}`);
+    });
+});
+
+/* ---------- DELETE EMERGENCY ---------- */
+function deleteEmergency(clientId, id) {
+    if (!confirm("Delete emergency contact?")) return;
+
+    fetch(`/book/${clientId}/emergency/${id}`, {
+        method: "DELETE",
+        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
+    })
+    .then(r => r.json())
+    .then(() => loadBookPanel(`/book/${clientId}`));
+}
+
+</script>
+@endpush
