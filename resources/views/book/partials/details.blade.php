@@ -31,18 +31,6 @@
     .p-4 {
         padding: 1.25rem !important;
     }
-
-    /* ===== FORCE LEFT ALIGNMENT FOR NOTES AREA ===== */
-
-    #notes-list,
-    #notes-list .border,
-    #notes-list .border * {
-        text-align: left !important;
-    }
-
-    .note-body-text {
-        white-space: pre-wrap;
-    }
 </style>
 
 @php
@@ -76,7 +64,7 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button
+                <button 
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
@@ -126,10 +114,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong>
+                <p><strong>Face Amount:</strong> 
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong>
+                <p><strong>Monthly Premium:</strong> 
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -202,8 +190,8 @@
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        <!-- ADD NEW NOTE (left-justified) -->
-        <div class="mb-3 text-start">
+        <!-- ADD NEW NOTE -->
+        <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
                       rows="2"
@@ -214,31 +202,30 @@
             </button>
         </div>
 
-        <!-- NOTES LIST (left-justified like Contacts/Leads) -->
+        <!-- NOTES LIST -->
         <div id="notes-list">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    {{-- DATE / TIME LINE --}}
-                    <div class="small text-muted mb-1">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div style="white-space: pre-wrap;">
+                            {{ $note->body }}
+                        </div>
+
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="editNote({{ $client->id }}, {{ $note->id }})">
+                                Edit
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-danger"
+                                    onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="text-muted small mt-1">
                         {{ $note->created_at->format('m/d/Y h:i A') }}
-                    </div>
-
-                    {{-- NOTE BODY, FULL WIDTH, LEFT JUSTIFIED --}}
-                    <div class="mb-2 note-body-text">
-                        {{ $note->body }}
-                    </div>
-
-                    {{-- ACTION BUTTONS BELOW NOTE BODY --}}
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary"
-                                onclick="editNote({{ $client->id }}, {{ $note->id }})">
-                            Edit
-                        </button>
-
-                        <button class="btn btn-sm btn-outline-danger"
-                                onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
-                            Delete
-                        </button>
                     </div>
                 </div>
             @empty
@@ -270,13 +257,7 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const noteBodyEl = document.querySelector(`#note-${noteId} .note-body-text`);
-    if (!noteBodyEl) {
-        alert("Unable to find note body to edit.");
-        return;
-    }
-
-    const existing = noteBodyEl.innerText;
+    const existing = document.querySelector(`#note-${noteId} div:first-child`).innerText;
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
