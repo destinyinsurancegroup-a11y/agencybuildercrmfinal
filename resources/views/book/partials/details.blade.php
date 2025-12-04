@@ -31,6 +31,12 @@
     .p-4 {
         padding: 1.25rem !important;
     }
+
+    /* Note text block – match Contacts/Leads behavior */
+    .note-body-text {
+        text-align: left;
+        white-space: pre-wrap;
+    }
 </style>
 
 @php
@@ -190,7 +196,7 @@
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        <!-- ADD NEW NOTE -->
+        <!-- ADD NEW NOTE (left-justified container) -->
         <div class="mb-3 text-start">
             <textarea id="new_note_body"
                       class="form-control"
@@ -202,31 +208,34 @@
             </button>
         </div>
 
-        <!-- NOTES LIST -->
+        <!-- NOTES LIST (left-justified like Contacts/Leads) -->
         <div id="notes-list" class="text-start">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div style="white-space: pre-wrap; text-align:left;">
-                            {{ $note->body }}
-                        </div>
 
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary"
-                                    onclick="editNote({{ $client->id }}, {{ $note->id }})">
-                                Edit
-                            </button>
-
-                            <button class="btn btn-sm btn-outline-danger"
-                                    onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="text-muted small mt-1">
+                    {{-- DATE / TIME LINE (like Contacts/Leads) --}}
+                    <div class="small text-muted mb-1">
                         {{ $note->created_at->format('m/d/Y h:i A') }}
                     </div>
+
+                    {{-- NOTE BODY IN ITS OWN BLOCK, FULL WIDTH --}}
+                    <div class="mb-2 note-body-text">
+                        {{ $note->body }}
+                    </div>
+
+                    {{-- ACTION BUTTONS BELOW NOTE BODY --}}
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="editNote({{ $client->id }}, {{ $note->id }})">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
+                            Delete
+                        </button>
+                    </div>
+
                 </div>
             @empty
                 <p class="text-muted">No notes yet.</p>
@@ -257,7 +266,13 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const existing = document.querySelector(`#note-${noteId} div:first-child`).innerText;
+    const noteBodyEl = document.querySelector(`#note-${noteId} .note-body-text`);
+    if (!noteBodyEl) {
+        alert("Unable to find note body to edit.");
+        return;
+    }
+
+    const existing = noteBodyEl.innerText;
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
