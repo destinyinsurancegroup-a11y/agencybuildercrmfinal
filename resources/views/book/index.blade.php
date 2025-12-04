@@ -467,5 +467,97 @@ function deleteEmergency(clientId, id) {
     .then(() => loadBookPanel(`/book/${clientId}`));
 }
 
+
+/* ---------- NOTES: ADD ---------- */
+function saveNote(clientId) {
+    const textarea = document.getElementById('new_note_body');
+    if (!textarea) {
+        console.warn('new_note_body textarea not found');
+        return;
+    }
+
+    const body = textarea.value.trim();
+    if (!body) {
+        alert("Note cannot be empty.");
+        return;
+    }
+
+    fetch(`/book/${clientId}/notes`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to save note');
+        return r.json();
+    })
+    .then(() => {
+        textarea.value = '';
+        loadBookPanel(`/book/${clientId}`);
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Error saving note.');
+    });
+}
+
+/* ---------- NOTES: EDIT ---------- */
+function editNote(clientId, noteId) {
+    const noteEl = document.querySelector(`#note-${noteId} .note-body`);
+    if (!noteEl) {
+        console.warn('note body element not found');
+        return;
+    }
+
+    const existing = noteEl.innerText.trim();
+    const updated = prompt("Edit note:", existing);
+    if (updated === null) return; // user cancelled
+
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'PUT',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body: updated })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to update note');
+        return r.json();
+    })
+    .then(() => loadBookPanel(`/book/${clientId}`))
+    .catch(err => {
+        console.error(err);
+        alert('Error updating note.');
+    });
+}
+
+/* ---------- NOTES: DELETE ---------- */
+function deleteNote(clientId, noteId) {
+    if (!confirm("Delete this note?")) return;
+
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to delete note');
+        return r.json();
+    })
+    .then(() => loadBookPanel(`/book/${clientId}`))
+    .catch(err => {
+        console.error(err);
+        alert('Error deleting note.');
+    });
+}
+
 </script>
 @endpush
