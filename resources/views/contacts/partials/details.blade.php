@@ -1,3 +1,12 @@
+<style>
+    #lead-notes-list, 
+    #lead-notes-list * {
+        text-align: left !important;
+        justify-content: flex-start !important;
+        align-items: flex-start !important;
+    }
+</style>
+
 <div class="p-4">
 
     <div class="card shadow-sm border-0 p-4">
