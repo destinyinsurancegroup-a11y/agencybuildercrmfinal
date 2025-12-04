@@ -64,7 +64,7 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button 
+                <button
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
@@ -114,10 +114,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong> 
+                <p><strong>Face Amount:</strong>
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong> 
+                <p><strong>Monthly Premium:</strong>
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -203,21 +203,22 @@
         </div>
 
         <!-- NOTES LIST -->
-        <div id="notes-list">
+        {{-- text-start forces left alignment like All Contacts --}}
+        <div id="notes-list" class="mt-3 text-start">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    {{-- timestamp on its own line, left aligned --}}
+                    {{-- TIMESTAMP LINE, JUST LIKE ALL CONTACTS --}}
                     <div class="small text-muted mb-1">
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
-                    {{-- note text on the left, buttons on the right --}}
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="flex-grow-1 text-start" style="white-space: pre-wrap;">
+                    {{-- BODY + ACTIONS ROW --}}
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="note-body" style="white-space: pre-wrap;">
                             {{ $note->body }}
                         </div>
 
-                        <div class="ms-3 flex-shrink-0">
+                        <div class="ms-2">
                             <button class="btn btn-sm btn-outline-secondary"
                                     onclick="editNote({{ $client->id }}, {{ $note->id }})">
                                 Edit
@@ -231,7 +232,7 @@
                     </div>
                 </div>
             @empty
-                <p class="text-muted">No notes yet.</p>
+                <p class="text-muted small mb-0">No notes yet.</p>
             @endforelse
         </div>
 
@@ -259,7 +260,7 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const existingEl = document.querySelector(`#note-${noteId} .flex-grow-1`);
+    const existingEl = document.querySelector(`#note-${noteId} .note-body`);
     if (!existingEl) return;
 
     const existing = existingEl.innerText;
