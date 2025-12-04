@@ -266,39 +266,86 @@ class BookController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | NOTES – ADD
+    | NOTES – ADD (BOOK + SERVICE)
+    |--------------------------------------------------------------------------
+    |
+    | Used by:
+    |   POST /book/{client}/notes
+    |   POST /service/{client}/notes
     |--------------------------------------------------------------------------
     */
     public function storeNote(Request $request, Contact $client)
     {
-        $request->validate([
-            'body' => 'required|string',
+        $data = $request->validate([
+            'body' => 'required|string|max:5000',
         ]);
 
-        Note::create([
+        $note = Note::create([
             'contact_id' => $client->id,
-            'body'       => $request->body,
+            // actual DB column is "note"
+            'note'       => trim($data['body']),
+            'created_by' => auth()->id() ?? $client->created_by,
+            'tenant_id'  => $client->tenant_id,
         ]);
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'note'    => $note,
+        ], 201);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | NOTES – UPDATE
+    | NOTES – UPDATE (BOOK + SERVICE)
+    |--------------------------------------------------------------------------
+    |
+    | Used by:
+    |   PUT /book/{client}/notes/{note}
+    |   PUT /service/{client}/notes/{note}
     |--------------------------------------------------------------------------
     */
     public function updateNote(Request $request, Contact $client, Note $note)
     {
-        $request->validate([
-            'body' => 'required|string',
+        // Ensure the note actually belongs to this client
+        if ($note->contact_id !== $client->id) {
+            abort(404);
+        }
+
+        $data = $request->validate([
+            'body' => 'required|string|max:5000',
         ]);
 
         $note->update([
-            'body' => $request->body,
+            'note' => trim($data['body']),
         ]);
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'note'    => $note->fresh(),
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NOTES – DELETE (BOOK + SERVICE)
+    |--------------------------------------------------------------------------
+    |
+    | Used by:
+    |   DELETE /book/{client}/notes/{note}
+    |   DELETE /service/{client}/notes/{note}
+    |--------------------------------------------------------------------------
+    */
+    public function destroyNote(Contact $client, Note $note)
+    {
+        if ($note->contact_id !== $client->id) {
+            abort(404);
+        }
+
+        $note->delete();
+
+        return response()->json([
+            'success' => true,
+        ]);
     }
 
     /*
