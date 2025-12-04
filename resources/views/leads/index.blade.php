@@ -325,6 +325,109 @@ document.addEventListener('DOMContentLoaded', () => {
             );
     });
 
+    /* =======================================================
+       GLOBAL LEAD NOTE FUNCTIONS (used by details partial)
+       ======================================================= */
+
+    window.saveLeadNote = function (contactId) {
+        const bodyField = document.getElementById('lead_new_note_body');
+        if (!bodyField) {
+            console.error('lead_new_note_body textarea not found');
+            alert('Could not find note field.');
+            return;
+        }
+
+        const body = bodyField.value.trim();
+        if (!body) {
+            alert("Note cannot be empty.");
+            return;
+        }
+
+        fetch(`/leads/${contactId}/notes`, {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ body })
+        })
+        .then(async (res) => {
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error('Error saving note:', txt);
+                alert("Error saving note. Check /debug-laravel-log.");
+                return;
+            }
+            // Reload page so new note shows up
+            window.location.reload();
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Network error saving note.");
+        });
+    };
+
+    window.editLeadNote = function (contactId, noteId) {
+        const existingEl = document.querySelector(`#lead-note-${noteId} div:first-child`);
+        if (!existingEl) {
+            console.error('Existing note element not found');
+            return;
+        }
+
+        const existing = existingEl.innerText;
+        const updated = prompt("Edit note:", existing);
+        if (updated === null) return;
+
+        fetch(`/leads/${contactId}/notes/${noteId}`, {
+            method: 'PUT',
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ body: updated })
+        })
+        .then(async (res) => {
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error('Error updating note:', txt);
+                alert("Error updating note. Check /debug-laravel-log.");
+                return;
+            }
+            window.location.reload();
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Network error updating note.");
+        });
+    };
+
+    window.deleteLeadNote = function (contactId, noteId) {
+        if (!confirm("Delete this note?")) return;
+
+        fetch(`/leads/${contactId}/notes/${noteId}`, {
+            method: 'DELETE',
+            headers: {
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json"
+            }
+        })
+        .then(async (res) => {
+            if (!res.ok) {
+                const txt = await res.text();
+                console.error('Error deleting note:', txt);
+                alert("Error deleting note. Check /debug-laravel-log.");
+                return;
+            }
+            window.location.reload();
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Network error deleting note.");
+        });
+    };
+
 });
 </script>
 @endpush
