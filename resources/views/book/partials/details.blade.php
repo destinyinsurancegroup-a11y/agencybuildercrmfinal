@@ -31,6 +31,12 @@
     .p-4 {
         padding: 1.25rem !important;
     }
+
+    /* FORCE NOTE BODY TEXT TO BE LEFT-JUSTIFIED */
+    .book-note-body {
+        text-align: left !important;
+        white-space: pre-wrap;
+    }
 </style>
 
 @php
@@ -203,19 +209,17 @@
         </div>
 
         <!-- NOTES LIST -->
-        {{-- text-start forces left alignment like All Contacts --}}
-        <div id="notes-list" class="mt-3 text-start">
+        <div id="notes-list">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    {{-- TIMESTAMP LINE, JUST LIKE ALL CONTACTS --}}
-                    <div class="small text-muted mb-1">
-                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
-                    </div>
-
-                    {{-- BODY + ACTIONS ROW --}}
                     <div class="d-flex justify-content-between align-items-start">
-                        <div class="note-body" style="white-space: pre-wrap;">
-                            {{ $note->body }}
+                        <div>
+                            <div class="small text-muted mb-1">
+                                {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                            </div>
+                            <div class="book-note-body">
+                                {{ $note->body }}
+                            </div>
                         </div>
 
                         <div class="ms-2">
@@ -232,7 +236,7 @@
                     </div>
                 </div>
             @empty
-                <p class="text-muted small mb-0">No notes yet.</p>
+                <p class="text-muted">No notes yet.</p>
             @endforelse
         </div>
 
@@ -260,7 +264,7 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const existingEl = document.querySelector(`#note-${noteId} .note-body`);
+    const existingEl = document.querySelector(`#note-${noteId} .book-note-body`);
     if (!existingEl) return;
 
     const existing = existingEl.innerText;
