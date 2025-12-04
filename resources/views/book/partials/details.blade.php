@@ -32,9 +32,8 @@
         padding: 1.25rem !important;
     }
 
-    /* FORCE NOTE BODY TEXT TO BE LEFT-JUSTIFIED */
+    /* Make sure note body behaves like Contacts notes */
     .book-note-body {
-        text-align: left !important;
         white-space: pre-wrap;
     }
 </style>
@@ -212,27 +211,26 @@
         <div id="notes-list">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="small text-muted mb-1">
-                                {{ optional($note->created_at)->format('m/d/Y g:i A') }}
-                            </div>
-                            <div class="book-note-body">
-                                {{ $note->body }}
-                            </div>
-                        </div>
+                    {{-- Match Contacts style: timestamp then body, both in a simple vertical stack --}}
+                    <div class="small text-muted mb-1">
+                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                    </div>
 
-                        <div class="ms-2">
-                            <button class="btn btn-sm btn-outline-secondary"
-                                    onclick="editNote({{ $client->id }}, {{ $note->id }})">
-                                Edit
-                            </button>
+                    <div class="book-note-body">
+                        {{ $note->body }}
+                    </div>
 
-                            <button class="btn btn-sm btn-outline-danger"
-                                    onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
-                                Delete
-                            </button>
-                        </div>
+                    {{-- Actions on a separate row so they don't affect text alignment --}}
+                    <div class="mt-2 text-end">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="editNote({{ $client->id }}, {{ $note->id }})">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
+                            Delete
+                        </button>
                     </div>
                 </div>
             @empty
