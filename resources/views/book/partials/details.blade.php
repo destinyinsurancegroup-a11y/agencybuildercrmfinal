@@ -32,8 +32,8 @@
         padding: 1.25rem !important;
     }
 
-    /* Note text block – match Contacts/Leads behavior */
-    .note-body-text {
+    /* Ensure note text behaves like Leads/Contacts */
+    .note-body {
         text-align: left;
         white-space: pre-wrap;
     }
@@ -70,7 +70,7 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button 
+                <button
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
@@ -120,10 +120,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong> 
+                <p><strong>Face Amount:</strong>
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong> 
+                <p><strong>Monthly Premium:</strong>
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -196,7 +196,7 @@
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        <!-- ADD NEW NOTE (left-justified container) -->
+        <!-- ADD NEW NOTE (same pattern as Leads/Contacts) -->
         <div class="mb-3 text-start">
             <textarea id="new_note_body"
                       class="form-control"
@@ -208,19 +208,20 @@
             </button>
         </div>
 
-        <!-- NOTES LIST (left-justified like Contacts/Leads) -->
+        <!-- NOTES LIST (structurally like Leads) -->
         <div id="notes-list" class="text-start">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
 
                     {{-- DATE / TIME LINE (like Contacts/Leads) --}}
                     <div class="small text-muted mb-1">
-                        {{ $note->created_at->format('m/d/Y h:i A') }}
+                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
                     {{-- NOTE BODY IN ITS OWN BLOCK, FULL WIDTH --}}
-                    <div class="mb-2 note-body-text">
-                        {{ $note->body }}
+                    <div class="mb-2 note-body">
+                        {{-- DB column is "note"; fall back to "body" if older --}}
+                        {{ $note->note ?? $note->body }}
                     </div>
 
                     {{-- ACTION BUTTONS BELOW NOTE BODY --}}
@@ -244,60 +245,3 @@
 
     </div>
 </div>
-
-<!-- ====================================== -->
-<!-- NOTES AJAX SCRIPT                      -->
-<!-- ====================================== -->
-<script>
-function saveNote(clientId) {
-    const body = document.getElementById('new_note_body').value.trim();
-    if (!body) return alert("Note cannot be empty.");
-
-    fetch(`/book/${clientId}/notes`, {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({ body })
-    })
-    .then(() => loadBookPanel(`/book/${clientId}`));
-}
-
-function editNote(clientId, noteId) {
-    const noteBodyEl = document.querySelector(`#note-${noteId} .note-body-text`);
-    if (!noteBodyEl) {
-        alert("Unable to find note body to edit.");
-        return;
-    }
-
-    const existing = noteBodyEl.innerText;
-    const updated = prompt("Edit note:", existing);
-    if (updated === null) return;
-
-    fetch(`/book/${clientId}/notes/${noteId}`, {
-        method: 'PUT',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({ body: updated })
-    })
-    .then(() => loadBookPanel(`/book/${clientId}`));
-}
-
-function deleteNote(clientId, noteId) {
-    if (!confirm("Delete this note?")) return;
-
-    fetch(`/book/${clientId}/notes/${noteId}`, {
-        method: 'DELETE',
-        headers: {
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        }
-    })
-    .then(() => loadBookPanel(`/book/${clientId}`));
-}
-</script>
