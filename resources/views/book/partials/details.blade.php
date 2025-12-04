@@ -202,22 +202,22 @@
             </button>
         </div>
 
-        <!-- NOTES LIST (left-justified like All Contacts) -->
+        <!-- NOTES LIST -->
         <div id="notes-list">
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    {{-- Timestamp line, same as All Contacts --}}
+                    {{-- timestamp, same as Contacts --}}
                     <div class="small text-muted mb-1">
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
-                    {{-- Note body: plain block, left-aligned --}}
-                    <div style="white-space: pre-wrap; text-align:left;">
+                    {{-- NOTE BODY: left-justified text, like Contacts --}}
+                    <div class="mb-2" style="white-space: pre-wrap; text-align:left;">
                         {{ $note->body }}
                     </div>
 
-                    {{-- Edit/Delete aligned to the right, on their own row --}}
-                    <div class="mt-2 text-end">
+                    {{-- BUTTONS FOOTER --}}
+                    <div class="text-end">
                         <button class="btn btn-sm btn-outline-secondary"
                                 onclick="editNote({{ $client->id }}, {{ $note->id }})">
                             Edit
@@ -258,7 +258,7 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const existing = document.querySelector(`#note-${noteId} div:nth-child(2)`).innerText;
+    const existing = document.querySelector(`#note-${noteId} .mb-2`).innerText;
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
