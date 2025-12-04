@@ -98,11 +98,52 @@
 
         <hr>
 
-        <!-- SIMPLE NOTES SECTION (for now) -->
-        <h5 class="fw-bold mb-3">Notes</h5>
-        <p class="text-muted">
-            Lead notes will go here. We’ll wire this up to save just like All Contacts, Book of Business, and Service.
-        </p>
+        <!-- NOTES SECTION (Add / list / edit / delete like Book/Service) -->
+        <h4 class="fw-bold mb-3">Notes</h4>
+
+        <!-- ADD NEW NOTE -->
+        <div class="mb-3">
+            <textarea id="lead_new_note_body"
+                      class="form-control"
+                      rows="2"
+                      placeholder="Write a new note..."></textarea>
+
+            <button class="btn-gold mt-2" onclick="saveLeadNote({{ $contact->id }})">
+                Add Note
+            </button>
+        </div>
+
+        <!-- NOTES LIST -->
+        <div id="lead-notes-list">
+            @forelse ($contact->allNotes as $note)
+                <div class="border rounded p-2 mb-2" id="lead-note-{{ $note->id }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div style="white-space: pre-wrap;">
+                            {{-- DB column is "note"; fall back to "body" if present --}}
+                            {{ $note->note ?? $note->body }}
+                        </div>
+
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    onclick="editLeadNote({{ $contact->id }}, {{ $note->id }})">
+                                Edit
+                            </button>
+
+                            <button class="btn btn-sm btn-outline-danger"
+                                    onclick="deleteLeadNote({{ $contact->id }}, {{ $note->id }})">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="text-muted small mt-1">
+                        {{ $note->created_at->format('m/d/Y h:i A') }}
+                    </div>
+                </div>
+            @empty
+                <p class="text-muted">No notes yet.</p>
+            @endforelse
+        </div>
 
     </div>
 
@@ -119,5 +160,69 @@
         };
     }
 
-    // (No Not Interested JS needed anymore — handled via form POST)
+    function saveLeadNote(contactId) {
+        const bodyField = document.getElementById('lead_new_note_body');
+        const body = bodyField.value.trim();
+        if (!body) {
+            alert("Note cannot be empty.");
+            return;
+        }
+
+        fetch(`/leads/${contactId}/notes`, {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ body })
+        })
+        .then(r => r.json())
+        .then(() => {
+            // Easiest: reload whole page so the panel + list refresh
+            window.location.reload();
+        })
+        .catch(() => alert("Error saving note."));
+    }
+
+    function editLeadNote(contactId, noteId) {
+        const existingEl = document.querySelector(`#lead-note-${noteId} div:first-child`);
+        if (!existingEl) return;
+
+        const existing = existingEl.innerText;
+        const updated = prompt("Edit note:", existing);
+        if (updated === null) return;
+
+        fetch(`/leads/${contactId}/notes/${noteId}`, {
+            method: 'PUT',
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ body: updated })
+        })
+        .then(r => r.json())
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(() => alert("Error updating note."));
+    }
+
+    function deleteLeadNote(contactId, noteId) {
+        if (!confirm("Delete this note?")) return;
+
+        fetch(`/leads/${contactId}/notes/${noteId}`, {
+            method: 'DELETE',
+            headers: {
+                "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                "Accept": "application/json"
+            }
+        })
+        .then(r => r.json())
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(() => alert("Error deleting note."));
+    }
 </script>
