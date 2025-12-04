@@ -202,32 +202,33 @@
             </button>
         </div>
 
-        <!-- NOTES LIST -->
+        <!-- NOTES LIST (aligned like All Contacts) -->
         <div id="notes-list">
             @forelse ($notes as $note)
-                {{-- Match Contacts layout: timestamp row on top, body below --}}
-                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
-                    <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
-                        <div>
-                            {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
+
+                    {{-- Timestamp line, same as All Contacts --}}
+                    <div class="small text-muted mb-1">
+                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                    </div>
+
+                    {{-- Note body + buttons, left-justified like All Contacts/Leads --}}
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="note-body" style="white-space: pre-wrap; text-align:left;">
+                            {{ $note->body }}
                         </div>
-                        <div>
+
+                        <div class="ms-2">
                             <button class="btn btn-sm btn-outline-secondary"
-                                    type="button"
                                     onclick="editNote({{ $client->id }}, {{ $note->id }})">
                                 Edit
                             </button>
 
                             <button class="btn btn-sm btn-outline-danger"
-                                    type="button"
                                     onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
                                 Delete
                             </button>
                         </div>
-                    </div>
-
-                    <div class="note-body" style="white-space: pre-wrap;">
-                        {{ $note->body }}
                     </div>
                 </div>
             @empty
@@ -261,8 +262,8 @@ function saveNote(clientId) {
 function editNote(clientId, noteId) {
     const existingEl = document.querySelector(`#note-${noteId} .note-body`);
     if (!existingEl) return;
-
     const existing = existingEl.innerText;
+
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
