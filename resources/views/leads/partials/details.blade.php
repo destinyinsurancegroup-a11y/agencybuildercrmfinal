@@ -116,7 +116,7 @@
         <!-- EXISTING NOTES LIST -->
         <div id="lead-notes-list">
             @php
-                // mirror Service/Book behavior
+                // Use same pattern as Service/Book:
                 $notes = $contact->allNotes ?? $contact->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
@@ -156,105 +156,3 @@
     </div>
 
 </div>
-
-{{-- ===========================
-     LEAD ACTIONS JS
-=========================== --}}
-<script>
-    function getLeadContext() {
-        return {
-            id: document.getElementById('leadContactId')?.value,
-            name: document.getElementById('leadContactName')?.value
-        };
-    }
-
-    function saveLeadNote(contactId) {
-        const bodyField = document.getElementById('lead_new_note_body');
-        const body = bodyField.value.trim();
-        if (!body) {
-            alert("Note cannot be empty.");
-            return;
-        }
-
-        // Use the SAME working endpoint as Book/Service
-        fetch(`/book/${contactId}/notes`, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify({ body })
-        })
-        .then(async (res) => {
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error('Error saving note:', txt);
-                alert("Error saving note. See console or /debug-laravel-log.");
-                return;
-            }
-            window.location.reload();
-        })
-        .catch((err) => {
-            console.error(err);
-            alert("Network error saving note.");
-        });
-    }
-
-    function editLeadNote(contactId, noteId) {
-        const existingEl = document.querySelector(`#lead-note-${noteId} div:first-child`);
-        if (!existingEl) return;
-
-        const existing = existingEl.innerText;
-        const updated = prompt("Edit note:", existing);
-        if (updated === null) return;
-
-        fetch(`/book/${contactId}/notes/${noteId}`, {
-            method: 'PUT',
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify({ body: updated })
-        })
-        .then(async (res) => {
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error('Error updating note:', txt);
-                alert("Error updating note. See console or /debug-laravel-log.");
-                return;
-            }
-            window.location.reload();
-        })
-        .catch((err) => {
-            console.error(err);
-            alert("Network error updating note.");
-        });
-    }
-
-    function deleteLeadNote(contactId, noteId) {
-        if (!confirm("Delete this note?")) return;
-
-        fetch(`/book/${contactId}/notes/${noteId}`, {
-            method: 'DELETE',
-            headers: {
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json"
-            }
-        })
-        .then(async (res) => {
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error('Error deleting note:', txt);
-                alert("Error deleting note. See console or /debug-laravel-log.");
-                return;
-            }
-            window.location.reload();
-        })
-        .catch((err) => {
-            console.error(err);
-            alert("Network error deleting note.");
-        });
-    }
-</script>
