@@ -114,22 +114,23 @@
         </div>
 
         <!-- EXISTING NOTES LIST -->
-        <div id="lead-notes-list">
+        <div id="lead-notes-list" class="mt-4">
             @php
-                // Same pattern as Service/Book
+                // Collect notes same way as before, then newest first
                 $notes = $contact->allNotes ?? $contact->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2 text-start" id="lead-note-{{ $note->id }}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="note-text" style="white-space: pre-wrap; text-align:left;">
-                            {{-- DB column is "note"; fall back to "body" if older --}}
-                            {{ $note->note ?? $note->body }}
-                        </div>
+                <div class="border rounded p-2 mb-2">
 
-                        <div class="ms-3">
+                    {{-- timestamp + buttons row (like All Contacts + actions) --}}
+                    <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
+                        <span>
+                            {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                        </span>
+
+                        <span>
                             <button class="btn btn-sm btn-outline-secondary"
                                     type="button"
                                     onclick="editLeadNote({{ $contact->id }}, {{ $note->id }})">
@@ -141,15 +142,16 @@
                                     onclick="deleteLeadNote({{ $contact->id }}, {{ $note->id }})">
                                 Delete
                             </button>
-                        </div>
+                        </span>
                     </div>
 
-                    <div class="text-muted small mt-1">
-                        {{ optional($note->created_at)->format('m/d/Y h:i A') }}
+                    {{-- note body, left-justified just like All Contacts --}}
+                    <div style="white-space: pre-wrap;">
+                        {{ $note->note ?? $note->body }}
                     </div>
                 </div>
             @empty
-                <p class="text-muted">No notes yet.</p>
+                <p class="text-muted small mb-0">No notes yet for this lead.</p>
             @endforelse
         </div>
 
