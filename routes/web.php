@@ -105,11 +105,16 @@ Route::prefix('book')->group(function () {
     Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])->name('book.edit.panel');
     Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
 
+    // NOTES FOR BOOK CLIENTS
     Route::post('/{client}/notes', [BookController::class, 'storeNote'])
         ->name('book.notes.store');
 
     Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
         ->name('book.notes.update');
+
+    // 🔹 NEW: DELETE NOTE FOR BOOK CLIENT
+    Route::delete('/{client}/notes/{note}', [BookController::class, 'destroyNote'])
+        ->name('book.notes.destroy');
 
     Route::post('/import', [BookController::class, 'import'])->name('book.import');
 
@@ -176,6 +181,10 @@ Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'
 
 Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
     ->name('service.notes.update');
+
+// 🔹 NEW: DELETE NOTE FOR SERVICE CLIENT
+Route::delete('/service/{client}/notes/{note}', [BookController::class, 'destroyNote'])
+    ->name('service.notes.destroy');
 
 /*
 |--------------------------------------------------------------------------
