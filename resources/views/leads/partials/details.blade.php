@@ -98,7 +98,7 @@
 
         <hr>
 
-        <!-- NOTES SECTION (Add / list / edit / delete like Book/Service) -->
+        <!-- NOTES SECTION -->
         <h4 class="fw-bold mb-3">Notes</h4>
 
         <!-- ADD NEW NOTE -->
@@ -108,28 +108,30 @@
                       rows="2"
                       placeholder="Write a new note..."></textarea>
 
-            <button class="btn-gold mt-2" onclick="saveLeadNote({{ $contact->id }})">
+            <button type="button" class="btn btn-gold mt-2" onclick="saveLeadNote({{ $contact->id }})">
                 Add Note
             </button>
         </div>
 
-        <!-- NOTES LIST -->
+        <!-- EXISTING NOTES LIST -->
         <div id="lead-notes-list">
             @forelse ($contact->allNotes as $note)
                 <div class="border rounded p-2 mb-2" id="lead-note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div style="white-space: pre-wrap;">
-                            {{-- DB column is "note"; fall back to "body" if present --}}
+                            {{-- DB column is "note"; fall back to "body" if older --}}
                             {{ $note->note ?? $note->body }}
                         </div>
 
                         <div>
                             <button class="btn btn-sm btn-outline-secondary"
+                                    type="button"
                                     onclick="editLeadNote({{ $contact->id }}, {{ $note->id }})">
                                 Edit
                             </button>
 
                             <button class="btn btn-sm btn-outline-danger"
+                                    type="button"
                                     onclick="deleteLeadNote({{ $contact->id }}, {{ $note->id }})">
                                 Delete
                             </button>
@@ -177,9 +179,8 @@
             },
             body: JSON.stringify({ body })
         })
-        .then(r => r.json())
         .then(() => {
-            // Easiest: reload whole page so the panel + list refresh
+            // mimic Book/Service behavior: just reload UI
             window.location.reload();
         })
         .catch(() => alert("Error saving note."));
@@ -202,7 +203,6 @@
             },
             body: JSON.stringify({ body: updated })
         })
-        .then(r => r.json())
         .then(() => {
             window.location.reload();
         })
@@ -219,7 +219,6 @@
                 "Accept": "application/json"
             }
         })
-        .then(r => r.json())
         .then(() => {
             window.location.reload();
         })
