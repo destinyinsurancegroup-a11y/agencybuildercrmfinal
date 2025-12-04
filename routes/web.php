@@ -93,6 +93,20 @@ Route::post('/leads/{contact}/archive', [LeadController::class, 'archive'])
 
 /*
 |--------------------------------------------------------------------------
+| LEAD NOTES (reuse BookController note logic)
+|--------------------------------------------------------------------------
+*/
+Route::post('/leads/{client}/notes', [BookController::class, 'storeNote'])
+    ->name('leads.notes.store');
+
+Route::put('/leads/{client}/notes/{note}', [BookController::class, 'updateNote'])
+    ->name('leads.notes.update');
+
+Route::delete('/leads/{client}/notes/{note}', [BookController::class, 'destroyNote'])
+    ->name('leads.notes.destroy');
+
+/*
+|--------------------------------------------------------------------------
 | BOOK OF BUSINESS (MASTER-DETAIL AJAX)
 |--------------------------------------------------------------------------
 */
@@ -112,7 +126,7 @@ Route::prefix('book')->group(function () {
     Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
         ->name('book.notes.update');
 
-    // 🔹 NEW: DELETE NOTE FOR BOOK CLIENT
+    // 🔹 DELETE NOTE FOR BOOK CLIENT
     Route::delete('/{client}/notes/{note}', [BookController::class, 'destroyNote'])
         ->name('book.notes.destroy');
 
@@ -143,7 +157,6 @@ Route::prefix('service')->group(function () {
         ->name('service.archive.not-saved');
 
     // ROUTES OPERATING ON A SPECIFIC CLIENT/SERVICE RECORD
-
     Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
     Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
     Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
@@ -182,7 +195,7 @@ Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'
 Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
     ->name('service.notes.update');
 
-// 🔹 NEW: DELETE NOTE FOR SERVICE CLIENT
+// 🔹 DELETE NOTE FOR SERVICE CLIENT
 Route::delete('/service/{client}/notes/{note}', [BookController::class, 'destroyNote'])
     ->name('service.notes.destroy');
 
