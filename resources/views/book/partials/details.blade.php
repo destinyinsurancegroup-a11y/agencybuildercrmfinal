@@ -33,16 +33,6 @@
     }
 </style>
 
-@php
-    // Consider this client "in active service" if:
-    // - they are a service contact AND
-    // - their service has not been archived yet
-    $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
-
-    // Load notes newest-first via the Note relationship
-    $notes = $client->notes()->latest()->get();
-@endphp
-
 <div class="p-4">
     <div class="card shadow-sm border-0 p-4">
 
@@ -53,8 +43,8 @@
                     {{ $client->first_name }} {{ $client->last_name }}
                 </h1>
 
-                @if($inActiveService)
-                    {{-- Clickable badge: goes to Service tab with this client selected --}}
+                {{-- Client Needs Service badge --}}
+                @if($client->contact_type === 'service' && is_null($client->service_archived_at))
                     <a href="{{ route('service.index', ['selected' => $client->id]) }}"
                        class="badge bg-danger mt-1 text-decoration-none"
                        style="cursor:pointer;">
@@ -64,7 +54,7 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button 
+                <button
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
@@ -114,10 +104,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong> 
+                <p><strong>Face Amount:</strong>
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong> 
+                <p><strong>Monthly Premium:</strong>
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -190,7 +180,7 @@
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        <!-- ADD NEW NOTE -->
+        {{-- ADD NEW NOTE --}}
         <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
@@ -202,8 +192,14 @@
             </button>
         </div>
 
-        <!-- NOTES LIST -->
+        {{-- NOTES LIST --}}
         <div id="notes-list">
+            @php
+                // ensure we have a collection even if relation is not loaded
+                $notes = $client->notes ?? collect();
+                $notes = $notes->sortByDesc('created_at');
+            @endphp
+
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
