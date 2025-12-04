@@ -205,9 +205,10 @@
         <!-- NOTES LIST -->
         <div id="notes-list">
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
+                {{-- Force left alignment like All Contacts & Leads --}}
+                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div style="white-space: pre-wrap;">
+                        <div class="note-body" style="white-space: pre-wrap; text-align:left;">
                             {{ $note->body }}
                         </div>
 
@@ -257,7 +258,7 @@ function saveNote(clientId) {
 }
 
 function editNote(clientId, noteId) {
-    const existing = document.querySelector(`#note-${noteId} div:first-child`).innerText;
+    const existing = document.querySelector(`#note-${noteId} .note-body`).innerText;
     const updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
