@@ -99,42 +99,10 @@
 
         <hr>
 
-        <!-- TABS -->
-        <ul class="nav nav-tabs mb-4">
-            <li class="nav-item">
-                <a class="nav-link active" data-bs-toggle="tab" href="#detailsTab">Details</a>
-            </li>
+        <!-- NOTES (no tabs, same component as All Contacts / Book / Service) -->
+        <h5 class="fw-bold mb-3">Notes</h5>
 
-            <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#notesTab">Notes</a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#docsTab">Documents</a>
-            </li>
-        </ul>
-
-        <div class="tab-content">
-
-            <!-- DETAILS TAB -->
-            <div class="tab-pane fade show active" id="detailsTab">
-                <h5 class="fw-bold">Additional Details</h5>
-                <p class="text-muted">More custom contact details or policy info can go here.</p>
-            </div>
-
-            <!-- NOTES TAB -->
-            <div class="tab-pane fade" id="notesTab">
-                <h5 class="fw-bold">Notes</h5>
-                <p>{{ $contact->notes ?: 'No notes added.' }}</p>
-            </div>
-
-            <!-- DOCUMENTS TAB -->
-            <div class="tab-pane fade" id="docsTab">
-                <h5 class="fw-bold">Documents</h5>
-                <p class="text-muted">Document uploads coming soon…</p>
-            </div>
-
-        </div>
+        @include('contacts.partials.notes', ['contact' => $contact])
 
     </div>
 
