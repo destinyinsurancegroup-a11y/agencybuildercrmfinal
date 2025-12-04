@@ -1,240 +1,3 @@
-@extends('layouts.app')
-
-@section('content')
-
-<style>
-    /* Same card/layout styling used on Leads/Contacts */
-    .contacts-card {
-        background: #ffffff;
-        border-radius: 18px;
-        padding: 22px;
-        height: calc(100vh - 120px);
-        overflow-y: auto;
-        box-shadow:
-            0 18px 30px -12px rgba(0,0,0,0.35),
-            0 8px 16px -8px rgba(0,0,0,0.18);
-        border: 1px solid #e5e7eb;
-    }
-
-    .contacts-card-wrapper {
-        width: 320px !important;
-        max-width: 320px !important;
-    }
-
-    .contacts-header {
-        font-size: 24px;
-        font-weight: 700;
-        margin-bottom: 18px;
-    }
-
-    .contacts-search-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 18px;
-    }
-
-    .contacts-search-input {
-        width: 100%;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid #d1d5db;
-        background: #ffffff;
-        font-size: 14px;
-    }
-
-    .contacts-search-btn {
-        padding: 7px 10px;
-        border-radius: 8px;
-        border: none;
-        background: #c9a227;
-        color: #111827;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-    }
-
-    .contacts-search-btn:hover {
-        background: #b5901f;
-    }
-
-    .btn-gold {
-        background: #c9a227;
-        color: #111827;
-        border: none;
-        padding: 6px 10px;   /* smaller buttons */
-        font-weight: 600;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        font-size: 12px;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-    .btn-gold:hover {
-        background: #b5901f;
-    }
-
-    .button-row {
-        margin-bottom: 20px;
-        display: flex;
-        gap: 8px;
-    }
-
-    .contact-list-item {
-        padding: 10px 6px;
-        font-size: 15px;
-        border-bottom: 1px solid #eee;
-        cursor: pointer;
-    }
-
-    .contact-list-item:hover {
-        background: #f9fafb;
-    }
-
-    .active-contact-row {
-        background: #eae6d1 !important;
-        font-weight: 600;
-    }
-
-    .empty-right-panel {
-        height: 100%;
-        background: transparent !important;
-    }
-
-    /* NEW: urgent service contact styling */
-    .urgent-contact {
-        color: #b91c1c; /* red */
-        font-weight: 700;
-    }
-</style>
-
-<div class="dashboard-page">
-    <div class="row g-4">
-
-        <!-- LEFT COLUMN -->
-        <div class="col-md-4 col-lg-3 contacts-card-wrapper">
-            <div class="contacts-card">
-
-                <div class="contacts-header">Book of Business</div>
-
-                <!-- Search (client-side only) -->
-                <div class="contacts-search-wrapper">
-                    <input 
-                        type="text"
-                        id="book-search"
-                        class="contacts-search-input"
-                        placeholder="Search clients..."
-                    >
-                    <button class="contacts-search-btn" disabled>Go</button>
-                </div>
-
-                <!-- Add Client + Upload -->
-                <div class="button-row">
-                    <button 
-                        id="add-book-client-btn"
-                        class="btn-gold"
-                        data-create-url="{{ route('book.create.panel') }}"
-                    >
-                        Add
-                    </button>
-
-                    <button 
-                        class="btn-gold"
-                        data-bs-toggle="modal"
-                        data-bs-target="#uploadBookModal"
-                    >
-                        Upload
-                    </button>
-                </div>
-
-                <!-- Client List -->
-                <div id="book-list">
-                    @forelse ($clients as $client)
-                        @php
-                            // Urgent if this is a service contact with an open service (not archived yet)
-                            $isServiceUrgent = $client->contact_type === 'service' && is_null($client->service_archived_at);
-                            $name = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
-                        @endphp
-
-                        <div 
-                            class="contact-list-item js-book-row
-                                   {{ (isset($selected) && $selected == $client->id) ? 'active-contact-row' : '' }}
-                                   {{ $isServiceUrgent ? 'urgent-contact' : '' }}"
-                            data-id="{{ $client->id }}"
-                            data-show-url="{{ route('book.show', $client->id) }}"
-                        >
-                            {{ $name }}
-
-                            @if($isServiceUrgent)
-                                <span class="badge bg-danger ms-1">Service</span>
-                            @endif
-
-                            @if($client->policy_type)
-                                <br><small class="text-muted">{{ $client->policy_type }}</small>
-                            @endif
-                        </div>
-                    @empty
-                        <p class="text-muted">No clients found.</p>
-                    @endforelse
-                </div>
-
-            </div>
-        </div>
-
-        <!-- RIGHT PANEL -->
-        <div class="col-md-8 col-lg-9">
-            <div id="book-details-container" style="width:100%; min-height:400px;">
-                <div class="empty-right-panel"></div>
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<!-- UPLOAD BOOK MODAL -->
-<div class="modal fade" id="uploadBookModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form 
-            action="{{ route('book.import') }}" 
-            method="POST" 
-            enctype="multipart/form-data"
-            class="modal-content"
-        >
-            @csrf
-
-            <div class="modal-header bg-black text-gold">
-                <h5 class="modal-title">Upload Book of Business</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <label class="form-label">Choose CSV or Excel file</label>
-                <input 
-                    type="file"
-                    name="file"
-                    class="form-control"
-                    accept=".csv, .xlsx, .xls"
-                    required
-                >
-            </div>
-
-            <div class="modal-footer">
-                <button type="submit" class="btn-gold">Upload</button>
-            </div>
-
-        </form>
-    </div>
-</div>
-
-@endsection
-
-
-
-{{-- ============================================================
-     JAVASCRIPT — GLOBAL BEC HANDLERS
-     ============================================================ --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -358,7 +121,7 @@ document.addEventListener("submit", function (e) {
         method: method,
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
         },
         body: JSON.stringify({
             name: document.getElementById('beneficiary_name').value,
@@ -385,7 +148,6 @@ function deleteBeneficiary(clientId, id) {
     .then(r => r.json())
     .then(() => loadBookPanel(`/book/${clientId}`));
 }
-
 
 
 /* ---------- ADD EMERGENCY CONTACT ---------- */
@@ -467,5 +229,83 @@ function deleteEmergency(clientId, id) {
     .then(() => loadBookPanel(`/book/${clientId}`));
 }
 
+
+/* ---------- NOTES: ADD / EDIT / DELETE ---------- */
+function saveNote(clientId) {
+    const textarea = document.getElementById('new_note_body');
+    if (!textarea) return;
+
+    const body = textarea.value.trim();
+    if (!body) {
+        alert("Note cannot be empty.");
+        return;
+    }
+
+    fetch(`/book/${clientId}/notes`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to save note');
+        // reload right panel so new note appears
+        loadBookPanel(`/book/${clientId}`);
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Error saving note.");
+    });
+}
+
+function editNote(clientId, noteId) {
+    const container = document.querySelector(`#note-${noteId} div:first-child`);
+    if (!container) return;
+
+    const existing = container.innerText;
+    const updated = prompt("Edit note:", existing);
+    if (updated === null) return;
+
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'PUT',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body: updated })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to update note');
+        loadBookPanel(`/book/${clientId}`);
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Error updating note.");
+    });
+}
+
+function deleteNote(clientId, noteId) {
+    if (!confirm("Delete this note?")) return;
+
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to delete note');
+        loadBookPanel(`/book/${clientId}`);
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Error deleting note.");
+    });
+}
 </script>
 @endpush
