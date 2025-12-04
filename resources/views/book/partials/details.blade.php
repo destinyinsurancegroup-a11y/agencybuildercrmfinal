@@ -32,9 +32,15 @@
         padding: 1.25rem !important;
     }
 
-    /* Ensure note body text is clearly left-aligned */
-    .note-body-text {
+    /* ===== FORCE LEFT ALIGNMENT FOR NOTES AREA ===== */
+
+    #notes-list,
+    #notes-list .border,
+    #notes-list .border * {
         text-align: left !important;
+    }
+
+    .note-body-text {
         white-space: pre-wrap;
     }
 </style>
@@ -209,10 +215,9 @@
         </div>
 
         <!-- NOTES LIST (left-justified like Contacts/Leads) -->
-        <div id="notes-list" class="text-start">
+        <div id="notes-list">
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
-
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     {{-- DATE / TIME LINE --}}
                     <div class="small text-muted mb-1">
                         {{ $note->created_at->format('m/d/Y h:i A') }}
@@ -235,7 +240,6 @@
                             Delete
                         </button>
                     </div>
-
                 </div>
             @empty
                 <p class="text-muted">No notes yet.</p>
