@@ -46,7 +46,6 @@
 
                         @if($client->service_archived_at)
                             <span class="text-muted small ms-2">
-                                {{-- FIX: service_archived_at may be a string, so parse with Carbon --}}
                                 Archived on {{ \Carbon\Carbon::parse($client->service_archived_at)->format('m/d/Y') }}
                             </span>
                         @endif
@@ -210,7 +209,10 @@
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
         <div class="mb-3">
-            <textarea id="new_note_body" class="form-control" rows="2" placeholder="Write a new note..."></textarea>
+            <textarea id="new_note_body"
+                      class="form-control"
+                      rows="2"
+                      placeholder="Write a new note..."></textarea>
 
             <button class="btn-gold mt-2" onclick="saveServiceNote({{ $client->id }})">
                 Add Note
@@ -218,11 +220,16 @@
         </div>
 
         <div id="notes-list">
-            @forelse ($client->allNotes as $note)
+            @php
+                $notes = $client->notes ?? $client->allNotes ?? collect();
+                $notes = $notes->sortByDesc('created_at');
+            @endphp
+
+            @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div style="white-space: pre-wrap;">
-                            {{ $note->body }}
+                        <div class="note-body" style="white-space: pre-wrap;">
+                            {{ $note->note }}
                         </div>
 
                         <div>
@@ -249,52 +256,3 @@
 
     </div>
 </div>
-
-
-<script>
-function saveServiceNote(clientId) {
-    const body = document.getElementById('new_note_body').value.trim();
-    if (!body) return alert("Note cannot be empty.");
-
-    fetch(`/service/${clientId}/notes`, {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({ body })
-    })
-    .then(() => loadServicePanel(`/service/${clientId}`));
-}
-
-function editServiceNote(clientId, noteId) {
-    const existing = document.querySelector(`#note-${noteId} div:first-child`).innerText;
-    const updated = prompt("Edit note:", existing);
-    if (updated === null) return;
-
-    fetch(`/service/${clientId}/notes/${noteId}`, {
-        method: 'PUT',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({ body: updated })
-    })
-    .then(() => loadServicePanel(`/service/${clientId}`));
-}
-
-function deleteServiceNote(clientId, noteId) {
-    if (!confirm("Delete this note?")) return;
-
-    fetch(`/service/${clientId}/notes/${noteId}`, {
-        method: 'DELETE',
-        headers: {
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        }
-    })
-    .then(() => loadServicePanel(`/service/${clientId}`));
-}
-</script>
