@@ -412,5 +412,101 @@ function deleteEmergency(clientId, id) {
     .then(() => loadServicePanel(`/service/${clientId}`));
 }
 
+
+/* ============================================================
+   SERVICE NOTES — GLOBAL HANDLERS
+   ============================================================ */
+
+/* ---------- NOTES: ADD ---------- */
+function saveServiceNote(clientId) {
+    const textarea = document.getElementById('new_note_body');
+    if (!textarea) {
+        console.warn('new_note_body textarea not found');
+        return;
+    }
+
+    const body = textarea.value.trim();
+    if (!body) {
+        alert("Note cannot be empty.");
+        return;
+    }
+
+    fetch(`/service/${clientId}/notes`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to save note');
+        return r.json();
+    })
+    .then(() => {
+        textarea.value = '';
+        loadServicePanel(`/service/${clientId}`);
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Error saving note.');
+    });
+}
+
+/* ---------- NOTES: EDIT ---------- */
+function editServiceNote(clientId, noteId) {
+    const noteEl = document.querySelector(`#note-${noteId} .note-body`);
+    if (!noteEl) {
+        console.warn('note body element not found');
+        return;
+    }
+
+    const existing = noteEl.innerText.trim();
+    const updated = prompt("Edit note:", existing);
+    if (updated === null) return; // user cancelled
+
+    fetch(`/service/${clientId}/notes/${noteId}`, {
+        method: 'PUT',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body: updated })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to update note');
+        return r.json();
+    })
+    .then(() => loadServicePanel(`/service/${clientId}`))
+    .catch(err => {
+        console.error(err);
+        alert('Error updating note.');
+    });
+}
+
+/* ---------- NOTES: DELETE ---------- */
+function deleteServiceNote(clientId, noteId) {
+    if (!confirm("Delete this note?")) return;
+
+    fetch(`/service/${clientId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to delete note');
+        return r.json();
+    })
+    .then(() => loadServicePanel(`/service/${clientId}`))
+    .catch(err => {
+        console.error(err);
+        alert('Error deleting note.');
+    });
+}
+
 </script>
 @endpush
