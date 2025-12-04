@@ -58,7 +58,6 @@
             <div class="col-md-6">
                 <p><strong>Email:</strong> {{ $contact->email ?: '—' }}</p>
                 <p><strong>Phone:</strong> {{ $contact->phone ?: '—' }}</p>
-
                 <p><strong>Age:</strong> {{ $contact->age ?: '—' }}</p>
             </div>
 
@@ -99,10 +98,11 @@
 
         <hr>
 
-        <!-- NOTES (no tabs, same component as All Contacts / Book / Service) -->
+        <!-- SIMPLE NOTES SECTION (for now) -->
         <h5 class="fw-bold mb-3">Notes</h5>
-
-        @include('contacts.partials.notes', ['contact' => $contact])
+        <p class="text-muted">
+            Lead notes will go here. We’ll wire this up to save just like All Contacts, Book of Business, and Service.
+        </p>
 
     </div>
 
