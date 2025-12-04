@@ -98,60 +98,68 @@
 
         <hr>
 
-        <!-- NOTES SECTION -->
-        <h4 class="fw-bold mb-3">Notes</h4>
+        <!-- NOTES SECTION (styled like All Contacts) -->
+        <h5 class="fw-bold mb-3">Notes</h5>
 
-        <!-- ADD NEW NOTE -->
+        {{-- NEW NOTE FORM (still uses JS to POST to /leads/{id}/notes) --}}
         <div class="mb-3">
-            <textarea id="lead_new_note_body"
-                      class="form-control"
-                      rows="2"
-                      placeholder="Write a new note..."></textarea>
+            <textarea
+                id="lead_new_note_body"
+                class="form-control"
+                rows="3"
+                style="border-radius:10px; border:1px solid #d1d5db; font-size:14px;"
+                placeholder="Write a new note..."
+            ></textarea>
 
-            <button type="button" class="btn btn-gold mt-2" onclick="saveLeadNote({{ $contact->id }})">
+            <button type="button"
+                    class="btn mt-3"
+                    style="
+                        background:#c9a227;
+                        color:#111827;
+                        padding:8px 22px;
+                        border-radius:10px;
+                        font-size:13px;
+                        font-weight:700;
+                    "
+                    onclick="saveLeadNote({{ $contact->id }})">
                 Add Note
             </button>
         </div>
 
-        <!-- EXISTING NOTES LIST -->
-        <div id="lead-notes-list" class="mt-4">
+        {{-- EXISTING NOTES (left-justified like Contacts) --}}
+        <div class="mt-4">
             @php
-                // Collect notes same way as before, then newest first
                 $notes = $contact->allNotes ?? $contact->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2">
-
-                    {{-- timestamp + buttons row (like All Contacts + actions) --}}
-                    <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
-                        <span>
-                            {{ optional($note->created_at)->format('m/d/Y g:i A') }}
-                        </span>
-
-                        <span>
-                            <button class="btn btn-sm btn-outline-secondary"
-                                    type="button"
-                                    onclick="editLeadNote({{ $contact->id }}, {{ $note->id }})">
-                                Edit
-                            </button>
-
-                            <button class="btn btn-sm btn-outline-danger"
-                                    type="button"
-                                    onclick="deleteLeadNote({{ $contact->id }}, {{ $note->id }})">
-                                Delete
-                            </button>
-                        </span>
+                <div class="border rounded p-2 mb-2 text-start" id="lead-note-{{ $note->id }}">
+                    <div class="small text-muted mb-1">
+                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
-                    {{-- note body, left-justified just like All Contacts --}}
-                    <div style="white-space: pre-wrap;">
+                    <div class="mb-2">
+                        {{-- DB column is "note"; fall back to "body" if older --}}
                         {{ $note->note ?? $note->body }}
+                    </div>
+
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary"
+                                type="button"
+                                onclick="editLeadNote({{ $contact->id }}, {{ $note->id }})">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                type="button"
+                                onclick="deleteLeadNote({{ $contact->id }}, {{ $note->id }})">
+                            Delete
+                        </button>
                     </div>
                 </div>
             @empty
-                <p class="text-muted small mb-0">No notes yet for this lead.</p>
+                <p class="text-muted small mb-0">No notes yet.</p>
             @endforelse
         </div>
 
