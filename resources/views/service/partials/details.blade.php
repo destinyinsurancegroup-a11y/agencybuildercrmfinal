@@ -10,6 +10,13 @@
         margin-bottom: 0.5rem !important;
     }
     .p-4 { padding: 1.25rem !important; }
+
+    /* Ensure note text is always left-aligned and respects line breaks */
+    .note-body {
+        text-align: left;
+        white-space: pre-wrap;
+        display: block;
+    }
 </style>
 
 <div class="p-4">
@@ -208,7 +215,8 @@
         <!-- NOTES -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        <div class="mb-3">
+        <!-- NEW NOTE (left-justified container) -->
+        <div class="mb-3 text-start">
             <textarea id="new_note_body"
                       class="form-control"
                       rows="2"
@@ -219,34 +227,37 @@
             </button>
         </div>
 
-        <div id="notes-list">
+        <!-- NOTES LIST (structurally matches Leads) -->
+        <div id="notes-list" class="mt-4 text-start">
             @php
                 $notes = $client->notes ?? $client->allNotes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="note-body" style="white-space: pre-wrap;">
-                            {{ $note->note }}
-                        </div>
-
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary"
-                                    onclick="editServiceNote({{ $client->id }}, {{ $note->id }})">
-                                Edit
-                            </button>
-
-                            <button class="btn btn-sm btn-outline-danger"
-                                    onclick="deleteServiceNote({{ $client->id }}, {{ $note->id }})">
-                                Delete
-                            </button>
-                        </div>
+                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
+                    {{-- Date/time line --}}
+                    <div class="small text-muted mb-1">
+                        {{ optional($note->created_at)->format('m/d/Y h:i A') }}
                     </div>
 
-                    <div class="text-muted small mt-1">
-                        {{ $note->created_at->format('m/d/Y h:i A') }}
+                    {{-- Note body as full-width block --}}
+                    <div class="mb-2 note-body">
+                        {{-- DB column is "note"; fall back to "body" for older data --}}
+                        {{ $note->note ?? $note->body }}
+                    </div>
+
+                    {{-- Action buttons below the text --}}
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="editServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Delete
+                        </button>
                     </div>
                 </div>
             @empty
