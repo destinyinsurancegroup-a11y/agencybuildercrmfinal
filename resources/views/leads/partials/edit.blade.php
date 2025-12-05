@@ -24,8 +24,11 @@
             @csrf
             @method('PUT')
 
-            <!-- FORCE LEAD TYPE (stay as lead) -->
-            <input type="hidden" name="contact_type" value="Lead">
+            <!-- FORCE LEAD TYPE (stay as lead; use lowercase to match filters/logic) -->
+            <input type="hidden" name="contact_type" value="lead">
+
+            <!-- TELL CONTROLLER TO RETURN TO LEADS TAB AFTER SAVE -->
+            <input type="hidden" name="return_to" value="leads">
 
             <!-- BASIC INFORMATION -->
             <h5 class="mb-3 text-gold fw-bold">Basic Information</h5>
