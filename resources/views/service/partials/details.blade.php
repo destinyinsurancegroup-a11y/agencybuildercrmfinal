@@ -11,16 +11,16 @@
     }
     .p-4 { padding: 1.25rem !important; }
 
-    /* keep for structure; alignment will be forced by text-start */
+    /* CRITICAL: force note text to behave like Contacts (left-aligned, multi-line) */
     .note-body {
+        text-align: left !important;
         white-space: pre-wrap;
-        flex: 1 1 auto;
     }
 </style>
 
 <div class="p-4">
 
-    {{-- ================= WHITE INFO CARD (NO NOTES INSIDE) ================= --}}
+    {{-- ================= WHITE INFO CARD ================= --}}
     <div class="card shadow-sm border-0 p-4">
 
         <!-- HEADER WITH STATUS BUTTONS -->
@@ -211,12 +211,11 @@
             @endforelse
         </div>
 
-    </div> {{-- END WHITE CARD --}}
+    </div>{{-- END WHITE CARD --}}
 
-    {{-- ================= STANDALONE NOTES SECTION BELOW CARD ================= --}}
+    {{-- ================= STANDALONE NOTES SECTION (GREY AREA) ================= --}}
     <div class="mt-4">
 
-        <!-- NOTES HEADER -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
         <!-- ADD NEW NOTE -->
@@ -231,7 +230,7 @@
             </button>
         </div>
 
-        <!-- NOTES LIST -->
+        <!-- EXISTING NOTES – STRUCTURE MATCHES CONTACTS -->
         <div id="notes-list">
             @php
                 $notes = $client->notes ?? $client->allNotes ?? collect();
@@ -239,28 +238,28 @@
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2 bg-white" id="note-{{ $note->id }}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        {{-- text-start forces left alignment with !important --}}
-                        <div class="note-body text-start">
-                            {{ $note->note ?? $note->body }}
-                        </div>
-
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary"
-                                    onclick="editServiceNote({{ $client->id }}, {{ $note->id }})">
-                                Edit
-                            </button>
-
-                            <button class="btn btn-sm btn-outline-danger"
-                                    onclick="deleteServiceNote({{ $client->id }}, {{ $note->id }})">
-                                Delete
-                            </button>
-                        </div>
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
+                    {{-- Timestamp line like Contacts --}}
+                    <div class="small text-muted mb-1">
+                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
-                    <div class="text-muted small mt-1">
-                        {{ $note->created_at->format('m/d/Y h:i A') }}
+                    {{-- Note body behaves like Contacts, but keeps .note-body for JS --}}
+                    <div class="note-body">
+                        {{ $note->note ?? $note->body }}
+                    </div>
+
+                    {{-- Edit/Delete row under the note --}}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="editServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Delete
+                        </button>
                     </div>
                 </div>
             @empty
