@@ -11,13 +11,26 @@
     }
     .p-4 { padding: 1.25rem !important; }
 
-    /* Notes section below card */
-    .service-notes-wrapper {
-        padding: 0 1.25rem 1.25rem 1.25rem;
+    /* Stand-alone notes under the card */
+    #service-notes-wrapper {
+        margin-top: 24px;
+    }
+
+    /* Each note row – plain block, no flex, no weird centering */
+    .service-note-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        display: block;      /* override any flex from global CSS */
+        text-align: left;    /* ensure left alignment */
+        background-color: #f9fafb;
     }
 
     .service-note-body {
+        text-align: left;
         white-space: pre-wrap;
+        margin-top: 4px;
     }
 </style>
 
@@ -26,6 +39,7 @@
 
         <!-- HEADER WITH STATUS BUTTONS -->
         <div class="d-flex justify-content-between align-items-start mb-3">
+
             <div>
                 <h1 class="fw-bold" style="font-size: 32px; margin-bottom:10px;">
                     {{ $client->first_name }} {{ $client->last_name }}
@@ -62,6 +76,7 @@
 
                 <!-- ACTION BUTTONS (ONLY THREE) -->
                 <div class="d-flex flex-wrap gap-2">
+
                     {{-- FOLLOW UP (always available) --}}
                     <a href="{{ route('service.follow-up', $client->id) }}"
                        class="btn btn-sm"
@@ -96,6 +111,7 @@
                             </button>
                         </form>
                     @endif
+
                 </div>
             </div>
 
@@ -210,45 +226,46 @@
         </div>
 
     </div> {{-- end card --}}
-</div> {{-- end p-4 wrapper for card --}}
 
-{{-- ============================================= --}}
-{{-- STANDALONE NOTES SECTION (OUTSIDE THE CARD)  --}}
-{{-- ============================================= --}}
-<div class="service-notes-wrapper">
-    <h4 class="text-gold fw-bold mb-3">Notes</h4>
+    {{-- =========================================================
+         STAND-ALONE NOTES SECTION (OUTSIDE CARD, LIKE YOU WANT)
+       ========================================================= --}}
+    <div id="service-notes-wrapper">
+        <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-    <!-- ADD NEW NOTE -->
-    <div class="mb-3">
-        <textarea id="new_note_body"
-                  class="form-control"
-                  rows="2"
-                  placeholder="Write a new note..."></textarea>
+        {{-- NEW NOTE FORM --}}
+        <div class="mb-3">
+            <textarea id="new_note_body"
+                      class="form-control"
+                      rows="2"
+                      placeholder="Write a new note..."></textarea>
 
-        <button class="btn-gold mt-2" onclick="saveServiceNote({{ $client->id }})">
-            Add Note
-        </button>
+            <button class="btn-gold mt-2" onclick="saveServiceNote({{ $client->id }})">
+                Add Note
+            </button>
+        </div>
+
+        {{-- EXISTING NOTES --}}
+        <div id="notes-list">
+            @php
+                // Prefer allNotes if present; otherwise use notes relationship
+                $notes = $client->allNotes ?? $client->notes ?? collect();
+                $notes = $notes->sortByDesc('created_at');
+            @endphp
+
+            @forelse ($notes as $note)
+                <div class="service-note-card" id="note-{{ $note->id }}">
+                    <div class="small text-muted mb-1">
+                        {{ optional($note->created_at)->format('m/d/Y h:i A') }}
+                    </div>
+                    <div class="service-note-body">
+                        {{ $note->note ?? $note->body }}
+                    </div>
+                </div>
+            @empty
+                <p class="text-muted small mb-0">No notes yet.</p>
+            @endforelse
+        </div>
     </div>
 
-    <!-- NOTES LIST (simple, left-justified, like Contacts) -->
-    <div id="notes-list">
-        @php
-            // Prefer allNotes if it exists, fall back to notes() relationship or empty collection
-            $notes = $client->allNotes ?? $client->notes ?? collect();
-            $notes = $notes->sortByDesc('created_at');
-        @endphp
-
-        @forelse ($notes as $note)
-            <div class="border rounded p-2 mb-2">
-                <div class="small text-muted mb-1">
-                    {{ optional($note->created_at)->format('m/d/Y g:i A') }}
-                </div>
-                <div class="service-note-body">
-                    {{ $note->note ?? $note->body }}
-                </div>
-            </div>
-        @empty
-            <p class="text-muted small mb-0">No notes yet.</p>
-        @endforelse
-    </div>
 </div>
