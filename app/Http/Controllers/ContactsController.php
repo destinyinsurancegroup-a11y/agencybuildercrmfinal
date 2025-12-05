@@ -115,9 +115,9 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update contact and return to appropriate tab:
-     *  - if it WAS a lead, go back to Leads with this lead selected
-     *  - otherwise go back to Contacts with this contact selected
+     * Update contact and return either:
+     *  - back to Leads tab (with this lead selected) if return_to=leads
+     *  - or back to Contacts tab (default behavior)
      */
     public function update(Request $request, Contact $contact)
     {
@@ -125,9 +125,6 @@ class ContactsController extends Controller
         if ($contact->tenant_id !== $tenantId) {
             abort(403, 'Unauthorized tenant access.');
         }
-
-        // Capture original type BEFORE updating so we know where to redirect
-        $wasLead = ($contact->contact_type === 'lead');
 
         $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
@@ -149,14 +146,16 @@ class ContactsController extends Controller
 
         $contact->update($validated);
 
-        // If this record was a LEAD, send user back to the Leads tab
-        if ($wasLead) {
+        $returnTo = $request->input('return_to');
+
+        // If this update came from the Leads tab, go back to leads.index
+        if ($returnTo === 'leads') {
             return redirect()
                 ->route('leads.index', ['selected' => $contact->id])
                 ->with('success', 'Lead updated successfully.');
         }
 
-        // Otherwise, it's a normal contact → go back to Contacts
+        // Default: behave like before (Contacts tab)
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact updated successfully.');
