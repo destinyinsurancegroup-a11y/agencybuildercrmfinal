@@ -11,26 +11,10 @@
     }
     .p-4 { padding: 1.25rem !important; }
 
-    /* Stand-alone notes under the card */
-    #service-notes-wrapper {
-        margin-top: 24px;
-    }
-
-    /* Each note row – plain block, no flex, no weird centering */
-    .service-note-card {
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        padding: 8px 12px;
-        margin-bottom: 8px;
-        display: block;      /* override any flex from global CSS */
-        text-align: left;    /* ensure left alignment */
-        background-color: #f9fafb;
-    }
-
+    /* Service notes: structurally same as Leads/Contacts */
     .service-note-body {
         text-align: left;
         white-space: pre-wrap;
-        margin-top: 4px;
     }
 </style>
 
@@ -228,9 +212,9 @@
     </div> {{-- end card --}}
 
     {{-- =========================================================
-         STAND-ALONE NOTES SECTION (OUTSIDE CARD, LIKE YOU WANT)
+         STAND-ALONE NOTES SECTION (OUTSIDE CARD)
        ========================================================= --}}
-    <div id="service-notes-wrapper">
+    <div id="service-notes-wrapper" class="mt-4">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
         {{-- NEW NOTE FORM --}}
@@ -245,21 +229,33 @@
             </button>
         </div>
 
-        {{-- EXISTING NOTES --}}
-        <div id="notes-list">
+        {{-- EXISTING NOTES – same structure as Leads/Contacts --}}
+        <div id="service-notes-list">
             @php
-                // Prefer allNotes if present; otherwise use notes relationship
                 $notes = $client->allNotes ?? $client->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
             @forelse ($notes as $note)
-                <div class="service-note-card" id="note-{{ $note->id }}">
+                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
                     <div class="small text-muted mb-1">
                         {{ optional($note->created_at)->format('m/d/Y h:i A') }}
                     </div>
-                    <div class="service-note-body">
+
+                    <div class="service-note-body mb-2">
                         {{ $note->note ?? $note->body }}
+                    </div>
+
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="editServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Delete
+                        </button>
                     </div>
                 </div>
             @empty
