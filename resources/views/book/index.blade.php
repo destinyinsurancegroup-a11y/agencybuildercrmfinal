@@ -108,6 +108,11 @@
         color: #b91c1c; /* red */
         font-weight: 700;
     }
+
+    /* 🔑 FORCE BOOK DETAILS PANEL LEFT-ALIGNED */
+    #book-details-container {
+        text-align: left !important;
+    }
 </style>
 
 <div class="dashboard-page">
@@ -243,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Loads right panel via AJAX
     window.loadBookPanel = function (url) {
-        // Loader: no text-align:center on the wrapper that will be replaced
+        // Loader (we keep this but container itself is forced left by CSS above)
         container.innerHTML = `
             <div style="padding:40px;">
                 <div class="text-center">
@@ -260,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(html => container.innerHTML = html)
         .catch(() => {
             container.innerHTML = `
-                <div style="padding:40px; text-align:left; color:red;">
+                <div style="padding:40px; color:red;">
                     Failed to load.
                 </div>
             `;
