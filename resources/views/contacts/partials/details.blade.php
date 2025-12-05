@@ -1,3 +1,5 @@
+{{-- resources/views/contacts/partials/details.blade.php --}}
+
 <div class="card shadow-sm border-0"
      style="border-radius:18px; height: calc(100vh - 120px); overflow-y:auto; background:#ffffff;">
 
@@ -99,62 +101,67 @@
             More custom contact details or policy information can be stored here.
         </p>
 
-        <hr class="my-4">
+    </div> {{-- /card-body --}}
+</div> {{-- /card --}}
 
-        {{-- NOTES SECTION (Book-of-Business style) --}}
-        <h5 class="fw-bold mb-3">Notes</h5>
+{{-- =========================================================
+     STAND-ALONE NOTES SECTION (OUTSIDE CARD, LIKE BOOK/SERVICE)
+   ========================================================= --}}
+<div class="mt-4">
 
-        {{-- NEW NOTE FORM --}}
-        <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
-            @csrf
+    {{-- NOTES HEADER --}}
+    <h5 class="fw-bold mb-3">Notes</h5>
 
-            <textarea
-                name="body"
-                class="form-control"
-                rows="3"
-                style="border-radius:10px; border:1px solid #d1d5db; font-size:14px;"
-                placeholder="Write a new note..."
-                required
-            >{{ old('body') }}</textarea>
+    {{-- NEW NOTE FORM --}}
+    <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
+        @csrf
 
-            @error('body')
-                <div class="text-danger small mt-1">{{ $message }}</div>
-            @enderror
+        <textarea
+            name="body"
+            class="form-control"
+            rows="3"
+            style="border-radius:10px; border:1px solid #d1d5db; font-size:14px;"
+            placeholder="Write a new note..."
+            required
+        >{{ old('body') }}</textarea>
 
-            <button type="submit"
-                    class="btn mt-3"
-                    style="
-                        background:#c9a227;
-                        color:#111827;
-                        padding:8px 22px;
-                        border-radius:10px;
-                        font-size:13px;
-                        font-weight:700;
-                    ">
-                Add Note
-            </button>
-        </form>
+        @error('body')
+            <div class="text-danger small mt-1">{{ $message }}</div>
+        @enderror
 
-        {{-- EXISTING NOTES --}}
-        <div class="mt-4">
-            @php
-                $notes = $contact->notes()->latest()->get();
-            @endphp
+        <button type="submit"
+                class="btn mt-3"
+                style="
+                    background:#c9a227;
+                    color:#111827;
+                    padding:8px 22px;
+                    border-radius:10px;
+                    font-size:13px;
+                    font-weight:700;
+                ">
+            Add Note
+        </button>
+    </form>
 
-            @forelse($notes as $note)
-                <div class="border rounded p-2 mb-2">
-                    <div class="small text-muted mb-1">
-                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
-                        @if($note->author ?? false)
-                            — {{ $note->author->name }}
-                        @endif
-                    </div>
-                    <div>{{ $note->body }}</div>
+    {{-- EXISTING NOTES --}}
+    <div class="mt-4">
+        @php
+            $notes = $contact->notes()->latest()->get();
+        @endphp
+
+        @forelse($notes as $note)
+            <div class="border rounded p-2 mb-2">
+                <div class="small text-muted mb-1">
+                    {{ optional($note->created_at)->format('m/d/Y g:i A') }}
+                    @if($note->author ?? false)
+                        — {{ $note->author->name }}
+                    @endif
                 </div>
-            @empty
-                <p class="text-muted small mb-0">No notes yet for this contact.</p>
-            @endforelse
-        </div>
-
+                <div>{{ $note->body }}</div>
+            </div>
+        @empty
+            <p class="text-muted small mb-0">No notes yet for this contact.</p>
+        @endforelse
     </div>
+
 </div>
