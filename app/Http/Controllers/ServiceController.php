@@ -143,9 +143,10 @@ class ServiceController extends Controller
         // TODO: replace fallback tenant/user with strict auth once multi-tenant auth is fully wired
         $user = auth()->user();
 
-        $validated['contact_type'] = 'service';
-        $validated['tenant_id']    = $user->tenant_id ?? 1;
-        $validated['created_by']   = $user->id ?? 1;
+        $validated['contact_type']        = 'service';
+        $validated['tenant_id']           = $user->tenant_id ?? 1;
+        $validated['created_by']          = $user->id ?? 1;
+        $validated['in_book_of_business'] = true; // ✅ ensure they appear in Book + badge works
 
         $client = Contact::create($validated);
 
@@ -224,6 +225,12 @@ class ServiceController extends Controller
         }
 
         $client->contact_type = 'service';
+
+        // ✅ keep / default service clients in Book of Business
+        if (!isset($client->in_book_of_business) || !$client->in_book_of_business) {
+            $client->in_book_of_business = true;
+        }
+
         $client->save();
 
         // Reuse same beneficiaries/emergency update logic as Book
@@ -314,13 +321,6 @@ class ServiceController extends Controller
     /*
     |--------------------------------------------------------------------------
     | SERVICE OUTCOMES – SAVED / BACK ON BOOKS / NOT INTERESTED / CANCELLED
-    |--------------------------------------------------------------------------
-    |
-    | These rely on two new columns on contacts:
-    |   - service_status (string: Saved, Back on Books, Not Interested, Cancelled, etc.)
-    |   - service_archived_at (timestamp)
-    |
-    | We'll add those in a migration in a later step.
     |--------------------------------------------------------------------------
     */
 
