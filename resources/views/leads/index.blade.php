@@ -189,7 +189,7 @@
                         @endphp
 
                         <div 
-                            class="contact-list-item js-lead-row"
+                            class="contact-list-item js-lead-row {{ (isset($selected) && $selected == $lead->id) ? 'active-contact-row' : '' }}"
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
                         >
@@ -274,8 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const container = document.getElementById('contact-details-container');
 
-    // Expose this globally so notes JS and other code can reuse it
-    window.loadLeadPanel = function (url) {
+    function loadPanel(url) {
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
@@ -295,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         });
-    };
+    }
 
     /* CLICK A LEAD */
     document.querySelectorAll('.js-lead-row').forEach(row => {
@@ -306,13 +305,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             row.classList.add('active-contact-row');
 
-            loadLeadPanel(row.dataset.showUrl);
+            loadPanel(row.dataset.showUrl);
         });
     });
 
     /* ADD LEAD */
     document.getElementById('add-lead-btn').addEventListener('click', function () {
-        loadLeadPanel(this.dataset.createUrl);
+        loadPanel(this.dataset.createUrl);
     });
 
     /* CLIENT SIDE SEARCH */
@@ -325,6 +324,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     : 'none'
             );
     });
+
+    /* AUTO-LOAD SELECTED LEAD (after edit/create) */
+    @if(!empty($selected))
+        (function () {
+            const row = document.querySelector('.js-lead-row[data-id="{{ $selected }}"]');
+            if (row) {
+                row.classList.add('active-contact-row');
+                loadPanel(row.dataset.showUrl);
+            }
+        })();
+    @endif
 
     /* =======================================================
        GLOBAL LEAD NOTE FUNCTIONS (used by details partial)
@@ -360,12 +370,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Error saving note. Check /debug-laravel-log.");
                 return;
             }
-
-            // Clear the textarea
-            bodyField.value = '';
-
-            // 🔑 Reload ONLY the right-hand lead details panel
-            window.loadLeadPanel(`/leads/${contactId}`);
+            // Reload just the right-hand panel by re-calling the show route
+            loadPanel(`/leads/${contactId}`);
         })
         .catch(err => {
             console.error(err);
@@ -400,9 +406,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Error updating note. Check /debug-laravel-log.");
                 return;
             }
-
-            // Reload only the panel
-            window.loadLeadPanel(`/leads/${contactId}`);
+            // Reload right-hand panel only
+            loadPanel(`/leads/${contactId}`);
         })
         .catch(err => {
             console.error(err);
@@ -427,9 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Error deleting note. Check /debug-laravel-log.");
                 return;
             }
-
-            // Reload only the panel
-            window.loadLeadPanel(`/leads/${contactId}`);
+            // Reload right-hand panel only
+            loadPanel(`/leads/${contactId}`);
         })
         .catch(err => {
             console.error(err);
