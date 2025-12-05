@@ -274,7 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const container = document.getElementById('contact-details-container');
 
-    function loadPanel(url) {
+    // Expose this globally so notes JS and other code can reuse it
+    window.loadLeadPanel = function (url) {
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
@@ -294,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         });
-    }
+    };
 
     /* CLICK A LEAD */
     document.querySelectorAll('.js-lead-row').forEach(row => {
@@ -305,13 +306,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             row.classList.add('active-contact-row');
 
-            loadPanel(row.dataset.showUrl);
+            loadLeadPanel(row.dataset.showUrl);
         });
     });
 
     /* ADD LEAD */
     document.getElementById('add-lead-btn').addEventListener('click', function () {
-        loadPanel(this.dataset.createUrl);
+        loadLeadPanel(this.dataset.createUrl);
     });
 
     /* CLIENT SIDE SEARCH */
@@ -359,8 +360,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Error saving note. Check /debug-laravel-log.");
                 return;
             }
-            // Reload page so new note shows up
-            window.location.reload();
+
+            // Clear the textarea
+            bodyField.value = '';
+
+            // 🔑 Reload ONLY the right-hand lead details panel
+            window.loadLeadPanel(`/leads/${contactId}`);
         })
         .catch(err => {
             console.error(err);
@@ -395,7 +400,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Error updating note. Check /debug-laravel-log.");
                 return;
             }
-            window.location.reload();
+
+            // Reload only the panel
+            window.loadLeadPanel(`/leads/${contactId}`);
         })
         .catch(err => {
             console.error(err);
@@ -420,7 +427,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Error deleting note. Check /debug-laravel-log.");
                 return;
             }
-            window.location.reload();
+
+            // Reload only the panel
+            window.loadLeadPanel(`/leads/${contactId}`);
         })
         .catch(err => {
             console.error(err);
