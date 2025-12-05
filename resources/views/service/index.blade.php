@@ -456,7 +456,8 @@ function saveServiceNote(clientId) {
 
 /* ---------- NOTES: EDIT ---------- */
 function editServiceNote(clientId, noteId) {
-    const noteEl = document.querySelector(`#note-${noteId} .note-body`);
+    // 🔴 CHANGED SELECTOR: now uses .service-note-body (matches partial)
+    const noteEl = document.querySelector(`#note-${noteId} .service-note-body`);
     if (!noteEl) {
         console.warn('note body element not found');
         return;
