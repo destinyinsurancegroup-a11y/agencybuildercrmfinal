@@ -31,12 +31,6 @@
     .p-4 {
         padding: 1.25rem !important;
     }
-
-    /* Ensure note text behaves like Leads/Contacts */
-    .note-body {
-        text-align: left;
-        white-space: pre-wrap;
-    }
 </style>
 
 @php
@@ -70,7 +64,7 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button
+                <button 
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
@@ -120,10 +114,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong>
+                <p><strong>Face Amount:</strong> 
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong>
+                <p><strong>Monthly Premium:</strong> 
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -196,8 +190,8 @@
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        <!-- ADD NEW NOTE (same pattern as Leads/Contacts) -->
-        <div class="mb-3 text-start">
+        <!-- ADD NEW NOTE -->
+        <div class="mb-3" style="text-align:left !important;">
             <textarea id="new_note_body"
                       class="form-control"
                       rows="2"
@@ -208,24 +202,25 @@
             </button>
         </div>
 
-        <!-- NOTES LIST (structurally like Leads) -->
-        <div id="notes-list" class="text-start">
+        <!-- NOTES LIST -->
+        <div id="notes-list" style="text-align:left !important;">
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}" style="text-align:left !important;">
 
-                    {{-- DATE / TIME LINE (like Contacts/Leads) --}}
-                    <div class="small text-muted mb-1">
+                    {{-- DATE / TIME LINE --}}
+                    <div class="small text-muted mb-1" style="text-align:left !important;">
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
                     {{-- NOTE BODY IN ITS OWN BLOCK, FULL WIDTH --}}
-                    <div class="mb-2 note-body">
+                    <div class="mb-2 note-body"
+                         style="text-align:left !important; white-space:pre-wrap;">
                         {{-- DB column is "note"; fall back to "body" if older --}}
                         {{ $note->note ?? $note->body }}
                     </div>
 
                     {{-- ACTION BUTTONS BELOW NOTE BODY --}}
-                    <div>
+                    <div style="text-align:left !important;">
                         <button class="btn btn-sm btn-outline-secondary"
                                 onclick="editNote({{ $client->id }}, {{ $note->id }})">
                             Edit
@@ -245,3 +240,96 @@
 
     </div>
 </div>
+
+<!-- ====================================== -->
+<!-- NOTES AJAX SCRIPT (Book tab)           -->
+<!-- ====================================== -->
+<script>
+function saveNote(clientId) {
+    const textarea = document.getElementById('new_note_body');
+    if (!textarea) {
+        console.warn('new_note_body textarea not found');
+        return;
+    }
+
+    const body = textarea.value.trim();
+    if (!body) {
+        alert("Note cannot be empty.");
+        return;
+    }
+
+    fetch(`/book/${clientId}/notes`, {
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to save note');
+        return r.json();
+    })
+    .then(() => {
+        textarea.value = '';
+        loadBookPanel(`/book/${clientId}`);
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Error saving note.');
+    });
+}
+
+function editNote(clientId, noteId) {
+    const noteBodyEl = document.querySelector(`#note-${noteId} .note-body`);
+    if (!noteBodyEl) {
+        console.warn('note body element not found');
+        return;
+    }
+
+    const existing = noteBodyEl.innerText.trim();
+    const updated = prompt("Edit note:", existing);
+    if (updated === null) return; // user cancelled
+
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'PUT',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({ body: updated })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to update note');
+        return r.json();
+    })
+    .then(() => loadBookPanel(`/book/${clientId}`))
+    .catch(err => {
+        console.error(err);
+        alert('Error updating note.');
+    });
+}
+
+function deleteNote(clientId, noteId) {
+    if (!confirm("Delete this note?")) return;
+
+    fetch(`/book/${clientId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: {
+            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "Accept": "application/json"
+        }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to delete note');
+        return r.json();
+    })
+    .then(() => loadBookPanel(`/book/${clientId}`))
+    .catch(err => {
+        console.error(err);
+        alert('Error deleting note.');
+    });
+}
+</script>
