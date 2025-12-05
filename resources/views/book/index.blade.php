@@ -243,10 +243,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Loads right panel via AJAX
     window.loadBookPanel = function (url) {
+        // Loader: no text-align:center on the wrapper that will be replaced
         container.innerHTML = `
-            <div style="padding:40px; text-align:center;">
-                <div class="spinner-border text-warning" role="status"></div>
-                <p class="mt-3 text-muted">Loading...</p>
+            <div style="padding:40px;">
+                <div class="text-center">
+                    <div class="spinner-border text-warning" role="status"></div>
+                    <p class="mt-3 text-muted">Loading...</p>
+                </div>
             </div>
         `;
 
@@ -257,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(html => container.innerHTML = html)
         .catch(() => {
             container.innerHTML = `
-                <div style="padding:40px; text-align:center; color:red;">
+                <div style="padding:40px; text-align:left; color:red;">
                     Failed to load.
                 </div>
             `;
