@@ -1,5 +1,6 @@
 <div class="p-4">
 
+    {{-- MAIN LEAD CARD --}}
     <div class="card shadow-sm border-0 p-4">
 
         <!-- BIG NAME HEADER -->
@@ -98,6 +99,13 @@
 
         <hr>
 
+    </div>{{-- /card --}}
+
+    {{-- =========================================================
+         STAND-ALONE NOTES SECTION (OUTSIDE CARD, LIKE BOOK/SERVICE)
+       ========================================================= --}}
+    <div class="mt-4">
+
         <!-- NOTES SECTION (styled like All Contacts) -->
         <h5 class="fw-bold mb-3">Notes</h5>
 
@@ -163,6 +171,6 @@
             @endforelse
         </div>
 
-    </div>
+    </div>{{-- /notes wrapper --}}
 
 </div>
