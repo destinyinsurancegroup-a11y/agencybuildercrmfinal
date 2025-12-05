@@ -11,10 +11,9 @@
     }
     .p-4 { padding: 1.25rem !important; }
 
-    /* NOTE TEXT – make it clearly left-aligned */
+    /* keep for structure; alignment will be forced by text-start */
     .note-body {
         white-space: pre-wrap;
-        text-align: left;
         flex: 1 1 auto;
     }
 </style>
@@ -242,7 +241,8 @@
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2 bg-white" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
-                        <div class="note-body">
+                        {{-- text-start forces left alignment with !important --}}
+                        <div class="note-body text-start">
                             {{ $note->note ?? $note->body }}
                         </div>
 
