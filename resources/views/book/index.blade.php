@@ -109,8 +109,10 @@
         font-weight: 700;
     }
 
-    /* 🔑 FORCE BOOK DETAILS PANEL LEFT-ALIGNED */
-    #book-details-container {
+    /* NUCLEAR OVERRIDE:
+       Force EVERYTHING in the Book details panel to be left aligned. */
+    #book-details-container,
+    #book-details-container * {
         text-align: left !important;
     }
 </style>
@@ -248,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Loads right panel via AJAX
     window.loadBookPanel = function (url) {
-        // Loader (we keep this but container itself is forced left by CSS above)
         container.innerHTML = `
             <div style="padding:40px;">
                 <div class="text-center">
