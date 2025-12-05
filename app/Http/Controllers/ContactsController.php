@@ -115,9 +115,9 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update contact and return either:
-     *  - back to Leads tab (with this lead selected) if return_to=leads
-     *  - or back to Contacts tab (default behavior)
+     * Update contact and return to the correct tab:
+     *  - If this contact is a LEAD -> go back to Leads tab
+     *  - Otherwise -> go back to Contacts tab
      */
     public function update(Request $request, Contact $contact)
     {
@@ -146,16 +146,17 @@ class ContactsController extends Controller
 
         $contact->update($validated);
 
-        $returnTo = $request->input('return_to');
+        // Decide where to send the user based on contact type
+        $type = strtolower($contact->contact_type ?? '');
 
-        // If this update came from the Leads tab, go back to leads.index
-        if ($returnTo === 'leads') {
+        if ($type === 'lead') {
+            // This is a lead → go back to Leads tab with this lead selected
             return redirect()
                 ->route('leads.index', ['selected' => $contact->id])
                 ->with('success', 'Lead updated successfully.');
         }
 
-        // Default: behave like before (Contacts tab)
+        // All other contacts → stay on Contacts tab
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact updated successfully.');
