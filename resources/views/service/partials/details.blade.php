@@ -11,10 +11,9 @@
     }
     .p-4 { padding: 1.25rem !important; }
 
-    /* Service notes: structurally same as Leads/Contacts */
-    .service-note-body {
-        text-align: left;
-        white-space: pre-wrap;
+    /* standalone notes block below the card */
+    #service-notes-wrapper {
+        margin-top: 24px;
     }
 </style>
 
@@ -99,7 +98,7 @@
                 </div>
             </div>
 
-            <button
+            <button 
                 class="btn-gold"
                 data-edit-url="{{ route('service.edit.panel', $client->id) }}"
                 onclick="loadServicePanel(this.dataset.editUrl)"
@@ -144,10 +143,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong>
+                <p><strong>Face Amount:</strong> 
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong>
+                <p><strong>Monthly Premium:</strong> 
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -211,13 +210,13 @@
 
     </div> {{-- end card --}}
 
-    {{-- =========================================================
-         STAND-ALONE NOTES SECTION (OUTSIDE CARD)
-       ========================================================= --}}
-    <div id="service-notes-wrapper" class="mt-4">
+    {{-- =========================
+         STAND-ALONE NOTES
+       ========================= --}}
+    <div id="service-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        {{-- NEW NOTE FORM --}}
+        {{-- NEW NOTE FORM (JS submit, like before) --}}
         <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
@@ -229,33 +228,20 @@
             </button>
         </div>
 
-        {{-- EXISTING NOTES – same structure as Leads/Contacts --}}
-        <div id="service-notes-list">
+        {{-- EXISTING NOTES (structure like Contacts/Leads) --}}
+        <div id="notes-list" class="mt-3">
             @php
                 $notes = $client->allNotes ?? $client->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="small text-muted mb-1">
-                        {{ optional($note->created_at)->format('m/d/Y h:i A') }}
+                        {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
-
-                    <div class="service-note-body mb-2">
-                        {{ $note->note ?? $note->body }}
-                    </div>
-
                     <div>
-                        <button class="btn btn-sm btn-outline-secondary"
-                                onclick="editServiceNote({{ $client->id }}, {{ $note->id }})">
-                            Edit
-                        </button>
-
-                        <button class="btn btn-sm btn-outline-danger"
-                                onclick="deleteServiceNote({{ $client->id }}, {{ $note->id }})">
-                            Delete
-                        </button>
+                        {{ $note->note ?? $note->body }}
                     </div>
                 </div>
             @empty
