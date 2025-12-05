@@ -57,15 +57,8 @@
                     </div>
                 @endif
 
-                <!-- ACTION BUTTONS (ONLY THREE) -->
+                <!-- ACTION BUTTONS (REORDERED: Saved, Follow Up, Not Interested) -->
                 <div class="d-flex flex-wrap gap-2">
-
-                    {{-- FOLLOW UP (always available) --}}
-                    <a href="{{ route('service.follow-up', $client->id) }}"
-                       class="btn btn-sm"
-                       style="background:#f0ad4e; color:black; font-weight:600; border-radius:6px;">
-                        Follow Up
-                    </a>
 
                     @if(is_null($client->service_archived_at))
                         {{-- SAVED (Green) --}}
@@ -80,7 +73,16 @@
                                 Saved
                             </button>
                         </form>
+                    @endif
 
+                    {{-- FOLLOW UP (always available) --}}
+                    <a href="{{ route('service.follow-up', $client->id) }}"
+                       class="btn btn-sm"
+                       style="background:#f0ad4e; color:black; font-weight:600; border-radius:6px;">
+                        Follow Up
+                    </a>
+
+                    @if(is_null($client->service_archived_at))
                         {{-- NOT INTERESTED (Red) --}}
                         <form action="{{ route('service.not-interested', $client->id) }}"
                               method="POST"
