@@ -189,7 +189,7 @@
                         @endphp
 
                         <div 
-                            class="contact-list-item js-lead-row {{ (isset($selected) && $selected == $lead->id) ? 'active-contact-row' : '' }}"
+                            class="contact-list-item js-lead-row"
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
                         >
@@ -325,16 +325,25 @@ document.addEventListener('DOMContentLoaded', () => {
             );
     });
 
-    /* AUTO-LOAD SELECTED LEAD (after edit/create) */
-    @if(!empty($selected))
-        (function () {
-            const row = document.querySelector('.js-lead-row[data-id="{{ $selected }}"]');
-            if (row) {
-                row.classList.add('active-contact-row');
-                loadPanel(row.dataset.showUrl);
-            }
-        })();
-    @endif
+    /* =======================================================
+       AUTO-LOAD SELECTED LEAD AFTER EDIT/CREATE (from ?selected=)
+       ======================================================= */
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const selected = params.get('selected');
+        if (!selected) return;
+
+        const row = document.querySelector(`.js-lead-row[data-id="${selected}"]`);
+        if (row) {
+            // visually select it
+            document.querySelectorAll('.js-lead-row')
+                .forEach(r => r.classList.remove('active-contact-row'));
+            row.classList.add('active-contact-row');
+
+            // load its details in the right panel
+            loadPanel(row.dataset.showUrl);
+        }
+    })();
 
     /* =======================================================
        GLOBAL LEAD NOTE FUNCTIONS (used by details partial)
