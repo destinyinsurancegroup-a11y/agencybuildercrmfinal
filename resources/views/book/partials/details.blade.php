@@ -1,5 +1,5 @@
 <style>
-    /* ===== COMPACT SPACING FOR CONTACT PAGE ===== */
+    /* ===== COMPACT SPACING FOR BOOK PAGE ===== */
 
     .card.p-4 {
         padding: 1.25rem !important;
@@ -32,11 +32,9 @@
         padding: 1.25rem !important;
     }
 
-    /* Note body block – match Leads/Contacts behavior */
-    .note-body {
-        text-align: left;
-        white-space: pre-wrap;
-        display: block;
+    /* Stand-alone notes block under the card (like Service) */
+    #book-notes-wrapper {
+        margin-top: 24px;
     }
 </style>
 
@@ -45,9 +43,6 @@
     // - they are a service contact AND
     // - their service has not been archived yet
     $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
-
-    // Load notes newest-first via the Note relationship
-    $notes = $client->notes()->latest()->get();
 @endphp
 
 <div class="p-4">
@@ -190,15 +185,16 @@
             @endforelse
         </div>
 
-        <hr>
+    </div> {{-- end main card --}}
 
-        <!-- ================================ -->
-        <!-- NOTES SECTION                    -->
-        <!-- ================================ -->
+    {{-- =========================================
+         STAND-ALONE NOTES SECTION (LIKE SERVICE)
+       ========================================= --}}
+    <div id="book-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        <!-- ADD NEW NOTE (matches Leads/Contacts pattern) -->
-        <div class="mb-3 text-start">
+        {{-- NEW NOTE FORM (uses saveNote in book/index.blade.php) --}}
+        <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
                       rows="2"
@@ -209,40 +205,26 @@
             </button>
         </div>
 
-        <!-- NOTES LIST (structurally like Leads) -->
-        <div id="notes-list" class="text-start">
-            @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2 text-start" id="note-{{ $note->id }}">
+        {{-- EXISTING NOTES – simple structure like Contacts/Leads --}}
+        <div id="notes-list" class="mt-3">
+            @php
+                $notes = $client->allNotes ?? $client->notes ?? collect();
+                $notes = $notes->sortByDesc('created_at');
+            @endphp
 
-                    {{-- DATE / TIME LINE --}}
+            @forelse ($notes as $note)
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="small text-muted mb-1">
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
-
-                    {{-- NOTE BODY IN ITS OWN BLOCK, FULL WIDTH --}}
-                    <div class="mb-2 note-body">
-                        {{-- DB column is "note"; fall back to "body" if older --}}
+                    <div>
                         {{ $note->note ?? $note->body }}
                     </div>
-
-                    {{-- ACTION BUTTONS BELOW NOTE BODY --}}
-                    <div>
-                        <button class="btn btn-sm btn-outline-secondary"
-                                onclick="editNote({{ $client->id }}, {{ $note->id }})">
-                            Edit
-                        </button>
-
-                        <button class="btn btn-sm btn-outline-danger"
-                                onclick="deleteNote({{ $client->id }}, {{ $note->id }})">
-                            Delete
-                        </button>
-                    </div>
-
                 </div>
             @empty
-                <p class="text-muted">No notes yet.</p>
+                <p class="text-muted small mb-0">No notes yet.</p>
             @endforelse
         </div>
-
     </div>
+
 </div>
