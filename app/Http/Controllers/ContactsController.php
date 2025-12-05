@@ -115,7 +115,9 @@ class ContactsController extends Controller
     }
 
     /**
-     * Update contact and return to edited contact inside AJAX panel.
+     * Update contact and return to appropriate tab:
+     *  - if it WAS a lead, go back to Leads with this lead selected
+     *  - otherwise go back to Contacts with this contact selected
      */
     public function update(Request $request, Contact $contact)
     {
@@ -123,6 +125,9 @@ class ContactsController extends Controller
         if ($contact->tenant_id !== $tenantId) {
             abort(403, 'Unauthorized tenant access.');
         }
+
+        // Capture original type BEFORE updating so we know where to redirect
+        $wasLead = ($contact->contact_type === 'lead');
 
         $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
@@ -144,6 +149,14 @@ class ContactsController extends Controller
 
         $contact->update($validated);
 
+        // If this record was a LEAD, send user back to the Leads tab
+        if ($wasLead) {
+            return redirect()
+                ->route('leads.index', ['selected' => $contact->id])
+                ->with('success', 'Lead updated successfully.');
+        }
+
+        // Otherwise, it's a normal contact → go back to Contacts
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact updated successfully.');
