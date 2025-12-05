@@ -11,15 +11,17 @@
     }
     .p-4 { padding: 1.25rem !important; }
 
-    /* Make note text take the full row and align to the left edge of the card */
+    /* NOTE TEXT – make it clearly left-aligned */
     .note-body {
-        flex: 1 1 auto;      /* fill available space between left edge and buttons */
-        text-align: left;    /* left-justify text inside the note */
         white-space: pre-wrap;
+        text-align: left;
+        flex: 1 1 auto;
     }
 </style>
 
 <div class="p-4">
+
+    {{-- ================= WHITE INFO CARD (NO NOTES INSIDE) ================= --}}
     <div class="card shadow-sm border-0 p-4">
 
         <!-- HEADER WITH STATUS BUTTONS -->
@@ -210,11 +212,15 @@
             @endforelse
         </div>
 
-        <hr>
+    </div> {{-- END WHITE CARD --}}
 
-        <!-- NOTES -->
+    {{-- ================= STANDALONE NOTES SECTION BELOW CARD ================= --}}
+    <div class="mt-4">
+
+        <!-- NOTES HEADER -->
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
+        <!-- ADD NEW NOTE -->
         <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
@@ -226,6 +232,7 @@
             </button>
         </div>
 
+        <!-- NOTES LIST -->
         <div id="notes-list">
             @php
                 $notes = $client->notes ?? $client->allNotes ?? collect();
@@ -233,7 +240,7 @@
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
+                <div class="border rounded p-2 mb-2 bg-white" id="note-{{ $note->id }}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="note-body">
                             {{ $note->note ?? $note->body }}
@@ -262,4 +269,5 @@
         </div>
 
     </div>
+
 </div>
