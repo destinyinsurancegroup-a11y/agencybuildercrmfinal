@@ -20,7 +20,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'agency_id',   // REQUIRED for multi-tenancy
+        'agency_id', // REQUIRED for multi-tenancy: user belongs to an agency/tenant
     ];
 
     /**
@@ -40,13 +40,14 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        // uses the global hasher (we'll configure Argon2id in config/hashing.php)
         'password' => 'hashed',
     ];
 
     /**
-     * Tenant (Agency) relationship.
-     * 
-     * Every user belongs to exactly one agency.
+     * Agency (Tenant) relationship.
+     *
+     * Every user belongs to exactly one agency/tenant.
      */
     public function agency()
     {
