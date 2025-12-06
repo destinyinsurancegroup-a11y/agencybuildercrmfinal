@@ -2,58 +2,53 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TenantScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Event extends Model
 {
-    use HasFactory;
+    use HasFactory, TenantScoped;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
-        'tenant_id',
+        'agency_id',   // multi-tenant owner
         'created_by',
         'title',
         'start',
         'end',
+        'color',
         'location',
         'reminder',
-        'color',
-        'contact_id', // ← NEW: associate event with a specific contact/lead
-    ];
-
-    protected $casts = [
-        'start'    => 'datetime',
-        'end'      => 'datetime',
-        'reminder' => 'integer',
-        'contact_id' => 'integer', // ← NEW: ensure proper casting
     ];
 
     /**
-     * Auto-assign tenant_id and created_by for new events.
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
      */
-    protected static function booted()
+    protected $casts = [
+        'start' => 'datetime',
+        'end'   => 'datetime',
+    ];
+
+    /**
+     * The agency (tenant) that owns this event.
+     */
+    public function agency()
     {
-        static::creating(function ($event) {
-            if (auth()->check()) {
-                $event->tenant_id = auth()->user()->tenant_id ?? null;
-                $event->created_by = auth()->id();
-            }
-        });
+        return $this->belongsTo(Agency::class);
     }
 
     /**
-     * User who created this event.
+     * The user who created this event.
      */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Contact / lead this event is associated with (for follow-ups).
-     */
-    public function contact()
-    {
-        return $this->belongsTo(Contact::class);
     }
 }
