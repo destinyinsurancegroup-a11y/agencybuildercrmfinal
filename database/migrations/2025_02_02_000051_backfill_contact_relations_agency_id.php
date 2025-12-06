@@ -7,19 +7,23 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Copy agency_id from contacts to contact_relations
-        DB::statement('
+        /**
+         * MySQL-compatible backfill.
+         *
+         * Copy agency_id from contacts into contact_relations rows
+         * based on matching contact_id.
+         */
+        DB::statement("
             UPDATE contact_relations cr
-            SET agency_id = c.agency_id
-            FROM contacts c
-            WHERE cr.contact_id = c.id
-              AND cr.agency_id IS NULL
-        ');
+            JOIN contacts c ON cr.contact_id = c.id
+            SET cr.agency_id = c.agency_id
+            WHERE cr.agency_id IS NULL
+        ");
     }
 
     public function down(): void
     {
-        // Rollback: clear agency_id on all relations
+        // Rollback behavior: clear agency_id on all contact_relations
         DB::table('contact_relations')->update(['agency_id' => null]);
     }
 };
