@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Contact;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ContactsController extends Controller
 {
@@ -11,12 +12,14 @@ class ContactsController extends Controller
      * Display the contacts index page (master-detail layout).
      * NOTE: Leads (contact_type = 'lead') and Service cases (contact_type = 'service')
      *       are EXCLUDED from this view to avoid duplicates with Leads/Service tabs.
+     *
+     * Multi-tenancy:
+     *  - Contact model uses TenantScoped, so all queries are automatically filtered
+     *    by agency_id for the currently logged-in user.
      */
     public function index(Request $request)
     {
-        $tenantId = 1; // TODO: replace with auth()->user()->tenant_id when multi-tenant is wired
-
-        $contacts = Contact::where('tenant_id', $tenantId)
+        $contacts = Contact::query()
             // 👇 do NOT treat leads or service cases as generic contacts
             ->where(function ($q) {
                 $q->whereNull('contact_type')
@@ -25,7 +28,7 @@ class ContactsController extends Controller
             ->when($request->search, function ($query) use ($request) {
                 $search = $request->search;
 
-                // group the OR conditions so they don't break tenant/contact filters
+                // group the OR conditions so they don't break filters
                 $query->where(function ($q) use ($search) {
                     $q->where('full_name', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%")
@@ -47,11 +50,8 @@ class ContactsController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $tenantId = 1;
-
-        $contact = Contact::where('tenant_id', $tenantId)
-            ->where('id', $id)
-            ->firstOrFail();
+        // TenantScoped on Contact ensures only current agency's contact can be found
+        $contact = Contact::findOrFail($id);
 
         return view('contacts.partials.details', compact('contact'));
     }
@@ -75,6 +75,10 @@ class ContactsController extends Controller
     /**
      * Store a newly created contact.
      * Returns to contacts.index with auto-selected ID.
+     *
+     * Multi-tenancy:
+     *  - agency_id is automatically set by TenantScoped::creating()
+     *  - created_by is set to the current user
      */
     public function store(Request $request)
     {
@@ -96,9 +100,10 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        $validated['tenant_id']  = 1;
-        $validated['created_by'] = 1;
+        // Multi-tenant: created_by is the current user
+        $validated['created_by'] = Auth::id();
 
+        // agency_id will be auto-filled by TenantScoped creating hook
         $contact = Contact::create($validated);
 
         return redirect()
@@ -111,6 +116,8 @@ class ContactsController extends Controller
      */
     public function edit(Contact $contact)
     {
+        // Route model binding + TenantScoped ensure this contact
+        // already belongs to the current agency.
         return view('contacts.partials.edit', compact('contact'));
     }
 
@@ -121,11 +128,6 @@ class ContactsController extends Controller
      */
     public function update(Request $request, Contact $contact)
     {
-        $tenantId = 1;
-        if ($contact->tenant_id !== $tenantId) {
-            abort(403, 'Unauthorized tenant access.');
-        }
-
         $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
@@ -167,6 +169,7 @@ class ContactsController extends Controller
      */
     public function destroy(Contact $contact)
     {
+        // TenantScoped already ensures this belongs to the current agency
         $contact->delete();
 
         return redirect()
