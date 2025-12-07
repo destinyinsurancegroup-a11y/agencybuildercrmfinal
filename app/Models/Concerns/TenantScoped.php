@@ -4,42 +4,36 @@ namespace App\Models\Concerns;
 
 use App\Helpers\Tenant;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Scope;
+
+class AgencyScope implements Scope
+{
+    /**
+     * Apply the agency (tenant) constraint to all queries.
+     */
+    public function apply(Builder $builder, Model $model): void
+    {
+        $tenantId = Tenant::id();
+
+        if ($tenantId) {
+            $builder->where($model->getTable() . '.agency_id', $tenantId);
+        }
+    }
+}
 
 trait TenantScoped
 {
-    /**
-     * Boot the tenant scoping for the model.
-     *
-     * Applies a global scope so all queries are filtered by agency_id,
-     * and sets agency_id automatically when creating new records.
-     */
-    protected static function bootTenantScoped(): void
+    public static function bootTenantScoped(): void
     {
-        static::addGlobalScope('tenant', function (Builder $builder) {
-            // Only apply in authenticated tenant contexts
-            if (Tenant::active()) {
-                $table = $builder->getModel()->getTable();
-                $builder->where($table . '.agency_id', Tenant::id());
+        // Add the global scope to every query on this model
+        static::addGlobalScope(new AgencyScope);
+
+        // When creating a new record, automatically set agency_id
+        static::creating(function (Model $model) {
+            if (!$model->agency_id && ($tenantId = Tenant::id())) {
+                $model->agency_id = $tenantId;
             }
         });
-
-        static::creating(function ($model) {
-            if (Tenant::active() && empty($model->agency_id)) {
-                $model->agency_id = Tenant::id();
-            }
-        });
-    }
-
-    /**
-     * Local scope if ever needed manually.
-     */
-    public function scopeForCurrentAgency(Builder $builder): Builder
-    {
-        if (Tenant::active()) {
-            $table = $builder->getModel()->getTable();
-            $builder->where($table . '.agency_id', Tenant::id());
-        }
-
-        return $builder;
     }
 }
