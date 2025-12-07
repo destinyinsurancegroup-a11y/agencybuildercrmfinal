@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Models\Note;
 use App\Models\ContactRelation;   // Destiny unified relations
 use App\Models\ServiceEvent;
-use App\Models\Event;             // ← NEW: calendar events / follow-ups
+use App\Models\Event;             // Calendar events / follow-ups
 use App\Models\Concerns\TenantScoped;
 use Carbon\Carbon;
 
@@ -16,11 +16,16 @@ class Contact extends Model
 {
     use HasFactory, TenantScoped;
 
-    protected $table = 'contacts';   // Explicit for safety
+    // Explicit table name for safety
+    protected $table = 'contacts';
 
+    /**
+     * Mass assignable attributes.
+     */
     protected $fillable = [
-        'tenant_id',   // legacy field, can be retired later
-        'agency_id',   // NEW: multi-tenant scoping field
+        // Multi-tenant scoping field
+        'agency_id',
+
         'created_by',
         'assigned_to',
 
@@ -59,6 +64,9 @@ class Contact extends Model
         'carrier',
     ];
 
+    /**
+     * Attribute casting.
+     */
     protected $casts = [
         'tags'               => 'array',
         'date_of_birth'      => 'date',
@@ -71,12 +79,12 @@ class Contact extends Model
     ];
 
     /**
-     * Build full_name automatically.
+     * Build full_name automatically before save.
      */
     protected static function booted(): void
     {
         static::saving(function (Contact $contact) {
-            $contact->full_name = trim($contact->first_name . ' ' . $contact->last_name);
+            $contact->full_name = trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
         });
     }
 
@@ -118,7 +126,7 @@ class Contact extends Model
      |  DESTINY RELATION SYSTEM — Unified Table
      |  contact_relations:
      |  id, contact_id, type, name, relationship, phone,
-     |  contacted, tenant_id, created_by, timestamps
+     |  contacted, agency_id, created_by, timestamps
      * ============================================================ */
 
     public function relations()
@@ -139,6 +147,7 @@ class Contact extends Model
     /* ============================================================
      |  SERVICE EVENTS
      * ============================================================ */
+
     public function serviceEvents()
     {
         return $this->hasMany(ServiceEvent::class)
