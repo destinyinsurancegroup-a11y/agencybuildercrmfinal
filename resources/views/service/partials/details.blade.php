@@ -100,7 +100,7 @@
                 </div>
             </div>
 
-            <button
+            <button 
                 class="btn-gold"
                 data-edit-url="{{ route('service.edit.panel', $client->id) }}"
                 onclick="loadServicePanel(this.dataset.editUrl)"
@@ -145,10 +145,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong>
+                <p><strong>Face Amount:</strong> 
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong>
+                <p><strong>Monthly Premium:</strong> 
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -218,45 +218,32 @@
     <div id="service-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        {{-- NEW NOTE FORM --}}
+        {{-- NEW NOTE FORM (JS submit, like before) --}}
         <div class="mb-3">
-            <textarea id="service_new_note_body_{{ $client->id }}"
+            <textarea id="new_note_body"
                       class="form-control"
                       rows="2"
                       placeholder="Write a new note..."></textarea>
 
-            <button class="btn-gold mt-2" onclick="abSaveServiceNote{{ $client->id }}()">
+            <button class="btn-gold mt-2" onclick="saveServiceNote({{ $client->id }})">
                 Add Note
             </button>
         </div>
 
-        {{-- EXISTING NOTES --}}
-        <div id="service_notes_list_{{ $client->id }}" class="mt-3">
+        {{-- EXISTING NOTES (structure like Contacts/Leads) --}}
+        <div id="notes-list" class="mt-3">
             @php
                 $notes = $client->allNotes ?? $client->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
             @forelse ($notes as $note)
-                <div class="border rounded p-2 mb-2" id="service-note-{{ $note->id }}">
+                <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
                     <div class="small text-muted mb-1">
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
-                    <div class="mb-2 service-note-text">
-                        {{ $note->note ?? $note->body }}
-                    </div>
                     <div>
-                        <button class="btn btn-sm btn-outline-secondary"
-                                type="button"
-                                onclick="abEditServiceNote{{ $client->id }}({{ $note->id }})">
-                            Edit
-                        </button>
-
-                        <button class="btn btn-sm btn-outline-danger"
-                                type="button"
-                                onclick="abDeleteServiceNote{{ $client->id }}({{ $note->id }})">
-                            Delete
-                        </button>
+                        {{ $note->note ?? $note->body }}
                     </div>
                 </div>
             @empty
@@ -266,164 +253,3 @@
     </div>
 
 </div>
-
-{{-- ===========================
-     SERVICE NOTES JS (inline)
-     Unique per-client to avoid
-     collision with old globals.
-   =========================== --}}
-<script>
-    (function() {
-        const csrfToken   = "{{ csrf_token() }}";
-        const storeUrl    = "{{ route('service.notes.store', $client) }}"; // POST /service/{client}/notes
-        const notesListId = "service_notes_list_{{ $client->id }}";
-        const textareaId  = "service_new_note_body_{{ $client->id }}";
-
-        function renderNoteElement(note) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'border rounded p-2 mb-2';
-            wrapper.id = 'service-note-' + note.id;
-
-            const createdAt = note.created_at_formatted || note.created_at || '';
-
-            wrapper.innerHTML = `
-                <div class="small text-muted mb-1">
-                    ${createdAt}
-                </div>
-                <div class="mb-2 service-note-text">
-                    ${note.note || note.body || ''}
-                </div>
-                <div>
-                    <button class="btn btn-sm btn-outline-secondary"
-                            type="button"
-                            onclick="abEditServiceNote{{ $client->id }}(${note.id})">
-                        Edit
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger"
-                            type="button"
-                            onclick="abDeleteServiceNote{{ $client->id }}(${note.id})">
-                        Delete
-                    </button>
-                </div>
-            `;
-
-            return wrapper;
-        }
-
-        // ADD NOTE
-        window.abSaveServiceNote{{ $client->id }} = function () {
-            const textarea = document.getElementById(textareaId);
-            if (!textarea) return;
-
-            const text = textarea.value.trim();
-            if (!text) return;
-
-            fetch(storeUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({ body: text })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network error');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!data || !data.success || !data.note) {
-                    alert('Error saving note.');
-                    return;
-                }
-
-                const list = document.getElementById(notesListId);
-                if (!list) return;
-
-                const el = renderNoteElement(data.note);
-                list.prepend(el);
-                textarea.value = '';
-            })
-            .catch(() => {
-                alert('Error saving note.');
-            });
-        };
-
-        // EDIT NOTE
-        window.abEditServiceNote{{ $client->id }} = function (noteId) {
-            const noteWrapper = document.getElementById('service-note-' + noteId);
-            if (!noteWrapper) return;
-
-            const textEl = noteWrapper.querySelector('.service-note-text');
-            if (!textEl) return;
-
-            const currentText = textEl.innerText.trim();
-            const updatedText = prompt('Edit note:', currentText);
-            if (updatedText === null) return;
-
-            const trimmed = updatedText.trim();
-            if (!trimmed) return;
-
-            const updateUrl = storeUrl + '/' + noteId; // matches /service/{client}/notes/{note}
-
-            fetch(updateUrl, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({ body: trimmed })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network error');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!data || !data.success || !data.note) {
-                    alert('Error updating note.');
-                    return;
-                }
-                textEl.innerText = data.note.note || data.note.body || trimmed;
-            })
-            .catch(() => {
-                alert('Error updating note.');
-            });
-        };
-
-        // DELETE NOTE
-        window.abDeleteServiceNote{{ $client->id }} = function (noteId) {
-            if (!confirm('Delete this note?')) return;
-
-            const deleteUrl = storeUrl + '/' + noteId;
-
-            fetch(deleteUrl, {
-                method: 'DELETE',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network error');
-                }
-                const el = document.getElementById('service-note-' + noteId);
-                if (el && el.parentNode) {
-                    el.parentNode.removeChild(el);
-                }
-            })
-            .catch(() => {
-                alert('Error deleting note.');
-            });
-        };
-
-    })();
-</script>
