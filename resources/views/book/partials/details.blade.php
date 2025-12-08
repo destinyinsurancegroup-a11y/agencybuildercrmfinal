@@ -66,7 +66,7 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button 
+                <button
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
@@ -116,18 +116,21 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong> 
+                <p><strong>Face Amount:</strong>
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong> 
+                <p><strong>Monthly Premium:</strong>
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
 
             <div class="col-md-6">
-                <p><strong>Issue Date:</strong> {{ $client->policy_issue_date?->format('m/d/Y') ?: '—' }}</p>
+                {{-- RENAMED LABEL --}}
+                <p><strong>Initial Draft Date:</strong>
+                    {{ $client->policy_issue_date?->format('m/d/Y') ?: '—' }}
+                </p>
                 <p><strong>Monthly Due (Text):</strong> {{ $client->premium_due_text ?: '—' }}</p>
-                <p><strong>Due Date (Calendar):</strong> {{ $client->premium_due_date?->format('m/d/Y') ?: '—' }}</p>
+                {{-- Removed: Due Date (Calendar) --}}
             </div>
         </div>
 
@@ -228,3 +231,5 @@
     </div>
 
 </div>
+
+::contentReference[oaicite:0]{index=0}
