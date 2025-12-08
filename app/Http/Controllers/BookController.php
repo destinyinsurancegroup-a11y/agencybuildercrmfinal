@@ -124,6 +124,11 @@ class BookController extends Controller
         $client->in_book_of_business = true;
         $client->save();
 
+        // 🔑 NEW: save beneficiaries & emergency contacts when creating
+        $this->saveRelations($request, $client, 'beneficiary');
+        $this->saveRelations($request, $client, 'emergency');
+
+        // Open the newly created client in Book of Business
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
