@@ -225,7 +225,6 @@
                       rows="2"
                       placeholder="Write a new note..."></textarea>
 
-            {{-- keep the same onclick signature, we’ll override the function --}}
             <button class="btn-gold mt-2" onclick="saveServiceNote({{ $client->id }})">
                 Add Note
             </button>
@@ -240,11 +239,23 @@
 
             @forelse ($notes as $note)
                 <div class="border rounded p-2 mb-2" id="note-{{ $note->id }}">
-                    <div class="small text-muted mb-1">
+                    <div class="small text-muted mb-1 note-time">
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
-                    <div>
+                    <div class="note-body mb-1">
                         {{ $note->note ?? $note->body }}
+                    </div>
+                    <div class="mt-1">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary me-1"
+                                onclick="editServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Edit
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="deleteServiceNote({{ $client->id }}, {{ $note->id }})">
+                            Delete
+                        </button>
                     </div>
                 </div>
             @empty
@@ -256,84 +267,191 @@
 </div>
 
 {{-- ==========================================
-     SERVICE NOTES JS – override saveServiceNote
-     Uses same API shape as Book/Leads notes.
+     SERVICE NOTES JS – create / edit / delete
    ========================================== --}}
 <script>
-    (function () {
-        const csrfToken  = "{{ csrf_token() }}";
-        const storeUrl   = "{{ route('service.notes.store', $client) }}"; // POST /service/{client}/notes
-        const notesList  = document.getElementById('notes-list');
-        const textarea   = document.getElementById('new_note_body');
+(function () {
+    const csrfToken = "{{ csrf_token() }}";
+    const clientId  = {{ $client->id }};
+    const storeUrl  = "{{ route('service.notes.store', $client) }}"; // POST /service/{client}/notes
+    const baseUrl   = "{{ url('/service/'.$client->id.'/notes') }}"; // /service/{client}/notes
+    const notesList = document.getElementById('notes-list');
+    const textarea  = document.getElementById('new_note_body');
 
-        // Override / define global function used by the button
-        window.saveServiceNote = function (clientId) {
-            if (!textarea) return;
+    // CREATE
+    window.saveServiceNote = function (clickedClientId) {
+        if (!textarea) return;
 
-            const bodyText = textarea.value.trim();
-            if (!bodyText) return;
+        const bodyText = textarea.value.trim();
+        if (!bodyText) return;
 
-            fetch(storeUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({ body: bodyText })
-            })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('Network error');
-                }
-                return response.json();
-            })
-            .then(function (data) {
-                if (!data || !data.success || !data.note) {
-                    alert('Error saving note.');
-                    return;
-                }
-
-                if (!notesList) return;
-
-                const note = data.note;
-
-                const wrapper = document.createElement('div');
-                wrapper.className = 'border rounded p-2 mb-2';
-                wrapper.id = 'note-' + note.id;
-
-                // created_at from Laravel; fall back to empty string if missing
-                let createdAtText = '';
-                if (note.created_at) {
-                    try {
-                        createdAtText = new Date(note.created_at).toLocaleString();
-                    } catch (e) {
-                        createdAtText = note.created_at;
-                    }
-                }
-
-                wrapper.innerHTML = `
-                    <div class="small text-muted mb-1">
-                        ${createdAtText}
-                    </div>
-                    <div>
-                        ${note.note || note.body || ''}
-                    </div>
-                `;
-
-                // Prepend so newest note is at the top
-                if (notesList.firstChild) {
-                    notesList.insertBefore(wrapper, notesList.firstChild);
-                } else {
-                    notesList.appendChild(wrapper);
-                }
-
-                textarea.value = '';
-            })
-            .catch(function () {
+        fetch(storeUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ body: bodyText })
+        })
+        .then(function (response) {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data || !data.success || !data.note) {
                 alert('Error saving note.');
-            });
-        };
-    })();
+                return;
+            }
+
+            if (!notesList) return;
+
+            const note = data.note;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'border rounded p-2 mb-2';
+            wrapper.id = 'note-' + note.id;
+
+            let createdAtText = '';
+            if (note.created_at) {
+                try {
+                    createdAtText = new Date(note.created_at).toLocaleString();
+                } catch (e) {
+                    createdAtText = note.created_at;
+                }
+            }
+
+            wrapper.innerHTML = `
+                <div class="small text-muted mb-1 note-time">
+                    ${createdAtText}
+                </div>
+                <div class="note-body mb-1">
+                    ${note.note || note.body || ''}
+                </div>
+                <div class="mt-1">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary me-1"
+                            onclick="editServiceNote(${clientId}, ${note.id})">
+                        Edit
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            onclick="deleteServiceNote(${clientId}, ${note.id})">
+                        Delete
+                    </button>
+                </div>
+            `;
+
+            // Prepend newest note
+            if (notesList.firstChild) {
+                notesList.insertBefore(wrapper, notesList.firstChild);
+            } else {
+                notesList.appendChild(wrapper);
+            }
+
+            textarea.value = '';
+        })
+        .catch(function () {
+            alert('Error saving note.');
+        });
+    };
+
+    // EDIT
+    window.editServiceNote = function (clickedClientId, noteId) {
+        const noteEl  = document.getElementById('note-' + noteId);
+        if (!noteEl) return;
+
+        const bodyDiv = noteEl.querySelector('.note-body');
+        if (!bodyDiv) return;
+
+        const currentText = bodyDiv.textContent.trim();
+        const updated     = prompt('Edit note:', currentText);
+
+        if (updated === null) return;           // user cancelled
+        const trimmed = updated.trim();
+        if (!trimmed) {
+            alert('Note cannot be empty.');
+            return;
+        }
+
+        fetch(`${baseUrl}/${noteId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ body: trimmed })
+        })
+        .then(function (response) {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data || !data.success || !data.note) {
+                alert('Error updating note.');
+                return;
+            }
+
+            const note = data.note;
+            bodyDiv.textContent = note.note || note.body || '';
+
+            const timeDiv = noteEl.querySelector('.note-time');
+            if (timeDiv && note.created_at) {
+                let createdAtText = '';
+                try {
+                    createdAtText = new Date(note.created_at).toLocaleString();
+                } catch (e) {
+                    createdAtText = note.created_at;
+                }
+                timeDiv.textContent = createdAtText;
+            }
+        })
+        .catch(function () {
+            alert('Error updating note.');
+        });
+    };
+
+    // DELETE
+    window.deleteServiceNote = function (clickedClientId, noteId) {
+        if (!confirm('Delete this note?')) return;
+
+        fetch(`${baseUrl}/${noteId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(function (response) {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data || !data.success) {
+                alert('Error deleting note.');
+                return;
+            }
+
+            const noteEl = document.getElementById('note-' + noteId);
+            if (noteEl && noteEl.parentNode) {
+                noteEl.parentNode.removeChild(noteEl);
+            }
+
+            if (!notesList || notesList.children.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'text-muted small mb-0';
+                empty.textContent = 'No notes yet.';
+                notesList.appendChild(empty);
+            }
+        })
+        .catch(function () {
+            alert('Error deleting note.');
+        });
+    };
+
+})();
 </script>
