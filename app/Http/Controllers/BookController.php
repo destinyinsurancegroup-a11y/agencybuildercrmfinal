@@ -282,42 +282,32 @@ class BookController extends Controller
     |   POST /service/{client}/notes
     |   POST /leads/{client}/notes
     |
-    | Accepts either "body" or "note" from the request so old JS and new JS
-    | both work.
+    | This is the original working logic:
+    |  - expects "body" in the request
+    |  - guarantees tenant_id is never NULL (fallback to 1)
+    |  - returns raw $note model JSON so existing JS continues to work.
     */
     public function storeNote(Request $request, Contact $client)
     {
-        // Accept either "body" or "note"
-        $text = trim(
-            $request->input('body', $request->input('note', ''))
-        );
+        $data = $request->validate([
+            'body' => 'required|string|max:5000',
+        ]);
 
-        if ($text === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Note body is required.',
-            ], 422);
-        }
-
-        $user     = Auth::user();
-        $tenantId = $client->tenant_id ?? $user?->tenant_id;
+        // Make sure tenant_id is NEVER null (this was breaking some leads/notes)
+        $tenantId = $client->tenant_id
+            ?? (Auth::user()->tenant_id ?? 1);
 
         $note = Note::create([
             'contact_id' => $client->id,
-            'note'       => $text, // DB column is "note"
-            'created_by' => $user?->id ?? $client->created_by,
+            // actual DB column is "note"
+            'note'       => trim($data['body']),
+            'created_by' => Auth::id() ?? $client->created_by,
             'tenant_id'  => $tenantId,
         ]);
 
         return response()->json([
             'success' => true,
-            'note'    => [
-                'id'                    => $note->id,
-                'contact_id'            => $note->contact_id,
-                'note'                  => $note->note,
-                'created_at'            => $note->created_at,
-                'created_at_formatted'  => optional($note->created_at)->format('m/d/Y g:i A'),
-            ],
+            'note'    => $note,
         ], 201);
     }
 
@@ -330,8 +320,6 @@ class BookController extends Controller
     |   PUT /book/{client}/notes/{note}
     |   PUT /service/{client}/notes/{note}
     |   PUT /leads/{client}/notes/{note}
-    |
-    | Accepts either "body" or "note".
     */
     public function updateNote(Request $request, Contact $client, Note $note)
     {
@@ -340,32 +328,17 @@ class BookController extends Controller
             abort(404);
         }
 
-        $text = trim(
-            $request->input('body', $request->input('note', ''))
-        );
-
-        if ($text === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Note body is required.',
-            ], 422);
-        }
-
-        $note->update([
-            'note' => $text,
+        $data = $request->validate([
+            'body' => 'required|string|max:5000',
         ]);
 
-        $fresh = $note->fresh();
+        $note->update([
+            'note' => trim($data['body']),
+        ]);
 
         return response()->json([
             'success' => true,
-            'note'    => [
-                'id'                    => $fresh->id,
-                'contact_id'            => $fresh->contact_id,
-                'note'                  => $fresh->note,
-                'created_at'            => $fresh->created_at,
-                'created_at_formatted'  => optional($fresh->created_at)->format('m/d/Y g:i A'),
-            ],
+            'note'    => $note->fresh(),
         ]);
     }
 
