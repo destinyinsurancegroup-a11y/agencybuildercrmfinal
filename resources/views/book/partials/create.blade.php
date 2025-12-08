@@ -264,18 +264,6 @@
 
             <hr>
 
-            {{-- ============================= --}}
-            {{-- NOTES --}}
-            {{-- ============================= --}}
-            <h4 class="text-gold fw-bold mb-3">Notes</h4>
-
-            <div class="mb-4">
-                <textarea name="notes"
-                          class="form-control"
-                          rows="3"
-                          placeholder="Enter notes about this client..."></textarea>
-            </div>
-
             <button type="submit" class="btn btn-gold">
                 Save Client
             </button>
