@@ -13,12 +13,14 @@ class LeadController extends Controller
      * Shows only leads that are still being worked.
      * Sold leads are now clients (contact_type = 'client') and are thus excluded
      * automatically. We explicitly hide Not Interested as well.
+     *
+     * Multi-tenancy:
+     *  - Contact model uses TenantScoped, so all queries are automatically
+     *    filtered by agency_id for the currently logged-in user.
      */
     public function index()
     {
-        $tenantId = auth()->user()->tenant_id ?? 1;
-
-        $leads = Contact::where('tenant_id', $tenantId)
+        $leads = Contact::query()
             ->where('contact_type', 'lead')
             ->where('status', '!=', 'Not Interested') // hide archived leads
             ->orderBy('last_name')
@@ -39,12 +41,14 @@ class LeadController extends Controller
      *
      * NOTE: We do NOT restrict by contact_type here so that
      * Sold records (now contact_type = 'client') also appear.
+     *
+     * Multi-tenancy:
+     *  - Contact::query() is TenantScoped, so only current agency's records
+     *    will be included.
      */
     public function archived()
     {
-        $tenantId = auth()->user()->tenant_id ?? 1;
-
-        $leads = Contact::where('tenant_id', $tenantId)
+        $leads = Contact::query()
             ->whereIn('status', ['Sold', 'Not Interested'])
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -61,9 +65,8 @@ class LeadController extends Controller
      */
     public function show($id)
     {
-        $tenantId = auth()->user()->tenant_id ?? 1;
-
-        $contact = Contact::where('tenant_id', $tenantId)
+        // TenantScoped ensures we only ever load a lead from the current agency.
+        $contact = Contact::query()
             ->where('id', $id)
             ->where('contact_type', 'lead')
             ->firstOrFail();
@@ -73,6 +76,9 @@ class LeadController extends Controller
 
     /**
      * CREATE LEAD FORM PANEL
+     *
+     * Note: actual storage of the lead record may be handled by
+     * ContactsController::store or a dedicated lead store route.
      */
     public function create()
     {
@@ -86,24 +92,19 @@ class LeadController extends Controller
      * 2. Appears in All Contacts (ContactsController excludes only 'lead')
      * 3. Appears in Book of Business (BookController includes 'client' / 'Sold')
      * 4. Appears in Archived Leads (status = 'Sold')
+     *
+     * Multi-tenancy:
+     *  - Route model binding + TenantScoped guarantee that $contact already
+     *    belongs to the current agency. No manual tenant_id checks needed.
      */
     public function markSold(Request $request, Contact $contact)
     {
-        $tenantId = auth()->user()->tenant_id ?? 1;
-
-        // Tenant safety
-        if ($contact->tenant_id !== $tenantId) {
-            if ($request->expectsJson()) {
-                return response()->json(['error' => 'Unauthorized tenant.'], 403);
-            }
-            abort(403, 'Unauthorized tenant.');
-        }
-
         // Make sure this is actually a lead (case-insensitive)
         if (strtolower($contact->contact_type ?? '') !== 'lead') {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'This record is not a lead.'], 400);
             }
+
             return redirect()
                 ->route('leads.index')
                 ->with('error', 'This record is not a lead.');
@@ -138,24 +139,19 @@ class LeadController extends Controller
      * - Sets status = 'Not Interested'
      * - Lead is removed from active list (index)
      * - Lead appears in Archived view (/leads/archived)
+     *
+     * Multi-tenancy:
+     *  - Route model binding + TenantScoped ensure the lead belongs
+     *    to the current agency.
      */
     public function archive(Request $request, Contact $contact)
     {
-        $tenantId = auth()->user()->tenant_id ?? 1;
-
-        // Tenant safety
-        if ($contact->tenant_id !== $tenantId) {
-            if ($request->expectsJson()) {
-                return response()->json(['error' => 'Unauthorized tenant.'], 403);
-            }
-            abort(403, 'Unauthorized tenant.');
-        }
-
         // Must be a lead to archive this way
         if (strtolower($contact->contact_type ?? '') !== 'lead') {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'This record is not a lead.'], 400);
             }
+
             return redirect()
                 ->route('leads.index')
                 ->with('error', 'This record is not a lead.');
