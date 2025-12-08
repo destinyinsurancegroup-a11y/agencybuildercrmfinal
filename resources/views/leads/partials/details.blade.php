@@ -134,7 +134,7 @@
         </div>
 
         <!-- EXISTING NOTES -->
-        <div class="mt-4">
+        <div class="mt-4" id="lead-notes-list">
             @php
                 $notes = $contact->allNotes ?? $contact->notes ?? collect();
                 $notes = $notes->sortByDesc('created_at');
@@ -146,7 +146,7 @@
                         {{ optional($note->created_at)->format('m/d/Y g:i A') }}
                     </div>
 
-                    <div class="mb-2">
+                    <div class="mb-2 lead-note-text">
                         {{ $note->note ?? $note->body }}
                     </div>
 
@@ -172,3 +172,150 @@
     </div>
 
 </div>
+
+{{-- ===========================
+     LEAD NOTES JS (inline)
+   =========================== --}}
+<script>
+    const LEAD_NOTES_CSRF = "{{ csrf_token() }}";
+
+    function leadNotesEndpoint(contactId, noteId = null) {
+        let base = `/leads/${contactId}/notes`;
+        if (noteId) {
+            base += `/${noteId}`;
+        }
+        return base;
+    }
+
+    function renderLeadNoteElement(note) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'border rounded p-2 mb-2 text-start';
+        wrapper.id = `lead-note-${note.id}`;
+
+        const createdAt = note.created_at_formatted || note.created_at || '';
+
+        wrapper.innerHTML = `
+            <div class="small text-muted mb-1">
+                ${createdAt}
+            </div>
+            <div class="mb-2 lead-note-text">
+                ${note.note || note.body || ''}
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary"
+                        type="button"
+                        onclick="editLeadNote(${note.contact_id}, ${note.id})">
+                    Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger"
+                        type="button"
+                        onclick="deleteLeadNote(${note.contact_id}, ${note.id})">
+                    Delete
+                </button>
+            </div>
+        `;
+
+        return wrapper;
+    }
+
+    function saveLeadNote(contactId) {
+        const textarea = document.getElementById('lead_new_note_body');
+        const text = textarea.value.trim();
+        if (!text) {
+            return;
+        }
+
+        fetch(leadNotesEndpoint(contactId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': LEAD_NOTES_CSRF
+            },
+            body: JSON.stringify({
+                note: text,
+                body: text // support both column names
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data || !data.note) {
+                // If backend returns plain success, just reload for safety
+                // but we prefer JSON with the note record.
+                window.location.reload();
+                return;
+            }
+
+            const list = document.getElementById('lead-notes-list');
+
+            // Prepend new note
+            const el = renderLeadNoteElement(data.note);
+            list.prepend(el);
+
+            textarea.value = '';
+        })
+        .catch(() => {
+            alert('Unable to save note. Please try again.');
+        });
+    }
+
+    function editLeadNote(contactId, noteId) {
+        const noteEl = document.querySelector(`#lead-note-${noteId} .lead-note-text`);
+        if (!noteEl) return;
+
+        const currentText = noteEl.innerText.trim();
+        const updatedText = prompt('Edit note:', currentText);
+        if (updatedText === null) return; // user cancelled
+        const trimmed = updatedText.trim();
+        if (!trimmed) return;
+
+        fetch(leadNotesEndpoint(contactId, noteId), {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': LEAD_NOTES_CSRF
+            },
+            body: JSON.stringify({
+                note: trimmed,
+                body: trimmed
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data || !data.note) {
+                window.location.reload();
+                return;
+            }
+
+            noteEl.innerText = data.note.note || data.note.body || trimmed;
+        })
+        .catch(() => {
+            alert('Unable to update note. Please try again.');
+        });
+    }
+
+    function deleteLeadNote(contactId, noteId) {
+        if (!confirm('Delete this note?')) return;
+
+        fetch(leadNotesEndpoint(contactId, noteId), {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': LEAD_NOTES_CSRF
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error();
+            }
+            const el = document.getElementById(`lead-note-${noteId}`);
+            if (el && el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        })
+        .catch(() => {
+            alert('Unable to delete note. Please try again.');
+        });
+    }
+</script>
