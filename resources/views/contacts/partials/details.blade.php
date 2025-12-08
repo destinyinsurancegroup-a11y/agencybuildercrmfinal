@@ -15,9 +15,11 @@
             <div style="font-size:34px; font-weight:800; color:#111827; line-height:1;">
                 {{ $contact->full_name }}
             </div>
-            <div style="font-size:13px; color:#6b7280; margin-top:4px;">
+
+            {{-- 🚫 REMOVED CONTACT ID --}}
+            {{-- <div style="font-size:13px; color:#6b7280; margin-top:4px;">
                 Contact ID: {{ $contact->id }}
-            </div>
+            </div> --}}
         </div>
 
         <a href="{{ route('contacts.edit', $contact->id) }}"
@@ -95,7 +97,7 @@
 
         <hr class="my-4">
 
-        {{-- ADDITIONAL DETAILS (simple text like Book of Business) --}}
+        {{-- ADDITIONAL DETAILS --}}
         <h5 class="fw-bold mb-2">Additional Details</h5>
         <p class="text-muted small mb-4">
             More custom contact details or policy information can be stored here.
@@ -105,7 +107,7 @@
 </div> {{-- /card --}}
 
 {{-- =========================================================
-     STAND-ALONE NOTES SECTION (OUTSIDE CARD, LIKE BOOK/SERVICE)
+     STAND-ALONE NOTES SECTION (OUTSIDE CARD)
    ========================================================= --}}
 <div class="mt-4">
 
@@ -157,7 +159,7 @@
                         — {{ $note->author->name }}
                     @endif
                 </div>
-                <div>{{ $note->body }}</div>
+                <div>{{ $note->note ?? $note->body }}</div>
             </div>
         @empty
             <p class="text-muted small mb-0">No notes yet for this contact.</p>
