@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Contact;
 use App\Models\Note;
-use App\Models\ContactRelation;   // Unified relations table
+use App\Models\ContactRelation;   // <-- UNIFIED relations table
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class BookController extends Controller
 {
@@ -14,13 +13,11 @@ class BookController extends Controller
     |--------------------------------------------------------------------------
     | INDEX – LEFT LIST + RIGHT PANEL
     |--------------------------------------------------------------------------
-    |
-    | Shows the Book of Business list for the CURRENT AGENCY only.
-    | Contact model is TenantScoped, so all queries are automatically filtered
-    | by agency_id for the logged-in user.
     */
     public function index(Request $request)
     {
+        $user = auth()->user();
+
         $query = Contact::query()
             // Show:
             //  - anything explicitly in Book of Business
@@ -32,6 +29,10 @@ class BookController extends Controller
                          ->orWhere('contact_type', 'client')
                          ->orWhere('status', 'Sold');
                   });
+            })
+            // Multi-tenant safety if tenant_id exists
+            ->when($user, function ($q) use ($user) {
+                $q->where('tenant_id', $user->tenant_id);
             });
 
         // Optional search
@@ -53,11 +54,11 @@ class BookController extends Controller
                 WHEN contact_type = 'service' AND service_archived_at IS NULL THEN 0
                 ELSE 1
             END
-        ")
-        ->orderBy('last_name')
-        ->orderBy('first_name');
+        ")->orderBy('last_name')
+         ->orderBy('first_name');
 
-        $clients  = $query->get();
+        $clients = $query->get();
+
         $selected = $request->get('selected');
 
         return view('book.index', compact('clients', 'selected'));
@@ -77,11 +78,6 @@ class BookController extends Controller
     |--------------------------------------------------------------------------
     | STORE – NEW BOOK CLIENT
     |--------------------------------------------------------------------------
-    |
-    | New Book clients are:
-    |  - tagged contact_type = 'book'
-    |  - explicitly flagged in_book_of_business = true
-    |  - scoped to the current agency via TenantScoped on Contact
     */
     public function store(Request $request)
     {
@@ -111,13 +107,13 @@ class BookController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
-        $user = Auth::user();
+        $user = auth()->user();
 
         // New records created from Book are tagged as "book"
         $validated['contact_type'] = 'book';
-        $validated['created_by']   = $user?->id;
+        $validated['tenant_id']    = $user->tenant_id ?? 1;
+        $validated['created_by']   = $user->id ?? 1;
 
-        // agency_id is set automatically by TenantScoped::creating()
         $client = Contact::create($validated);
 
         // Explicitly mark as in Book of Business
@@ -220,14 +216,12 @@ class BookController extends Controller
     |--------------------------------------------------------------------------
     | SAVE RELATIONS (Unified Destiny Logic)
     |--------------------------------------------------------------------------
-    |
-    | Uses ContactRelation model, which is TenantScoped. We set agency_id to the
-    | same agency as the client and created_by to the current user.
     */
     private function saveRelations(Request $request, Contact $client, string $type)
     {
-        $key  = $type === 'beneficiary' ? 'beneficiaries' : 'emergency_contacts';
-        $user = Auth::user();
+        $key = $type === 'beneficiary'
+            ? 'beneficiaries'
+            : 'emergency_contacts';
 
         if (!$request->has($key)) {
             return;
@@ -264,10 +258,8 @@ class BookController extends Controller
                 'relationship' => $row['relationship'] ?? null,
                 'phone'        => $row['phone'] ?? null,
                 'contacted'    => $row['contacted'] ?? 0,
-                // legacy tenant_id kept for compatibility, but no hard-coded 1
-                'tenant_id'    => $client->tenant_id ?? $user?->tenant_id,
-                'created_by'   => $user?->id ?? $client->created_by,
-                'agency_id'    => $client->agency_id,  // multi-tenant scoping
+                'tenant_id'    => 1,
+                'created_by'   => 1,
             ]);
         }
     }
@@ -281,6 +273,7 @@ class BookController extends Controller
     |   POST /book/{client}/notes
     |   POST /service/{client}/notes
     |   POST /leads/{client}/notes
+    |--------------------------------------------------------------------------
     */
     public function storeNote(Request $request, Contact $client)
     {
@@ -288,25 +281,21 @@ class BookController extends Controller
             'body' => 'required|string|max:5000',
         ]);
 
-        $user     = Auth::user();
-        $tenantId = $client->tenant_id ?? $user?->tenant_id;
+        // Make sure tenant_id is NEVER null (this was breaking some leads)
+        $tenantId = $client->tenant_id
+            ?? (auth()->user()->tenant_id ?? 1);
 
         $note = Note::create([
             'contact_id' => $client->id,
-            'note'       => trim($data['body']),        // DB column is "note"
-            'created_by' => $user?->id ?? $client->created_by,
+            // actual DB column is "note"
+            'note'       => trim($data['body']),
+            'created_by' => auth()->id() ?? $client->created_by,
             'tenant_id'  => $tenantId,
         ]);
 
         return response()->json([
             'success' => true,
-            'note'    => [
-                'id'                    => $note->id,
-                'contact_id'            => $note->contact_id,
-                'note'                  => $note->note,
-                'created_at'            => $note->created_at,
-                'created_at_formatted'  => optional($note->created_at)->format('m/d/Y g:i A'),
-            ],
+            'note'    => $note,
         ], 201);
     }
 
@@ -319,6 +308,7 @@ class BookController extends Controller
     |   PUT /book/{client}/notes/{note}
     |   PUT /service/{client}/notes/{note}
     |   PUT /leads/{client}/notes/{note}
+    |--------------------------------------------------------------------------
     */
     public function updateNote(Request $request, Contact $client, Note $note)
     {
@@ -335,17 +325,9 @@ class BookController extends Controller
             'note' => trim($data['body']),
         ]);
 
-        $fresh = $note->fresh();
-
         return response()->json([
             'success' => true,
-            'note'    => [
-                'id'                    => $fresh->id,
-                'contact_id'            => $fresh->contact_id,
-                'note'                  => $fresh->note,
-                'created_at'            => $fresh->created_at,
-                'created_at_formatted'  => optional($fresh->created_at)->format('m/d/Y g:i A'),
-            ],
+            'note'    => $note->fresh(),
         ]);
     }
 
@@ -358,6 +340,7 @@ class BookController extends Controller
     |   DELETE /book/{client}/notes/{note}
     |   DELETE /service/{client}/notes/{note}
     |   DELETE /leads/{client}/notes/{note}
+    |--------------------------------------------------------------------------
     */
     public function destroyNote(Contact $client, Note $note)
     {
@@ -379,10 +362,10 @@ class BookController extends Controller
     */
     public function sendToService(Contact $client)
     {
-        $user = Auth::user();
+        $user = auth()->user();
 
-        // Extra safety, though TenantScoped + route-model binding already protect this
-        if ($user && $client->agency_id !== $user->agency_id) {
+        // Multi-tenant safety
+        if ($user && $client->tenant_id !== $user->tenant_id) {
             abort(403, 'Unauthorized');
         }
 
