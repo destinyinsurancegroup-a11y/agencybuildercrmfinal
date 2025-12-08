@@ -22,12 +22,6 @@
         margin-bottom: 0.25rem !important;
     }
 
-    #beneficiaries-list .p-3,
-    #emergency-list .p-3 {
-        padding: 0.65rem !important;
-        margin-bottom: 0.5rem !important;
-    }
-
     .p-4 {
         padding: 1.25rem !important;
     }
@@ -125,68 +119,66 @@
             </div>
 
             <div class="col-md-6">
-                {{-- RENAMED LABEL --}}
-                <p><strong>Initial Draft Date:</strong>
-                    {{ $client->policy_issue_date?->format('m/d/Y') ?: '—' }}
-                </p>
+                <p><strong>Initial Draft Date:</strong> {{ $client->policy_issue_date?->format('m/d/Y') ?: '—' }}</p>
                 <p><strong>Monthly Due (Text):</strong> {{ $client->premium_due_text ?: '—' }}</p>
-                {{-- Removed: Due Date (Calendar) --}}
             </div>
         </div>
 
         <hr>
 
         <!-- ================================ -->
-        <!-- BENEFICIARIES SECTION            -->
+        <!-- BENEFICIARIES & EMERGENCY CONTACTS
+             Destiny-style combined list         -->
         <!-- ================================ -->
-        <h4 class="text-gold fw-bold mb-3">Beneficiaries</h4>
+        <h4 class="text-gold fw-bold mb-3">Beneficiaries &amp; Emergency Contacts</h4>
 
-        <div id="beneficiaries-list">
-            @forelse ($client->beneficiaries as $b)
-                <div class="border rounded p-3 mb-2">
-                    <strong>{{ $b->name }}</strong><br>
-                    <small>
-                        {{ $b->relationship ?: '—' }} /
-                        {{ $b->phone ?: '—' }} /
-                        Contacted:
-                        @if($b->contacted)
-                            <span class="text-success fw-bold">Yes</span>
-                        @else
-                            <span class="text-danger fw-bold">No</span>
-                        @endif
-                    </small>
-                </div>
-            @empty
-                <p class="text-muted">No beneficiaries added.</p>
-            @endforelse
-        </div>
+        @php
+            $beneficiaries = $client->beneficiaries ?? collect();
+            $emergencies   = $client->emergencyContacts ?? collect();
+            $hasAny        = $beneficiaries->isNotEmpty() || $emergencies->isNotEmpty();
+        @endphp
 
-        <hr>
+        @if($hasAny)
+            <ul class="list-unstyled mb-0">
 
-        <!-- ================================ -->
-        <!-- EMERGENCY CONTACTS SECTION       -->
-        <!-- ================================ -->
-        <h4 class="text-gold fw-bold mb-3">Emergency Contacts</h4>
+                {{-- Beneficiaries --}}
+                @foreach ($beneficiaries as $b)
+                    <li class="d-flex align-items-start mb-1">
+                        <span class="me-2" style="color:#b91c1c; font-size:10px;">●</span>
+                        <span>
+                            <strong>Beneficiary –</strong>
+                            {{ $b->name }}
+                            @if($b->relationship)
+                                , {{ $b->relationship }}
+                            @endif
+                            @if($b->phone)
+                                {{ ' ' . $b->phone }}
+                            @endif
+                        </span>
+                    </li>
+                @endforeach
 
-        <div id="emergency-list">
-            @forelse ($client->emergencyContacts as $ec)
-                <div class="border rounded p-3 mb-2">
-                    <strong>{{ $ec->name }}</strong><br>
-                    <small>
-                        {{ $ec->relationship ?: '—' }} /
-                        {{ $ec->phone ?: '—' }} /
-                        Contacted:
-                        @if($ec->contacted)
-                            <span class="text-success fw-bold">Yes</span>
-                        @else
-                            <span class="text-danger fw-bold">No</span>
-                        @endif
-                    </small>
-                </div>
-            @empty
-                <p class="text-muted">No emergency contacts added.</p>
-            @endforelse
-        </div>
+                {{-- Emergency Contacts --}}
+                @foreach ($emergencies as $ec)
+                    <li class="d-flex align-items-start mb-1">
+                        <span class="me-2" style="color:#b91c1c; font-size:10px;">●</span>
+                        <span>
+                            <strong>Emergency Contact –</strong>
+                            {{ $ec->name }}
+                            @if($ec->relationship)
+                                , {{ $ec->relationship }}
+                            @endif
+                            @if($ec->phone)
+                                {{ ' ' . $ec->phone }}
+                            @endif
+                        </span>
+                    </li>
+                @endforeach
+
+            </ul>
+        @else
+            <p class="text-muted mb-0">No beneficiaries or emergency contacts added.</p>
+        @endif
 
     </div> {{-- end main card --}}
 
@@ -231,5 +223,3 @@
     </div>
 
 </div>
-
-::contentReference[oaicite:0]{index=0}
