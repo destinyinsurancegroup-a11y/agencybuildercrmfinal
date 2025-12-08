@@ -73,12 +73,15 @@ class ContactsController extends Controller
     }
 
     /**
-     * Store a newly created contact.
-     * Returns to contacts.index with auto-selected ID.
+     * Store a newly created contact OR lead.
      *
      * Multi-tenancy:
      *  - agency_id is automatically set by TenantScoped::creating()
      *  - created_by is set to the current user
+     *
+     * Redirect behavior:
+     *  - If contact_type = 'lead'  → go back to Leads tab with that lead selected
+     *  - Otherwise                → go back to Contacts tab with that contact selected
      */
     public function store(Request $request)
     {
@@ -106,6 +109,17 @@ class ContactsController extends Controller
         // agency_id will be auto-filled by TenantScoped creating hook
         $contact = Contact::create($validated);
 
+        // Decide where to send the user based on contact type
+        $type = strtolower($contact->contact_type ?? '');
+
+        if ($type === 'lead') {
+            // This is a LEAD → go back to Leads tab with this lead selected
+            return redirect()
+                ->route('leads.index', ['selected' => $contact->id])
+                ->with('success', 'Lead created successfully.');
+        }
+
+        // All other contacts → stay on Contacts tab
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact created successfully.');
