@@ -121,7 +121,7 @@
 
             <div id="beneficiaries-wrapper">
 
-                {{-- ROW TEMPLATE (index 0) --}}
+                {{-- BASE ROW (index 0) --}}
                 <div class="row g-2 align-items-end mb-2 beneficiary-row" data-index="0">
                     <div class="col-md-3">
                         <label class="form-label small fw-semibold">Name</label>
@@ -152,7 +152,10 @@
 
             </div>
 
-            <button type="button" id="add-beneficiary-btn" class="btn btn-sm btn-outline-secondary mb-4">
+            <button type="button"
+                    id="add-beneficiary-btn"
+                    class="btn btn-sm btn-outline-secondary mb-4"
+                    onclick="addBeneficiaryRow()">
                 + Add Beneficiary
             </button>
 
@@ -165,7 +168,7 @@
 
             <div id="emergency-wrapper">
 
-                {{-- ROW TEMPLATE (index 0) --}}
+                {{-- BASE ROW (index 0) --}}
                 <div class="row g-2 align-items-end mb-2 emergency-row" data-index="0">
                     <div class="col-md-3">
                         <label class="form-label small fw-semibold">Name</label>
@@ -196,7 +199,10 @@
 
             </div>
 
-            <button type="button" id="add-emergency-btn" class="btn btn-sm btn-outline-secondary mb-4">
+            <button type="button"
+                    id="add-emergency-btn"
+                    class="btn btn-sm btn-outline-secondary mb-4"
+                    onclick="addEmergencyRow()">
                 + Add Emergency Contact
             </button>
 
@@ -223,87 +229,94 @@
 </div>
 
 {{-- ============================= --}}
-{{-- DYNAMIC ROW JS --}}
+{{-- DYNAMIC ROW JS (GLOBAL FUNCTIONS) --}}
 {{-- ============================= --}}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // ---------------------------
-        // BENEFICIARIES
-        // ---------------------------
-        let beneficiaryIndex = 1; // 0 already on page
+    function attachBeneficiaryRemoveHandlers() {
+        const wrapper = document.getElementById('beneficiaries-wrapper');
+        if (!wrapper) return;
 
-        const beneficiariesWrapper = document.getElementById('beneficiaries-wrapper');
-        const addBeneficiaryBtn    = document.getElementById('add-beneficiary-btn');
-
-        addBeneficiaryBtn.addEventListener('click', function () {
-            const prototype = beneficiariesWrapper.querySelector('.beneficiary-row[data-index="0"]');
-            const clone     = prototype.cloneNode(true);
-
-            clone.dataset.index = beneficiaryIndex;
-
-            // Update names
-            clone.querySelectorAll('input, select').forEach(function (input) {
-                input.value = '';
-                input.name  = input.name.replace('[0]', '[' + beneficiaryIndex + ']');
-            });
-
-            // Show remove button on clones
-            const removeBtn = clone.querySelector('.beneficiary-remove-btn');
-            removeBtn.classList.remove('d-none');
-            removeBtn.addEventListener('click', function () {
-                clone.remove();
-            });
-
-            beneficiariesWrapper.appendChild(clone);
-            beneficiaryIndex++;
-        });
-
-        // Make existing row’s remove button work when/if we ever enable it
-        beneficiariesWrapper.querySelectorAll('.beneficiary-remove-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const row = btn.closest('.beneficiary-row');
-                if (row && beneficiariesWrapper.querySelectorAll('.beneficiary-row').length > 1) {
+        wrapper.querySelectorAll('.beneficiary-remove-btn').forEach(function (btn) {
+            btn.onclick = function () {
+                const rows = wrapper.querySelectorAll('.beneficiary-row');
+                const row  = btn.closest('.beneficiary-row');
+                // Keep at least one row
+                if (row && rows.length > 1) {
                     row.remove();
                 }
-            });
+            };
         });
+    }
 
-        // ---------------------------
-        // EMERGENCY CONTACTS
-        // ---------------------------
-        let emergencyIndex = 1; // 0 already on page
+    function attachEmergencyRemoveHandlers() {
+        const wrapper = document.getElementById('emergency-wrapper');
+        if (!wrapper) return;
 
-        const emergencyWrapper = document.getElementById('emergency-wrapper');
-        const addEmergencyBtn  = document.getElementById('add-emergency-btn');
-
-        addEmergencyBtn.addEventListener('click', function () {
-            const prototype = emergencyWrapper.querySelector('.emergency-row[data-index="0"]');
-            const clone     = prototype.cloneNode(true);
-
-            clone.dataset.index = emergencyIndex;
-
-            clone.querySelectorAll('input, select').forEach(function (input) {
-                input.value = '';
-                input.name  = input.name.replace('[0]', '[' + emergencyIndex + ']');
-            });
-
-            const removeBtn = clone.querySelector('.emergency-remove-btn');
-            removeBtn.classList.remove('d-none');
-            removeBtn.addEventListener('click', function () {
-                clone.remove();
-            });
-
-            emergencyWrapper.appendChild(clone);
-            emergencyIndex++;
-        });
-
-        emergencyWrapper.querySelectorAll('.emergency-remove-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                const row = btn.closest('.emergency-row');
-                if (row && emergencyWrapper.querySelectorAll('.emergency-row').length > 1) {
+        wrapper.querySelectorAll('.emergency-remove-btn').forEach(function (btn) {
+            btn.onclick = function () {
+                const rows = wrapper.querySelectorAll('.emergency-row');
+                const row  = btn.closest('.emergency-row');
+                if (row && rows.length > 1) {
                     row.remove();
                 }
-            });
+            };
         });
-    });
+    }
+
+    function addBeneficiaryRow() {
+        const wrapper = document.getElementById('beneficiaries-wrapper');
+        if (!wrapper) return;
+
+        const prototype = wrapper.querySelector('.beneficiary-row');
+        if (!prototype) return;
+
+        const index = wrapper.querySelectorAll('.beneficiary-row').length;
+        const clone = prototype.cloneNode(true);
+
+        clone.dataset.index = index;
+
+        clone.querySelectorAll('input, select').forEach(function (input) {
+            input.value = '';
+            // replace existing [number] with new index
+            input.name = input.name.replace(/\[\d+]/, '[' + index + ']');
+        });
+
+        const removeBtn = clone.querySelector('.beneficiary-remove-btn');
+        if (removeBtn) {
+            removeBtn.classList.remove('d-none');
+        }
+
+        wrapper.appendChild(clone);
+        attachBeneficiaryRemoveHandlers();
+    }
+
+    function addEmergencyRow() {
+        const wrapper = document.getElementById('emergency-wrapper');
+        if (!wrapper) return;
+
+        const prototype = wrapper.querySelector('.emergency-row');
+        if (!prototype) return;
+
+        const index = wrapper.querySelectorAll('.emergency-row').length;
+        const clone = prototype.cloneNode(true);
+
+        clone.dataset.index = index;
+
+        clone.querySelectorAll('input, select').forEach(function (input) {
+            input.value = '';
+            input.name = input.name.replace(/\[\d+]/, '[' + index + ']');
+        });
+
+        const removeBtn = clone.querySelector('.emergency-remove-btn');
+        if (removeBtn) {
+            removeBtn.classList.remove('d-none');
+        }
+
+        wrapper.appendChild(clone);
+        attachEmergencyRemoveHandlers();
+    }
+
+    // Wire up remove buttons on the initial base rows
+    attachBeneficiaryRemoveHandlers();
+    attachEmergencyRemoveHandlers();
 </script>
