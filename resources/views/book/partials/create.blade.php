@@ -1,5 +1,3 @@
-{{-- resources/views/book/partials/create.blade.php --}}
-
 <div class="p-4">
     <div class="card shadow-sm border-0 p-4">
 
@@ -120,9 +118,8 @@
             <h4 class="text-gold fw-bold mb-3">Beneficiaries</h4>
 
             <div id="beneficiaries-wrapper">
-
-                {{-- BASE ROW (index 0) --}}
-                <div class="row g-2 align-items-end mb-2 beneficiary-row" data-index="0">
+                {{-- Base row index 0 --}}
+                <div class="row g-2 align-items-end mb-2 beneficiary-row">
                     <div class="col-md-3">
                         <label class="form-label small fw-semibold">Name</label>
                         <input type="text" name="beneficiaries[0][name]" class="form-control">
@@ -144,18 +141,48 @@
                     </div>
                     <div class="col-md-1 text-end">
                         <button type="button"
-                                class="btn btn-outline-danger btn-sm mt-4 d-none beneficiary-remove-btn">
+                                class="btn btn-outline-danger btn-sm mt-4 d-none"
+                                onclick="
+                                    (function(btn){
+                                        var wrapper = document.getElementById('beneficiaries-wrapper');
+                                        if (!wrapper) return;
+                                        var rows = wrapper.querySelectorAll('.beneficiary-row');
+                                        if (rows.length <= 1) return;
+                                        var row = btn.closest('.beneficiary-row');
+                                        if (row) row.remove();
+                                    })(this);
+                                ">
                             &times;
                         </button>
                     </div>
                 </div>
-
             </div>
 
             <button type="button"
-                    id="add-beneficiary-btn"
                     class="btn btn-sm btn-outline-secondary mb-4"
-                    onclick="addBeneficiaryRow()">
+                    onclick="
+                        (function(){
+                            var wrapper = document.getElementById('beneficiaries-wrapper');
+                            if (!wrapper) return;
+                            var prototype = wrapper.querySelector('.beneficiary-row');
+                            if (!prototype) return;
+
+                            var index = wrapper.querySelectorAll('.beneficiary-row').length;
+                            var clone = prototype.cloneNode(true);
+
+                            clone.querySelectorAll('input, select').forEach(function(input){
+                                input.value = '';
+                                input.name = input.name.replace(/\[\d+]/, '[' + index + ']');
+                            });
+
+                            var removeBtn = clone.querySelector('button.btn-outline-danger');
+                            if (removeBtn) {
+                                removeBtn.classList.remove('d-none');
+                            }
+
+                            wrapper.appendChild(clone);
+                        })();
+                    ">
                 + Add Beneficiary
             </button>
 
@@ -167,9 +194,8 @@
             <h4 class="text-gold fw-bold mb-3">Emergency Contacts</h4>
 
             <div id="emergency-wrapper">
-
-                {{-- BASE ROW (index 0) --}}
-                <div class="row g-2 align-items-end mb-2 emergency-row" data-index="0">
+                {{-- Base row index 0 --}}
+                <div class="row g-2 align-items-end mb-2 emergency-row">
                     <div class="col-md-3">
                         <label class="form-label small fw-semibold">Name</label>
                         <input type="text" name="emergency_contacts[0][name]" class="form-control">
@@ -191,18 +217,48 @@
                     </div>
                     <div class="col-md-1 text-end">
                         <button type="button"
-                                class="btn btn-outline-danger btn-sm mt-4 d-none emergency-remove-btn">
+                                class="btn btn-outline-danger btn-sm mt-4 d-none"
+                                onclick="
+                                    (function(btn){
+                                        var wrapper = document.getElementById('emergency-wrapper');
+                                        if (!wrapper) return;
+                                        var rows = wrapper.querySelectorAll('.emergency-row');
+                                        if (rows.length <= 1) return;
+                                        var row = btn.closest('.emergency-row');
+                                        if (row) row.remove();
+                                    })(this);
+                                ">
                             &times;
                         </button>
                     </div>
                 </div>
-
             </div>
 
             <button type="button"
-                    id="add-emergency-btn"
                     class="btn btn-sm btn-outline-secondary mb-4"
-                    onclick="addEmergencyRow()">
+                    onclick="
+                        (function(){
+                            var wrapper = document.getElementById('emergency-wrapper');
+                            if (!wrapper) return;
+                            var prototype = wrapper.querySelector('.emergency-row');
+                            if (!prototype) return;
+
+                            var index = wrapper.querySelectorAll('.emergency-row').length;
+                            var clone = prototype.cloneNode(true);
+
+                            clone.querySelectorAll('input, select').forEach(function(input){
+                                input.value = '';
+                                input.name = input.name.replace(/\[\d+]/, '[' + index + ']');
+                            });
+
+                            var removeBtn = clone.querySelector('button.btn-outline-danger');
+                            if (removeBtn) {
+                                removeBtn.classList.remove('d-none');
+                            }
+
+                            wrapper.appendChild(clone);
+                        })();
+                    ">
                 + Add Emergency Contact
             </button>
 
@@ -223,100 +279,6 @@
             <button type="submit" class="btn btn-gold">
                 Save Client
             </button>
-
         </form>
     </div>
 </div>
-
-{{-- ============================= --}}
-{{-- DYNAMIC ROW JS (GLOBAL FUNCTIONS) --}}
-{{-- ============================= --}}
-<script>
-    function attachBeneficiaryRemoveHandlers() {
-        const wrapper = document.getElementById('beneficiaries-wrapper');
-        if (!wrapper) return;
-
-        wrapper.querySelectorAll('.beneficiary-remove-btn').forEach(function (btn) {
-            btn.onclick = function () {
-                const rows = wrapper.querySelectorAll('.beneficiary-row');
-                const row  = btn.closest('.beneficiary-row');
-                // Keep at least one row
-                if (row && rows.length > 1) {
-                    row.remove();
-                }
-            };
-        });
-    }
-
-    function attachEmergencyRemoveHandlers() {
-        const wrapper = document.getElementById('emergency-wrapper');
-        if (!wrapper) return;
-
-        wrapper.querySelectorAll('.emergency-remove-btn').forEach(function (btn) {
-            btn.onclick = function () {
-                const rows = wrapper.querySelectorAll('.emergency-row');
-                const row  = btn.closest('.emergency-row');
-                if (row && rows.length > 1) {
-                    row.remove();
-                }
-            };
-        });
-    }
-
-    function addBeneficiaryRow() {
-        const wrapper = document.getElementById('beneficiaries-wrapper');
-        if (!wrapper) return;
-
-        const prototype = wrapper.querySelector('.beneficiary-row');
-        if (!prototype) return;
-
-        const index = wrapper.querySelectorAll('.beneficiary-row').length;
-        const clone = prototype.cloneNode(true);
-
-        clone.dataset.index = index;
-
-        clone.querySelectorAll('input, select').forEach(function (input) {
-            input.value = '';
-            // replace existing [number] with new index
-            input.name = input.name.replace(/\[\d+]/, '[' + index + ']');
-        });
-
-        const removeBtn = clone.querySelector('.beneficiary-remove-btn');
-        if (removeBtn) {
-            removeBtn.classList.remove('d-none');
-        }
-
-        wrapper.appendChild(clone);
-        attachBeneficiaryRemoveHandlers();
-    }
-
-    function addEmergencyRow() {
-        const wrapper = document.getElementById('emergency-wrapper');
-        if (!wrapper) return;
-
-        const prototype = wrapper.querySelector('.emergency-row');
-        if (!prototype) return;
-
-        const index = wrapper.querySelectorAll('.emergency-row').length;
-        const clone = prototype.cloneNode(true);
-
-        clone.dataset.index = index;
-
-        clone.querySelectorAll('input, select').forEach(function (input) {
-            input.value = '';
-            input.name = input.name.replace(/\[\d+]/, '[' + index + ']');
-        });
-
-        const removeBtn = clone.querySelector('.emergency-remove-btn');
-        if (removeBtn) {
-            removeBtn.classList.remove('d-none');
-        }
-
-        wrapper.appendChild(clone);
-        attachEmergencyRemoveHandlers();
-    }
-
-    // Wire up remove buttons on the initial base rows
-    attachBeneficiaryRemoveHandlers();
-    attachEmergencyRemoveHandlers();
-</script>
