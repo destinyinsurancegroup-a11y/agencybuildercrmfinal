@@ -8,40 +8,39 @@
             {{ $contact->first_name }} {{ $contact->last_name }}
         </h1>
 
-        <!-- Hidden helpers for JS (for future actions if needed) -->
+        <!-- Hidden helpers for JS -->
         <input type="hidden" id="leadContactId" value="{{ $contact->id }}">
         <input type="hidden" id="leadContactName" value="{{ $contact->full_name }}">
 
         <!-- DISPOSITION BUTTONS UNDER NAME -->
         <div class="d-flex gap-2 mb-4">
 
-            {{-- SOLD: convert lead -> client/contact via regular POST --}}
+            {{-- SOLD --}}
             <form method="POST"
                   action="{{ route('leads.sold', $contact) }}"
-                  onsubmit="return confirm('Mark this lead as SOLD and move to your Book of Business?');">
+                  onsubmit="return confirm('Mark this lead as SOLD and move to Book of Business?');">
                 @csrf
-                <button type="submit"
-                        class="btn btn-success btn-sm px-3">
+                <button type="submit" class="btn btn-success btn-sm px-3">
                     Sold
                 </button>
             </form>
 
-            {{-- FOLLOW UP: go to Calendar screen, passing contact info --}}
+            {{-- FOLLOW UP: Calendar with pre-filled fields --}}
             <a href="{{ url('/calendar') }}?contact_id={{ $contact->id }}&contact_name={{ urlencode($contact->full_name) }}"
                class="btn btn-warning btn-sm px-3">
                 Follow Up
             </a>
 
-            {{-- NOT INTERESTED: archive lead and remove from active list --}}
+            {{-- NOT INTERESTED --}}
             <form method="POST"
                   action="{{ route('leads.archive', $contact) }}"
-                  onsubmit="return confirm('Mark this lead as NOT INTERESTED and remove it from your active Leads list?');">
+                  onsubmit="return confirm('Mark this lead as NOT INTERESTED and remove it from active Leads?');">
                 @csrf
-                <button type="submit"
-                        class="btn btn-danger btn-sm px-3">
+                <button type="submit" class="btn btn-danger btn-sm px-3">
                     Not Interested
                 </button>
             </form>
+
         </div>
 
         <!-- TOP RIGHT EDIT BUTTON -->
@@ -99,17 +98,17 @@
 
         <hr>
 
-    </div>{{-- /card --}}
+    </div>
+    {{-- /MAIN LEAD CARD --}}
 
-    {{-- =========================================================
-         STAND-ALONE NOTES SECTION (OUTSIDE CARD, LIKE BOOK/SERVICE)
-       ========================================================= --}}
+    {{-- =======================================
+         LEAD NOTES (tenant-safe, JS powered)
+       ======================================= --}}
     <div class="mt-4">
 
-        <!-- NOTES SECTION (styled like All Contacts) -->
         <h5 class="fw-bold mb-3">Notes</h5>
 
-        {{-- NEW NOTE FORM (still uses JS to POST to /leads/{id}/notes) --}}
+        <!-- NEW NOTE FORM -->
         <div class="mb-3">
             <textarea
                 id="lead_new_note_body"
@@ -134,7 +133,7 @@
             </button>
         </div>
 
-        {{-- EXISTING NOTES (left-justified like Contacts) --}}
+        <!-- EXISTING NOTES -->
         <div class="mt-4">
             @php
                 $notes = $contact->allNotes ?? $contact->notes ?? collect();
@@ -148,7 +147,6 @@
                     </div>
 
                     <div class="mb-2">
-                        {{-- DB column is "note"; fall back to "body" if older --}}
                         {{ $note->note ?? $note->body }}
                     </div>
 
@@ -171,6 +169,6 @@
             @endforelse
         </div>
 
-    </div>{{-- /notes wrapper --}}
+    </div>
 
 </div>
