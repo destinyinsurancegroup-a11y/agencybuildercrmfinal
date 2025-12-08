@@ -6,7 +6,7 @@
             @csrf
 
             <!-- FORCE LEAD TYPE -->
-            <input type="hidden" name="contact_type" value="Lead">
+            <input type="hidden" name="contact_type" value="lead">
 
             <!-- BASIC INFORMATION -->
             <h5 class="mb-3 text-gold fw-bold">Basic Information</h5>
@@ -122,9 +122,9 @@
             <h5 class="mb-3 text-gold fw-bold">Notes</h5>
 
             <div class="mb-4">
-                <textarea 
-                    name="notes" 
-                    class="form-control" 
+                <textarea
+                    name="notes"
+                    class="form-control"
                     rows="4"
                     placeholder="Enter lead notes..."
                 ></textarea>
