@@ -100,7 +100,7 @@
                 </div>
             </div>
 
-            <button 
+            <button
                 class="btn-gold"
                 data-edit-url="{{ route('service.edit.panel', $client->id) }}"
                 onclick="loadServicePanel(this.dataset.editUrl)"
@@ -218,19 +218,20 @@
     <div id="service-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        {{-- NEW NOTE FORM (JS submit, like before) --}}
+        {{-- NEW NOTE FORM --}}
         <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
                       rows="2"
                       placeholder="Write a new note..."></textarea>
 
+            {{-- keep the same onclick signature, we’ll override the function --}}
             <button class="btn-gold mt-2" onclick="saveServiceNote({{ $client->id }})">
                 Add Note
             </button>
         </div>
 
-        {{-- EXISTING NOTES (structure like Contacts/Leads) --}}
+        {{-- EXISTING NOTES --}}
         <div id="notes-list" class="mt-3">
             @php
                 $notes = $client->allNotes ?? $client->notes ?? collect();
@@ -253,3 +254,86 @@
     </div>
 
 </div>
+
+{{-- ==========================================
+     SERVICE NOTES JS – override saveServiceNote
+     Uses same API shape as Book/Leads notes.
+   ========================================== --}}
+<script>
+    (function () {
+        const csrfToken  = "{{ csrf_token() }}";
+        const storeUrl   = "{{ route('service.notes.store', $client) }}"; // POST /service/{client}/notes
+        const notesList  = document.getElementById('notes-list');
+        const textarea   = document.getElementById('new_note_body');
+
+        // Override / define global function used by the button
+        window.saveServiceNote = function (clientId) {
+            if (!textarea) return;
+
+            const bodyText = textarea.value.trim();
+            if (!bodyText) return;
+
+            fetch(storeUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ body: bodyText })
+            })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Network error');
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                if (!data || !data.success || !data.note) {
+                    alert('Error saving note.');
+                    return;
+                }
+
+                if (!notesList) return;
+
+                const note = data.note;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'border rounded p-2 mb-2';
+                wrapper.id = 'note-' + note.id;
+
+                // created_at from Laravel; fall back to empty string if missing
+                let createdAtText = '';
+                if (note.created_at) {
+                    try {
+                        createdAtText = new Date(note.created_at).toLocaleString();
+                    } catch (e) {
+                        createdAtText = note.created_at;
+                    }
+                }
+
+                wrapper.innerHTML = `
+                    <div class="small text-muted mb-1">
+                        ${createdAtText}
+                    </div>
+                    <div>
+                        ${note.note || note.body || ''}
+                    </div>
+                `;
+
+                // Prepend so newest note is at the top
+                if (notesList.firstChild) {
+                    notesList.insertBefore(wrapper, notesList.firstChild);
+                } else {
+                    notesList.appendChild(wrapper);
+                }
+
+                textarea.value = '';
+            })
+            .catch(function () {
+                alert('Error saving note.');
+            });
+        };
+    })();
+</script>
