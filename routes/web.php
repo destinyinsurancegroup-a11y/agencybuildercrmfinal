@@ -17,6 +17,8 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ActivityController;
 // AUTH CONTROLLER
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+// GIDEON LLM CLIENT
+use App\Services\Gideon\GideonLlmClient;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,13 +43,28 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 | DEBUG / TEST (OPTIONAL – not behind auth)
 |--------------------------------------------------------------------------
 */
+
 Route::get('/debug-laravel-log', function () {
     $path = storage_path('logs/laravel.log');
-    if (!file_exists($path)) return "No laravel.log file found.";
+    if (! file_exists($path)) {
+        return "No laravel.log file found.";
+    }
     return nl2br(e(file_get_contents($path)));
 });
 
 Route::get('/test', fn () => 'ROUTES ARE WORKING');
+
+/**
+ * TEMPORARY: Gideon LLM connectivity test.
+ * Hit /gideon-test in the browser to confirm OpenAI is wired up.
+ * Remove this route after validation.
+ */
+Route::get('/gideon-test', function (GideonLlmClient $client) {
+    // Optional: you can guard behind config if you want:
+    // if (! config('gideon.enabled')) abort(404);
+
+    return $client->testPing();
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -227,11 +244,15 @@ Route::middleware('auth')->group(function () {
     | SERVICE Beneficiary / Emergency DELETE
     |--------------------------------------------------------------------------
     */
-    Route::delete('/service/{client}/beneficiaries/{beneficiary}',
-        [BookController::class, 'deleteBeneficiary'])->name('service.beneficiaries.destroy');
+    Route::delete(
+        '/service/{client}/beneficiaries/{beneficiary}',
+        [BookController::class, 'deleteBeneficiary']
+    )->name('service.beneficiaries.destroy');
 
-    Route::delete('/service/{client}/emergencies/{contact}',
-        [BookController::class, 'deleteEmergency'])->name('service.emergencies.destroy');
+    Route::delete(
+        '/service/{client}/emergencies/{contact}',
+        [BookController::class, 'deleteEmergency']
+    )->name('service.emergencies.destroy');
 
     /*
     |--------------------------------------------------------------------------
@@ -323,9 +344,4 @@ Route::middleware('auth')->group(function () {
         Artisan::call('cache:clear');
         Artisan::call('view:clear');
     }));
-});
-use App\Services\Gideon\GideonLlmClient;
-
-Route::get('/gideon-test', function (GideonLlmClient $client) {
-    return $client->testPing();
 });
