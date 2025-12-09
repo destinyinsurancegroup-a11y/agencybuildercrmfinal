@@ -19,8 +19,9 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ActivityController;
 // AUTH CONTROLLER
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
-// GIDEON LLM CLIENT
+// GIDEON SERVICES
 use App\Services\Gideon\GideonLlmClient;
+use App\Services\Gideon\OpportunityScanner;
 
 /*
 |--------------------------------------------------------------------------
@@ -359,6 +360,20 @@ Route::middleware('auth')->group(function () {
         ]);
 
         return response()->json($opp);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | GIDEON: RUN OPPORTUNITY SCAN (PLACEHOLDER)
+    |--------------------------------------------------------------------------
+    | Manual trigger so you can click a button in the UI later.
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/gideon/run-opportunity-scan', function (OpportunityScanner $scanner) {
+        $user = auth()->user();
+        $result = $scanner->runForUser($user);
+
+        return response()->json($result);
     });
 
     /*
