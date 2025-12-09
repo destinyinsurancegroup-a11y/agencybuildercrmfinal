@@ -371,19 +371,47 @@
             </div>
         </div>
 
-        {{-- RECENTLY ADDED --}}
+        {{-- GIDEON OPPORTUNITIES (repurposed "Recently Added" card) --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
-                    <span class="badge-new">NEW</span>
-                    <span>Recently Added</span>
+                    <span class="dashboard-card-icon">🤖</span>
+                    Gideon Opportunities
                 </div>
+                <a href="{{ route('gideon.opportunities.index') }}"
+                   style="font-size: 13px; color: var(--gold); text-decoration: none;">
+                    View all →
+                </a>
             </div>
             <div class="dashboard-card-body">
-                <ul class="dashboard-list">
-                    <li>--</li>
-                    <li>--</li>
-                </ul>
+                @if($gideonOpportunities->isEmpty())
+                    <ul class="dashboard-list">
+                        <li>
+                            No Gideon opportunities yet.
+                            As Gideon scans your leads and book of business,
+                            suggestions will appear here.
+                        </li>
+                    </ul>
+                @else
+                    <ul class="dashboard-list">
+                        @foreach($gideonOpportunities as $opp)
+                            <li>
+                                <strong>{{ $opp->title }}</strong><br>
+                                <span style="color: var(--text-faint); font-size: 13px;">
+                                    {{ \Illuminate\Support\Str::limit($opp->short_reason, 80) }}
+                                </span><br>
+                                <span style="display:inline-block; margin-top:4px; background: var(--gold-soft); color: var(--text-main); font-size:11px; border-radius:999px; padding:2px 8px; text-transform:uppercase;">
+                                    {{ str_replace('_', ' ', $opp->category) }}
+                                </span>
+                                @if(isset($opp->source_snapshot['full_name']))
+                                    <span style="color: var(--text-faint); font-size: 12px;">
+                                        • {{ $opp->source_snapshot['full_name'] }}
+                                    </span>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
 
