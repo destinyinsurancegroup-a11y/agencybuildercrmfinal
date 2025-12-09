@@ -100,15 +100,6 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | GIDEON – SPARRING PARTNER (CHAT UI)
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/sparring-partner', function () {
-        return view('gideon.sparring');
-    })->name('gideon.sparring');
-
-    /*
-    |--------------------------------------------------------------------------
     | CONTACTS (FULL CRUD + AJAX RIGHT PANEL)
     |--------------------------------------------------------------------------
     */
@@ -361,6 +352,16 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
+
+    /*
+    |--------------------------------------------------------------------------
+    | SPARRING PARTNER PAGE
+    |--------------------------------------------------------------------------
+    | Simple view route that shows resources/views/gideon/sparring.blade.php
+    */
+    Route::get('/sparring-partner', function () {
+        return view('gideon.sparring');
+    })->name('gideon.sparring');
 
     /*
     |--------------------------------------------------------------------------
