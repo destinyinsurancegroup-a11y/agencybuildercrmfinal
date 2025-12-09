@@ -58,6 +58,15 @@ Route::get('/debug-laravel-log', function () {
 Route::get('/test', fn () => 'ROUTES ARE WORKING');
 
 /**
+ * TEMP: list columns on contacts table so we can see how leads/contacts
+ * are stored. REMOVE after we’re done debugging.
+ */
+Route::get('/debug-contact-columns', function () {
+    $columns = Schema::getColumnListing('contacts');
+    return response()->json($columns);
+});
+
+/**
  * TEMPORARY: Gideon LLM connectivity test.
  * Hit /gideon-test in the browser to confirm OpenAI is wired up.
  * Remove this route after validation.
