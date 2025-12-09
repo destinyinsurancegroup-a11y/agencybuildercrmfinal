@@ -324,3 +324,8 @@ Route::middleware('auth')->group(function () {
         Artisan::call('view:clear');
     }));
 });
+use App\Services\Gideon\GideonLlmClient;
+
+Route::get('/gideon-test', function (GideonLlmClient $client) {
+    return $client->testPing();
+});
