@@ -336,7 +336,20 @@ Route::middleware('auth')->group(function () {
     | MAINTENANCE UTILITIES  (still here, but now require auth)
     |--------------------------------------------------------------------------
     */
-    Route::get('/migrate', fn () => Artisan::call('migrate', ['--force' => true]) ? 'Migrations ran successfully!' : 'Error');
+    Route::get('/migrate', function () {
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            $output = Artisan::output();
+
+            return nl2br(e("MIGRATE OUTPUT:\n\n" . $output));
+        } catch (\Throwable $e) {
+            return nl2br(e(
+                "MIGRATION ERROR:\n\n" .
+                $e->getMessage() . "\n\n" .
+                $e->getTraceAsString()
+            ));
+        }
+    });
 
     Route::get('/clear-cache', fn () => tap('Laravel cache cleared!', function () {
         Artisan::call('route:clear');
