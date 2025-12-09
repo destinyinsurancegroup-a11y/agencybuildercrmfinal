@@ -22,6 +22,8 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 // GIDEON SERVICES
 use App\Services\Gideon\GideonLlmClient;
 use App\Services\Gideon\OpportunityScanner;
+// ✅ GIDEON OPPORTUNITIES CONTROLLER
+use App\Http\Controllers\GideonOpportunityController;
 
 /*
 |--------------------------------------------------------------------------
@@ -342,6 +344,16 @@ Route::middleware('auth')->group(function () {
         Event::findOrFail($id)->delete();
         return response()->json(['success' => true]);
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | GIDEON OPPORTUNITIES INDEX
+    |--------------------------------------------------------------------------
+    */
+    Route::get(
+        '/gideon/opportunities',
+        [GideonOpportunityController::class, 'index']
+    )->name('gideon.opportunities.index');
 
     /*
     |--------------------------------------------------------------------------
