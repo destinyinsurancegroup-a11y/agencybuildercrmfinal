@@ -24,6 +24,8 @@ use App\Services\Gideon\GideonLlmClient;
 use App\Services\Gideon\OpportunityScanner;
 // ✅ GIDEON OPPORTUNITIES API CONTROLLER (under App\Http\Controllers\Gideon)
 use App\Http\Controllers\Gideon\GideonOpportunitiesController;
+// ✅ GIDEON SECOND BRAIN CONTROLLER
+use App\Http\Controllers\Gideon\GideonInsightsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -352,6 +354,14 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
+
+    /*
+    |--------------------------------------------------------------------------
+    | GIDEON SECOND BRAIN (overview page)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
+        ->name('gideon.second-brain');
 
     /*
     |--------------------------------------------------------------------------
