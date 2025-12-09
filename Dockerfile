@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install gd pdo pdo_mysql zip opcache \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Install Composer (pin to a specific 2.x version to avoid bad cached layer)
+COPY --from=composer:2.8 /usr/bin/composer /usr/bin/composer
 
 # Working directory
 WORKDIR /var/www/html
