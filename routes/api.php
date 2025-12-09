@@ -3,9 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Gideon controller
+// Gideon controllers / services
 use App\Http\Controllers\Gideon\GideonChatController;
-// Gideon Sparring service (for simple test route)
+use App\Http\Controllers\Gideon\GideonOpportunitiesController;
 use App\Services\Gideon\GideonSparringPartner;
 
 /*
@@ -31,8 +31,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 |--------------------------------------------------------------------------
 | GIDEON SPARRING PARTNER ENDPOINT (POST)
 |--------------------------------------------------------------------------
-| This is the main endpoint the frontend will call with JSON.
-| Example: POST /api/gideon/ask
+| Main endpoint the frontend will call with JSON.
 |--------------------------------------------------------------------------
 */
 Route::post('/gideon/ask', [GideonChatController::class, 'ask']);
@@ -41,8 +40,8 @@ Route::post('/gideon/ask', [GideonChatController::class, 'ask']);
 |--------------------------------------------------------------------------
 | SIMPLE BROWSER TEST ENDPOINT (GET)
 |--------------------------------------------------------------------------
-| This lets you test Gideon sparring in a normal browser without Postman.
-| Just visit: /api/gideon/test in your browser.
+| Lets you test Gideon sparring in a normal browser without Postman.
+| Visit: /api/gideon/test
 |--------------------------------------------------------------------------
 */
 Route::get('/gideon/test', function (GideonSparringPartner $sparring) {
@@ -54,3 +53,15 @@ Route::get('/gideon/test', function (GideonSparringPartner $sparring) {
 
     return response()->json($result);
 });
+
+/*
+|--------------------------------------------------------------------------
+| GIDEON OPPORTUNITIES LIST (AUTH REQUIRED)
+|--------------------------------------------------------------------------
+| Lists opportunities for the authenticated user's agency.
+| Example:
+|   GET /api/gideon/opportunities
+|   GET /api/gideon/opportunities?status=open&category=revive_lead
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth:sanctum')->get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index']);
