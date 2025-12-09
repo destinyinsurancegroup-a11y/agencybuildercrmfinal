@@ -75,6 +75,9 @@
         <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
         <a class="nav-item" href="{{ route('service.index') }}">Service</a>
 
+        <!-- ⭐ NEW — SPARRING PARTNER (GIDEON CHAT) ⭐ -->
+        <a class="nav-item" href="{{ route('gideon.sparring') }}">Sparring Partner</a>
+
         <!-- ⭐ FIXED — ACTIVITY NOW OPENS POPUP, NOT PAGE ⭐ -->
         <a class="nav-item" href="#" onclick="openActivityPopup()">Activity</a>
 
