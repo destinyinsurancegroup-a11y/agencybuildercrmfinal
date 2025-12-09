@@ -28,20 +28,20 @@ class GideonInsightsController extends Controller
         $baseQuery = GideonOpportunity::where('agency_id', $agencyId);
 
         // High-level status counts
-        $openCount       = (clone $baseQuery)->where('status', 'open')->count();
-        $completedCount  = (clone $baseQuery)->where('status', 'completed')->count();
-        $dismissedCount  = (clone $baseQuery)->where('status', 'dismissed')->count();
-        $snoozedCount    = (clone $baseQuery)->where('status', 'snoozed')->count();
+        $openCount      = (clone $baseQuery)->where('status', 'open')->count();
+        $completedCount = (clone $baseQuery)->where('status', 'completed')->count();
+        $dismissedCount = (clone $baseQuery)->where('status', 'dismissed')->count();
+        $snoozedCount   = (clone $baseQuery)->where('status', 'snoozed')->count();
 
         // Category distribution (top 6)
         $categories = (clone $baseQuery)
-            ->selectRaw('COALESCE(category, "uncategorized") as category, COUNT(*) as total')
+            ->selectRaw("COALESCE(category, 'uncategorized') as category, COUNT(*) as total")
             ->groupBy('category')
             ->orderByDesc('total')
             ->limit(6)
             ->get();
 
-        // Recent movement
+        // Recent movement (last 7 days)
         $recentNew = (clone $baseQuery)
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
@@ -60,14 +60,15 @@ class GideonInsightsController extends Controller
             ->get();
 
         return view('gideon.second_brain', [
-            'openCount'       => $openCount,
-            'completedCount'  => $completedCount,
-            'dismissedCount'  => $dismissedCount,
-            'snoozedCount'    => $snoozedCount,
-            'categories'      => $categories,
-            'recentNew'       => $recentNew,
-            'recentResolved'  => $recentResolved,
-            'topOpen'         => $topOpen,
+            'user'           => $user,
+            'openCount'      => $openCount,
+            'completedCount' => $completedCount,
+            'dismissedCount' => $dismissedCount,
+            'snoozedCount'   => $snoozedCount,
+            'categories'     => $categories,
+            'recentNew'      => $recentNew,
+            'recentResolved' => $recentResolved,
+            'topOpen'        => $topOpen,
         ]);
     }
 }
