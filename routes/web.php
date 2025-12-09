@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 
 use App\Models\Event;
+use App\Models\GideonOpportunity;
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ContactsController;
@@ -334,6 +335,34 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | GIDEON DEBUG: CREATE A SAMPLE OPPORTUNITY
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/debug-gideon-create-opportunity', function () {
+        $user = auth()->user();
+        $agencyId = $user->agency_id ?? 1;
+
+        $opp = GideonOpportunity::create([
+            'agency_id'           => $agencyId,
+            'user_id'             => $user->id ?? null,
+            'entity_type'         => 'debug',
+            'entity_id'           => null,
+            'category'            => 'test',
+            'title'               => 'Test Gideon Opportunity',
+            'short_reason'        => 'This is a fake opportunity created to verify the Gideon DB wiring.',
+            'recommended_action'  => 'No action needed – this is only a test.',
+            'score'               => 50,
+            'status'              => 'open',
+            'source_snapshot'     => [
+                'note' => 'Created by /debug-gideon-create-opportunity route.',
+            ],
+        ]);
+
+        return response()->json($opp);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | MAINTENANCE UTILITIES  (still here, but now require auth)
     |--------------------------------------------------------------------------
     */
@@ -352,7 +381,7 @@ Route::middleware('auth')->group(function () {
         }
     });
 
-    // NEW: Check if Gideon tables exist
+    // Check if Gideon tables exist
     Route::get('/debug-gideon-schema', function () {
         return Schema::hasTable('gideon_opportunities')
             ? 'gideon_opportunities table EXISTS'
