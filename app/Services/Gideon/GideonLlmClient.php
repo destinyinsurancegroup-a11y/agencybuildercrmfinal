@@ -13,16 +13,19 @@ class GideonLlmClient
     protected string $model;
     protected int $maxTokens;
     protected int $timeoutSeconds;
+    protected bool $fakeMode;
 
     public function __construct()
     {
-        $this->apiKey        = env('GIDEON_OPENAI_API_KEY', '');
-        $this->provider      = config('gideon.llm_provider', 'openai');
-        $this->model         = config('gideon.llm_model_tier1', 'gpt-4.1');
-        $this->maxTokens     = (int) config('gideon.max_tokens_default', 800);
+        $this->apiKey         = env('GIDEON_OPENAI_API_KEY', '');
+        $this->provider       = config('gideon.llm_provider', 'openai');
+        $this->model          = config('gideon.llm_model_tier1', 'gpt-4.1');
+        $this->maxTokens      = (int) config('gideon.max_tokens_default', 800);
         $this->timeoutSeconds = (int) config('gideon.timeout_seconds', 20);
+        $this->fakeMode       = (bool) env('GIDEON_FAKE_MODE', false);
 
-        if (empty($this->apiKey)) {
+        // If we're not in fake mode, we require a real API key
+        if (! $this->fakeMode && empty($this->apiKey)) {
             // We throw here so you see it clearly in logs if misconfigured.
             throw new RuntimeException('GideonLlmClient: GIDEON_OPENAI_API_KEY is not set.');
         }
@@ -38,14 +41,19 @@ class GideonLlmClient
      */
     public function chat(array $messages, array $options = []): string
     {
+        // FAKE MODE: do not call OpenAI at all.
+        if ($this->fakeMode) {
+            return '[FAKE GIDEON REPLY] Gideon is wired up, but OpenAI billing is not enabled yet.';
+        }
+
         if ($this->provider !== 'openai') {
             throw new RuntimeException('GideonLlmClient: Only "openai" provider is supported in Tier 1.');
         }
 
         $payload = [
-            'model'    => $this->model,
-            'messages' => $messages,
-            'max_tokens' => $options['max_tokens'] ?? $this->maxTokens,
+            'model'       => $this->model,
+            'messages'    => $messages,
+            'max_tokens'  => $options['max_tokens'] ?? $this->maxTokens,
             'temperature' => $options['temperature'] ?? 0.2,
         ];
 
