@@ -75,13 +75,14 @@
         <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
         <a class="nav-item" href="{{ route('service.index') }}">Service</a>
 
-        <!-- ⭐ NEW — SPARRING PARTNER (GIDEON CHAT) ⭐ -->
-        <a class="nav-item" href="{{ route('gideon.sparring') }}">Sparring Partner</a>
-
-        <!-- ⭐ FIXED — ACTIVITY NOW OPENS POPUP, NOT PAGE ⭐ -->
         <a class="nav-item" href="#" onclick="openActivityPopup()">Activity</a>
 
         <a class="nav-item" href="/calendar">Calendar</a>
+
+        <!-- ⭐ NEW LINKS ⭐ -->
+        <a class="nav-item" href="{{ route('gideon.sparring') }}">Sparring Partner</a>
+        <a class="nav-item" href="{{ route('gideon.second_brain') }}">Gideon Second Brain</a>
+
         <a class="nav-item" href="/settings">Settings</a>
         <a class="nav-item" href="/billing">Billing</a>
         <a class="nav-item" href="/logout">Logout</a>
@@ -111,19 +112,16 @@
         });
     </script>
 
-    <!-- ⭐ OPEN ACTIVITY POPUP (REAL MODAL) ⭐ -->
+    <!-- ⭐ OPEN ACTIVITY POPUP ⭐ -->
     <script>
     function openActivityPopup() {
         fetch("{{ route('activity.popup') }}")
             .then(res => res.text())
             .then(html => {
-
-                // Create wrapper
                 let wrap = document.createElement('div');
                 wrap.innerHTML = html;
                 document.body.appendChild(wrap);
 
-                // Find modal inside HTML
                 let modalElement = wrap.querySelector('.modal');
                 let popup = new bootstrap.Modal(modalElement);
 
@@ -137,7 +135,6 @@
     <!-- ⭐ GLOBAL SAVE HANDLER FOR ACTIVITY POPUP ⭐ -->
     <script>
         document.addEventListener('click', function (e) {
-
             if (e.target.id !== 'saveActivityBtn') return;
 
             e.preventDefault();
@@ -161,7 +158,6 @@
 
                 form.reset();
 
-                // Close modal
                 let modalEl = document.querySelector('.modal.show');
                 if (modalEl) {
                     bootstrap.Modal.getInstance(modalEl).hide();
