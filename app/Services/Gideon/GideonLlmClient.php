@@ -24,11 +24,9 @@ class GideonLlmClient
         $this->timeoutSeconds = (int) config('gideon.timeout_seconds', 20);
         $this->fakeMode       = (bool) env('GIDEON_FAKE_MODE', false);
 
-        // If we're not in fake mode, we require a real API key
-        if (! $this->fakeMode && empty($this->apiKey)) {
-            // We throw here so you see it clearly in logs if misconfigured.
-            throw new RuntimeException('GideonLlmClient: GIDEON_OPENAI_API_KEY is not set.');
-        }
+        // NOTE:
+        // We no longer throw if apiKey is missing here.
+        // If fakeMode is on OR apiKey is empty, we just return fake replies in chat().
     }
 
     /**
@@ -41,9 +39,10 @@ class GideonLlmClient
      */
     public function chat(array $messages, array $options = []): string
     {
-        // FAKE MODE: do not call OpenAI at all.
-        if ($this->fakeMode) {
-            return '[FAKE GIDEON REPLY] Gideon is wired up, but OpenAI billing is not enabled yet.';
+        // If we're in fake mode OR we don't have an API key,
+        // DO NOT call OpenAI at all. Just fake it.
+        if ($this->fakeMode || empty($this->apiKey)) {
+            return '[FAKE GIDEON REPLY] Gideon is wired up in the app, but OpenAI billing / API is not enabled yet.';
         }
 
         if ($this->provider !== 'openai') {
@@ -63,10 +62,17 @@ class GideonLlmClient
             ->post('https://api.openai.com/v1/chat/completions', $payload);
 
         if (! $response->successful()) {
+            $status = $response->status();
+
+            // If we're getting rate-limited / unauthorized / forbidden by OpenAI,
+            // fall back to fake mode instead of blowing up the app.
+            if (in_array($status, [401, 403, 429], true)) {
+                return '[FAKE GIDEON REPLY] Gideon attempted to call OpenAI, but the API is not available (billing/quota). Using safe fake response instead.';
+            }
+
             $id = Str::uuid()->toString();
-            // You can log more here later
             throw new RuntimeException(
-                "GideonLlmClient: OpenAI request failed (ref {$id}). Status: {$response->status()}"
+                "GideonLlmClient: OpenAI request failed (ref {$id}). Status: {$status}"
             );
         }
 
@@ -82,7 +88,8 @@ class GideonLlmClient
 
     /**
      * Simple test helper you can call from a route or tinker
-     * to verify the connection works in DigitalOcean.
+     * to verify the wiring works. In your current setup,
+     * this will return a fake reply until billing is enabled.
      */
     public function testPing(): string
     {
