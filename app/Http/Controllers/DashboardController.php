@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;        // Calendar events
 use App\Models\Contact;
+use App\Models\GideonOpportunity; // ✅ Gideon opportunities
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,9 +18,11 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         // If somehow not logged in, always force login first
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login');
         }
+
+        $agencyId = $user->agency_id;
 
         // =========================================================
         // 1. DATE RANGE FOR INSIGHTS (Next 7 Days)
@@ -30,7 +33,7 @@ class DashboardController extends Controller
         // =========================================================
         // 2. UPCOMING APPOINTMENTS FROM CALENDAR (PER AGENCY)
         // =========================================================
-        $upcomingAppointments = Event::where('agency_id', $user->agency_id)
+        $upcomingAppointments = Event::where('agency_id', $agencyId)
             ->whereBetween('start', [
                 $startDate->copy()->startOfDay(),
                 $endDate->copy()->endOfDay(),
@@ -41,7 +44,7 @@ class DashboardController extends Controller
         // =========================================================
         // 3. UPCOMING BIRTHDAYS (Next 7 Days, PER AGENCY)
         // =========================================================
-        $birthdays = Contact::where('agency_id', $user->agency_id)
+        $birthdays = Contact::where('agency_id', $agencyId)
             ->whereNotNull('date_of_birth')
             ->get()
             ->filter(function ($contact) use ($startDate, $endDate) {
@@ -60,7 +63,7 @@ class DashboardController extends Controller
         // =========================================================
         // 4. UPCOMING ANNIVERSARIES (Next 7 Days, PER AGENCY)
         // =========================================================
-        $anniversaries = Contact::where('agency_id', $user->agency_id)
+        $anniversaries = Contact::where('agency_id', $agencyId)
             ->whereNotNull('anniversary')
             ->get()
             ->filter(function ($contact) use ($startDate, $endDate) {
@@ -74,12 +77,24 @@ class DashboardController extends Controller
             });
 
         // =========================================================
-        // 5. SEND ALL DATA TO VIEW
+        // 5. GIDEON: LATEST OPPORTUNITIES FOR THIS AGENT (OPTION B)
+        // =========================================================
+        $gideonOpportunities = GideonOpportunity::query()
+            ->where('agency_id', $agencyId)
+            ->where('user_id', $user->id)   // 🔒 per-agent visibility
+            ->where('status', 'open')      // only open opportunities
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get();
+
+        // =========================================================
+        // 6. SEND ALL DATA TO VIEW
         // =========================================================
         return view('dashboard', [
-            'events'        => $upcomingAppointments,
-            'birthdays'     => $birthdays,
-            'anniversaries' => $anniversaries,
+            'events'              => $upcomingAppointments,
+            'birthdays'           => $birthdays,
+            'anniversaries'       => $anniversaries,
+            'gideonOpportunities' => $gideonOpportunities, // ✅ for repurposed card
         ]);
     }
 }
