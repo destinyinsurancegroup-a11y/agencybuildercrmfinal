@@ -22,8 +22,8 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 // GIDEON SERVICES
 use App\Services\Gideon\GideonLlmClient;
 use App\Services\Gideon\OpportunityScanner;
-// ✅ GIDEON OPPORTUNITIES CONTROLLER
-use App\Http\Controllers\GideonOpportunityController;
+// ✅ GIDEON OPPORTUNITIES API CONTROLLER (under App\Http\Controllers\Gideon)
+use App\Http\Controllers\Gideon\GideonOpportunitiesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -347,13 +347,11 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | GIDEON OPPORTUNITIES INDEX
+    | GIDEON OPPORTUNITIES INDEX (JSON for now)
     |--------------------------------------------------------------------------
     */
-    Route::get(
-        '/gideon/opportunities',
-        [GideonOpportunityController::class, 'index']
-    )->name('gideon.opportunities.index');
+    Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
+        ->name('gideon.opportunities.index');
 
     /*
     |--------------------------------------------------------------------------
