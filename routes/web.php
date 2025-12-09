@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 
 use App\Models\Event;
@@ -349,6 +350,13 @@ Route::middleware('auth')->group(function () {
                 $e->getTraceAsString()
             ));
         }
+    });
+
+    // NEW: Check if Gideon tables exist
+    Route::get('/debug-gideon-schema', function () {
+        return Schema::hasTable('gideon_opportunities')
+            ? 'gideon_opportunities table EXISTS'
+            : 'gideon_opportunities table DOES NOT EXIST';
     });
 
     Route::get('/clear-cache', fn () => tap('Laravel cache cleared!', function () {
