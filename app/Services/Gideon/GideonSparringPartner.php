@@ -2,131 +2,116 @@
 
 namespace App\Services\Gideon;
 
-/**
- * GideonSparringPartner
- *
- * This service handles all "conversation" logic for Gideon:
- * scenarios, personas, and building prompts for the LLM client.
- *
- * For now:
- * - It does NOT store chat history in the database.
- * - It just takes input, builds a prompt, calls GideonLlmClient, and returns a reply.
- * - GideonLlmClient may be in FAKE MODE, which is fine for wiring & testing.
- */
+use App\Models\GideonSparringSession;
+use App\Models\GideonSparringMessage;
+use App\Models\GideonSparringAssessment;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+
 class GideonSparringPartner
 {
-    protected GideonLlmClient $llm;
-
-    public function __construct(GideonLlmClient $llm)
-    {
-        $this->llm = $llm;
+    /**
+     * Start a new sparring session for this user.
+     */
+    public function startSession(
+        User $user,
+        string $mode = 'standard',
+        ?string $personaKey = null,
+        array $config = []
+    ): GideonSparringSession {
+        return GideonSparringSession::create([
+            'agency_id'   => $user->agency_id,
+            'user_id'     => $user->id,
+            'mode'        => $mode,
+            'persona_key' => $personaKey,
+            'config'      => $config,
+            'status'      => 'active',
+            'started_at'  => now(),
+        ]);
     }
 
     /**
-     * Main entry point for sparring.
-     *
-     * @param  array  $input  [
-     *   'prompt'        => string (required),
-     *   'scenario_type' => string|null (single_prospect, couple_presentation, referral_partner, generic_coaching),
-     *   'persona'       => string|null,
-     *   'entity_type'   => string|null,
-     *   'entity_id'     => int|null,
-     * ]
-     *
-     * @return array [
-     *   'reply'         => string,
-     *   'scenario_type' => string|null,
-     *   'persona'       => string|null,
-     *   'speaker'       => string,     // e.g. client, partner_a, partner_b, coach
-     *   'emotion'       => string,     // e.g. neutral, skeptical, supportive
-     * ]
+     * Record an agent message and return Gideon's reply (fake for now).
      */
-    public function ask(array $input): array
+    public function handleAgentMessage(GideonSparringSession $session, string $message): string
     {
-        $prompt       = $input['prompt']        ?? '';
-        $scenarioType = $input['scenario_type'] ?? 'generic_coaching';
-        $persona      = $input['persona']       ?? null;
+        // Safety: only active sessions can be used
+        if ($session->status !== 'active') {
+            return "This sparring session has already ended. Start a new session to keep practicing.";
+        }
 
-        if (trim($prompt) === '') {
-            return [
-                'reply'         => 'Please type a question or scenario for Gideon to help with.',
-                'scenario_type' => $scenarioType,
-                'persona'       => $persona,
-                'speaker'       => 'coach',
-                'emotion'       => 'neutral',
+        // Save the agent's message
+        GideonSparringMessage::create([
+            'session_id' => $session->id,
+            'agency_id'  => $session->agency_id,
+            'user_id'    => $session->user_id,
+            'sender'     => 'agent',
+            'content'    => $message,
+            'meta'       => null,
+        ]);
+
+        // Tier 1 = fake reply for now (no real LLM call yet)
+        $reply = $this->generateFakeReply($session, $message);
+
+        // Save Gideon's reply
+        GideonSparringMessage::create([
+            'session_id' => $session->id,
+            'agency_id'  => $session->agency_id,
+            'user_id'    => $session->user_id,
+            'sender'     => 'gideon',
+            'content'    => $reply,
+            'meta'       => null,
+        ]);
+
+        return $reply;
+    }
+
+    /**
+     * End the session + create a basic assessment stub.
+     */
+    public function endSessionAndAssess(GideonSparringSession $session): GideonSparringAssessment
+    {
+        return DB::transaction(function () use ($session) {
+            $session->update([
+                'status'   => 'completed',
+                'ended_at' => now(),
+            ]);
+
+            // Simple placeholder scoring for v1 (non-AI).
+            $scores = [
+                'rapport'            => 6,
+                'discovery'          => 5,
+                'objection_handling' => 7,
+                'close'              => 5,
+                'compliance_flags'   => [],
             ];
-        }
 
-        // Build a system message based on scenario + persona
-        $systemMessage = $this->buildSystemMessage($scenarioType, $persona);
-
-        $messages = [
-            [
-                'role'    => 'system',
-                'content' => $systemMessage,
-            ],
-            [
-                'role'    => 'user',
-                'content' => $prompt,
-            ],
-        ];
-
-        $replyText = $this->llm->chat($messages);
-
-        // For now, we keep it simple:
-        // - Speaker is always "client" for scenario roleplay,
-        //   or "coach" for generic coaching.
-        // - Emotion defaults to "neutral" (Avatar UI can improve this later).
-        $speaker = $scenarioType === 'generic_coaching' ? 'coach' : 'client';
-
-        return [
-            'reply'         => $replyText,
-            'scenario_type' => $scenarioType,
-            'persona'       => $persona,
-            'speaker'       => $speaker,
-            'emotion'       => 'neutral',
-        ];
+            return GideonSparringAssessment::create([
+                'session_id'   => $session->id,
+                'agency_id'    => $session->agency_id,
+                'user_id'      => $session->user_id,
+                'scores'       => $scores,
+                'strengths'    => 'You stayed engaged in the conversation and kept the dialogue going.',
+                'improvements' => 'Ask more discovery questions before presenting, and be more direct when asking for the sale.',
+                'meta'         => null,
+            ]);
+        });
     }
 
     /**
-     * Build the system prompt that tells Gideon HOW to behave
-     * based on scenario and persona.
+     * Fake “brain” for Tier 1. Later this will call GideonLlmClient.
      */
-    protected function buildSystemMessage(string $scenarioType, ?string $persona): string
+    protected function generateFakeReply(GideonSparringSession $session, string $agentMessage): string
     {
-        $base = "You are Gideon, an elite insurance sales trainer and sparring partner. "
-              . "You help agents practice conversations, overcome objections, and plan their next steps. ";
+        $mode = $session->mode ?? 'standard';
 
-        switch ($scenarioType) {
-            case 'single_prospect':
-                $base .= "Act as a single insurance prospect in a 1-on-1 presentation. "
-                    . "Stay in character as the client unless the user explicitly asks for coaching.";
-                break;
-
-            case 'couple_presentation':
-                $base .= "Act as a couple receiving an insurance presentation. "
-                    . "Sometimes you speak as Partner A (more emotional) and sometimes as Partner B (more analytical). "
-                    . "Indicate clearly who is speaking in your text (e.g., 'Partner A:' or 'Partner B:').";
-                break;
-
-            case 'referral_partner':
-                $base .= "Act as a referral partner, such as a funeral director, pastor, or CPA. "
-                    . "Your focus is on whether working with the agent makes sense for you and the people you serve.";
-                break;
-
-            case 'generic_coaching':
-            default:
-                $base .= "Act as a coaching voice, giving direct, practical advice and example scripts.";
-                break;
+        if ($mode === 'objection_gauntlet') {
+            return "Okay, as your practice client, here’s an objection: “I’m not sure I can afford that right now.” "
+                . "Respond as the agent and show me how you’d handle that.";
         }
 
-        if ($persona) {
-            $base .= " The persona you are playing is: {$persona}. Adjust your tone and objections to match.";
-        }
-
-        // Keep instructions short and tight for Tier 1
-        $base .= " Keep responses concise and practical. Do not ramble.";
-
-        return $base;
+        return "Got it. As your Sparring Partner, I’ll play the client. "
+            . "Go ahead and give me your next line as if this were a real call. "
+            . "You said: “{$agentMessage}”. Continue from there.";
     }
 }
