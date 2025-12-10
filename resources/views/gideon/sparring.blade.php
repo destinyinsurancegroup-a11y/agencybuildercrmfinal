@@ -341,13 +341,16 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const inputEl   = document.getElementById('sparring-input');
-    const sendBtn   = document.getElementById('sparring-send-btn');
+    const inputEl    = document.getElementById('sparring-input');
+    const sendBtn    = document.getElementById('sparring-send-btn');
     const messagesEl = document.getElementById('sparring-messages');
     const statusPill = document.getElementById('sparring-status-pill');
 
     const csrfTokenTag = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfTokenTag ? csrfTokenTag.getAttribute('content') : '';
+
+    // Track current sparring session for this browser tab
+    let sessionId = null;
 
     function appendMessage(role, text) {
         const row = document.createElement('div');
@@ -382,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function () {
         statusPill.textContent = 'Thinking…';
 
         try {
-            const response = await fetch('/api/gideon/ask', {
+            const response = await fetch('/api/gideon/sparring/ask', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -391,7 +394,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     message: text,
-                    mode: 'sparring' // our API can use this hint
+                    mode: 'standard',     // later: dynamic based on UI
+                    session_id: sessionId // null on first call => backend creates session
                 })
             });
 
@@ -400,8 +404,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const data = await response.json();
-            const reply = data.reply || '[Gideon had an unexpected response format.]';
 
+            // Save session id for this tab
+            if (data.session_id) {
+                sessionId = data.session_id;
+            }
+
+            const reply = data.reply || '[Gideon had an unexpected response format.]';
             appendMessage('gideon', reply);
         } catch (e) {
             console.error(e);
