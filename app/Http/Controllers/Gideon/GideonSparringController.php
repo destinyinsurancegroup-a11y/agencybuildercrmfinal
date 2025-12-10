@@ -13,8 +13,9 @@ class GideonSparringController extends Controller
     public function __construct(
         protected GideonSparringPartner $sparringPartner
     ) {
-        // Use Sanctum, same as routes/api.php
-        $this->middleware('auth:sanctum');
+        // Use the default "web" auth guard (session-based),
+        // which matches routes/api.php (['web', 'auth']).
+        $this->middleware('auth');
     }
 
     /**
