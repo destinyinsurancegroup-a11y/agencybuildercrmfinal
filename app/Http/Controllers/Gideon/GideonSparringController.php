@@ -13,9 +13,15 @@ class GideonSparringController extends Controller
     public function __construct(
         protected GideonSparringPartner $sparringPartner
     ) {
-        $this->middleware('auth:api'); // or your existing API guard
+        // Use Sanctum, same as routes/api.php
+        $this->middleware('auth:sanctum');
     }
 
+    /**
+     * Handle an agent message and return Gideon's reply.
+     *
+     * POST /api/gideon/sparring/ask
+     */
     public function ask(Request $request)
     {
         $user = Auth::user();
@@ -30,6 +36,7 @@ class GideonSparringController extends Controller
         $mode       = $data['mode'] ?? 'standard';
         $personaKey = $data['personaKey'] ?? null;
 
+        // Find existing session or start a new one
         if (!empty($data['session_id'])) {
             $session = GideonSparringSession::where('id', $data['session_id'])
                 ->where('agency_id', $user->agency_id)
@@ -37,7 +44,9 @@ class GideonSparringController extends Controller
                 ->first();
 
             if (!$session) {
-                return response()->json(['error' => 'Session not found or not accessible.'], 404);
+                return response()->json([
+                    'error' => 'Session not found or not accessible.',
+                ], 404);
             }
         } else {
             $session = $this->sparringPartner->startSession($user, $mode, $personaKey);
@@ -51,6 +60,11 @@ class GideonSparringController extends Controller
         ]);
     }
 
+    /**
+     * End a session and return an assessment/scorecard.
+     *
+     * POST /api/gideon/sparring/end
+     */
     public function end(Request $request)
     {
         $user = Auth::user();
