@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 // Gideon controllers / services
 use App\Http\Controllers\Gideon\GideonChatController;
 use App\Http\Controllers\Gideon\GideonOpportunitiesController;
+use App\Http\Controllers\Gideon\GideonSparringController;
 use App\Services\Gideon\GideonSparringPartner;
 
 /*
@@ -29,39 +30,63 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 /*
 |--------------------------------------------------------------------------
-| GIDEON SPARRING PARTNER ENDPOINT (POST)
+| GIDEON ROUTES (AUTH REQUIRED)
 |--------------------------------------------------------------------------
-| Main endpoint the frontend will call with JSON.
-|--------------------------------------------------------------------------
-*/
-Route::post('/gideon/ask', [GideonChatController::class, 'ask']);
-
-/*
-|--------------------------------------------------------------------------
-| SIMPLE BROWSER TEST ENDPOINT (GET)
-|--------------------------------------------------------------------------
-| Lets you test Gideon sparring in a normal browser without Postman.
-| Visit: /api/gideon/test
+| Sparring Partner, Second Brain chat, and Opportunities.
 |--------------------------------------------------------------------------
 */
-Route::get('/gideon/test', function (GideonSparringPartner $sparring) {
-    $result = $sparring->ask([
-        'prompt'        => 'Give one short sentence confirming the Gideon sparring API is wired up.',
-        'scenario_type' => 'generic_coaching',
-        'persona'       => null,
-    ]);
+Route::middleware('auth:sanctum')->group(function () {
 
-    return response()->json($result);
+    /*
+    |--------------------------------------------------------------------------
+    | GIDEON SPARRING PARTNER ENDPOINTS
+    |--------------------------------------------------------------------------
+    | - POST /api/gideon/sparring/ask : send a message, get Gideon's reply
+    | - POST /api/gideon/sparring/end : end session + get assessment
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/gideon/sparring/ask', [GideonSparringController::class, 'ask']);
+    Route::post('/gideon/sparring/end', [GideonSparringController::class, 'end']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | GIDEON GENERAL CHAT (SECOND BRAIN, ETC.)
+    |--------------------------------------------------------------------------
+    | Existing chat endpoint for non-sparring Gideon conversations.
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/gideon/ask', [GideonChatController::class, 'ask']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIMPLE BROWSER TEST ENDPOINT (GET)
+    |--------------------------------------------------------------------------
+    | Lets you test Gideon sparring while logged in.
+    | Visit: /api/gideon/test
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/gideon/test', function (Request $request, GideonSparringPartner $sparring) {
+        $user = $request->user();
+
+        // Start a lightweight test session and send a single test message
+        $session = $sparring->startSession($user, 'standard', null, ['source' => 'api_test']);
+        $reply   = $sparring->handleAgentMessage($session, 'Test the Gideon sparring API wiring.');
+
+        return response()->json([
+            'session_id' => $session->id,
+            'reply'      => $reply,
+        ]);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | GIDEON OPPORTUNITIES LIST
+    |--------------------------------------------------------------------------
+    | Lists opportunities for the authenticated user's agency.
+    | Example:
+    |   GET /api/gideon/opportunities
+    |   GET /api/gideon/opportunities?status=open&category=revive_lead
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index']);
 });
-
-/*
-|--------------------------------------------------------------------------
-| GIDEON OPPORTUNITIES LIST (AUTH REQUIRED)
-|--------------------------------------------------------------------------
-| Lists opportunities for the authenticated user's agency.
-| Example:
-|   GET /api/gideon/opportunities
-|   GET /api/gideon/opportunities?status=open&category=revive_lead
-|--------------------------------------------------------------------------
-*/
-Route::middleware('auth:sanctum')->get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index']);
