@@ -17,25 +17,21 @@ use App\Services\Gideon\GideonSparringPartner;
 | These routes are loaded by the RouteServiceProvider and assigned to
 | the "api" middleware group.
 |
+| We additionally apply the "web" + "auth" middlewares so that
+| the logged-in CRM user (session-based) is available to API
+| endpoints via Auth::user().
+|
 */
 
-/*
-|--------------------------------------------------------------------------
-| Current logged-in user (requires auth)
-|--------------------------------------------------------------------------
-*/
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-
-/*
-|--------------------------------------------------------------------------
-| GIDEON ROUTES (AUTH REQUIRED)
-|--------------------------------------------------------------------------
-| Sparring Partner, Second Brain chat, and Opportunities.
-|--------------------------------------------------------------------------
-*/
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
+    /*
+    |--------------------------------------------------------------------------
+    | Current logged-in user (requires auth)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
 
     /*
     |--------------------------------------------------------------------------
