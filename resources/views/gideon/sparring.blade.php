@@ -43,7 +43,7 @@
                     Reset Session
                 </button>
                 <button id="endSessionBtn" class="btn btn-outline-danger btn-sm" type="button">
-                    End Session
+                    End Session (Assessment)
                 </button>
             </div>
         </div>
@@ -82,36 +82,44 @@
         </div>
     </div>
 
-    {{-- Assessment card (hidden until session is ended) --}}
-    <div id="assessmentCard" class="card mt-3" style="display: none;">
+    {{-- Assessment panel --}}
+    <div id="assessmentCard" class="card mt-3 d-none">
         <div class="card-header">
             Session Assessment
         </div>
         <div class="card-body">
             <div class="row mb-3">
-                <div class="col-6 col-md-3">
+                <div class="col-md-3">
                     <strong>Rapport:</strong>
                     <div id="scoreRapport">–</div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-md-3">
                     <strong>Discovery:</strong>
                     <div id="scoreDiscovery">–</div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-md-3">
                     <strong>Deal killers:</strong>
                     <div id="scoreDealKillers">–</div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-md-3">
                     <strong>Closing clarity:</strong>
                     <div id="scoreClosingClarity">–</div>
                 </div>
             </div>
 
-            <h5>Strengths</h5>
-            <p id="assessmentStrengths" class="mb-3">–</p>
+            <div class="mb-3">
+                <strong>Strengths</strong>
+                <div id="assessmentStrengths" class="small text-muted">
+                    –
+                </div>
+            </div>
 
-            <h5>Improvements</h5>
-            <p id="assessmentImprovements" class="mb-0">–</p>
+            <div>
+                <strong>Improvements</strong>
+                <div id="assessmentImprovements" class="small text-muted">
+                    –
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -144,6 +152,7 @@
         // Session state in JS
         let currentSessionId = null;
         let isSending = false;
+        let sessionActive = false;
 
         function appendMessage(sender, text) {
             if (!text) return;
@@ -170,46 +179,23 @@
             statusEl.textContent = msg || '';
         }
 
-        function hideAssessment() {
-            if (!assessmentCard) return;
-            assessmentCard.style.display = 'none';
-
-            scoreRapportEl.textContent = '–';
-            scoreDiscoveryEl.textContent = '–';
-            scoreDealKillersEl.textContent = '–';
-            scoreClosingClarityEl.textContent = '–';
-            strengthsEl.textContent = '–';
-            improvementsEl.textContent = '–';
-        }
-
-        function resetSession() {
+        function resetSessionUI(message) {
             currentSessionId = null;
+            sessionActive = false;
+
             transcriptEl.innerHTML =
-                '<div class="text-muted small">Session reset. Send a new message to start again.</div>';
+                `<div class="text-muted small">${message || 'Session reset. Send a new message to start again.'}</div>`;
+
             setStatus('');
-            hideAssessment();
+            if (assessmentCard) {
+                assessmentCard.classList.add('d-none');
+            }
         }
 
         resetBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            resetSession();
+            resetSessionUI();
         });
-
-        function showAssessment(assessment) {
-            if (!assessmentCard) return;
-
-            const scores = assessment.scores || {};
-
-            scoreRapportEl.textContent = scores.rapport ?? '–';
-            scoreDiscoveryEl.textContent = scores.discovery ?? '–';
-            scoreDealKillersEl.textContent = scores.deal_killers ?? '–';
-            scoreClosingClarityEl.textContent = scores.closing_clarity ?? '–';
-
-            strengthsEl.textContent = assessment.strengths || '–';
-            improvementsEl.textContent = assessment.improvements || '–';
-
-            assessmentCard.style.display = 'block';
-        }
 
         async function sendToGideon(message) {
             if (!csrfToken) {
@@ -257,15 +243,14 @@
                     currentSessionId = data.session_id;
                 }
 
+                sessionActive = true;
+
                 // 1) opening line on first call
                 if (data.opening_line) {
                     appendMessage('gideon', data.opening_line);
                 }
 
-                // 2) generic v1 structure: { agent_message: {...}, gideon_reply: {...} }
-                if (data.agent_message && data.agent_message.content) {
-                    appendMessage('agent', data.agent_message.content);
-                }
+                // 2) Gideon reply
                 if (data.gideon_reply && data.gideon_reply.content) {
                     appendMessage('gideon', data.gideon_reply.content);
                 }
@@ -279,24 +264,20 @@
             }
         }
 
-        // End session + fetch assessment
-        endBtn?.addEventListener('click', async (e) => {
-            e.preventDefault();
-
+        async function endSession() {
             if (!currentSessionId) {
-                alert('No active session to end.');
+                setStatus('No active session to end.');
                 return;
             }
 
             if (!csrfToken) {
-                console.error('No CSRF token found');
-                setStatus('Error: missing CSRF token.');
+                setStatus('Missing CSRF token.');
                 return;
             }
 
-            setStatus('Ending session and generating assessment...');
-
             try {
+                setStatus('Ending session and generating assessment...');
+
                 const response = await fetch('/api/gideon/sparring/end', {
                     method: 'POST',
                     headers: {
@@ -314,19 +295,32 @@
                 }
 
                 const data = await response.json();
-                console.log('End session response', data);
+                console.log('Gideon end-session response', data);
 
-                if (data.assessment) {
-                    showAssessment(data.assessment);
-                }
+                const scores = (data.assessment && data.assessment.scores) || {};
 
-                setStatus('Session ended. Review your assessment below.');
-                // Keep currentSessionId if you want to allow replay; or clear it:
-                currentSessionId = null;
+                scoreRapportEl.textContent = scores.rapport ?? '–';
+                scoreDiscoveryEl.textContent = scores.discovery ?? '–';
+                scoreDealKillersEl.textContent = scores.deal_killers ?? '–';
+                scoreClosingClarityEl.textContent = scores.closing_clarity ?? '–';
+
+                strengthsEl.textContent = data.assessment.strengths
+                    || 'Placeholder assessment. Automated coaching logic to be implemented.';
+                improvementsEl.textContent = data.assessment.improvements
+                    || 'Placeholder assessment. Automated coaching logic to be implemented.';
+
+                assessmentCard.classList.remove('d-none');
+
+                resetSessionUI('Session ended. Review your assessment below.');
             } catch (err) {
                 console.error(err);
                 setStatus('Error ending session. Check console.');
             }
+        }
+
+        endBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            endSession();
         });
 
         formEl?.addEventListener('submit', (e) => {
@@ -339,9 +333,6 @@
             inputEl.value = '';
             sendToGideon(value);
         });
-
-        // (Optional) – if you later pass scenario descriptions as data attributes,
-        // you can update scenarioDescriptionEl on change here.
     })();
 </script>
 @endsection
