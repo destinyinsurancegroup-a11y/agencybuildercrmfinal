@@ -20,7 +20,7 @@ class SparringService
      */
     public function startSession(
         ?int $agencyId,
-        int  $userId,
+        int $userId,
         string $scenarioCode,
         string $mode = 'prospect_simulation',
     ): array {
@@ -43,13 +43,13 @@ class SparringService
                 ? Arr::get($prospectProfile, 'persona')
                 : null;
 
-            // Simple default "emotional state"
-            $defaultState = [
+            // Simple emotional "state machine"
+            $initialState = [
                 'trust'       => 35,
                 'urgency'     => 30,
                 'motivation'  => 40,
                 'resistance'  => 60,
-                'turn'        => 0,  // how many agent turns we’ve had
+                'turn'        => 0,   // how many *Gideon replies* have been sent
             ];
 
             $session = GideonSparringSession::create([
@@ -60,29 +60,13 @@ class SparringService
                 'config'      => $config,
                 'status'      => 'active',
                 'started_at'  => now(),
-                'state'       => $defaultState,
+                'state'       => $initialState,
             ]);
 
-            $scriptEngine = $scenario->script_engine ?? [];
-            $openingLine = is_array($scriptEngine)
-                ? Arr::get($scriptEngine, 'opening_line')
-                : null;
-
+            // We previously injected an "opening line" message here.
+            // That created duplicate lines once Gideon replied.
+            // For v1.1 we let the AGENT speak first, then Gideon responds.
             $firstMessage = null;
-
-            if ($openingLine) {
-                $firstMessage = GideonSparringMessage::create([
-                    'session_id' => $session->id,
-                    'agency_id'  => $agencyId,
-                    'user_id'    => $userId,
-                    'sender'     => 'gideon',
-                    'content'    => $openingLine,
-                    'meta'       => [
-                        'source'        => 'scenario_opening_line',
-                        'scenario_code' => $scenario->code,
-                    ],
-                ]);
-            }
 
             return [
                 'session'       => $session->fresh(),
@@ -92,14 +76,14 @@ class SparringService
     }
 
     /**
-     * Handle an agent message + generate Gideon's reply (scenario-aware v1).
+     * Handle an agent message + generate Gideon's reply.
      *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
     public function handleAgentMessage(
-        int   $sessionId,
-        ?int  $agencyId,
-        int   $userId,
+        int $sessionId,
+        ?int $agencyId,
+        int $userId,
         string $agentMessage,
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
@@ -128,7 +112,7 @@ class SparringService
             $agentMessage,
             $scenario
         ) {
-            // 1) Store agent message
+            // 1. Store agent message
             $agentMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
                 'agency_id'  => $agencyId,
@@ -136,18 +120,22 @@ class SparringService
                 'sender'     => 'agent',
                 'content'    => $agentMessage,
                 'meta'       => [
-                    'analysis' => null, // later: pattern analysis goes here
+                    'analysis' => null, // later: NLP / pattern analysis goes here
                 ],
             ]);
 
-            // 2) Update state (very simple heuristics)
+            // 2. Update emotional state based on what agent just said
             $state = $session->state ?? [];
             $state = $this->updateStateFromAgentMessage($state, $agentMessage);
+
+            // Increment "turn" – how many Gideon replies have been given
+            $state['turn'] = isset($state['turn']) ? (int) $state['turn'] + 1 : 1;
+
             $session->state = $state;
             $session->save();
 
-            // 3) Scenario-aware reply
-            $replyText = $this->generateGideonReplyScenarioV1(
+            // 3. Generate reply from scenario-specific playbook
+            $replyText = $this->generateGideonReply(
                 $session,
                 $scenario,
                 $agentMessage
@@ -162,7 +150,7 @@ class SparringService
                 'meta'       => [
                     'source'        => 'scenario_v1_logic_with_state',
                     'scenario_code' => $scenario?->code,
-                    'state'         => $session->state,
+                    'state'         => $state,
                 ],
             ]);
 
@@ -179,9 +167,9 @@ class SparringService
      * @return array{session: GideonSparringSession, assessment: GideonSparringAssessment}
      */
     public function endSession(
-        int   $sessionId,
-        ?int  $agencyId,
-        int   $userId,
+        int $sessionId,
+        ?int $agencyId,
+        int $userId,
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
             ->where('agency_id', $agencyId)
@@ -204,9 +192,9 @@ class SparringService
                 'deal_killers'    => 5,
                 'closing_clarity' => 5,
             ],
-            'strengths'   => 'Placeholder assessment. Automated coaching logic to be implemented.',
+            'strengths'    => 'Placeholder assessment. Automated coaching logic to be implemented.',
             'improvements' => 'Placeholder assessment. Automated coaching logic to be implemented.',
-            'meta'        => [],
+            'meta'         => [],
         ]);
 
         return [
@@ -221,9 +209,9 @@ class SparringService
      * @return array{session: GideonSparringSession, messages: Collection<int, GideonSparringMessage>}
      */
     public function getSessionTranscript(
-        int   $sessionId,
-        ?int  $agencyId,
-        int   $userId,
+        int $sessionId,
+        ?int $agencyId,
+        int $userId,
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
             ->where('agency_id', $agencyId)
@@ -242,142 +230,227 @@ class SparringService
     }
 
     /**
-     * Very simple "emotion" adjustment + turn counter.
-     * This will get replaced by smarter coaching later.
+     * Very simple reply for now. Uses:
+     * - scenario-specific playbooks (turn 1, 2, 3…)
+     * - the evolving emotional state
      */
-    protected function updateStateFromAgentMessage(array $state, string $agentMessage): array
-    {
-        $state['trust']      = $state['trust']      ?? 35;
-        $state['urgency']    = $state['urgency']    ?? 30;
-        $state['motivation'] = $state['motivation'] ?? 40;
-        $state['resistance'] = $state['resistance'] ?? 60;
-        $state['turn']       = ($state['turn']      ?? 0) + 1;
+    protected function generateGideonReply(
+        GideonSparringSession $session,
+        ?GideonScenario $scenario,
+        string $agentMessage,
+    ): string {
+        $scenarioCode  = $scenario?->code ?? 'default';
+        $state         = $session->state ?? [];
+        $turn          = (int) ($state['turn'] ?? 1);
 
-        $text = mb_strtolower($agentMessage);
+        // 1) Try scenario-specific playbook first
+        $reply = $this->replyFromPlaybook($scenarioCode, $turn, $agentMessage, $state);
 
-        $showsEmpathy = str_contains($text, 'i get') ||
-                        str_contains($text, 'i understand') ||
-                        str_contains($text, 'makes sense') ||
-                        str_contains($text, 'totally hear');
-
-        $asksClarifying = str_contains($text, 'help me understand') ||
-                          str_contains($text, 'walk me through') ||
-                          str_contains($text, 'tell me more') ||
-                          str_contains($text, 'what makes you say');
-
-        $pushesHard = str_contains($text, 'let’s just') ||
-                      str_contains($text, 'let us just') ||
-                      str_contains($text, 'we can get this done') ||
-                      str_contains($text, 'go ahead and get this started');
-
-        if ($showsEmpathy) {
-            $state['trust']      = min(100, $state['trust'] + 8);
-            $state['resistance'] = max(0,   $state['resistance'] - 5);
+        if ($reply !== null) {
+            return $reply;
         }
 
-        if ($asksClarifying) {
-            $state['motivation'] = min(100, $state['motivation'] + 5);
-            $state['resistance'] = max(0,   $state['resistance'] - 3);
-        }
+        // 2) Fallback generic behaviour
+        $scenarioLabel = $scenario?->name ?? 'this situation';
 
-        if ($pushesHard) {
-            $state['trust']      = max(0,   $state['trust'] - 5);
-            $state['resistance'] = min(100, $state['resistance'] + 7);
-        }
-
-        return $state;
+        return "Okay, I hear you. But from my side as the prospect in {$scenarioLabel}, I’m still not fully convinced. "
+            . "What else would you say to help me feel confident about this?";
     }
 
     /**
-     * Scenario-aware reply logic v1.
-     * Uses:
-     *  - scenario code
-     *  - session.state.turn to know where we are in the dance
+     * Scenario-specific playbooks (very small v1).
      */
-    protected function generateGideonReplyScenarioV1(
-        GideonSparringSession $session,
-        ?GideonScenario        $scenario,
-        string                 $agentMessage,
-    ): string {
-        $scenarioCode = $scenario?->code ?? null;
-        $state        = $session->state ?? [];
-        $turn         = (int) ($state['turn'] ?? 1);
-
-        // Safety: keep turn in a reasonable range
-        if ($turn < 1) {
-            $turn = 1;
-        }
-        if ($turn > 6) {
-            $turn = 6;
-        }
-
-        $baseLines = [];
-
+    protected function replyFromPlaybook(
+        string $scenarioCode,
+        int $turn,
+        string $agentMessage,
+        array $state
+    ): ?string {
         switch ($scenarioCode) {
             case 'scenario_competition_already_have_someone':
-                $baseLines = [
-                    1 => "We actually already have someone we work with for this.",
-                    2 => "I’m somewhere in the middle. I’m not a hard no, but I’m not a yes either. Help me understand what you’d focus on if you were in my position, weighing this out.",
-                    3 => "If I’m being honest, the main reason I’d even consider changing is if I felt like I was missing something important right now.",
-                    4 => "My biggest worry is switching and then finding out later that it wasn’t really worth the hassle. That’s happened to people I know.",
-                    5 => "If you could give me one or two very clear reasons why people like me switch and are glad they did, what would those be?",
-                    6 => "At the end of the day, I’d only move if it’s obvious the relationship and the coverage are clearly better than what I have now.",
-                ];
-                break;
-
-            case 'scenario_no_urgency_maybe_later':
-                $baseLines = [
-                    1 => "Yeah, it sounds important, but it just doesn’t feel urgent right now. We’ve got a lot going on.",
-                    2 => "It’s more of a \"someday\" thing in my head. I know we should handle it, I just keep pushing it back.",
-                    3 => "What usually makes your clients decide that now is the right time instead of waiting like I’ve been doing?",
-                    4 => "I’d need to feel like there’s a real cost to waiting, not just a sales pitch. Otherwise I’ll keep kicking the can down the road.",
-                    5 => "If we pushed this off another 6–12 months, what do you see as the most realistic downside for someone in my situation?",
-                    6 => "If you can help me see a clear, logical reason why now actually protects us from something real, I’d be much more open.",
-                ];
-                break;
-
-            case 'scenario_price_too_expensive':
-                $baseLines = [
-                    1 => "Honestly, my first reaction is that it just feels a bit expensive compared to what I expected.",
-                    2 => "It’s not that I don’t see value, it’s that I’m trying to make the math work with everything else we’ve got going on.",
-                    3 => "If you were in my shoes, where would you look to see if this is genuinely worth the extra money?",
-                    4 => "What I’m afraid of is committing to a higher payment and then regretting it if things get tight down the road.",
-                    5 => "Help me understand what people usually cut or adjust so this fits without feeling like a stressful bill every month.",
-                    6 => "If you can show me that what I’m paying for actually protects something I truly care about, the price would feel a lot more reasonable.",
-                ];
-                break;
+                return $this->competitionAlreadyHaveSomeoneReply($turn, $agentMessage, $state);
 
             case 'scenario_spouse_objection':
-                $baseLines = [
-                    1 => "I like this, but I really need to talk it through with my spouse before we do anything.",
-                    2 => "We try not to make bigger decisions without both of us being on the same page. It just avoids arguments later.",
-                    3 => "If you were talking to my spouse instead of me, what would you make sure they understood before saying yes or no?",
-                    4 => "I don’t want to drag them into a long sales call, but I also don’t want to decide for both of us without their input.",
-                    5 => "What would a simple, respectful next step look like that includes my spouse without either of us feeling pressured?",
-                    6 => "If you can make it easy for both of us to hear the facts and ask a couple of questions, I’d feel much better moving forward.",
-                ];
-                break;
+                return $this->spouseObjectionReply($turn, $agentMessage, $state);
 
             case 'scenario_think_it_over':
-                $baseLines = [
-                    1 => "Yeah, this all sounds pretty good. I just want to think about it for a bit.",
-                    2 => "It’s a big decision and I don’t like rushing into things like this. I want to feel settled about it.",
-                    3 => "What usually happens when people say they want to think it over? Do they actually come back to you or do they just drift off?",
-                    4 => "Part of me worries that if I walk away to think, life will get busy and I’ll never actually sit down to make a decision.",
-                    5 => "If we were to decide today, what are the one or two key things you’d want me to be absolutely clear on?",
-                    6 => "If you can help me get clear on the real risk of waiting versus the upside of acting, it would make this a lot easier to decide.",
-                ];
-                break;
+                return $this->thinkItOverReply($turn, $agentMessage, $state);
+
+            case 'scenario_no_urgency_maybe_later':
+                return $this->noUrgencyReply($turn, $agentMessage, $state);
+
+            case 'scenario_price_too_expensive':
+                return $this->priceTooExpensiveReply($turn, $agentMessage, $state);
 
             default:
-                // fallback scenario if something is mis-wired
-                return "Okay, I hear what you’re saying. From my side as the prospect, I’m still on the fence. "
-                    . "Help me understand your thinking a bit more so I can feel confident about the direction you’re recommending.";
+                return null;
+        }
+    }
+
+    protected function competitionAlreadyHaveSomeoneReply(
+        int $turn,
+        string $agentMessage,
+        array $state
+    ): ?string {
+        switch ($turn) {
+            case 1:
+                return "We actually already have someone we work with for this. "
+                    . "I’m not really looking to rock the boat unless there’s a really clear reason.";
+
+            case 2:
+                return "I’m somewhere in the middle. I’m not a hard no, but I’m not a yes either. "
+                    . "If you were in my position, what would you focus on while weighing this out?";
+
+            case 3:
+                return "My biggest worry is that we switch, invest the time, and it’s not actually better. "
+                    . "How would you help me avoid feeling like we made a sideways move?";
+
+            default:
+                return null;
+        }
+    }
+
+    protected function spouseObjectionReply(
+        int $turn,
+        string $agentMessage,
+        array $state
+    ): ?string {
+        switch ($turn) {
+            case 1:
+                return "I like this, but I really need to talk to my spouse before we do anything. "
+                    . "We usually decide on this kind of thing together.";
+
+            case 2:
+                return "Honestly, my spouse is a bit more cautious than I am. "
+                    . "If they were here, what do you think they’d be most concerned about?";
+
+            case 3:
+                return "If I go back and it sounds like I’ve already made up my mind, that won’t go over well. "
+                    . "How can I bring this to them so it feels like a real conversation, not pressure?";
+
+            default:
+                return null;
+        }
+    }
+
+    protected function thinkItOverReply(
+        int $turn,
+        string $agentMessage,
+        array $state
+    ): ?string {
+        switch ($turn) {
+            case 1:
+                return "Yeah, this all sounds pretty good. I just want to think about it for a bit. "
+                    . "I really hate feeling pressured into anything.";
+
+            case 2:
+                return "I guess part of me is worried about making the wrong call. "
+                    . "What do people usually think about during that “I need to think about it” phase?";
+
+            case 3:
+                return "If I decided to move forward sooner rather than later, what would make that feel like a smart move "
+                    . "instead of a rushed decision?";
+
+            default:
+                return null;
+        }
+    }
+
+    protected function noUrgencyReply(
+        int $turn,
+        string $agentMessage,
+        array $state
+    ): ?string {
+        switch ($turn) {
+            case 1:
+                return "It’s not that I’m against it – it just doesn’t feel urgent right now. "
+                    . "We’ve got a lot of other things going on.";
+
+            case 2:
+                return "To be honest, it’s easier to keep this on the “later” pile. "
+                    . "What usually happens to people who keep putting this off?";
+
+            case 3:
+                return "If we did move it up the priority list, what would need to be true so it doesn’t feel like just another thing "
+                    . "on my plate?";
+
+            default:
+                return null;
+        }
+    }
+
+    protected function priceTooExpensiveReply(
+        int $turn,
+        string $agentMessage,
+        array $state
+    ): ?string {
+        switch ($turn) {
+            case 1:
+                return "I like what you’re saying, but the price just feels a bit high compared to what I expected.";
+
+            case 2:
+                return "I’m trying to figure out if this is actually more expensive, or if I’m just reacting to the number. "
+                    . "How do your clients usually think about the cost?";
+
+            case 3:
+                return "If I’m going to pay more than I am now, I need to be really clear on what I’m getting for it. "
+                    . "What would you want me to see or understand before I say yes?";
+
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Tiny heuristic: adjust emotional state based on agent's language.
+     * (This is V1 and intentionally simple; we can tune/expand this later.)
+     */
+    protected function updateStateFromAgentMessage(array $state, string $agentMessage): array
+    {
+        // Ensure defaults
+        $state = array_merge([
+            'trust'      => 35,
+            'urgency'    => 30,
+            'motivation' => 40,
+            'resistance' => 60,
+            'turn'       => 0,
+        ], $state);
+
+        $text = mb_strtolower($agentMessage);
+
+        // Empathy / validation -> trust up, resistance down
+        if (str_contains($text, 'i get that')
+            || str_contains($text, 'i hear')
+            || str_contains($text, 'makes sense')
+            || str_contains($text, 'sounds like')
+        ) {
+            $state['trust']      += 5;
+            $state['resistance'] -= 5;
         }
 
-        // Pick the line for the current turn (or last one if we’re past the script)
-        $line = $baseLines[$turn] ?? end($baseLines);
+        // Good discovery questions -> motivation + urgency up a bit
+        if (str_contains($text, 'help me understand')
+            || str_contains($text, 'tell me more')
+            || str_contains($text, '?')
+        ) {
+            $state['motivation'] += 5;
+            $state['urgency']    += 5;
+        }
 
-        return $line;
+        // Gentle challenge / future pacing
+        if (str_contains($text, 'what happens if')
+            || str_contains($text, 'down the road')
+            || str_contains($text, 'fast forward')
+        ) {
+            $state['urgency']    += 5;
+            $state['resistance'] -= 2;
+        }
+
+        // Clamp values 0–100
+        foreach (['trust', 'urgency', 'motivation', 'resistance'] as $key) {
+            $state[$key] = max(0, min(100, (int) $state[$key]));
+        }
+
+        return $state;
     }
 }
