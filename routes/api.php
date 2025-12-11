@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Gideon\GideonChatController;
 use App\Http\Controllers\Gideon\GideonOpportunitiesController;
 use App\Http\Controllers\Gideon\GideonSparringController;
+use App\Http\Controllers\Gideon\SparringSessionController;
 use App\Services\Gideon\GideonSparringPartner;
 
 /*
@@ -35,10 +36,35 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | GIDEON SPARRING PARTNER ENDPOINTS
+    | NEW: GIDEON SPARRING SESSION ENDPOINTS (v1 Brain Engine)
+    |--------------------------------------------------------------------------
+    | These use the new SparringService and the gideon_* brain tables.
+    | - POST   /api/gideon/sparring/sessions           : start a sparring session
+    | - POST   /api/gideon/sparring/sessions/{id}/message : send agent message, get Gideon reply
+    | - POST   /api/gideon/sparring/sessions/{id}/end  : end session (and later: create assessment)
+    | - GET    /api/gideon/sparring/sessions/{id}      : fetch session + transcript
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('/gideon/sparring')->group(function () {
+        Route::post('/sessions', [SparringSessionController::class, 'store']);
+
+        Route::post('/sessions/{session}/message', [SparringSessionController::class, 'sendMessage'])
+            ->whereNumber('session');
+
+        Route::post('/sessions/{session}/end', [SparringSessionController::class, 'end'])
+            ->whereNumber('session');
+
+        Route::get('/sessions/{session}', [SparringSessionController::class, 'show'])
+            ->whereNumber('session');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | LEGACY GIDEON SPARRING PARTNER ENDPOINTS (existing implementation)
     |--------------------------------------------------------------------------
     | - POST /api/gideon/sparring/ask : send a message, get Gideon's reply
     | - POST /api/gideon/sparring/end : end session + get assessment
+    | Keep these for backward compatibility while we move to the new engine.
     |--------------------------------------------------------------------------
     */
     Route::post('/gideon/sparring/ask', [GideonSparringController::class, 'ask']);
