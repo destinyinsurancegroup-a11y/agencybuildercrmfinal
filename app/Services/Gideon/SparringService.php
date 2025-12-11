@@ -23,7 +23,7 @@ class SparringService
         int $userId,
         string $scenarioCode,
         string $mode = 'prospect_simulation',
-        string $personaKey = 'adaptive',
+        ?string $requestedPersona = null,
     ): array {
         $scenario = GideonScenario::where('code', $scenarioCode)->first();
 
@@ -33,35 +33,40 @@ class SparringService
             ]);
         }
 
-        return DB::transaction(function () use ($agencyId, $userId, $scenario, $mode, $personaKey) {
+        return DB::transaction(function () use (
+            $agencyId,
+            $userId,
+            $scenario,
+            $mode,
+            $requestedPersona
+        ) {
             $config = [
                 'scenario_code' => $scenario->code,
                 'mode'          => $mode,
-                'persona_key'   => $personaKey,
             ];
 
-            // Prospect profile from scenario (if any)
             $prospectProfile = $scenario->prospect_profile ?? [];
-            $scenarioPersona = is_array($prospectProfile)
+            $defaultPersona  = is_array($prospectProfile)
                 ? Arr::get($prospectProfile, 'persona')
                 : null;
 
-            // If scenario defines a persona, let it override the generic one
-            $effectivePersonaKey = $scenarioPersona ?: $personaKey;
+            // Normalize persona based on request + scenario default
+            $personaKey = $this->normalizePersonaKey(
+                $requestedPersona,
+                is_array($prospectProfile) ? $prospectProfile : null,
+            );
 
-            // Initial emotional state (rough defaults)
-            $initialState = [
-                'trust'       => 35,
-                'urgency'     => 30,
-                'motivation'  => 40,
-                'resistance'  => 60,
-            ];
+            if (! $personaKey && $defaultPersona) {
+                $personaKey = (string) $defaultPersona;
+            }
+
+            $initialState = $this->initialStateForPersona($personaKey);
 
             $session = GideonSparringSession::create([
                 'agency_id'   => $agencyId,
                 'user_id'     => $userId,
                 'mode'        => $mode,
-                'persona_key' => $effectivePersonaKey,
+                'persona_key' => $personaKey,
                 'config'      => $config,
                 'status'      => 'active',
                 'state'       => $initialState,
@@ -97,7 +102,7 @@ class SparringService
     }
 
     /**
-     * Handle an agent message + generate Gideon's reply (stub logic v1.5).
+     * Handle an agent message + generate Gideon's reply.
      *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
@@ -145,43 +150,11 @@ class SparringService
                 ],
             ]);
 
-            // Very simple emotional state tweak (placeholder)
-            $state = $session->state ?? [
-                'trust'       => 35,
-                'urgency'     => 30,
-                'motivation'  => 40,
-                'resistance'  => 60,
-            ];
-
-            $lower = mb_strtolower($agentMessage);
-
-            // If agent sounds understanding, bump trust, reduce resistance
-            if (str_contains($lower, 'i understand') || str_contains($lower, 'i get that')) {
-                $state['trust']       = min(100, $state['trust'] + 5);
-                $state['resistance']  = max(0, $state['resistance'] - 5);
-            }
-
-            // If agent asks good questions, bump motivation
-            if (str_contains($lower, 'what would') || str_contains($lower, 'help you feel')) {
-                $state['motivation'] = min(100, $state['motivation'] + 5);
-            }
-
-            // If agent pushes “today / now”, tweak urgency vs resistance
-            if (str_contains($lower, 'today') || str_contains($lower, 'right now')) {
-                $state['urgency']    = min(100, $state['urgency'] + 5);
-                $state['resistance'] = min(100, $state['resistance'] + 3);
-            }
-
-            // Save updated state
-            $session->state = $state;
-            $session->save();
-
-            // Persona-aware reply
-            $replyText = $this->generateGideonReplyStub(
+            // Persona + state-aware reply
+            $replyText = $this->generateGideonReply(
                 $session,
                 $scenario,
                 $agentMessage,
-                $state
             );
 
             $gideonMsg = GideonSparringMessage::create([
@@ -191,12 +164,17 @@ class SparringService
                 'sender'     => 'gideon',
                 'content'    => $replyText,
                 'meta'       => [
-                    'source'        => 'scenario_v1_logic_with_state_and_persona',
+                    'source'        => 'scenario_v1_logic_with_state',
                     'scenario_code' => $scenario?->code,
-                    'state'         => $state,
-                    'persona_key'   => $session->persona_key,
                 ],
             ]);
+
+            // Lightly evolve internal state after each exchange
+            $session->state = $this->evolveStateOnTurn(
+                $session->state ?? [],
+                $session->persona_key,
+            );
+            $session->save();
 
             return [
                 'agent_message' => $agentMsg,
@@ -227,18 +205,18 @@ class SparringService
         ]);
 
         $assessment = GideonSparringAssessment::create([
-            'session_id'   => $session->id,
-            'agency_id'    => $agencyId,
-            'user_id'      => $userId,
-            'scores'       => [
-                'rapport'         => 5,
-                'discovery'       => 5,
-                'deal_killers'    => 5,
-                'closing_clarity' => 5,
+            'session_id'  => $session->id,
+            'agency_id'   => $agencyId,
+            'user_id'     => $userId,
+            'scores'      => [
+                'rapport'        => 5,
+                'discovery'      => 5,
+                'deal_killers'   => 5,
+                'closing_clarity'=> 5,
             ],
-            'strengths'    => 'Placeholder assessment. Automated coaching logic to be implemented.',
-            'improvements' => 'Placeholder assessment. Automated coaching logic to be implemented.',
-            'meta'         => [],
+            'strengths'   => 'Placeholder assessment. Automated coaching logic to be implemented.',
+            'improvements'=> 'Placeholder assessment. Automated coaching logic to be implemented.',
+            'meta'        => [],
         ]);
 
         return [
@@ -273,70 +251,138 @@ class SparringService
         ];
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Persona / State helpers
+    |--------------------------------------------------------------------------
+    */
+
     /**
-     * Persona-aware, state-aware reply stub.
-     *
-     * Later this will use:
-     * - tactics
-     * - objection types
-     * - stages
-     * - if/then rules
-     * - LLM + uploaded sales science
+     * Normalize persona slugs coming from the UI into internal persona keys.
      */
-    protected function generateGideonReplyStub(
+    protected function normalizePersonaKey(?string $requested, ?array $prospectProfile): ?string
+    {
+        if (! $requested) {
+            // fall back to prospect profile if available
+            return $prospectProfile['persona'] ?? null;
+        }
+
+        // UI slugs -> internal keys
+        return match ($requested) {
+            'soft_conflict_avoidant' => 'conflict_avoidant',
+            'neutral_realistic'      => 'balanced_realist',
+            'skeptical_guarded'     => 'skeptical_guarded',
+            'adaptive'              => $prospectProfile['persona'] ?? null,
+            default                 => $requested, // allow direct persona keys too
+        };
+    }
+
+    /**
+     * Initial emotional state based on persona.
+     */
+    protected function initialStateForPersona(?string $personaKey): array
+    {
+        // Defaults if we don't know yet
+        $base = [
+            'trust'       => 35,
+            'urgency'     => 30,
+            'motivation'  => 40,
+            'resistance'  => 60,
+        ];
+
+        return match ($personaKey) {
+            'conflict_avoidant' => [
+                'trust'       => 40,
+                'urgency'     => 20,
+                'motivation'  => 35,
+                'resistance'  => 65,
+            ],
+            'balanced_realist' => [
+                'trust'       => 30,
+                'urgency'     => 30,
+                'motivation'  => 45,
+                'resistance'  => 55,
+            ],
+            'skeptical_guarded' => [
+                'trust'       => 20,
+                'urgency'     => 25,
+                'motivation'  => 35,
+                'resistance'  => 70,
+            ],
+            default => $base,
+        };
+    }
+
+    /**
+     * Very simple evolution for now. Later this can look at actual content.
+     */
+    protected function evolveStateOnTurn(array $state, ?string $personaKey): array
+    {
+        $state = array_merge($this->initialStateForPersona(null), $state);
+
+        // Nudge toward lower resistance & higher trust/motivation over time
+        $deltaTrust      =  +3;
+        $deltaMotivation =  +3;
+        $deltaResistance =  -4;
+
+        // Skeptical personas change more slowly
+        if ($personaKey === 'skeptical_guarded') {
+            $deltaTrust      = +2;
+            $deltaMotivation = +2;
+            $deltaResistance = -2;
+        }
+
+        $state['trust']      = max(0, min(100, $state['trust'] + $deltaTrust));
+        $state['motivation'] = max(0, min(100, $state['motivation'] + $deltaMotivation));
+        $state['resistance'] = max(0, min(100, $state['resistance'] + $deltaResistance));
+
+        // Urgency: slowly climb as trust/motivation improve
+        $state['urgency'] = max(0, min(100, $state['urgency'] + 2));
+
+        return $state;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Reply logic
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Persona + state aware reply (still rule-based, but less robotic).
+     */
+    protected function generateGideonReply(
         GideonSparringSession $session,
         ?GideonScenario $scenario,
         string $agentMessage,
-        array $state = [],
     ): string {
         $scenarioLabel = $scenario?->name ?? 'this situation';
-        $personaKey    = $session->persona_key ?? 'adaptive';
+        $state         = $session->state ?? $this->initialStateForPersona($session->persona_key);
+        $personaKey    = $session->persona_key;
 
-        $trust      = $state['trust']       ?? 35;
-        $urgency    = $state['urgency']     ?? 30;
-        $motivation = $state['motivation']  ?? 40;
-        $resistance = $state['resistance']  ?? 60;
+        // Simple buckets
+        $trust      = (int) ($state['trust'] ?? 35);
+        $resistance = (int) ($state['resistance'] ?? 60);
 
-        // Base reply chunks we’ll reuse
-        $hesitation   = "I’m still a little on the fence and don’t want to rush into anything I might regret.";
-        $pressureFeel = "I really hate feeling pressured into anything.";
-        $invite       = "From your side, what would you focus on if you were in my position, weighing this out?";
-        $clarifyAsk   = "What else would you say to help me feel confident about this?";
-
-        switch ($personaKey) {
-            case 'soft_conflict_avoidant':
-                return "Okay, I hear what you’re saying. In {$scenarioLabel}, {$hesitation} "
-                    . "I’m not trying to be difficult, I just like to take my time and feel comfortable. "
-                    . "{$invite}";
-
-            case 'neutral_realistic':
-                return "That helps, thank you. In {$scenarioLabel}, I’m open to this, but I still want to make sure it truly fits. "
-                    . "I’m weighing the pros and cons and trying to see if this is actually better than what I have now. "
-                    . "{$clarifyAsk}";
-
-            case 'skeptical_guarded':
-                return "I’m going to be straight with you: I’ve heard a lot of pitches before. "
-                    . "In {$scenarioLabel}, I’m wondering what really makes this different and why I should trust it. "
-                    . "Right now my guard is still up and I’m not convinced it’s worth changing what I’m doing. "
-                    . "{$clarifyAsk}";
-
-            case 'adaptive':
-            default:
-                // Adaptive = blend tone based on state
-                if ($trust > 60 && $resistance < 40) {
-                    return "You’re actually helping this make more sense. In {$scenarioLabel}, I’m starting to see how this could be a good move. "
-                        . "I still want to make sure we’re not missing anything important though. {$clarifyAsk}";
-                }
-
-                if ($resistance > 70) {
-                    return "Honestly, I’m still pretty hesitant. {$hesitation} {$pressureFeel} "
-                        . "If you were in my shoes in {$scenarioLabel}, what would you need to hear or see to feel good about moving forward?";
-                }
-
-                // Middle ground
-                return "I get what you’re saying, and parts of it do make sense. "
-                    . "But in {$scenarioLabel}, I’m still not fully there yet. "
-                    . "Help me connect the dots a bit more so I can feel confident this is the right move.";
+        // Base stance sentence that will be tweaked by persona
+        if ($resistance > 65) {
+            $stance = "I’m still pretty on the fence about making a change right now.";
+        } elseif ($trust < 30) {
+            $stance = "I hear what you’re saying, but I’m not fully convinced yet.";
+        } else {
+            $stance = "I’m warming up to what you’re saying, but I still have a few things I’m working through.";
         }
+
+        // Persona overlay
+        $tonePrefix = match ($personaKey) {
+            'conflict_avoidant' => "I don’t want to be difficult, and I really appreciate you walking me through this.",
+            'balanced_realist'  => "I’m trying to be fair and look at this objectively.",
+            'skeptical_guarded' => "I’m naturally cautious with decisions like this.",
+            default             => "From my side as the prospect in {$scenarioLabel},",
+        };
+
+        $followUp = "If you were in my shoes, weighing this out, what else would you walk me through so I can feel completely comfortable with the decision?";
+
+        return "{$tonePrefix} {$stance} {$followUp}";
     }
 }
