@@ -38,9 +38,12 @@
                 </div>
             </div>
 
-            <div>
+            <div class="d-flex flex-column gap-2">
                 <button id="resetSessionBtn" class="btn btn-outline-secondary btn-sm" type="button">
                     Reset Session
+                </button>
+                <button id="endSessionBtn" class="btn btn-outline-danger btn-sm" type="button">
+                    End Session
                 </button>
             </div>
         </div>
@@ -78,6 +81,39 @@
             <div class="mt-2 small text-muted" id="sparringStatus"></div>
         </div>
     </div>
+
+    {{-- Assessment card (hidden until session is ended) --}}
+    <div id="assessmentCard" class="card mt-3" style="display: none;">
+        <div class="card-header">
+            Session Assessment
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-6 col-md-3">
+                    <strong>Rapport:</strong>
+                    <div id="scoreRapport">–</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <strong>Discovery:</strong>
+                    <div id="scoreDiscovery">–</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <strong>Deal killers:</strong>
+                    <div id="scoreDealKillers">–</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <strong>Closing clarity:</strong>
+                    <div id="scoreClosingClarity">–</div>
+                </div>
+            </div>
+
+            <h5>Strengths</h5>
+            <p id="assessmentStrengths" class="mb-3">–</p>
+
+            <h5>Improvements</h5>
+            <p id="assessmentImprovements" class="mb-0">–</p>
+        </div>
+    </div>
 </div>
 
 {{-- Simple inline JS for now --}}
@@ -95,6 +131,15 @@
         const scenarioDescriptionEl = document.getElementById('scenarioDescription');
         const statusEl = document.getElementById('sparringStatus');
         const resetBtn = document.getElementById('resetSessionBtn');
+        const endBtn = document.getElementById('endSessionBtn');
+
+        const assessmentCard = document.getElementById('assessmentCard');
+        const scoreRapportEl = document.getElementById('scoreRapport');
+        const scoreDiscoveryEl = document.getElementById('scoreDiscovery');
+        const scoreDealKillersEl = document.getElementById('scoreDealKillers');
+        const scoreClosingClarityEl = document.getElementById('scoreClosingClarity');
+        const strengthsEl = document.getElementById('assessmentStrengths');
+        const improvementsEl = document.getElementById('assessmentImprovements');
 
         // Session state in JS
         let currentSessionId = null;
@@ -125,17 +170,46 @@
             statusEl.textContent = msg || '';
         }
 
+        function hideAssessment() {
+            if (!assessmentCard) return;
+            assessmentCard.style.display = 'none';
+
+            scoreRapportEl.textContent = '–';
+            scoreDiscoveryEl.textContent = '–';
+            scoreDealKillersEl.textContent = '–';
+            scoreClosingClarityEl.textContent = '–';
+            strengthsEl.textContent = '–';
+            improvementsEl.textContent = '–';
+        }
+
         function resetSession() {
             currentSessionId = null;
             transcriptEl.innerHTML =
                 '<div class="text-muted small">Session reset. Send a new message to start again.</div>';
             setStatus('');
+            hideAssessment();
         }
 
         resetBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             resetSession();
         });
+
+        function showAssessment(assessment) {
+            if (!assessmentCard) return;
+
+            const scores = assessment.scores || {};
+
+            scoreRapportEl.textContent = scores.rapport ?? '–';
+            scoreDiscoveryEl.textContent = scores.discovery ?? '–';
+            scoreDealKillersEl.textContent = scores.deal_killers ?? '–';
+            scoreClosingClarityEl.textContent = scores.closing_clarity ?? '–';
+
+            strengthsEl.textContent = assessment.strengths || '–';
+            improvementsEl.textContent = assessment.improvements || '–';
+
+            assessmentCard.style.display = 'block';
+        }
 
         async function sendToGideon(message) {
             if (!csrfToken) {
@@ -183,8 +257,6 @@
                     currentSessionId = data.session_id;
                 }
 
-                // handle shapes we might get back
-
                 // 1) opening line on first call
                 if (data.opening_line) {
                     appendMessage('gideon', data.opening_line);
@@ -207,6 +279,56 @@
             }
         }
 
+        // End session + fetch assessment
+        endBtn?.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            if (!currentSessionId) {
+                alert('No active session to end.');
+                return;
+            }
+
+            if (!csrfToken) {
+                console.error('No CSRF token found');
+                setStatus('Error: missing CSRF token.');
+                return;
+            }
+
+            setStatus('Ending session and generating assessment...');
+
+            try {
+                const response = await fetch('/api/gideon/sparring/end', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('End session response', data);
+
+                if (data.assessment) {
+                    showAssessment(data.assessment);
+                }
+
+                setStatus('Session ended. Review your assessment below.');
+                // Keep currentSessionId if you want to allow replay; or clear it:
+                currentSessionId = null;
+            } catch (err) {
+                console.error(err);
+                setStatus('Error ending session. Check console.');
+            }
+        });
+
         formEl?.addEventListener('submit', (e) => {
             e.preventDefault();
             if (isSending) return;
@@ -217,6 +339,9 @@
             inputEl.value = '';
             sendToGideon(value);
         });
+
+        // (Optional) – if you later pass scenario descriptions as data attributes,
+        // you can update scenarioDescriptionEl on change here.
     })();
 </script>
 @endsection
