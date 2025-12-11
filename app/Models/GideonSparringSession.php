@@ -16,6 +16,7 @@ class GideonSparringSession extends Model
         'mode',
         'persona_key',
         'config',
+        'state',      // 👈 new: store emotional / scenario state as JSON
         'status',
         'started_at',
         'ended_at',
@@ -23,6 +24,7 @@ class GideonSparringSession extends Model
 
     protected $casts = [
         'config'     => 'array',
+        'state'      => 'array',    // 👈 new: automatically cast to array
         'started_at' => 'datetime',
         'ended_at'   => 'datetime',
     ];
