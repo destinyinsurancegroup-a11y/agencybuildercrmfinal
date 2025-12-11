@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Gideon;
 
 use App\Http\Controllers\Controller;
-use App\Models\GideonScenario;
 use App\Models\GideonSparringSession;
 use App\Services\Gideon\SparringService;
 use Illuminate\Http\JsonResponse;
@@ -21,13 +20,11 @@ class GideonSparringController extends Controller
     /**
      * Show the Sparring Partner page.
      *
-     * Loads available scenarios and passes them into the view.
+     * Loads available scenarios (via SparringService) and passes them into the view.
      */
-    public function index(Request $request)
+    public function index(SparringService $sparring)
     {
-        $scenarios = GideonScenario::where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $scenarios = $sparring->listScenariosForUi();
 
         return view('gideon.sparring', [
             'scenarios' => $scenarios,
@@ -52,18 +49,15 @@ class GideonSparringController extends Controller
             'session_id'    => ['nullable', 'integer', 'exists:gideon_sparring_sessions,id'],
             'scenario_code' => ['required_without:session_id', 'string'],
             'mode'          => ['nullable', 'string', 'in:prospect_simulation,role_reversal'],
-            'persona'       => [
-                'nullable',
-                'string',
-                'in:soft_conflict_avoidant,neutral_realistic,skeptical_guarded,adaptive',
-            ],
+            // Let the service normalize / validate persona keys so we can evolve them freely
+            'persona'       => ['nullable', 'string'],
             'message'       => ['required', 'string', 'min:1'],
         ]);
 
         $mode         = $data['mode'] ?? 'prospect_simulation';
         $sessionId    = $data['session_id'] ?? null;
         $scenarioCode = $data['scenario_code'] ?? null;
-        $personaKey   = $data['persona'] ?? 'adaptive';
+        $personaKey   = $data['persona'] ?? null;
         $message      = $data['message'];
 
         try {
