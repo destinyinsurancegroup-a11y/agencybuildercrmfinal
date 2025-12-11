@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Gideon\GideonChatController;
 use App\Http\Controllers\Gideon\GideonOpportunitiesController;
 use App\Http\Controllers\Gideon\GideonSparringController;
-use App\Http\Controllers\Gideon\SparringSessionController;
-use App\Services\Gideon\GideonSparringPartner;
+use App\Services\Gideon\SparringService;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,35 +35,10 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | NEW: GIDEON SPARRING SESSION ENDPOINTS (v1 Brain Engine)
-    |--------------------------------------------------------------------------
-    | These use the new SparringService and the gideon_* brain tables.
-    | - POST   /api/gideon/sparring/sessions           : start a sparring session
-    | - POST   /api/gideon/sparring/sessions/{id}/message : send agent message, get Gideon reply
-    | - POST   /api/gideon/sparring/sessions/{id}/end  : end session (and later: create assessment)
-    | - GET    /api/gideon/sparring/sessions/{id}      : fetch session + transcript
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('/gideon/sparring')->group(function () {
-        Route::post('/sessions', [SparringSessionController::class, 'store']);
-
-        Route::post('/sessions/{session}/message', [SparringSessionController::class, 'sendMessage'])
-            ->whereNumber('session');
-
-        Route::post('/sessions/{session}/end', [SparringSessionController::class, 'end'])
-            ->whereNumber('session');
-
-        Route::get('/sessions/{session}', [SparringSessionController::class, 'show'])
-            ->whereNumber('session');
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | LEGACY GIDEON SPARRING PARTNER ENDPOINTS (existing implementation)
+    | GIDEON SPARRING PARTNER ENDPOINTS
     |--------------------------------------------------------------------------
     | - POST /api/gideon/sparring/ask : send a message, get Gideon's reply
     | - POST /api/gideon/sparring/end : end session + get assessment
-    | Keep these for backward compatibility while we move to the new engine.
     |--------------------------------------------------------------------------
     */
     Route::post('/gideon/sparring/ask', [GideonSparringController::class, 'ask']);
@@ -74,8 +48,6 @@ Route::middleware(['web', 'auth'])->group(function () {
     |--------------------------------------------------------------------------
     | GIDEON GENERAL CHAT (SECOND BRAIN, ETC.)
     |--------------------------------------------------------------------------
-    | Existing chat endpoint for non-sparring Gideon conversations.
-    |--------------------------------------------------------------------------
     */
     Route::post('/gideon/ask', [GideonChatController::class, 'ask']);
 
@@ -84,30 +56,39 @@ Route::middleware(['web', 'auth'])->group(function () {
     | SIMPLE BROWSER TEST ENDPOINT (GET)
     |--------------------------------------------------------------------------
     | Lets you test Gideon sparring while logged in.
-    | Visit: /api/gideon/test
+    | Visit: /api/gideon/test  (while authenticated in the CRM)
     |--------------------------------------------------------------------------
     */
-    Route::get('/gideon/test', function (Request $request, GideonSparringPartner $sparring) {
+    Route::get('/gideon/test', function (Request $request, SparringService $sparring) {
         $user = $request->user();
 
-        // Start a lightweight test session and send a single test message
-        $session = $sparring->startSession($user, 'standard', null, ['source' => 'api_test']);
-        $reply   = $sparring->handleAgentMessage($session, 'Test the Gideon sparring API wiring.');
+        // hard-code one scenario for now
+        $sessionData = $sparring->startSession(
+            $user->agency_id,
+            $user->id,
+            'scenario_think_it_over',
+            'prospect_simulation'
+        );
+
+        $result = $sparring->handleAgentMessage(
+            $sessionData['session']->id,
+            $user->agency_id,
+            $user->id,
+            'Quick API test – when you say you need to think it over, what part feels unclear?'
+        );
 
         return response()->json([
-            'session_id' => $session->id,
-            'reply'      => $reply,
+            'session'  => $sessionData['session'],
+            'state'    => $sessionData['session']->state,
+            'opening'  => $sessionData['first_message']?->content,
+            'agent'    => $result['agent_message']->content,
+            'gideon'   => $result['gideon_reply']->content,
         ]);
     });
 
     /*
     |--------------------------------------------------------------------------
     | GIDEON OPPORTUNITIES LIST
-    |--------------------------------------------------------------------------
-    | Lists opportunities for the authenticated user's agency.
-    | Example:
-    |   GET /api/gideon/opportunities
-    |   GET /api/gideon/opportunities?status=open&category=revive_lead
     |--------------------------------------------------------------------------
     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index']);
