@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gideon;
 
 use App\Http\Controllers\Controller;
+use App\Models\GideonScenario;
 use App\Models\GideonSparringSession;
 use App\Services\Gideon\SparringService;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,24 @@ class GideonSparringController extends Controller
     {
         // extra safety – routes already use auth middleware
         $this->middleware('auth');
+    }
+
+    /**
+     * Show the Sparring Partner page.
+     *
+     * Loads the active Gideon scenarios so the Blade view
+     * can render a dropdown for the agent to choose from.
+     */
+    public function index(Request $request)
+    {
+        $scenarios = GideonScenario::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'product_type', 'description']);
+
+        return view('gideon.sparring', [
+            'scenarios' => $scenarios,
+        ]);
     }
 
     /**
