@@ -14,9 +14,9 @@ use Illuminate\Validation\ValidationException;
 class SparringService
 {
     /**
-     * Return scenarios for the Sparring Partner UI.
+     * Small helper so controllers can ask for scenarios in a consistent way.
      *
-     * Currently just returns all active scenarios ordered by name.
+     * @return \Illuminate\Database\Eloquent\Collection<int, GideonScenario>
      */
     public function listScenariosForUi(): Collection
     {
@@ -35,7 +35,7 @@ class SparringService
         int $userId,
         string $scenarioCode,
         string $mode = 'prospect_simulation',
-        string $personaKey = 'adaptive',
+        string $personaKey = 'adaptive'
     ): array {
         $scenario = GideonScenario::where('code', $scenarioCode)->first();
 
@@ -45,63 +45,29 @@ class SparringService
             ]);
         }
 
-        return DB::transaction(function () use (
-            $agencyId,
-            $userId,
-            $scenario,
-            $mode,
-            $personaKey
-        ) {
+        return DB::transaction(function () use ($agencyId, $userId, $scenario, $mode, $personaKey) {
             $config = [
                 'scenario_code' => $scenario->code,
                 'mode'          => $mode,
+                'persona'       => $personaKey,
             ];
 
-            // Default state “dials” – can be tuned per persona/scenario.
-            $baseState = [
-                'trust'       => 35,
-                'urgency'     => 30,
-                'motivation'  => 40,
-                'resistance'  => 60,
-            ];
+            // Persona + scenario driven starting state
+            $initialState = $this->buildInitialState($scenario, $personaKey);
 
-            // Simple persona-based tweaks.
-            switch ($personaKey) {
-                case 'soft_conflict_avoidant':
-                    $baseState['trust']      = 40;
-                    $baseState['urgency']    = 25;
-                    $baseState['motivation'] = 35;
-                    $baseState['resistance'] = 65;
-                    break;
-
-                case 'skeptical_guarded':
-                    $baseState['trust']      = 25;
-                    $baseState['urgency']    = 35;
-                    $baseState['motivation'] = 35;
-                    $baseState['resistance'] = 70;
-                    break;
-
-                case 'neutral_realistic':
-                    $baseState['trust']      = 40;
-                    $baseState['urgency']    = 35;
-                    $baseState['motivation'] = 40;
-                    $baseState['resistance'] = 55;
-                    break;
-
-                case 'adaptive':
-                default:
-                    // leave defaults, “adaptive” will move quicker as you ask good questions
-                    break;
-            }
+            $prospectProfile = $scenario->prospect_profile ?? [];
+            $personaFromScenario = is_array($prospectProfile)
+                ? Arr::get($prospectProfile, 'persona')
+                : null;
 
             $session = GideonSparringSession::create([
                 'agency_id'   => $agencyId,
                 'user_id'     => $userId,
                 'mode'        => $mode,
-                'persona_key' => $personaKey,
+                'persona_key' => $personaFromScenario ?: $personaKey,
                 'config'      => $config,
                 'status'      => 'active',
-                'state'       => $baseState,
+                'state'       => $initialState,
                 'started_at'  => now(),
             ]);
 
@@ -124,6 +90,10 @@ class SparringService
                         'scenario_code' => $scenario->code,
                     ],
                 ]);
+
+                $state = $session->state ?? [];
+                $state['last_gideon_line'] = $openingLine;
+                $session->update(['state' => $state]);
             }
 
             return [
@@ -134,7 +104,8 @@ class SparringService
     }
 
     /**
-     * Handle an agent message + generate Gideon's reply.
+     * Handle an agent message + generate Gideon's reply using
+     * a simple state machine and scenario tactics.
      *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
@@ -142,7 +113,7 @@ class SparringService
         int $sessionId,
         ?int $agencyId,
         int $userId,
-        string $agentMessage,
+        string $agentMessage
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
             ->where('agency_id', $agencyId)
@@ -170,7 +141,7 @@ class SparringService
             $agentMessage,
             $scenario
         ) {
-            // Store agent message
+            // 1) Store agent message
             $agentMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
                 'agency_id'  => $agencyId,
@@ -178,24 +149,23 @@ class SparringService
                 'sender'     => 'agent',
                 'content'    => $agentMessage,
                 'meta'       => [
-                    'analysis' => null, // later: pattern analysis goes here
+                    'analysis' => null, // could store NLP / tags later
                 ],
             ]);
 
-            // Update internal state first (very simple heuristic for now)
-            $this->applyStateTransition($session, $agentMessage);
-            $session->refresh();
+            // 2) Pull + update state
+            $state = $session->state ?? [];
+            $state = $this->updateStateFromAgentMessage($state, $agentMessage);
 
-            // Generate Gideon's reply based on scenario + state + persona
-            $replyText = $this->generateGideonReplyWithState(
+            // 3) Choose tactic / phase + generate reply text
+            $replyText = $this->generateGideonReply(
                 $session,
                 $scenario,
-                $agentMessage
+                $agentMessage,
+                $state
             );
 
-            // NEW: make sure we don't just repeat the last Gideon line verbatim
-            $replyText = $this->ensureNonRepeatingReply($session, $replyText, $agentMessage, $scenario);
-
+            // 4) Save Gideon message
             $gideonMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
                 'agency_id'  => $agencyId,
@@ -205,8 +175,13 @@ class SparringService
                 'meta'       => [
                     'source'        => 'scenario_v1_logic_with_state',
                     'scenario_code' => $scenario?->code,
+                    'state'         => $state,
                 ],
             ]);
+
+            // 5) Update session state
+            $state['last_gideon_line'] = $replyText;
+            $session->update(['state' => $state]);
 
             return [
                 'agent_message' => $agentMsg,
@@ -216,14 +191,14 @@ class SparringService
     }
 
     /**
-     * End a session; for now, create a placeholder assessment.
+     * End a session; now we create a semi-smart assessment based on final state.
      *
      * @return array{session: GideonSparringSession, assessment: GideonSparringAssessment}
      */
     public function endSession(
         int $sessionId,
         ?int $agencyId,
-        int $userId,
+        int $userId
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
             ->where('agency_id', $agencyId)
@@ -236,32 +211,28 @@ class SparringService
             'ended_at' => now(),
         ]);
 
-        // Very simple “scoring” based on final state – placeholder.
-        $state = $session->state ?? [
-            'trust'       => 40,
-            'urgency'     => 30,
-            'motivation'  => 40,
-            'resistance'  => 60,
+        $state = $session->state ?? [];
+
+        // Translate state (0-100) into 1-5 scores
+        $scores = [
+            'rapport'         => $this->scoreFromState($state, 'trust'),
+            'discovery'       => $this->scoreFromState($state, 'motivation'),
+            'deal_killers'    => $this->scoreFromStateInverse($state, 'resistance'),
+            'closing_clarity' => $this->scoreFromState($state, 'urgency'),
         ];
 
-        $rapport        = (int) round(($state['trust'] ?? 40) / 20);       // 1–5
-        $discovery      = (int) round(($state['motivation'] ?? 40) / 20); // 1–5
-        $dealKillers    = (int) round(5 - (($state['resistance'] ?? 60) / 20)); // lower resistance = higher score
-        $closingClarity = (int) round(($state['urgency'] ?? 30) / 20);
+        [$strengths, $improvements] = $this->buildAssessmentNarrative($scores);
 
         $assessment = GideonSparringAssessment::create([
             'session_id'   => $session->id,
             'agency_id'    => $agencyId,
             'user_id'      => $userId,
-            'scores'       => [
-                'rapport'        => max(1, min(5, $rapport)),
-                'discovery'      => max(1, min(5, $discovery)),
-                'deal_killers'   => max(1, min(5, $dealKillers)),
-                'closing_clarity'=> max(1, min(5, $closingClarity)),
+            'scores'       => $scores,
+            'strengths'    => $strengths,
+            'improvements' => $improvements,
+            'meta'         => [
+                'state' => $state,
             ],
-            'strengths'    => 'There was some rapport, especially when you slowed down and validated what they were feeling. You also asked some helpful questions that nudged the conversation forward.',
-            'improvements' => 'Spend more time reflecting back what the prospect is feeling before you pivot back to the solution. Ask more open-ended questions about what they value, what they are worried about, and what would have to be true for them to feel good moving forward.',
-            'meta'         => [],
         ]);
 
         return [
@@ -278,7 +249,7 @@ class SparringService
     public function getSessionTranscript(
         int $sessionId,
         ?int $agencyId,
-        int $userId,
+        int $userId
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
             ->where('agency_id', $agencyId)
@@ -296,151 +267,327 @@ class SparringService
         ];
     }
 
-    /**
-     * Simple heuristic reply using scenario + session state + last agent message.
-     *
-     * This is where we’ll later swap in the full LLM-powered engine.
-     */
-    protected function generateGideonReplyWithState(
-        GideonSparringSession $session,
-        ?GideonScenario $scenario,
-        string $agentMessage,
-    ): string {
-        $state      = $session->state ?? [];
-        $personaKey = $session->persona_key ?? 'adaptive';
-        $scenarioLabel = $scenario?->name ?? 'this situation';
-
-        $trust      = (int) ($state['trust'] ?? 40);
-        $urgency    = (int) ($state['urgency'] ?? 30);
-        $motivation = (int) ($state['motivation'] ?? 40);
-        $resistance = (int) ($state['resistance'] ?? 60);
-
-        $msgLower = mb_strtolower($agentMessage, 'UTF-8');
-
-        // Very rough pattern checks.
-        $isValidation = str_contains($msgLower, 'i get that')
-            || str_contains($msgLower, 'i hear')
-            || str_contains($msgLower, 'makes sense');
-
-        $isDiscoveryQuestion = str_contains($agentMessage, '?');
-
-        $isFuturePace = str_contains($msgLower, 'fast forward')
-            || str_contains($msgLower, 'picture this')
-            || str_contains($msgLower, 'imagine');
-
-        // High resistance branch
-        if ($resistance >= 60) {
-            if ($isValidation) {
-                return "I appreciate you slowing down and trying to understand where I’m coming from. In {$scenarioLabel}, I’m still a little guarded though. What else would you ask to help me feel truly heard and not pushed?";
-            }
-
-            if ($isDiscoveryQuestion) {
-                return "Your questions are helping me sort things out, but in {$scenarioLabel} there’s still something that feels risky. What follow-up question would you ask now to get underneath what I’m really worried about?";
-            }
-
-            return "From my side as the prospect in {$scenarioLabel}, I’m still not fully comfortable making a change yet. What would you ask me next to uncover what’s really keeping me from moving forward?";
-        }
-
-        // Medium resistance, building trust
-        if ($trust < 50) {
-            if ($isDiscoveryQuestion) {
-                return "Your questions are helping me think this through. In {$scenarioLabel}, what you just asked nudged my trust up a bit, but I’m still not all the way there. What else would you ask so I feel like you truly get my world?";
-            }
-
-            return "I can tell you’re trying to understand my situation in {$scenarioLabel}, which helps. If you were in my shoes, what question would you ask next to show you’re really on my side and not just trying to close a sale?";
-        }
-
-        // Higher trust, lower resistance – closer to yes
-        if ($resistance <= 45 && $trust >= 50) {
-            if ($isFuturePace) {
-                return "That way of looking ahead actually helps me. In {$scenarioLabel}, I’m starting to picture how this could work. What would you ask next to help me feel confident taking a concrete next step rather than drifting away again?";
-            }
-
-            return "I’m warming up to this. In {$scenarioLabel}, I’m not a hard no anymore, but I still want to feel totally clear. What would you ask me now so that we can either land on a solid yes or honestly agree it’s not the right fit?";
-        }
-
-        // Fallback generic coaching-style reply
-        return "Okay, I’m tracking with what you’re saying. But as the prospect in {$scenarioLabel}, there’s still a piece I’m not settled on yet. What question would you ask me next to understand what I’m really evaluating this against?";
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | INTERNAL: STATE / LOGIC
+    |--------------------------------------------------------------------------
+    */
 
     /**
-     * Lightweight state update based on the agent's last message.
-     *
-     * For now this just nudges the dials a little bit.
+     * Build initial state from scenario + persona.
      */
-    protected function applyStateTransition(GideonSparringSession $session, string $agentMessage): void
+    protected function buildInitialState(?GideonScenario $scenario, string $personaKey): array
     {
-        $state = $session->state ?? [
-            'trust'       => 40,
+        $state = [
+            'trust'       => 35,
             'urgency'     => 30,
             'motivation'  => 40,
             'resistance'  => 60,
+            'phase'       => 'opening',
+            'turn'        => 0,
+            'last_tactic' => null,
         ];
 
-        $msgLower = mb_strtolower($agentMessage, 'UTF-8');
+        // If scenario has a baseline state defined, use it as a starting point
+        if ($scenario && is_array($scenario->prospect_profile ?? null)) {
+            $baseline = Arr::get($scenario->prospect_profile, "baseline_state.{$personaKey}")
+                ?? Arr::get($scenario->prospect_profile, 'baseline_state.default');
 
-        // Basic patterns – can be refined later.
-        if (str_contains($msgLower, 'i get that') || str_contains($msgLower, 'i hear')) {
-            $state['trust']      = min(100, $state['trust'] + 8);
-            $state['resistance'] = max(0,   $state['resistance'] - 5);
+            if (is_array($baseline)) {
+                $state = array_merge($state, Arr::only($baseline, [
+                    'trust', 'urgency', 'motivation', 'resistance',
+                ]));
+            }
         }
 
-        if (str_contains($agentMessage, '?')) {
-            $state['motivation'] = min(100, $state['motivation'] + 5);
+        // Persona tweaks
+        switch ($personaKey) {
+            case 'soft_conflict_avoidant':
+                $state['trust']      = $state['trust'] + 5;
+                $state['resistance'] = $state['resistance'] + 5;
+                break;
+            case 'skeptical_guarded':
+                $state['trust']      = $state['trust'] - 5;
+                $state['resistance'] = $state['resistance'] + 10;
+                break;
+            case 'adaptive':
+                $state['trust']      = $state['trust'] + 5;
+                $state['motivation'] = $state['motivation'] + 5;
+                break;
+            // neutral_realistic => no change
         }
 
-        if (str_contains($msgLower, 'fast forward') || str_contains($msgLower, 'imagine')) {
-            $state['urgency'] = min(100, $state['urgency'] + 5);
+        // Clamp
+        foreach (['trust', 'urgency', 'motivation', 'resistance'] as $key) {
+            $state[$key] = $this->clamp($state[$key] ?? 50, 0, 100);
         }
 
-        if (str_contains($msgLower, 'price') || str_contains($msgLower, 'budget')) {
-            $state['resistance'] = max(0, $state['resistance'] + 3);
-        }
-
-        $session->state = $state;
-        $session->save();
+        return $state;
     }
 
     /**
-     * Make sure Gideon doesn't just say the exact same thing twice in a row.
-     *
-     * If the candidate reply is essentially identical to the previous Gideon
-     * message, we add a small variation or tweak the wording.
+     * Update state based on a single agent message.
      */
-    protected function ensureNonRepeatingReply(
+    protected function updateStateFromAgentMessage(array $state, string $agentMessage): array
+    {
+        $text  = mb_strtolower($agentMessage);
+        $turn  = (int) ($state['turn'] ?? 0);
+        $turn += 1;
+        $state['turn'] = $turn;
+
+        // Very light-weight "NLP"
+        $isQuestion = str_contains($agentMessage, '?');
+
+        $rapportWords = ['i hear you', 'i get that', 'i understand', 'makes sense', 'totally', 'thank you', 'appreciate'];
+        $pressureWords = ['have to decide', 'now or never', 'last chance', 'only today', 'must', 'need to sign'];
+        $moneyWords = ['price', 'cost', 'expensive', 'budget', 'afford'];
+        $riskWords  = ['worried', 'risk', 'afraid', 'concern', 'scared', 'nervous'];
+        $clarityWords = ['next step', 'moving forward', 'what happens', 'how it works', 'process'];
+
+        // Rapport phrases => trust up, resistance down
+        foreach ($rapportWords as $needle) {
+            if (str_contains($text, $needle)) {
+                $state['trust']      = ($state['trust'] ?? 50) + 4;
+                $state['resistance'] = ($state['resistance'] ?? 50) - 2;
+            }
+        }
+
+        // Overt pressure => resistance up, trust down
+        foreach ($pressureWords as $needle) {
+            if (str_contains($text, $needle)) {
+                $state['trust']      = ($state['trust'] ?? 50) - 5;
+                $state['resistance'] = ($state['resistance'] ?? 50) + 6;
+            }
+        }
+
+        // Money talk can go either way; assume discovery is happening
+        foreach ($moneyWords as $needle) {
+            if (str_contains($text, $needle)) {
+                $state['motivation'] = ($state['motivation'] ?? 50) + 3;
+            }
+        }
+
+        // Risk / concern questions: usually good discovery
+        if ($isQuestion) {
+            foreach ($riskWords as $needle) {
+                if (str_contains($text, $needle)) {
+                    $state['trust']      = ($state['trust'] ?? 50) + 2;
+                    $state['motivation'] = ($state['motivation'] ?? 50) + 3;
+                }
+            }
+        }
+
+        // Clarity questions move urgency slightly
+        foreach ($clarityWords as $needle) {
+            if (str_contains($text, $needle)) {
+                $state['urgency'] = ($state['urgency'] ?? 50) + 3;
+            }
+        }
+
+        // Generic bonus if you're actually asking questions
+        if ($isQuestion) {
+            $state['motivation'] = ($state['motivation'] ?? 50) + 2;
+        }
+
+        // Clamp everything
+        foreach (['trust', 'urgency', 'motivation', 'resistance'] as $key) {
+            $state[$key] = $this->clamp($state[$key] ?? 50, 0, 100);
+        }
+
+        // Phase progression based on turn count + resistance
+        if ($turn <= 2) {
+            $state['phase'] = 'opening';
+        } elseif ($turn <= 4) {
+            $state['phase'] = 'deepen';
+        } elseif ($turn <= 6) {
+            $state['phase'] = 'reframe';
+        } else {
+            $state['phase'] = 'close_soft';
+        }
+
+        // If resistance is still very high, keep us in deepen / reframe
+        if (($state['resistance'] ?? 60) > 70 && $state['phase'] === 'close_soft') {
+            $state['phase'] = 'reframe';
+        }
+
+        return $state;
+    }
+
+    /**
+     * Generate Gideon's reply from scenario + state + agent input.
+     */
+    protected function generateGideonReply(
         GideonSparringSession $session,
-        string $candidate,
+        ?GideonScenario $scenario,
         string $agentMessage,
-        ?GideonScenario $scenario
+        array $state
     ): string {
-        $lastGideon = GideonSparringMessage::where('session_id', $session->id)
-            ->where('sender', 'gideon')
-            ->orderByDesc('id')
-            ->first();
+        $phase  = $state['phase'] ?? 'opening';
+        $turn   = (int) ($state['turn'] ?? 0);
+        $engine = $scenario?->script_engine ?? [];
 
-        if (! $lastGideon) {
-            return $candidate;
+        // Map phase -> tactic key inside script_engine (if present)
+        $phaseToKey = [
+            'opening'   => 'validate_and_open',
+            'deepen'    => 'deepen_questions',
+            'reframe'   => 'reframe_and_value',
+            'close_soft'=> 'soft_close',
+        ];
+
+        $tacticKey = $phaseToKey[$phase] ?? null;
+
+        $linesFromScenario = [];
+        if ($tacticKey && is_array($engine)) {
+            $linesFromScenario = Arr::get($engine, "tactics.{$tacticKey}", []);
         }
 
-        $prev = trim($lastGideon->content);
-        $curr = trim($candidate);
+        $lastLine = $state['last_gideon_line'] ?? null;
 
-        // If content is identical (or extremely close), nudge the text a bit.
-        if ($prev === $curr) {
-            $scenarioLabel = $scenario?->name ?? 'this situation';
+        // 1) Try scenario-specific line first
+        if (! empty($linesFromScenario) && is_array($linesFromScenario)) {
+            // Simple rotation by turn index so it feels different each time
+            $index = $turn % max(1, count($linesFromScenario));
+            $candidate = trim((string) $linesFromScenario[$index]);
 
-            // Simple alternates we can fall back to.
-            $alternates = [
-                "You’re moving the conversation forward. As the prospect in {$scenarioLabel}, I’m still weighing things out though. What else would you ask me now to really get at what’s keeping me cautious?",
-                "I’m tracking with you more now than before, but there’s still something I’m wrestling with. What follow-up question would you ask so I can say out loud what’s really on my mind?",
-                "That helps, but if I’m honest I’m still a bit stuck. What question would you ask next so I feel safe telling you what I’m actually afraid might happen if I move ahead?",
-            ];
-
-            // If we have alternates, just pick one based on the session id to keep it deterministic.
-            $index    = $session->id % count($alternates);
-            $candidate = $alternates[$index];
+            if ($candidate && $candidate !== $lastLine) {
+                return $candidate;
+            }
         }
 
-        return $candidate;
+        // 2) Otherwise, fall back to generic but phase-aware replies
+        $scenarioLabel = $scenario?->name ?? 'this situation';
+
+        switch ($phase) {
+            case 'opening':
+                return $this->avoidRepeat(
+                    $lastLine,
+                    "I hear what you’re saying. From my side as the prospect in {$scenarioLabel}, I’m still trying to sort out what really feels risky here. What’s one more question you’d ask me to better understand what’s underneath that?",
+                    "I get that you’re trying to help. From my side in {$scenarioLabel}, there are still a couple of things that feel a bit unclear. What would you ask next so I feel safe putting those on the table?"
+                );
+
+            case 'deepen':
+                return $this->avoidRepeat(
+                    $lastLine,
+                    "Your questions are helping me sort things out, but in {$scenarioLabel} there’s still something that feels a little off. What follow-up question would you ask now to get underneath what I’m really worried about?",
+                    "I’m tracking with some of what you’re saying, but I’m not fully there yet. If you were in my shoes in {$scenarioLabel}, what would you ask me next to really understand what’s still in the way?"
+                );
+
+            case 'reframe':
+                return $this->avoidRepeat(
+                    $lastLine,
+                    "Part of me sees the value, and part of me is still hesitating. In {$scenarioLabel}, what would you ask or say next so I can see this in a different light without feeling pushed?",
+                    "I can feel you’re trying to help, but something is still holding me back. What question would you ask to help me picture what happens if we don’t change anything?"
+                );
+
+            case 'close_soft':
+            default:
+                return $this->avoidRepeat(
+                    $lastLine,
+                    "Okay, this is starting to make more sense. If you were wrapping up {$scenarioLabel}, what would you say now so I can make a confident decision without feeling rushed?",
+                    "I’m closer than when we started, but I still need one more piece. What would you ask or say next to help me feel clear on the decision, either way?"
+                );
+        }
+    }
+
+    /**
+     * Avoid sending the exact same line twice in a row.
+     */
+    protected function avoidRepeat(?string $lastLine, string ...$options): string
+    {
+        foreach ($options as $line) {
+            if ($line !== $lastLine) {
+                return $line;
+            }
+        }
+
+        // If all options match (unlikely), just return the first
+        return $options[0];
+    }
+
+    /**
+     * Convert a 0-100 state dimension into a 1-5 score.
+     */
+    protected function scoreFromState(array $state, string $key): int
+    {
+        $value = (int) ($state[$key] ?? 50);
+        $value = $this->clamp($value, 0, 100);
+
+        // 0-20 => 1, 21-40 => 2, etc.
+        return (int) max(1, min(5, ceil(($value + 1) / 20)));
+    }
+
+    /**
+     * Inverse scoring (high resistance => low score).
+     */
+    protected function scoreFromStateInverse(array $state, string $key): int
+    {
+        $value = (int) ($state[$key] ?? 50);
+        $value = $this->clamp($value, 0, 100);
+        $flipped = 100 - $value;
+
+        return (int) max(1, min(5, ceil(($flipped + 1) / 20)));
+    }
+
+    /**
+     * Build a human-readable narrative from numeric scores.
+     *
+     * @param array{rapport:int,discovery:int,deal_killers:int,closing_clarity:int} $scores
+     * @return array{0:string,1:string}
+     */
+    protected function buildAssessmentNarrative(array $scores): array
+    {
+        $strengthsParts = [];
+        $improvementParts = [];
+
+        if ($scores['rapport'] >= 4) {
+            $strengthsParts[] = 'You built good rapport by slowing down and validating what the prospect was feeling.';
+        } elseif ($scores['rapport'] >= 3) {
+            $strengthsParts[] = 'There was some rapport, especially when you reflected back what the prospect said.';
+            $improvementParts[] = 'You could deepen rapport by naming their emotions out loud and asking how it feels from their side.';
+        } else {
+            $improvementParts[] = 'Focus more on rapport early on: reflect back what they say and check if you’re understanding them correctly.';
+        }
+
+        if ($scores['discovery'] >= 4) {
+            $strengthsParts[] = 'You asked helpful questions that uncovered what really matters to them.';
+        } elseif ($scores['discovery'] >= 3) {
+            $strengthsParts[] = 'You asked some discovery questions.';
+            $improvementParts[] = 'Go deeper with “what else?” and “what would have to be true for this to feel right to you?” questions.';
+        } else {
+            $improvementParts[] = 'Spend more time on discovery before you pivot back to the solution. Stay with their concerns longer.';
+        }
+
+        if ($scores['deal_killers'] >= 4) {
+            $strengthsParts[] = 'You did a solid job getting deal-killers out into the open.';
+        } elseif ($scores['deal_killers'] >= 3) {
+            $strengthsParts[] = 'You touched on possible deal-killers.';
+            $improvementParts[] = 'Ask more directly about what would stop them from moving forward and how big of a barrier it feels like.';
+        } else {
+            $improvementParts[] = 'Name potential deal-killers explicitly and ask them to rate how big each one feels on a 1–10 scale.';
+        }
+
+        if ($scores['closing_clarity'] >= 4) {
+            $strengthsParts[] = 'You gave a relatively clear path for what happens next.';
+        } elseif ($scores['closing_clarity'] >= 3) {
+            $strengthsParts[] = 'You hinted at next steps.';
+            $improvementParts[] = 'Be more explicit about the next simple step so the prospect knows exactly what moving forward looks like.';
+        } else {
+            $improvementParts[] = 'Before wrapping up, always offer a simple, pressure-free next step so they’re not left in limbo.';
+        }
+
+        $strengths = $strengthsParts
+            ? implode(' ', $strengthsParts)
+            : 'Strengths will appear here as the coaching engine becomes more detailed.';
+
+        $improvements = $improvementParts
+            ? implode(' ', $improvementParts)
+            : 'Improvements will appear here as the coaching engine becomes more detailed.';
+
+        return [$strengths, $improvements];
+    }
+
+    protected function clamp(int $value, int $min, int $max): int
+    {
+        return max($min, min($max, $value));
     }
 }
