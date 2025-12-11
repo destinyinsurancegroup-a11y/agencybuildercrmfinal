@@ -1,434 +1,222 @@
 @extends('layouts.app')
 
 @section('content')
-<style>
-    :root {
-        --gold: #c9a227;
-        --gold-soft: #f5e6b3;
-        --bg-page: #f5f5f5;
-        --text-main: #111827;
-        --text-subtle: #4b5563;
-        --text-faint: #9ca3af;
-    }
+<div class="container py-4">
+    <h1 class="mb-3">Gideon Sparring Partner</h1>
+    <p class="text-muted mb-4">
+        Choose a scenario, then type what you would say to the prospect.
+        Gideon will push back like a real human so you can practice.
+    </p>
 
-    .sparring-page {
-        padding: 30px 40px;
-        background: var(--bg-page);
-        min-height: 100vh;
-        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
+    {{-- Scenario selector --}}
+    <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div>
+                <label for="scenarioSelect" class="form-label mb-1">Scenario</label>
+                <select id="scenarioSelect" class="form-select">
+                    @forelse($scenarios as $scenario)
+                        <option value="{{ $scenario->code }}">
+                            {{ $scenario->name }}
+                            @if($scenario->product_type)
+                                ({{ $scenario->product_type }})
+                            @endif
+                        </option>
+                    @empty
+                        <option value="">No scenarios seeded yet</option>
+                    @endforelse
+                </select>
+            </div>
 
-    .sparring-header {
-        margin-bottom: 24px;
-    }
+            <div class="flex-grow-1">
+                <label class="form-label mb-1 d-block">Scenario description</label>
+                <div id="scenarioDescription" class="small text-muted">
+                    @if($scenarios->count())
+                        {{ $scenarios->first()->description }}
+                    @else
+                        Ask your admin to run the GideonCoreSeeder.
+                    @endif
+                </div>
+            </div>
 
-    .sparring-title {
-        font-size: 28px;
-        font-weight: 700;
-        color: var(--text-main);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .sparring-badge {
-        font-size: 11px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        background: var(--gold-soft);
-        color: #92400e;
-        padding: 3px 8px;
-        border-radius: 999px;
-        border: 1px solid rgba(0,0,0,0.08);
-    }
-
-    .sparring-subtitle {
-        margin-top: 6px;
-        font-size: 14px;
-        color: var(--text-subtle);
-    }
-
-    .sparring-layout {
-        display: grid;
-        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-        gap: 24px;
-    }
-
-    /* LEFT PANEL: instructions */
-    .sparring-sidecard {
-        background: #050509;
-        border-radius: 20px;
-        padding: 18px 20px;
-        border: 1px solid rgba(201,162,39,0.4);
-        color: #f9fafb;
-        box-shadow:
-            0 18px 30px -12px rgba(0,0,0,0.45),
-            0 8px 16px -8px rgba(0,0,0,0.35);
-    }
-
-    .sparring-side-title {
-        font-size: 16px;
-        font-weight: 700;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .sparring-avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: 999px;
-        background: radial-gradient(circle at 20% 20%, #fef3c7, #c9a227);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        color: #111827;
-        font-size: 16px;
-        box-shadow: 0 0 0 2px #111827;
-    }
-
-    .sparring-side-section-title {
-        margin-top: 12px;
-        font-size: 13px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #d1d5db;
-    }
-
-    .sparring-side-list {
-        margin-top: 6px;
-        padding-left: 16px;
-        font-size: 13px;
-        color: #e5e7eb;
-    }
-
-    .sparring-side-list li {
-        margin-bottom: 4px;
-    }
-
-    .sparring-side-footnote {
-        margin-top: 12px;
-        font-size: 11px;
-        color: #9ca3af;
-    }
-
-    /* RIGHT PANEL: chat */
-    .sparring-chat-card {
-        background: #ffffff;
-        border-radius: 20px;
-        border: 1px solid #e5e7eb;
-        display: flex;
-        flex-direction: column;
-        max-height: calc(100vh - 140px);
-        box-shadow:
-            0 18px 30px -12px rgba(0,0,0,0.30),
-            0 8px 16px -8px rgba(0,0,0,0.18);
-    }
-
-    .sparring-chat-header {
-        padding: 14px 18px;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .sparring-chat-title {
-        font-size: 16px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-main);
-    }
-
-    .sparring-status-pill {
-        font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 999px;
-        background: #dcfce7;
-        color: #166534;
-        border: 1px solid #bbf7d0;
-    }
-
-    .sparring-chat-body {
-        padding: 16px 18px;
-        overflow-y: auto;
-        flex: 1;
-        background: linear-gradient(180deg,#f3f4f6 0,#ffffff 40%);
-    }
-
-    .sparring-message-row {
-        display: flex;
-        margin-bottom: 10px;
-        gap: 8px;
-    }
-
-    .sparring-message-row.user {
-        justify-content: flex-end;
-    }
-
-    .sparring-bubble {
-        max-width: 75%;
-        padding: 9px 11px;
-        border-radius: 16px;
-        font-size: 14px;
-        line-height: 1.4;
-    }
-
-    .sparring-bubble.user {
-        background: #111827;
-        color: #f9fafb;
-        border-bottom-right-radius: 4px;
-    }
-
-    .sparring-bubble.gideon {
-        background: #fef3c7;
-        color: #1f2937;
-        border-bottom-left-radius: 4px;
-        border: 1px solid rgba(201,162,39,0.4);
-    }
-
-    .sparring-message-meta {
-        font-size: 11px;
-        color: var(--text-faint);
-        margin-top: 2px;
-    }
-
-    .sparring-chat-footer {
-        border-top: 1px solid #e5e7eb;
-        padding: 10px 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        background: #f9fafb;
-        border-radius: 0 0 20px 20px;
-    }
-
-    .sparring-input-row {
-        display: flex;
-        gap: 8px;
-        align-items: flex-end;
-    }
-
-    .sparring-textarea {
-        flex: 1;
-        border-radius: 12px;
-        border: 1px solid #d1d5db;
-        padding: 8px 10px;
-        min-height: 52px;
-        max-height: 110px;
-        resize: vertical;
-        font-size: 14px;
-    }
-
-    .sparring-send-btn {
-        padding: 10px 16px;
-        border-radius: 999px;
-        border: none;
-        background: var(--gold);
-        color: #111827;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        box-shadow: 0 6px 14px rgba(0,0,0,0.35);
-        white-space: nowrap;
-    }
-
-    .sparring-send-btn[disabled] {
-        opacity: 0.7;
-        cursor: default;
-        box-shadow: none;
-    }
-
-    .sparring-hint {
-        font-size: 12px;
-        color: var(--text-faint);
-    }
-
-</style>
-
-<div class="sparring-page">
-    <div class="sparring-header">
-        <div class="sparring-title">
-            Sparring Partner
-            <span class="sparring-badge">Tier 1 · Beta</span>
-        </div>
-        <div class="sparring-subtitle">
-            Practice scripts, objections, and presentations with Gideon.  
-            This is a training-only environment and does not change client data.
+            <div>
+                <button id="resetSessionBtn" class="btn btn-outline-secondary btn-sm" type="button">
+                    Reset Session
+                </button>
+            </div>
         </div>
     </div>
 
-    <div class="sparring-layout">
-        {{-- LEFT: Instructions / examples --}}
-        <div class="sparring-sidecard">
-            <div class="sparring-side-title">
-                <div class="sparring-avatar">G</div>
-                Gideon Sparring Partner
-            </div>
-
-            <div class="sparring-side-section-title">Try asking:</div>
-            <ul class="sparring-side-list">
-                <li>“Help me practice a final expense presentation to a couple.”</li>
-                <li>“Role-play a client who is worried about price; I’ll respond as the agent.”</li>
-                <li>“Give me 3 ways to handle the objection: ‘I need to think about it.’”</li>
-                <li>“Rewrite this script to sound more natural for a 70-year-old widow.”</li>
-            </ul>
-
-            <div class="sparring-side-section-title">Modes (behind the scenes)</div>
-            <ul class="sparring-side-list">
-                <li><strong>Sparring:</strong> Gideon plays the client so you can practice.</li>
-                <li><strong>Coaching:</strong> Gideon gives feedback & suggestions.</li>
-            </ul>
-
-            <div class="sparring-side-footnote">
-                Tier 1 uses a safe “fake mode” until billing is enabled.  
-                Replies may be generic during this phase but the wiring and UX are live.
+    {{-- Transcript window --}}
+    <div class="card mb-3">
+        <div class="card-header">
+            Conversation
+        </div>
+        <div id="sparringTranscript"
+             class="card-body"
+             style="min-height: 260px; max-height: 420px; overflow-y: auto; background-color:#111; color:#eee;">
+            <div class="text-muted small">
+                Select a scenario and send your first message to start a session.
             </div>
         </div>
+    </div>
 
-        {{-- RIGHT: Chat --}}
-        <div class="sparring-chat-card" id="sparring-root">
-            <div class="sparring-chat-header">
-                <div class="sparring-chat-title">
-                    <span>Live Session</span>
-                </div>
-                <span class="sparring-status-pill" id="sparring-status-pill">
-                    Ready
-                </span>
-            </div>
+    {{-- Input box --}}
+    <div class="card">
+        <div class="card-body">
+            <form id="sparringForm" class="d-flex gap-2">
+                <input id="sparringInput"
+                       type="text"
+                       class="form-control"
+                       placeholder="Type what you’d say to the prospect and press Enter..."
+                       autocomplete="off" />
 
-            <div class="sparring-chat-body" id="sparring-messages">
-                {{-- Initial Gideon welcome message --}}
-                <div class="sparring-message-row gideon">
-                    <div class="sparring-bubble gideon">
-                        I’m Gideon, your Sparring Partner. Tell me what you want to practice:
-                        a script, an objection, or a full presentation. I can either role-play
-                        as the client or coach you on your wording.
-                        <div class="sparring-message-meta">Gideon · just now</div>
-                    </div>
-                </div>
-            </div>
+                <button class="btn btn-warning" type="submit">
+                    Send
+                </button>
+            </form>
 
-            <div class="sparring-chat-footer">
-                <div class="sparring-input-row">
-                    <textarea
-                        id="sparring-input"
-                        class="sparring-textarea"
-                        placeholder="Type what you want to practice. Example: ‘Play the client. I’m going to present a final expense policy to a 65-year-old couple.’"
-                    ></textarea>
-
-                    <button class="sparring-send-btn" id="sparring-send-btn">
-                        <span>Send</span> <span>➤</span>
-                    </button>
-                </div>
-
-                <div class="sparring-hint">
-                    Gideon may return a “FAKE GIDEON REPLY” while the OpenAI API is in test mode.
-                    Once billing is enabled, this same chat will use live responses automatically.
-                </div>
-            </div>
+            <div class="mt-2 small text-muted" id="sparringStatus"></div>
         </div>
     </div>
 </div>
 
+{{-- Simple inline JS for now --}}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const inputEl    = document.getElementById('sparring-input');
-    const sendBtn    = document.getElementById('sparring-send-btn');
-    const messagesEl = document.getElementById('sparring-messages');
-    const statusPill = document.getElementById('sparring-status-pill');
+    (() => {
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
 
-    const csrfTokenTag = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = csrfTokenTag ? csrfTokenTag.getAttribute('content') : '';
+        // DOM elements
+        const transcriptEl = document.getElementById('sparringTranscript');
+        const inputEl = document.getElementById('sparringInput');
+        const formEl = document.getElementById('sparringForm');
+        const scenarioSelectEl = document.getElementById('scenarioSelect');
+        const scenarioDescriptionEl = document.getElementById('scenarioDescription');
+        const statusEl = document.getElementById('sparringStatus');
+        const resetBtn = document.getElementById('resetSessionBtn');
 
-    // Track current sparring session for this browser tab
-    let sessionId = null;
+        // Session state in JS
+        let currentSessionId = null;
+        let isSending = false;
 
-    function appendMessage(role, text) {
-        const row = document.createElement('div');
-        row.classList.add('sparring-message-row', role);
+        function appendMessage(sender, text) {
+            if (!text) return;
 
-        const bubble = document.createElement('div');
-        bubble.classList.add('sparring-bubble', role === 'user' ? 'user' : 'gideon');
-        bubble.textContent = text;
+            const wrapper = document.createElement('div');
+            wrapper.classList.add('mb-2', 'small');
 
-        // meta
-        const meta = document.createElement('div');
-        meta.classList.add('sparring-message-meta');
-        const who = (role === 'user') ? 'You' : 'Gideon';
-        meta.textContent = who;
+            const label = document.createElement('strong');
+            label.textContent = sender === 'agent' ? 'You: ' : 'Gideon: ';
+            label.style.color = sender === 'agent' ? '#ffd54f' : '#64b5f6';
 
-        bubble.appendChild(meta);
-        row.appendChild(bubble);
-        messagesEl.appendChild(row);
+            const span = document.createElement('span');
+            span.textContent = text;
 
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
+            wrapper.appendChild(label);
+            wrapper.appendChild(span);
 
-    async function sendMessage() {
-        const text = (inputEl.value || '').trim();
-        if (!text) return;
+            transcriptEl.appendChild(wrapper);
+            transcriptEl.scrollTop = transcriptEl.scrollHeight;
+        }
 
-        appendMessage('user', text);
-        inputEl.value = '';
-        inputEl.focus();
+        function setStatus(msg) {
+            if (!statusEl) return;
+            statusEl.textContent = msg || '';
+        }
 
-        sendBtn.disabled = true;
-        statusPill.textContent = 'Thinking…';
+        function resetSession() {
+            currentSessionId = null;
+            transcriptEl.innerHTML =
+                '<div class="text-muted small">Session reset. Send a new message to start again.</div>';
+            setStatus('');
+        }
 
-        try {
-            const response = await fetch('/api/gideon/sparring/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify({
-                    message: text,
-                    mode: 'standard',     // later: dynamic based on UI
-                    session_id: sessionId // null on first call => backend creates session
-                })
-            });
+        resetBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetSession();
+        });
 
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
+        async function sendToGideon(message) {
+            if (!csrfToken) {
+                console.error('No CSRF token found');
+                setStatus('Error: missing CSRF token.');
+                return;
+            }
+            const scenarioCode = scenarioSelectEl?.value || null;
+            if (!scenarioCode) {
+                setStatus('Please choose a scenario first.');
+                return;
             }
 
-            const data = await response.json();
+            isSending = true;
+            setStatus('Talking to Gideon...');
+            appendMessage('agent', message);
 
-            // Save session id for this tab
-            if (data.session_id) {
-                sessionId = data.session_id;
+            try {
+                const response = await fetch('/api/gideon/sparring/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        scenario_code: scenarioCode,
+                        mode: 'prospect_simulation',
+                        session_id: currentSessionId,
+                        message: message,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Gideon response', data);
+
+                // Capture session id from response
+                if (data.session && data.session.id) {
+                    currentSessionId = data.session.id;
+                } else if (data.session_id) {
+                    currentSessionId = data.session_id;
+                }
+
+                // handle shapes we might get back
+
+                // 1) opening line on first call
+                if (data.opening_line) {
+                    appendMessage('gideon', data.opening_line);
+                }
+
+                // 2) generic v1 structure: { agent_message: {...}, gideon_reply: {...} }
+                if (data.agent_message && data.agent_message.content) {
+                    appendMessage('agent', data.agent_message.content);
+                }
+                if (data.gideon_reply && data.gideon_reply.content) {
+                    appendMessage('gideon', data.gideon_reply.content);
+                }
+
+                setStatus('Session active. Keep going!');
+            } catch (err) {
+                console.error(err);
+                setStatus('Error talking to Gideon. Check console.');
+            } finally {
+                isSending = false;
             }
-
-            const reply = data.reply || '[Gideon had an unexpected response format.]';
-            appendMessage('gideon', reply);
-        } catch (e) {
-            console.error(e);
-            appendMessage('gideon', 'I had trouble reaching the server. Please try again in a moment.');
-        } finally {
-            sendBtn.disabled = false;
-            statusPill.textContent = 'Ready';
         }
-    }
 
-    sendBtn.addEventListener('click', sendMessage);
+        formEl?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (isSending) return;
 
-    inputEl.addEventListener('keydown', function (evt) {
-        if (evt.key === 'Enter' && !evt.shiftKey) {
-            evt.preventDefault();
-            sendMessage();
-        }
-    });
-});
+            const value = (inputEl?.value || '').trim();
+            if (!value) return;
+
+            inputEl.value = '';
+            sendToGideon(value);
+        });
+    })();
 </script>
 @endsection
