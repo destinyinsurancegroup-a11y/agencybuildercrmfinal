@@ -82,7 +82,7 @@ class SparringService
     }
 
     /**
-     * Handle an agent message + generate Gideon's reply (stub logic v1).
+     * Handle an agent message + generate Gideon's reply (scenario-aware v1).
      *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
@@ -130,7 +130,7 @@ class SparringService
                 ],
             ]);
 
-            // Stub reply logic (later we replace with real rules/tactics)
+            // Scenario-aware reply logic (Option A brain)
             $replyText = $this->generateGideonReplyStub(
                 $session,
                 $scenario,
@@ -144,7 +144,7 @@ class SparringService
                 'sender' => 'gideon',
                 'content' => $replyText,
                 'meta' => [
-                    'source' => 'stub_logic_v1',
+                    'source' => 'scenario_v1_logic',
                     'scenario_code' => $scenario?->code,
                 ],
             ]);
@@ -225,20 +225,122 @@ class SparringService
     }
 
     /**
-     * Very simple reply for now. Later this will use:
-     * - tactics
-     * - objection types
-     * - stages
-     * - if/then rules
+     * Scenario-aware reply for v1.
+     * Uses:
+     * - scenario objection type
+     * - simple detection of agent intent (clarify, close, empathy)
+     * - persona flavoring
      */
     protected function generateGideonReplyStub(
         GideonSparringSession $session,
         ?GideonScenario $scenario,
         string $agentMessage,
     ): string {
-        $scenarioLabel = $scenario?->name ?? 'this situation';
+        // Fallback if scenario is missing
+        if (! $scenario) {
+            return "I hear what you’re saying. From my side as the prospect, I’m still not completely sure. "
+                . "What else would you ask me or explain so I can feel confident either way?";
+        }
 
-        return "Okay, I hear you. But from my side as the prospect in {$scenarioLabel}, I’m still not fully convinced. "
-            . "What else would you say to help me feel confident about this?";
+        $scriptEngine = $scenario->script_engine ?? [];
+        $prospectProfile = $scenario->prospect_profile ?? [];
+
+        $scenarioName = $scenario->name;
+        $objectionTypeCode = is_array($scriptEngine)
+            ? ($scriptEngine['objection_type_code'] ?? null)
+            : null;
+
+        // Light intent classification from the agent message
+        $lower = mb_strtolower($agentMessage);
+
+        $agentAskedForClarity =
+            str_contains($lower, 'what do you mean')
+            || str_contains($lower, 'help me understand')
+            || str_contains($lower, 'clarify')
+            || str_contains($lower, 'tell me more')
+            || str_contains($lower, 'walk me through');
+
+        $agentWentForClose =
+            str_contains($lower, 'ready to move forward')
+            || str_contains($lower, 'get this started')
+            || str_contains($lower, 'go ahead and')
+            || str_contains($lower, 'sign up')
+            || str_contains($lower, 'move ahead')
+            || str_contains($lower, 'move forward');
+
+        $agentUsedEmpathy =
+            str_contains($lower, 'i get that')
+            || str_contains($lower, 'i understand')
+            || str_contains($lower, 'that makes sense')
+            || str_contains($lower, 'fair enough')
+            || str_contains($lower, 'i hear you');
+
+        // Reply templates keyed by objection type
+        $repliesByObjection = [
+            'obj_money' => [
+                'default' => "Honestly, the biggest thing in my head is still the price. "
+                    . "I’m wondering if this is really worth that much for me right now.",
+                'after_clarifier' => "I get that you’re trying to understand where I’m coming from. "
+                    . "My worry is just paying that amount and then not really feeling the difference day to day.",
+                'after_empathy' => "I appreciate you seeing where I’m coming from. "
+                    . "I just don’t want to commit to something that squeezes the budget too much.",
+            ],
+            'obj_think_it_over' => [
+                'default' => "It all sounds good, I just feel like I need a bit more time to think it over before I say yes or no.",
+                'after_clarifier' => "To be honest, it’s less about details and more that I’m nervous about making the wrong call today.",
+                'after_empathy' => "Yeah, it’s a big decision. I just don’t want to rush into it and regret it.",
+            ],
+            'obj_spouse' => [
+                'default' => "I like what you’re saying, but I really don’t make these kinds of decisions without my spouse.",
+                'after_clarifier' => "My spouse will definitely have questions about the cost and whether it really changes anything for us.",
+                'after_empathy' => "I appreciate you understanding that. I just know my spouse will want to have a say before we commit.",
+            ],
+            'obj_competition' => [
+                'default' => "The main thing is we already have someone we work with for this, and switching feels like a bit of a risk.",
+                'after_clarifier' => "It’s not that they’re perfect, but at least we know what we’re getting. Changing providers always feels risky.",
+                'after_empathy' => "Exactly, we’ve had this in place for a while. I’d have to feel really confident that changing is worth the hassle.",
+            ],
+            'obj_no_urgency' => [
+                'default' => "I just don’t feel like this is an urgent thing right now. It’s more of a ‘someday’ decision in my head.",
+                'after_clarifier' => "It’s not that it’s unimportant, it’s just that nothing is really forcing us to act right away.",
+                'after_empathy' => "Yeah, I get that it matters, it just feels like one of those things we could look at later.",
+            ],
+        ];
+
+        $templates = $repliesByObjection[$objectionTypeCode] ?? null;
+
+        // If we don’t have a specific objection profile, fall back to generic
+        if (! $templates) {
+            return "From my side as the prospect in {$scenarioName}, I’m still on the fence. "
+                . "Part of me sees the upside, but part of me is nervous about making a mistake. "
+                . "What would you ask me next to really understand what’s holding me back?";
+        }
+
+        // Choose template based on what the agent just did
+        if ($agentAskedForClarity) {
+            $reply = $templates['after_clarifier'];
+        } elseif ($agentUsedEmpathy) {
+            $reply = $templates['after_empathy'];
+        } elseif ($agentWentForClose) {
+            // If agent is trying to close, push back a bit more strongly
+            $reply = $templates['default'] . " I’m not at a solid yes yet.";
+        } else {
+            $reply = $templates['default'];
+        }
+
+        // Light persona flavor
+        $persona = is_array($prospectProfile)
+            ? ($prospectProfile['persona'] ?? null)
+            : null;
+
+        if ($persona === 'easygoing_delayer') {
+            $reply .= " I’m just the type that likes to drag my feet on this kind of thing.";
+        } elseif ($persona === 'loyal_but_open') {
+            $reply .= " I’m loyal by nature, so changing what we do now takes a lot for me.";
+        } elseif ($persona === 'conflict_avoidant') {
+            $reply .= " I really hate feeling pressured into anything.";
+        }
+
+        return $reply;
     }
 }
