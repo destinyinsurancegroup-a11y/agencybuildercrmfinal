@@ -38,7 +38,7 @@
                 </div>
             </div>
 
-            <div class="d-flex flex-column gap-2">
+            <div class="ms-auto d-flex gap-2">
                 <button id="resetSessionBtn" class="btn btn-outline-secondary btn-sm" type="button">
                     Reset Session
                 </button>
@@ -63,6 +63,57 @@
         </div>
     </div>
 
+    {{-- Prospect state HUD --}}
+    <div class="card mb-3">
+        <div class="card-header">
+            Prospect state (how Gideon “feels”)
+        </div>
+        <div class="card-body small" id="statePanel">
+            <div class="row g-3">
+                <div class="col-md-3 col-sm-6">
+                    <div class="d-flex justify-content-between">
+                        <span>Trust</span>
+                        <span id="stateTrustValue">–</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div id="stateTrustBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="d-flex justify-content-between">
+                        <span>Urgency</span>
+                        <span id="stateUrgencyValue">–</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div id="stateUrgencyBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="d-flex justify-content-between">
+                        <span>Motivation</span>
+                        <span id="stateMotivationValue">–</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div id="stateMotivationBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="d-flex justify-content-between">
+                        <span>Resistance</span>
+                        <span id="stateResistanceValue">–</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div id="stateResistanceBar" class="progress-bar bg-danger" role="progressbar" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 text-muted">
+                Aim to grow <strong>trust / motivation / urgency</strong> while bringing
+                <strong>resistance</strong> down through good discovery and empathy.
+            </div>
+        </div>
+    </div>
+
     {{-- Input box --}}
     <div class="card">
         <div class="card-body">
@@ -81,47 +132,6 @@
             <div class="mt-2 small text-muted" id="sparringStatus"></div>
         </div>
     </div>
-
-    {{-- Assessment panel --}}
-    <div id="assessmentCard" class="card mt-3 d-none">
-        <div class="card-header">
-            Session Assessment
-        </div>
-        <div class="card-body">
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <strong>Rapport:</strong>
-                    <div id="scoreRapport">–</div>
-                </div>
-                <div class="col-md-3">
-                    <strong>Discovery:</strong>
-                    <div id="scoreDiscovery">–</div>
-                </div>
-                <div class="col-md-3">
-                    <strong>Deal killers:</strong>
-                    <div id="scoreDealKillers">–</div>
-                </div>
-                <div class="col-md-3">
-                    <strong>Closing clarity:</strong>
-                    <div id="scoreClosingClarity">–</div>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <strong>Strengths</strong>
-                <div id="assessmentStrengths" class="small text-muted">
-                    –
-                </div>
-            </div>
-
-            <div>
-                <strong>Improvements</strong>
-                <div id="assessmentImprovements" class="small text-muted">
-                    –
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 {{-- Simple inline JS for now --}}
@@ -132,27 +142,28 @@
             ?.getAttribute('content');
 
         // DOM elements
-        const transcriptEl = document.getElementById('sparringTranscript');
-        const inputEl = document.getElementById('sparringInput');
-        const formEl = document.getElementById('sparringForm');
-        const scenarioSelectEl = document.getElementById('scenarioSelect');
-        const scenarioDescriptionEl = document.getElementById('scenarioDescription');
-        const statusEl = document.getElementById('sparringStatus');
-        const resetBtn = document.getElementById('resetSessionBtn');
-        const endBtn = document.getElementById('endSessionBtn');
+        const transcriptEl           = document.getElementById('sparringTranscript');
+        const inputEl                = document.getElementById('sparringInput');
+        const formEl                 = document.getElementById('sparringForm');
+        const scenarioSelectEl       = document.getElementById('scenarioSelect');
+        const scenarioDescriptionEl  = document.getElementById('scenarioDescription');
+        const statusEl               = document.getElementById('sparringStatus');
+        const resetBtn               = document.getElementById('resetSessionBtn');
+        const endBtn                 = document.getElementById('endSessionBtn');
 
-        const assessmentCard = document.getElementById('assessmentCard');
-        const scoreRapportEl = document.getElementById('scoreRapport');
-        const scoreDiscoveryEl = document.getElementById('scoreDiscovery');
-        const scoreDealKillersEl = document.getElementById('scoreDealKillers');
-        const scoreClosingClarityEl = document.getElementById('scoreClosingClarity');
-        const strengthsEl = document.getElementById('assessmentStrengths');
-        const improvementsEl = document.getElementById('assessmentImprovements');
+        // State HUD elements
+        const stateTrustBar         = document.getElementById('stateTrustBar');
+        const stateTrustValue       = document.getElementById('stateTrustValue');
+        const stateUrgencyBar       = document.getElementById('stateUrgencyBar');
+        const stateUrgencyValue     = document.getElementById('stateUrgencyValue');
+        const stateMotivationBar    = document.getElementById('stateMotivationBar');
+        const stateMotivationValue  = document.getElementById('stateMotivationValue');
+        const stateResistanceBar    = document.getElementById('stateResistanceBar');
+        const stateResistanceValue  = document.getElementById('stateResistanceValue');
 
         // Session state in JS
         let currentSessionId = null;
-        let isSending = false;
-        let sessionActive = false;
+        let isSending        = false;
 
         function appendMessage(sender, text) {
             if (!text) return;
@@ -179,23 +190,99 @@
             statusEl.textContent = msg || '';
         }
 
-        function resetSessionUI(message) {
+        function resetHud() {
+            updateState(null);
+        }
+
+        function resetSession() {
             currentSessionId = null;
-            sessionActive = false;
-
             transcriptEl.innerHTML =
-                `<div class="text-muted small">${message || 'Session reset. Send a new message to start again.'}</div>`;
-
+                '<div class="text-muted small">Session reset. Send a new message to start again.</div>';
             setStatus('');
-            if (assessmentCard) {
-                assessmentCard.classList.add('d-none');
-            }
+            resetHud();
         }
 
         resetBtn?.addEventListener('click', (e) => {
             e.preventDefault();
-            resetSessionUI();
+            resetSession();
         });
+
+        endBtn?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!currentSessionId) return;
+
+            try {
+                const response = await fetch('/api/gideon/sparring/end', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Session ended', data);
+
+                setStatus('Session ended. Review your assessment below (coming soon).');
+                currentSessionId = null;
+            } catch (err) {
+                console.error(err);
+                setStatus('Error ending session. Check console.');
+            }
+        });
+
+        function updateState(state) {
+            const defaults = {
+                trust: 35,
+                urgency: 30,
+                motivation: 40,
+                resistance: 60
+            };
+
+            if (!state) {
+                stateTrustBar.style.width        = '0%';
+                stateUrgencyBar.style.width      = '0%';
+                stateMotivationBar.style.width   = '0%';
+                stateResistanceBar.style.width   = '0%';
+
+                stateTrustValue.textContent      = '–';
+                stateUrgencyValue.textContent    = '–';
+                stateMotivationValue.textContent = '–';
+                stateResistanceValue.textContent = '–';
+                return;
+            }
+
+            const s = Object.assign({}, defaults, state);
+
+            function clamp(num) {
+                num = parseInt(num, 10);
+                if (Number.isNaN(num)) return 0;
+                return Math.max(0, Math.min(100, num));
+            }
+
+            const trust      = clamp(s.trust);
+            const urgency    = clamp(s.urgency);
+            const motivation = clamp(s.motivation);
+            const resistance = clamp(s.resistance);
+
+            stateTrustBar.style.width        = trust + '%';
+            stateUrgencyBar.style.width      = urgency + '%';
+            stateMotivationBar.style.width   = motivation + '%';
+            stateResistanceBar.style.width   = resistance + '%';
+
+            stateTrustValue.textContent      = trust;
+            stateUrgencyValue.textContent    = urgency;
+            stateMotivationValue.textContent = motivation;
+            stateResistanceValue.textContent = resistance;
+        }
 
         async function sendToGideon(message) {
             if (!csrfToken) {
@@ -243,14 +330,19 @@
                     currentSessionId = data.session_id;
                 }
 
-                sessionActive = true;
+                // Update HUD with latest state
+                if (data.state) {
+                    updateState(data.state);
+                } else if (data.session && data.session.state) {
+                    updateState(data.session.state);
+                }
 
-                // 1) opening line on first call
+                // 1) opening line on first call (we currently don't send one from service, but keep for future)
                 if (data.opening_line) {
                     appendMessage('gideon', data.opening_line);
                 }
 
-                // 2) Gideon reply
+                // 2) generic v1 structure: { agent_message: {...}, gideon_reply: {...} }
                 if (data.gideon_reply && data.gideon_reply.content) {
                     appendMessage('gideon', data.gideon_reply.content);
                 }
@@ -264,65 +356,6 @@
             }
         }
 
-        async function endSession() {
-            if (!currentSessionId) {
-                setStatus('No active session to end.');
-                return;
-            }
-
-            if (!csrfToken) {
-                setStatus('Missing CSRF token.');
-                return;
-            }
-
-            try {
-                setStatus('Ending session and generating assessment...');
-
-                const response = await fetch('/api/gideon/sparring/end', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                    },
-                    body: JSON.stringify({
-                        session_id: currentSessionId,
-                    }),
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const data = await response.json();
-                console.log('Gideon end-session response', data);
-
-                const scores = (data.assessment && data.assessment.scores) || {};
-
-                scoreRapportEl.textContent = scores.rapport ?? '–';
-                scoreDiscoveryEl.textContent = scores.discovery ?? '–';
-                scoreDealKillersEl.textContent = scores.deal_killers ?? '–';
-                scoreClosingClarityEl.textContent = scores.closing_clarity ?? '–';
-
-                strengthsEl.textContent = data.assessment.strengths
-                    || 'Placeholder assessment. Automated coaching logic to be implemented.';
-                improvementsEl.textContent = data.assessment.improvements
-                    || 'Placeholder assessment. Automated coaching logic to be implemented.';
-
-                assessmentCard.classList.remove('d-none');
-
-                resetSessionUI('Session ended. Review your assessment below.');
-            } catch (err) {
-                console.error(err);
-                setStatus('Error ending session. Check console.');
-            }
-        }
-
-        endBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            endSession();
-        });
-
         formEl?.addEventListener('submit', (e) => {
             e.preventDefault();
             if (isSending) return;
@@ -333,6 +366,9 @@
             inputEl.value = '';
             sendToGideon(value);
         });
+
+        // Initial HUD state
+        resetHud();
     })();
 </script>
 @endsection
