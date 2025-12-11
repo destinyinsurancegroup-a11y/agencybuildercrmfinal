@@ -4,90 +4,125 @@ namespace App\Http\Controllers\Gideon;
 
 use App\Http\Controllers\Controller;
 use App\Models\GideonSparringSession;
-use App\Services\Gideon\GideonSparringPartner;
+use App\Services\Gideon\SparringService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class GideonSparringController extends Controller
 {
-    public function __construct(
-        protected GideonSparringPartner $sparringPartner
-    ) {
-        // Use the default "web" auth guard (session-based),
-        // which matches routes/api.php (['web', 'auth']).
+    public function __construct()
+    {
+        // extra safety – routes already use auth middleware
         $this->middleware('auth');
     }
 
     /**
-     * Handle an agent message and return Gideon's reply.
+     * Main sparring endpoint.
      *
-     * POST /api/gideon/sparring/ask
+     * If session_id is null:
+     *   - starts a new session using scenario_code
+     *   - sends the first agent message
+     *
+     * If session_id is provided:
+     *   - just sends the agent message to the existing session
      */
-    public function ask(Request $request)
+    public function ask(Request $request, SparringService $sparring): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         $data = $request->validate([
-            'message'    => ['required', 'string'],
-            'mode'       => ['nullable', 'string', 'max:50'],
-            'personaKey' => ['nullable', 'string', 'max:100'],
-            'session_id' => ['nullable', 'integer'],
+            'session_id'    => ['nullable', 'integer', 'exists:gideon_sparring_sessions,id'],
+            'scenario_code' => ['required_without:session_id', 'string'],
+            'mode'          => ['nullable', 'string', 'in:prospect_simulation,role_reversal'],
+            'message'       => ['required', 'string', 'min:1'],
         ]);
 
-        $mode       = $data['mode'] ?? 'standard';
-        $personaKey = $data['personaKey'] ?? null;
+        $mode         = $data['mode'] ?? 'prospect_simulation';
+        $sessionId    = $data['session_id'] ?? null;
+        $scenarioCode = $data['scenario_code'] ?? null;
+        $message      = $data['message'];
 
-        // Find existing session or start a new one
-        if (!empty($data['session_id'])) {
-            $session = GideonSparringSession::where('id', $data['session_id'])
-                ->where('agency_id', $user->agency_id)
-                ->where('user_id', $user->id)
-                ->first();
+        try {
+            if (! $sessionId) {
+                // New session
+                $sessionPayload = $sparring->startSession(
+                    $user->agency_id,
+                    $user->id,
+                    $scenarioCode,
+                    $mode
+                );
 
-            if (!$session) {
-                return response()->json([
-                    'error' => 'Session not found or not accessible.',
-                ], 404);
+                $session   = $sessionPayload['session'];
+                $opening   = $sessionPayload['first_message'];
+                $sessionId = $session->id;
+            } else {
+                // Existing session
+                $session = GideonSparringSession::where('id', $sessionId)
+                    ->where('agency_id', $user->agency_id)
+                    ->where('user_id', $user->id)
+                    ->firstOrFail();
+
+                $opening = null;
             }
-        } else {
-            $session = $this->sparringPartner->startSession($user, $mode, $personaKey);
+
+            $result = $sparring->handleAgentMessage(
+                $sessionId,
+                $user->agency_id,
+                $user->id,
+                $message
+            );
+
+            $session->refresh();
+
+            return response()->json([
+                'session'        => $session,
+                'state'          => $session->state,
+                'opening_line'   => $opening?->content,
+                'agent_message'  => $result['agent_message'],
+                'gideon_reply'   => $result['gideon_reply'],
+            ]);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'Gideon sparring error.',
+            ], 500);
         }
-
-        $reply = $this->sparringPartner->handleAgentMessage($session, $data['message']);
-
-        return response()->json([
-            'session_id' => $session->id,
-            'reply'      => $reply,
-        ]);
     }
 
     /**
-     * End a session and return an assessment/scorecard.
-     *
-     * POST /api/gideon/sparring/end
+     * End the session and return assessment summary.
      */
-    public function end(Request $request)
+    public function end(Request $request, SparringService $sparring): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         $data = $request->validate([
-            'session_id' => ['required', 'integer'],
+            'session_id' => ['required', 'integer', 'exists:gideon_sparring_sessions,id'],
         ]);
 
-        $session = GideonSparringSession::where('id', $data['session_id'])
-            ->where('agency_id', $user->agency_id)
-            ->where('user_id', $user->id)
-            ->firstOrFail();
+        $sessionId = $data['session_id'];
 
-        $assessment = $this->sparringPartner->endSessionAndAssess($session);
+        try {
+            $result = $sparring->endSession(
+                $sessionId,
+                $user->agency_id,
+                $user->id
+            );
 
-        return response()->json([
-            'session_id'  => $session->id,
-            'assessment'  => [
-                'scores'       => $assessment->scores,
-                'strengths'    => $assessment->strengths,
-                'improvements' => $assessment->improvements,
-            ],
-        ]);
+            return response()->json([
+                'session'    => $result['session'],
+                'assessment' => $result['assessment'],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'Failed to end Gideon sparring session.',
+            ], 500);
+        }
     }
 }
