@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gideon;
 
 use App\Http\Controllers\Controller;
+use App\Models\GideonScenario;
 use App\Models\GideonSparringSession;
 use App\Services\Gideon\SparringService;
 use Illuminate\Http\JsonResponse;
@@ -20,11 +21,13 @@ class GideonSparringController extends Controller
     /**
      * Show the Sparring Partner page.
      *
-     * Loads available scenarios (via SparringService) and passes them into the view.
+     * Loads available scenarios and passes them into the view.
      */
-    public function index(SparringService $sparring)
+    public function index(Request $request)
     {
-        $scenarios = $sparring->listScenariosForUi();
+        $scenarios = GideonScenario::where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('gideon.sparring', [
             'scenarios' => $scenarios,
