@@ -10,10 +10,8 @@
 
     {{-- Scenario + Persona selector --}}
     <div class="card mb-3">
-        <div class="card-body d-flex flex-wrap align-items-start gap-3">
-
-            {{-- Scenario --}}
-            <div>
+        <div class="card-body row g-3 align-items-center">
+            <div class="col-md-4">
                 <label for="scenarioSelect" class="form-label mb-1">Scenario</label>
                 <select id="scenarioSelect" class="form-select">
                     @forelse($scenarios as $scenario)
@@ -29,22 +27,28 @@
                 </select>
             </div>
 
-            {{-- Persona --}}
-            <div>
+            <div class="col-md-4">
                 <label for="personaSelect" class="form-label mb-1">Prospect persona</label>
                 <select id="personaSelect" class="form-select">
-                    <option value="adaptive" selected>Adaptive (recommended)</option>
-                    <option value="soft_conflict_avoidant">Soft / conflict-avoidant</option>
-                    <option value="neutral_realistic">Neutral / realistic</option>
-                    <option value="skeptical_guarded">Skeptical / guarded</option>
+                    <option value="soft_conflict_avoidant" selected>Soft / conflict-avoidant</option>
+                    <option value="neutral_balanced">Neutral / balanced</option>
+                    <option value="direct_analytical">Direct / analytical</option>
                 </select>
-                <div class="form-text small">
+                <div class="small text-muted mt-1">
                     Choose how Gideon should “feel” before you start.
                 </div>
             </div>
 
-            {{-- Scenario description --}}
-            <div class="flex-grow-1">
+            <div class="col-md-4 d-flex flex-column align-items-md-end align-items-start gap-2">
+                <button id="resetSessionBtn" class="btn btn-outline-secondary btn-sm" type="button">
+                    Reset Session
+                </button>
+                <button id="endSessionBtn" class="btn btn-outline-danger btn-sm" type="button">
+                    End Session (Assessment)
+                </button>
+            </div>
+
+            <div class="col-12">
                 <label class="form-label mb-1 d-block">Scenario description</label>
                 <div id="scenarioDescription" class="small text-muted">
                     @if($scenarios->count())
@@ -53,13 +57,6 @@
                         Ask your admin to run the GideonCoreSeeder.
                     @endif
                 </div>
-            </div>
-
-            {{-- Reset button --}}
-            <div class="ms-auto">
-                <button id="resetSessionBtn" class="btn btn-outline-secondary btn-sm" type="button">
-                    Reset Session
-                </button>
             </div>
         </div>
     </div>
@@ -88,12 +85,49 @@
                        placeholder="Type what you’d say to the prospect and press Enter..."
                        autocomplete="off" />
 
-                <button class="btn btn-warning" type="submit">
+                <button id="sendBtn" class="btn btn-warning" type="submit">
                     Send
                 </button>
             </form>
 
             <div class="mt-2 small text-muted" id="sparringStatus"></div>
+        </div>
+    </div>
+
+    {{-- Session Assessment (hidden until session is ended) --}}
+    <div class="card mt-4" id="assessmentCard" style="display:none;">
+        <div class="card-header">
+            Session Assessment
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Rapport:</strong> <span id="assRapport">–</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Discovery:</strong> <span id="assDiscovery">–</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Deal killers:</strong> <span id="assDealKillers">–</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Closing clarity:</strong> <span id="assClosingClarity">–</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <h6>Strengths</h6>
+                <p class="mb-0 small" id="assStrengths">
+                    –
+                </p>
+            </div>
+
+            <div>
+                <h6>Improvements</h6>
+                <p class="mb-0 small" id="assImprovements">
+                    –
+                </p>
+            </div>
         </div>
     </div>
 </div>
@@ -109,15 +143,26 @@
         const transcriptEl            = document.getElementById('sparringTranscript');
         const inputEl                 = document.getElementById('sparringInput');
         const formEl                  = document.getElementById('sparringForm');
+        const sendBtn                 = document.getElementById('sendBtn');
         const scenarioSelectEl        = document.getElementById('scenarioSelect');
         const personaSelectEl         = document.getElementById('personaSelect');
         const scenarioDescriptionEl   = document.getElementById('scenarioDescription');
         const statusEl                = document.getElementById('sparringStatus');
         const resetBtn                = document.getElementById('resetSessionBtn');
+        const endBtn                  = document.getElementById('endSessionBtn');
+
+        // Assessment elements
+        const assessmentCard          = document.getElementById('assessmentCard');
+        const assRapportEl            = document.getElementById('assRapport');
+        const assDiscoveryEl          = document.getElementById('assDiscovery');
+        const assDealKillersEl        = document.getElementById('assDealKillers');
+        const assClosingClarityEl     = document.getElementById('assClosingClarity');
+        const assStrengthsEl          = document.getElementById('assStrengths');
+        const assImprovementsEl       = document.getElementById('assImprovements');
 
         // Session state in JS
         let currentSessionId = null;
-        let isSending        = false;
+        let isSending = false;
 
         function appendMessage(sender, text) {
             if (!text) return;
@@ -144,15 +189,44 @@
             statusEl.textContent = msg || '';
         }
 
+        function enableInput() {
+            if (inputEl) inputEl.disabled = false;
+            if (sendBtn) sendBtn.disabled = false;
+        }
+
+        function disableInput() {
+            if (inputEl) inputEl.disabled = true;
+            if (sendBtn) sendBtn.disabled = true;
+        }
+
+        function clearAssessment() {
+            assessmentCard.style.display   = 'none';
+            assRapportEl.textContent       = '–';
+            assDiscoveryEl.textContent     = '–';
+            assDealKillersEl.textContent   = '–';
+            assClosingClarityEl.textContent= '–';
+            assStrengthsEl.textContent     = '–';
+            assImprovementsEl.textContent  = '–';
+        }
+
         function resetSession() {
             currentSessionId = null;
             transcriptEl.innerHTML =
                 '<div class="text-muted small">Session reset. Send a new message to start again.</div>';
+            clearAssessment();
             setStatus('');
+            enableInput();
+            if (inputEl) inputEl.value = '';
         }
 
         resetBtn?.addEventListener('click', (e) => {
             e.preventDefault();
+            resetSession();
+        });
+
+        // Optional: if you later store scenario descriptions in JS, update description on change.
+        scenarioSelectEl?.addEventListener('change', () => {
+            // For now we only change session; description stays as initial
             resetSession();
         });
 
@@ -162,14 +236,13 @@
                 setStatus('Error: missing CSRF token.');
                 return;
             }
-
             const scenarioCode = scenarioSelectEl?.value || null;
             if (!scenarioCode) {
                 setStatus('Please choose a scenario first.');
                 return;
             }
 
-            const persona = personaSelectEl?.value || 'adaptive';
+            const persona = personaSelectEl?.value || 'soft_conflict_avoidant';
 
             isSending = true;
             setStatus('Talking to Gideon...');
@@ -206,15 +279,12 @@
                     currentSessionId = data.session_id;
                 }
 
-                // Opening line on first call
+                // 1) opening line on first call
                 if (data.opening_line) {
                     appendMessage('gideon', data.opening_line);
                 }
 
-                // Agent + Gideon messages from service
-                if (data.agent_message && data.agent_message.content) {
-                    appendMessage('agent', data.agent_message.content);
-                }
+                // 2) Gideon's reply for this turn
                 if (data.gideon_reply && data.gideon_reply.content) {
                     appendMessage('gideon', data.gideon_reply.content);
                 }
@@ -228,6 +298,70 @@
             }
         }
 
+        async function endSession() {
+            if (!currentSessionId) {
+                setStatus('No active session to end.');
+                return;
+            }
+            if (!csrfToken) {
+                setStatus('Error: missing CSRF token.');
+                return;
+            }
+
+            isSending = true;
+            setStatus('Ending session and generating assessment...');
+
+            try {
+                const response = await fetch('/api/gideon/sparring/end', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Assessment response', data);
+
+                if (data.assessment && data.assessment.scores) {
+                    const scores = data.assessment.scores;
+
+                    assRapportEl.textContent        = scores.rapport ?? '–';
+                    assDiscoveryEl.textContent      = scores.discovery ?? '–';
+                    assDealKillersEl.textContent    = scores.deal_killers ?? '–';
+                    assClosingClarityEl.textContent = scores.closing_clarity ?? '–';
+                }
+
+                assStrengthsEl.textContent   = data.assessment?.strengths
+                    ?? 'Placeholder assessment. Automated coaching logic to be implemented.';
+                assImprovementsEl.textContent = data.assessment?.improvements
+                    ?? 'Placeholder assessment. Automated coaching logic to be implemented.';
+
+                assessmentCard.style.display = 'block';
+                setStatus('Session ended. Review your assessment below.');
+                disableInput();
+            } catch (err) {
+                console.error(err);
+                setStatus('Error ending session / generating assessment.');
+            } finally {
+                isSending = false;
+            }
+        }
+
+        endBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (isSending) return;
+            endSession();
+        });
+
         formEl?.addEventListener('submit', (e) => {
             e.preventDefault();
             if (isSending) return;
@@ -236,6 +370,8 @@
             if (!value) return;
 
             inputEl.value = '';
+            clearAssessment(); // if they start talking again, hide old assessment
+            enableInput();
             sendToGideon(value);
         });
     })();
