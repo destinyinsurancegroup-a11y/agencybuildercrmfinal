@@ -20,7 +20,7 @@ class SparringService
      */
     public function startSession(
         ?int $agencyId,
-        int $userId,
+        int  $userId,
         string $scenarioCode,
         string $mode = 'prospect_simulation',
     ): array {
@@ -39,9 +39,17 @@ class SparringService
             ];
 
             $prospectProfile = $scenario->prospect_profile ?? [];
-            $personaKey = is_array($prospectProfile)
+            $personaKey      = is_array($prospectProfile)
                 ? Arr::get($prospectProfile, 'persona')
                 : null;
+
+            // basic starting emotional state for the prospect
+            $initialState = [
+                'trust'       => 35,
+                'urgency'     => 30,
+                'motivation'  => 40,
+                'resistance'  => 60,
+            ];
 
             $session = GideonSparringSession::create([
                 'agency_id'   => $agencyId,
@@ -51,40 +59,11 @@ class SparringService
                 'config'      => $config,
                 'status'      => 'active',
                 'started_at'  => now(),
+                'state'       => $initialState,
             ]);
 
-            /**
-             * OPTION B: initialize emotional / scenario state.
-             * These defaults will be adjusted by persona and agent behavior.
-             */
-            $state = [
-                'motivation' => 40,
-                'urgency'    => 30,
-                'trust'      => 40,
-                'resistance' => 50,
-            ];
-
-            if (is_array($prospectProfile)) {
-                $persona = $prospectProfile['persona'] ?? null;
-
-                if ($persona === 'easygoing_delayer') {
-                    $state['urgency']    = 20;
-                    $state['resistance'] = 55;
-                } elseif ($persona === 'loyal_but_open') {
-                    $state['trust']      = 50;
-                    $state['resistance'] = 45;
-                } elseif ($persona === 'conflict_avoidant') {
-                    $state['trust']      = 35;
-                    $state['resistance'] = 60;
-                }
-            }
-
-            $session->state = $state;
-            $session->save();
-
-            // Scenario opening line (Gideon speaks first if defined)
             $scriptEngine = $scenario->script_engine ?? [];
-            $openingLine = is_array($scriptEngine)
+            $openingLine  = is_array($scriptEngine)
                 ? Arr::get($scriptEngine, 'opening_line')
                 : null;
 
@@ -112,14 +91,14 @@ class SparringService
     }
 
     /**
-     * Handle an agent message + generate Gideon's reply.
+     * Handle an agent message + generate Gideon's reply (v1 logic with state & tactics).
      *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
     public function handleAgentMessage(
-        int $sessionId,
-        ?int $agencyId,
-        int $userId,
+        int    $sessionId,
+        ?int   $agencyId,
+        int    $userId,
         string $agentMessage,
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
@@ -134,7 +113,7 @@ class SparringService
             ]);
         }
 
-        $config = $session->config ?? [];
+        $config       = $session->config ?? [];
         $scenarioCode = is_array($config) ? ($config['scenario_code'] ?? null) : null;
 
         $scenario = $scenarioCode
@@ -148,13 +127,7 @@ class SparringService
             $agentMessage,
             $scenario
         ) {
-            // Update emotional state based on this message (Option B foundation)
-            $state = $session->state ?? [];
-            $state = $this->updateStateFromAgentMessage($state, $agentMessage);
-            $session->state = $state;
-            $session->save();
-
-            // Store agent message
+            // 1) Store agent message
             $agentMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
                 'agency_id'  => $agencyId,
@@ -166,13 +139,41 @@ class SparringService
                 ],
             ]);
 
-            // Scenario + state-aware reply
-            $replyText = $this->generateGideonReplyStub(
-                $session,
+            // 2) Load current emotional state
+            $state = $session->state ?? [
+                'trust'       => 35,
+                'urgency'     => 30,
+                'motivation'  => 40,
+                'resistance'  => 60,
+            ];
+
+            if (! is_array($state)) {
+                $state = [
+                    'trust'       => 35,
+                    'urgency'     => 30,
+                    'motivation'  => 40,
+                    'resistance'  => 60,
+                ];
+            }
+
+            // 3) Choose tactic + reply based on state & scenario
+            $tactic = $this->chooseTactic($state, $scenario, $agentMessage);
+
+            $replyText = $this->buildReplyFromTactic(
+                $tactic,
+                $state,
                 $scenario,
                 $agentMessage
             );
 
+            // 4) Adjust state based on the tactic (very simple v1)
+            $newState = $this->updateStateFromTactic($state, $tactic);
+
+            $session->update([
+                'state' => $newState,
+            ]);
+
+            // 5) Store Gideon reply
             $gideonMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
                 'agency_id'  => $agencyId,
@@ -182,6 +183,7 @@ class SparringService
                 'meta'       => [
                     'source'        => 'scenario_v1_logic_with_state',
                     'scenario_code' => $scenario?->code,
+                    'tactic'        => $tactic['label'] ?? null,
                 ],
             ]);
 
@@ -198,9 +200,9 @@ class SparringService
      * @return array{session: GideonSparringSession, assessment: GideonSparringAssessment}
      */
     public function endSession(
-        int $sessionId,
+        int  $sessionId,
         ?int $agencyId,
-        int $userId,
+        int  $userId,
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
             ->where('agency_id', $agencyId)
@@ -218,10 +220,10 @@ class SparringService
             'agency_id'    => $agencyId,
             'user_id'      => $userId,
             'scores'       => [
-                'rapport'         => 5,
-                'discovery'       => 5,
-                'deal_killers'    => 5,
-                'closing_clarity' => 5,
+                'rapport'        => 5,
+                'discovery'      => 5,
+                'deal_killers'   => 5,
+                'closing_clarity'=> 5,
             ],
             'strengths'    => 'Placeholder assessment. Automated coaching logic to be implemented.',
             'improvements' => 'Placeholder assessment. Automated coaching logic to be implemented.',
@@ -240,9 +242,9 @@ class SparringService
      * @return array{session: GideonSparringSession, messages: Collection<int, GideonSparringMessage>}
      */
     public function getSessionTranscript(
-        int $sessionId,
+        int  $sessionId,
         ?int $agencyId,
-        int $userId,
+        int  $userId,
     ): array {
         $session = GideonSparringSession::where('id', $sessionId)
             ->where('agency_id', $agencyId)
@@ -260,191 +262,165 @@ class SparringService
         ];
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | TACTIC ENGINE V1
+    |--------------------------------------------------------------------------
+    | Very simple, but gives us:
+    | - different “moves” depending on trust / resistance
+    | - hooks for later when we wire in your Science of Sales content
+    */
+
     /**
-     * Option B helper: update emotional state from the agent's message.
+     * Decide what kind of move Gideon should make next.
+     *
+     * @return array{label:string, style:string}
      */
-    protected function updateStateFromAgentMessage(array $state, string $message): array
-    {
-        $lower = mb_strtolower($message);
+    protected function chooseTactic(
+        array $state,
+        ?GideonScenario $scenario,
+        string $agentMessage,
+    ): array {
+        $trust      = (int) ($state['trust'] ?? 35);
+        $urgency    = (int) ($state['urgency'] ?? 30);
+        $motivation = (int) ($state['motivation'] ?? 40);
+        $resistance = (int) ($state['resistance'] ?? 60);
 
-        // Ensure baseline values
-        $state['motivation'] = $state['motivation'] ?? 40;
-        $state['urgency']    = $state['urgency'] ?? 30;
-        $state['trust']      = $state['trust'] ?? 40;
-        $state['resistance'] = $state['resistance'] ?? 50;
-
-        // Empathy phrases → trust up, resistance down
-        if (
-            str_contains($lower, 'i get that') ||
-            str_contains($lower, 'i understand') ||
-            str_contains($lower, 'that makes sense') ||
-            str_contains($lower, 'i hear you') ||
-            str_contains($lower, 'fair enough')
-        ) {
-            $state['trust']      += 5;
-            $state['resistance'] -= 5;
+        // Very high resistance: go to empathy / label feelings
+        if ($resistance >= 70) {
+            return [
+                'label' => 'tactical_empathy',
+                'style' => 'softening',
+            ];
         }
 
-        // Good discovery / clarifiers → motivation up
-        if (
-            str_contains($lower, 'help me understand') ||
-            str_contains($lower, 'tell me more') ||
-            str_contains($lower, 'walk me through') ||
-            str_contains($lower, 'what makes you say that') ||
-            str_contains($lower, 'what part feels unclear')
-        ) {
-            $state['motivation'] += 5;
+        // Low clarity / mid resistance: clarify and go deeper
+        if ($resistance >= 50 && $trust < 60) {
+            return [
+                'label' => 'clarifying_question',
+                'style' => 'socratic',
+            ];
         }
 
-        // Early close attempts
-        if (
-            str_contains($lower, 'ready to move forward') ||
-            str_contains($lower, 'get this started') ||
-            str_contains($lower, 'go ahead and') ||
-            str_contains($lower, 'sign up today') ||
-            str_contains($lower, 'move forward')
-        ) {
-            if ($state['trust'] < 50 || $state['resistance'] > 50) {
-                // Prospect feels pushed → resistance spikes
-                $state['resistance'] += 10;
-            } else {
-                // If relationship is good, closing builds urgency & motivation
-                $state['motivation'] += 10;
-                $state['urgency']    += 10;
-            }
+        // Decent trust but low urgency: build consequences / “what happens if nothing changes”
+        if ($trust >= 55 && $urgency < 50) {
+            return [
+                'label' => 'future_pacing',
+                'style' => 'gentle_consequence',
+            ];
         }
 
-        // Clamp 0–100
-        foreach (['motivation', 'urgency', 'trust', 'resistance'] as $key) {
-            $state[$key] = max(0, min(100, (int) $state[$key]));
+        // Trust & urgency both reasonable: small soft close / test commitment
+        if ($trust >= 60 && $urgency >= 55 && $resistance <= 50) {
+            return [
+                'label' => 'test_close',
+                'style' => 'if_then',
+            ];
         }
 
-        return $state;
+        // Default: reflect + ask one clean question
+        return [
+            'label' => 'reflection_plus_question',
+            'style' => 'neutral',
+        ];
     }
 
     /**
-     * Scenario-aware reply (Option A) + light emotional flavor (Option B).
+     * Build Gideon's reply text for the chosen tactic.
      */
-    protected function generateGideonReplyStub(
-        GideonSparringSession $session,
+    protected function buildReplyFromTactic(
+        array $tactic,
+        array $state,
         ?GideonScenario $scenario,
         string $agentMessage,
     ): string {
-        // Fallback if scenario is missing
-        if (! $scenario) {
-            return "I hear what you’re saying. From my side as the prospect, I’m still not completely sure. "
-                . "What else would you ask me or explain so I can feel confident either way?";
+        $scenarioLabel = $scenario?->name ?? 'this situation';
+
+        $label = $tactic['label'] ?? 'reflection_plus_question';
+
+        switch ($label) {
+            case 'tactical_empathy':
+                return
+                    "I hear what you’re saying, and I get why you’d feel that way. "
+                    . "From where I’m sitting in {$scenarioLabel}, a lot of this comes down to comfort and trust. "
+                    . "What specifically is making you most hesitant right now?";
+
+            case 'clarifying_question':
+                return
+                    "Got it. It sounds like there’s still something that doesn’t feel quite right. "
+                    . "When you think about {$scenarioLabel}, what part feels the most unclear or risky to you?";
+
+            case 'future_pacing':
+                return
+                    "That makes sense. I don’t want you to rush into anything and regret it either. "
+                    . "If you and I decide to leave things exactly as they are, what do you see happening over the next 6–12 months?";
+            
+            case 'test_close':
+                return
+                    "Totally fair. Let me ask you this though – "
+                    . "if we were able to lay everything out so that it made sense and fit your budget, "
+                    . "would there be anything else that would stop you from moving forward?";
+
+            case 'reflection_plus_question':
+            default:
+                return
+                    "Okay, I appreciate you sharing that. "
+                    . "When you look at {$scenarioLabel} as a whole, what would need to be true for you to feel genuinely comfortable moving ahead?";
+        }
+    }
+
+    /**
+     * Adjust the internal state based on the tactic we just used.
+     */
+    protected function updateStateFromTactic(array $state, array $tactic): array
+    {
+        $trust      = (int) ($state['trust'] ?? 35);
+        $urgency    = (int) ($state['urgency'] ?? 30);
+        $motivation = (int) ($state['motivation'] ?? 40);
+        $resistance = (int) ($state['resistance'] ?? 60);
+
+        $label = $tactic['label'] ?? 'reflection_plus_question';
+
+        switch ($label) {
+            case 'tactical_empathy':
+                $trust      += 5;
+                $resistance -= 5;
+                break;
+
+            case 'clarifying_question':
+                $trust      += 3;
+                $resistance -= 2;
+                break;
+
+            case 'future_pacing':
+                $urgency    += 5;
+                $motivation += 4;
+                break;
+
+            case 'test_close':
+                // small bump in urgency; resistance can go up or down in real life,
+                // but here we’ll assume you handled it well.
+                $urgency    += 3;
+                $resistance -= 2;
+                break;
+
+            case 'reflection_plus_question':
+            default:
+                $trust += 2;
+                break;
         }
 
-        $scriptEngine    = $scenario->script_engine ?? [];
-        $prospectProfile = $scenario->prospect_profile ?? [];
+        // keep in 0–100 range
+        $trust      = max(0, min(100, $trust));
+        $urgency    = max(0, min(100, $urgency));
+        $motivation = max(0, min(100, $motivation));
+        $resistance = max(0, min(100, $resistance));
 
-        $scenarioName      = $scenario->name;
-        $objectionTypeCode = is_array($scriptEngine)
-            ? ($scriptEngine['objection_type_code'] ?? null)
-            : null;
-
-        // Light intent classification from the agent message
-        $lower = mb_strtolower($agentMessage);
-
-        $agentAskedForClarity =
-            str_contains($lower, 'what do you mean') ||
-            str_contains($lower, 'help me understand') ||
-            str_contains($lower, 'clarify') ||
-            str_contains($lower, 'tell me more') ||
-            str_contains($lower, 'walk me through');
-
-        $agentWentForClose =
-            str_contains($lower, 'ready to move forward') ||
-            str_contains($lower, 'get this started') ||
-            str_contains($lower, 'go ahead and') ||
-            str_contains($lower, 'sign up') ||
-            str_contains($lower, 'move ahead') ||
-            str_contains($lower, 'move forward');
-
-        $agentUsedEmpathy =
-            str_contains($lower, 'i get that') ||
-            str_contains($lower, 'i understand') ||
-            str_contains($lower, 'that makes sense') ||
-            str_contains($lower, 'fair enough') ||
-            str_contains($lower, 'i hear you');
-
-        // Reply templates keyed by objection type
-        $repliesByObjection = [
-            'obj_money' => [
-                'default' => "Honestly, the biggest thing in my head is still the price. "
-                    . "I’m wondering if this is really worth that much for me right now.",
-                'after_clarifier' => "I get that you’re trying to understand where I’m coming from. "
-                    . "My worry is just paying that amount and then not really feeling the difference day to day.",
-                'after_empathy' => "I appreciate you seeing where I’m coming from. "
-                    . "I just don’t want to commit to something that squeezes the budget too much.",
-            ],
-            'obj_think_it_over' => [
-                'default' => "It all sounds good, I just feel like I need a bit more time to think it over before I say yes or no.",
-                'after_clarifier' => "To be honest, it’s less about details and more that I’m nervous about making the wrong call today.",
-                'after_empathy' => "Yeah, it’s a big decision. I just don’t want to rush into it and regret it.",
-            ],
-            'obj_spouse' => [
-                'default' => "I like what you’re saying, but I really don’t make these kinds of decisions without my spouse.",
-                'after_clarifier' => "My spouse will definitely have questions about the cost and whether it really changes anything for us.",
-                'after_empathy' => "I appreciate you understanding that. I just know my spouse will want to have a say before we commit.",
-            ],
-            'obj_competition' => [
-                'default' => "The main thing is we already have someone we work with for this, and switching feels like a bit of a risk.",
-                'after_clarifier' => "It’s not that they’re perfect, but at least we know what we’re getting. Changing providers always feels risky.",
-                'after_empathy' => "Exactly, we’ve had this in place for a while. I’d have to feel really confident that changing is worth the hassle.",
-            ],
-            'obj_no_urgency' => [
-                'default' => "I just don’t feel like this is an urgent thing right now. It’s more of a ‘someday’ decision in my head.",
-                'after_clarifier' => "It’s not that it’s unimportant, it’s just that nothing is really forcing us to act right away.",
-                'after_empathy' => "Yeah, I get that it matters, it just feels like one of those things we could look at later.",
-            ],
+        return [
+            'trust'       => $trust,
+            'urgency'     => $urgency,
+            'motivation'  => $motivation,
+            'resistance'  => $resistance,
         ];
-
-        $templates = $repliesByObjection[$objectionTypeCode] ?? null;
-
-        // If we don’t have a specific objection profile, fall back to generic
-        if (! $templates) {
-            return "From my side as the prospect in {$scenarioName}, I’m still on the fence. "
-                . "Part of me sees the upside, but part of me is nervous about making a mistake. "
-                . "What would you ask me next to really understand what’s holding me back?";
-        }
-
-        // Choose template based on what the agent just did
-        if ($agentAskedForClarity) {
-            $reply = $templates['after_clarifier'];
-        } elseif ($agentUsedEmpathy) {
-            $reply = $templates['after_empathy'];
-        } elseif ($agentWentForClose) {
-            $reply = $templates['default'] . " I’m not at a solid yes yet.";
-        } else {
-            $reply = $templates['default'];
-        }
-
-        // Emotional flavor from state (Option B)
-        $state      = $session->state ?? [];
-        $trust      = $state['trust'] ?? 40;
-        $resistance = $state['resistance'] ?? 50;
-
-        if ($trust > 60 && $resistance < 40) {
-            $reply = "I actually do like a lot of what you’re saying. " . $reply;
-        } elseif ($resistance > 70) {
-            $reply .= " Honestly, I’m feeling a bit pushed right now.";
-        }
-
-        // Persona flavor
-        $persona = is_array($prospectProfile)
-            ? ($prospectProfile['persona'] ?? null)
-            : null;
-
-        if ($persona === 'easygoing_delayer') {
-            $reply .= " I’m just the type that likes to drag my feet on this kind of thing.";
-        } elseif ($persona === 'loyal_but_open') {
-            $reply .= " I’m loyal by nature, so changing what we do now takes a lot for me.";
-        } elseif ($persona === 'conflict_avoidant') {
-            $reply .= " I really hate feeling pressured into anything.";
-        }
-
-        return $reply;
     }
 }
