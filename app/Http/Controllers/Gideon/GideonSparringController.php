@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gideon;
 
 use App\Http\Controllers\Controller;
+use App\Models\GideonScenario;
 use App\Models\GideonSparringSession;
 use App\Services\Gideon\SparringService;
 use Illuminate\Http\JsonResponse;
@@ -13,12 +14,28 @@ class GideonSparringController extends Controller
 {
     public function __construct()
     {
-        // extra safety – routes already use auth middleware
+        // Routes already have auth middleware, this is extra safety
         $this->middleware('auth');
     }
 
     /**
-     * Main sparring endpoint.
+     * Show the Sparring Partner page.
+     *
+     * Loads available scenarios and passes them into the view.
+     */
+    public function index(Request $request)
+    {
+        $scenarios = GideonScenario::where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('gideon.sparring', [
+            'scenarios' => $scenarios,
+        ]);
+    }
+
+    /**
+     * Main sparring endpoint (AJAX/JSON).
      *
      * If session_id is null:
      *   - starts a new session using scenario_code + persona
