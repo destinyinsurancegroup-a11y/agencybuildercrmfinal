@@ -35,7 +35,7 @@ class SparringService
         return DB::transaction(function () use ($agencyId, $userId, $scenario, $mode) {
             $config = [
                 'scenario_code' => $scenario->code,
-                'mode' => $mode,
+                'mode'          => $mode,
             ];
 
             $prospectProfile = $scenario->prospect_profile ?? [];
@@ -44,15 +44,45 @@ class SparringService
                 : null;
 
             $session = GideonSparringSession::create([
-                'agency_id' => $agencyId,
-                'user_id' => $userId,
-                'mode' => $mode,
+                'agency_id'   => $agencyId,
+                'user_id'     => $userId,
+                'mode'        => $mode,
                 'persona_key' => $personaKey,
-                'config' => $config,
-                'status' => 'active',
-                'started_at' => now(),
+                'config'      => $config,
+                'status'      => 'active',
+                'started_at'  => now(),
             ]);
 
+            /**
+             * OPTION B: initialize emotional / scenario state.
+             * These defaults will be adjusted by persona and agent behavior.
+             */
+            $state = [
+                'motivation' => 40,
+                'urgency'    => 30,
+                'trust'      => 40,
+                'resistance' => 50,
+            ];
+
+            if (is_array($prospectProfile)) {
+                $persona = $prospectProfile['persona'] ?? null;
+
+                if ($persona === 'easygoing_delayer') {
+                    $state['urgency']    = 20;
+                    $state['resistance'] = 55;
+                } elseif ($persona === 'loyal_but_open') {
+                    $state['trust']      = 50;
+                    $state['resistance'] = 45;
+                } elseif ($persona === 'conflict_avoidant') {
+                    $state['trust']      = 35;
+                    $state['resistance'] = 60;
+                }
+            }
+
+            $session->state = $state;
+            $session->save();
+
+            // Scenario opening line (Gideon speaks first if defined)
             $scriptEngine = $scenario->script_engine ?? [];
             $openingLine = is_array($scriptEngine)
                 ? Arr::get($scriptEngine, 'opening_line')
@@ -63,26 +93,26 @@ class SparringService
             if ($openingLine) {
                 $firstMessage = GideonSparringMessage::create([
                     'session_id' => $session->id,
-                    'agency_id' => $agencyId,
-                    'user_id' => $userId,
-                    'sender' => 'gideon',
-                    'content' => $openingLine,
-                    'meta' => [
-                        'source' => 'scenario_opening_line',
+                    'agency_id'  => $agencyId,
+                    'user_id'    => $userId,
+                    'sender'     => 'gideon',
+                    'content'    => $openingLine,
+                    'meta'       => [
+                        'source'        => 'scenario_opening_line',
                         'scenario_code' => $scenario->code,
                     ],
                 ]);
             }
 
             return [
-                'session' => $session->fresh(),
+                'session'       => $session->fresh(),
                 'first_message' => $firstMessage,
             ];
         });
     }
 
     /**
-     * Handle an agent message + generate Gideon's reply (scenario-aware v1).
+     * Handle an agent message + generate Gideon's reply.
      *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
@@ -118,19 +148,25 @@ class SparringService
             $agentMessage,
             $scenario
         ) {
+            // Update emotional state based on this message (Option B foundation)
+            $state = $session->state ?? [];
+            $state = $this->updateStateFromAgentMessage($state, $agentMessage);
+            $session->state = $state;
+            $session->save();
+
             // Store agent message
             $agentMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
-                'agency_id' => $agencyId,
-                'user_id' => $userId,
-                'sender' => 'agent',
-                'content' => $agentMessage,
-                'meta' => [
+                'agency_id'  => $agencyId,
+                'user_id'    => $userId,
+                'sender'     => 'agent',
+                'content'    => $agentMessage,
+                'meta'       => [
                     'analysis' => null, // later: pattern analysis goes here
                 ],
             ]);
 
-            // Scenario-aware reply logic (Option A brain)
+            // Scenario + state-aware reply
             $replyText = $this->generateGideonReplyStub(
                 $session,
                 $scenario,
@@ -139,19 +175,19 @@ class SparringService
 
             $gideonMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
-                'agency_id' => $agencyId,
-                'user_id' => $userId,
-                'sender' => 'gideon',
-                'content' => $replyText,
-                'meta' => [
-                    'source' => 'scenario_v1_logic',
+                'agency_id'  => $agencyId,
+                'user_id'    => $userId,
+                'sender'     => 'gideon',
+                'content'    => $replyText,
+                'meta'       => [
+                    'source'        => 'scenario_v1_logic_with_state',
                     'scenario_code' => $scenario?->code,
                 ],
             ]);
 
             return [
                 'agent_message' => $agentMsg,
-                'gideon_reply' => $gideonMsg,
+                'gideon_reply'  => $gideonMsg,
             ];
         });
     }
@@ -173,27 +209,27 @@ class SparringService
             ->firstOrFail();
 
         $session->update([
-            'status' => 'completed',
+            'status'   => 'completed',
             'ended_at' => now(),
         ]);
 
         $assessment = GideonSparringAssessment::create([
-            'session_id' => $session->id,
-            'agency_id' => $agencyId,
-            'user_id' => $userId,
-            'scores' => [
-                'rapport' => 5,
-                'discovery' => 5,
-                'deal_killers' => 5,
+            'session_id'   => $session->id,
+            'agency_id'    => $agencyId,
+            'user_id'      => $userId,
+            'scores'       => [
+                'rapport'         => 5,
+                'discovery'       => 5,
+                'deal_killers'    => 5,
                 'closing_clarity' => 5,
             ],
-            'strengths' => 'Placeholder assessment. Automated coaching logic to be implemented.',
+            'strengths'    => 'Placeholder assessment. Automated coaching logic to be implemented.',
             'improvements' => 'Placeholder assessment. Automated coaching logic to be implemented.',
-            'meta' => [],
+            'meta'         => [],
         ]);
 
         return [
-            'session' => $session->fresh(),
+            'session'    => $session->fresh(),
             'assessment' => $assessment,
         ];
     }
@@ -219,17 +255,75 @@ class SparringService
             ->get();
 
         return [
-            'session' => $session,
+            'session'  => $session,
             'messages' => $messages,
         ];
     }
 
     /**
-     * Scenario-aware reply for v1.
-     * Uses:
-     * - scenario objection type
-     * - simple detection of agent intent (clarify, close, empathy)
-     * - persona flavoring
+     * Option B helper: update emotional state from the agent's message.
+     */
+    protected function updateStateFromAgentMessage(array $state, string $message): array
+    {
+        $lower = mb_strtolower($message);
+
+        // Ensure baseline values
+        $state['motivation'] = $state['motivation'] ?? 40;
+        $state['urgency']    = $state['urgency'] ?? 30;
+        $state['trust']      = $state['trust'] ?? 40;
+        $state['resistance'] = $state['resistance'] ?? 50;
+
+        // Empathy phrases → trust up, resistance down
+        if (
+            str_contains($lower, 'i get that') ||
+            str_contains($lower, 'i understand') ||
+            str_contains($lower, 'that makes sense') ||
+            str_contains($lower, 'i hear you') ||
+            str_contains($lower, 'fair enough')
+        ) {
+            $state['trust']      += 5;
+            $state['resistance'] -= 5;
+        }
+
+        // Good discovery / clarifiers → motivation up
+        if (
+            str_contains($lower, 'help me understand') ||
+            str_contains($lower, 'tell me more') ||
+            str_contains($lower, 'walk me through') ||
+            str_contains($lower, 'what makes you say that') ||
+            str_contains($lower, 'what part feels unclear')
+        ) {
+            $state['motivation'] += 5;
+        }
+
+        // Early close attempts
+        if (
+            str_contains($lower, 'ready to move forward') ||
+            str_contains($lower, 'get this started') ||
+            str_contains($lower, 'go ahead and') ||
+            str_contains($lower, 'sign up today') ||
+            str_contains($lower, 'move forward')
+        ) {
+            if ($state['trust'] < 50 || $state['resistance'] > 50) {
+                // Prospect feels pushed → resistance spikes
+                $state['resistance'] += 10;
+            } else {
+                // If relationship is good, closing builds urgency & motivation
+                $state['motivation'] += 10;
+                $state['urgency']    += 10;
+            }
+        }
+
+        // Clamp 0–100
+        foreach (['motivation', 'urgency', 'trust', 'resistance'] as $key) {
+            $state[$key] = max(0, min(100, (int) $state[$key]));
+        }
+
+        return $state;
+    }
+
+    /**
+     * Scenario-aware reply (Option A) + light emotional flavor (Option B).
      */
     protected function generateGideonReplyStub(
         GideonSparringSession $session,
@@ -242,10 +336,10 @@ class SparringService
                 . "What else would you ask me or explain so I can feel confident either way?";
         }
 
-        $scriptEngine = $scenario->script_engine ?? [];
+        $scriptEngine    = $scenario->script_engine ?? [];
         $prospectProfile = $scenario->prospect_profile ?? [];
 
-        $scenarioName = $scenario->name;
+        $scenarioName      = $scenario->name;
         $objectionTypeCode = is_array($scriptEngine)
             ? ($scriptEngine['objection_type_code'] ?? null)
             : null;
@@ -254,26 +348,26 @@ class SparringService
         $lower = mb_strtolower($agentMessage);
 
         $agentAskedForClarity =
-            str_contains($lower, 'what do you mean')
-            || str_contains($lower, 'help me understand')
-            || str_contains($lower, 'clarify')
-            || str_contains($lower, 'tell me more')
-            || str_contains($lower, 'walk me through');
+            str_contains($lower, 'what do you mean') ||
+            str_contains($lower, 'help me understand') ||
+            str_contains($lower, 'clarify') ||
+            str_contains($lower, 'tell me more') ||
+            str_contains($lower, 'walk me through');
 
         $agentWentForClose =
-            str_contains($lower, 'ready to move forward')
-            || str_contains($lower, 'get this started')
-            || str_contains($lower, 'go ahead and')
-            || str_contains($lower, 'sign up')
-            || str_contains($lower, 'move ahead')
-            || str_contains($lower, 'move forward');
+            str_contains($lower, 'ready to move forward') ||
+            str_contains($lower, 'get this started') ||
+            str_contains($lower, 'go ahead and') ||
+            str_contains($lower, 'sign up') ||
+            str_contains($lower, 'move ahead') ||
+            str_contains($lower, 'move forward');
 
         $agentUsedEmpathy =
-            str_contains($lower, 'i get that')
-            || str_contains($lower, 'i understand')
-            || str_contains($lower, 'that makes sense')
-            || str_contains($lower, 'fair enough')
-            || str_contains($lower, 'i hear you');
+            str_contains($lower, 'i get that') ||
+            str_contains($lower, 'i understand') ||
+            str_contains($lower, 'that makes sense') ||
+            str_contains($lower, 'fair enough') ||
+            str_contains($lower, 'i hear you');
 
         // Reply templates keyed by objection type
         $repliesByObjection = [
@@ -322,13 +416,23 @@ class SparringService
         } elseif ($agentUsedEmpathy) {
             $reply = $templates['after_empathy'];
         } elseif ($agentWentForClose) {
-            // If agent is trying to close, push back a bit more strongly
             $reply = $templates['default'] . " I’m not at a solid yes yet.";
         } else {
             $reply = $templates['default'];
         }
 
-        // Light persona flavor
+        // Emotional flavor from state (Option B)
+        $state      = $session->state ?? [];
+        $trust      = $state['trust'] ?? 40;
+        $resistance = $state['resistance'] ?? 50;
+
+        if ($trust > 60 && $resistance < 40) {
+            $reply = "I actually do like a lot of what you’re saying. " . $reply;
+        } elseif ($resistance > 70) {
+            $reply .= " Honestly, I’m feeling a bit pushed right now.";
+        }
+
+        // Persona flavor
         $persona = is_array($prospectProfile)
             ? ($prospectProfile['persona'] ?? null)
             : null;
