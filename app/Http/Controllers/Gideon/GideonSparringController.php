@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Gideon;
 
 use App\Http\Controllers\Controller;
-use App\Models\GideonScenario;
 use App\Models\GideonSparringSession;
 use App\Services\Gideon\SparringService;
 use Illuminate\Http\JsonResponse;
@@ -19,28 +18,10 @@ class GideonSparringController extends Controller
     }
 
     /**
-     * Show the Sparring Partner page.
-     *
-     * Loads the active Gideon scenarios so the Blade view
-     * can render a dropdown for the agent to choose from.
-     */
-    public function index(Request $request)
-    {
-        $scenarios = GideonScenario::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'product_type', 'description']);
-
-        return view('gideon.sparring', [
-            'scenarios' => $scenarios,
-        ]);
-    }
-
-    /**
      * Main sparring endpoint.
      *
      * If session_id is null:
-     *   - starts a new session using scenario_code
+     *   - starts a new session using scenario_code + persona
      *   - sends the first agent message
      *
      * If session_id is provided:
@@ -54,12 +35,18 @@ class GideonSparringController extends Controller
             'session_id'    => ['nullable', 'integer', 'exists:gideon_sparring_sessions,id'],
             'scenario_code' => ['required_without:session_id', 'string'],
             'mode'          => ['nullable', 'string', 'in:prospect_simulation,role_reversal'],
+            'persona'       => [
+                'nullable',
+                'string',
+                'in:soft_conflict_avoidant,neutral_realistic,skeptical_guarded,adaptive',
+            ],
             'message'       => ['required', 'string', 'min:1'],
         ]);
 
         $mode         = $data['mode'] ?? 'prospect_simulation';
         $sessionId    = $data['session_id'] ?? null;
         $scenarioCode = $data['scenario_code'] ?? null;
+        $personaKey   = $data['persona'] ?? 'adaptive';
         $message      = $data['message'];
 
         try {
@@ -69,7 +56,8 @@ class GideonSparringController extends Controller
                     $user->agency_id,
                     $user->id,
                     $scenarioCode,
-                    $mode
+                    $mode,
+                    $personaKey,
                 );
 
                 $session   = $sessionPayload['session'];
@@ -96,7 +84,7 @@ class GideonSparringController extends Controller
 
             return response()->json([
                 'session'        => $session,
-                'state'          => $session->state,
+                'state'          => $session->state ?? null,
                 'opening_line'   => $opening?->content,
                 'agent_message'  => $result['agent_message'],
                 'gideon_reply'   => $result['gideon_reply'],
