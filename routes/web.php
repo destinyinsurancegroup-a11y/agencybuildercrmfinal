@@ -279,7 +279,7 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
-    Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store']);
+    Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store');
 
     Route::get('/activity/totals/{range}', [ActivityController::class, 'totals'])
         ->name('activity.totals');
