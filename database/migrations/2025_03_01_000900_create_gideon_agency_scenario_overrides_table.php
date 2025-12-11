@@ -23,7 +23,8 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            $table->unique(['agency_id', 'gideon_scenario_id']);
+            // Short, explicit index name to avoid MySQL 64-char limit
+            $table->unique(['agency_id', 'gideon_scenario_id'], 'g_agency_scenario_uq');
         });
     }
 
