@@ -26,6 +26,8 @@ use App\Services\Gideon\OpportunityScanner;
 use App\Http\Controllers\Gideon\GideonOpportunitiesController;
 // ✅ NEW: GIDEON SECOND BRAIN CONTROLLER
 use App\Http\Controllers\Gideon\GideonInsightsController;
+// ✅ NEW: GIDEON SPARRING CONTROLLER (for Sparring Partner page)
+use App\Http\Controllers\Gideon\GideonSparringController;
 
 /*
 |--------------------------------------------------------------------------
@@ -277,7 +279,7 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
-    Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store');
+    Route::post('/activity/store', [ActivityController::class, 'store'])->name('activity.store']);
 
     Route::get('/activity/totals/{range}', [ActivityController::class, 'totals'])
         ->name('activity.totals');
@@ -367,11 +369,11 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     | SPARRING PARTNER PAGE
     |--------------------------------------------------------------------------
-    | Simple view route that shows resources/views/gideon/sparring.blade.php
+    | Uses GideonSparringController@index to render gideon.sparring view
+    | with scenario data.
     */
-    Route::get('/sparring-partner', function () {
-        return view('gideon.sparring');
-    })->name('gideon.sparring');
+    Route::get('/sparring-partner', [GideonSparringController::class, 'index'])
+        ->name('gideon.sparring');
 
     /*
     |--------------------------------------------------------------------------
