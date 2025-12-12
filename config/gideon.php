@@ -12,7 +12,7 @@ return [
     |
     */
 
-    'enabled' => env('GIDEON_ENABLED', false),
+    'enabled' => (bool) env('GIDEON_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -24,8 +24,7 @@ return [
     |
     */
 
-    'llm_provider' => env('GIDEON_LLM_PROVIDER', 'openai'),
-
+    'llm_provider'    => env('GIDEON_LLM_PROVIDER', 'openai'),
     'llm_model_tier1' => env('GIDEON_OPENAI_MODEL_TIER1', 'gpt-4.1'),
 
     /*
@@ -49,16 +48,26 @@ return [
 
     'sparring' => [
         // Master switch for LLM replies inside SparringService
-        'llm_enabled'   => env('GIDEON_SPARRING_LLM_ENABLED', false),
+        'llm_enabled'   => (bool) env('GIDEON_SPARRING_LLM_ENABLED', false),
 
         // Number of prior sparring messages sent to the LLM as context
         'history_limit' => (int) env('GIDEON_SPARRING_LLM_HISTORY_LIMIT', 8),
 
-        // Reply style controls
-        'temperature'   => (float) env('GIDEON_SPARRING_LLM_TEMPERATURE', 0.7),
+        // Optional: allow sparring to use a different model than tier1 default
+        // (If not set, falls back to GIDEON_OPENAI_MODEL_TIER1)
+        'model' => env('GIDEON_SPARRING_MODEL', env('GIDEON_OPENAI_MODEL_TIER1', 'gpt-4.1')),
 
-        // Token cap for a single Gideon reply (not the whole conversation)
-        'max_tokens'    => (int) env('GIDEON_SPARRING_LLM_MAX_TOKENS', 280),
+        // Reply style controls (support both env names for backwards compatibility)
+        'temperature' => (float) env(
+            'GIDEON_SPARRING_LLM_TEMPERATURE',
+            env('GIDEON_SPARRING_TEMPERATURE', 0.7)
+        ),
+
+        // Token cap for a single Gideon reply (support both env names)
+        'max_tokens' => (int) env(
+            'GIDEON_SPARRING_LLM_MAX_TOKENS',
+            env('GIDEON_SPARRING_MAX_TOKENS', 280)
+        ),
     ],
 
     /*
@@ -91,7 +100,7 @@ return [
     */
 
     'adaptive' => [
-        'enabled'                      => env('GIDEON_ADAPTIVE_ENABLED', true),
+        'enabled'                      => (bool) env('GIDEON_ADAPTIVE_ENABLED', true),
         'min_opportunities_for_tuning' => (int) env('GIDEON_MIN_OPPS_FOR_TUNING', 50),
         'min_sessions_for_tuning'      => (int) env('GIDEON_MIN_SESSIONS_FOR_TUNING', 20),
     ],
