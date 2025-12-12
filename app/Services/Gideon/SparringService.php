@@ -14,7 +14,8 @@ use Illuminate\Validation\ValidationException;
 class SparringService
 {
     public function __construct(
-        protected GideonLlmClient $llmClient
+        protected GideonLlmClient $llmClient,
+        protected CoachingService $coachingService
     ) {
     }
 
@@ -234,7 +235,32 @@ class SparringService
             'closing_clarity' => $this->scoreFromState($state, 'urgency'),
         ];
 
-        [$strengths, $improvements] = $this->buildAssessmentNarrative($scores);
+        // ---- C4 Coaching: LLM-written assessment narrative (safe fallback) ----
+        $strengths = null;
+        $improvements = null;
+
+        $config       = $session->config ?? [];
+        $scenarioCode = is_array($config) ? ($config['scenario_code'] ?? null) : null;
+
+        $scenario = $scenarioCode
+            ? GideonScenario::where('code', $scenarioCode)->first()
+            : null;
+
+        try {
+            $llmResult = $this->coachingService->generateAssessmentNarrative($session, $scenario, $scores);
+
+            if (is_array($llmResult) && count($llmResult) === 2) {
+                [$strengths, $improvements] = $llmResult;
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        // Always fallback to rules narrative
+        if (! $strengths || ! $improvements) {
+            [$strengths, $improvements] = $this->buildAssessmentNarrative($scores);
+        }
+        // --------------------------------------------------------------------
 
         $assessment = GideonSparringAssessment::create([
             'session_id'   => $session->id,
