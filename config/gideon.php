@@ -48,16 +48,16 @@ return [
     */
 
     'sparring' => [
-        // Master switch for LLM replies in SparringService
+        // Master switch for LLM replies inside SparringService
         'llm_enabled'   => env('GIDEON_SPARRING_LLM_ENABLED', false),
 
         // Number of prior sparring messages sent to the LLM as context
         'history_limit' => (int) env('GIDEON_SPARRING_LLM_HISTORY_LIMIT', 8),
 
-        // Tuning knobs for sparring reply realism
+        // Reply style controls
         'temperature'   => (float) env('GIDEON_SPARRING_LLM_TEMPERATURE', 0.7),
 
-        // Keep these sparring replies short; we want conversational back-and-forth
+        // Token cap for a single Gideon reply (not the whole conversation)
         'max_tokens'    => (int) env('GIDEON_SPARRING_LLM_MAX_TOKENS', 280),
     ],
 
