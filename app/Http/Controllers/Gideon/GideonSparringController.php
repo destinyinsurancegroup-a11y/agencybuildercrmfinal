@@ -38,11 +38,11 @@ class GideonSparringController extends Controller
      * Main sparring endpoint (AJAX/JSON).
      *
      * If session_id is null:
-     *   - starts a new session using scenario_code + persona
-     *   - sends the first agent message
+     *   - starts a new session using scenario_code + persona + mode
+     *   - sends the first user message
      *
      * If session_id is provided:
-     *   - just sends the agent message to the existing session
+     *   - just sends the user message to the existing session
      */
     public function ask(Request $request, SparringService $sparring): JsonResponse
     {
@@ -51,13 +51,17 @@ class GideonSparringController extends Controller
         $data = $request->validate([
             'session_id'    => ['nullable', 'integer', 'exists:gideon_sparring_sessions,id'],
             'scenario_code' => ['required_without:session_id', 'string'],
-            'mode'          => ['nullable', 'string', 'in:prospect_simulation,role_reversal'],
+
+            // Option A: pre-session mode toggle (user is Agent vs user is Prospect)
+            'mode'          => ['nullable', 'string', 'in:prospect_simulation,agent_simulation'],
+
             // Let the service normalize / validate persona keys so we can evolve them freely
             'persona'       => ['nullable', 'string'],
+
             'message'       => ['required', 'string', 'min:1'],
         ]);
 
-        $mode         = $data['mode'] ?? 'prospect_simulation';
+        $mode         = $data['mode'] ?? SparringService::MODE_PROSPECT_SIM;
         $sessionId    = $data['session_id'] ?? null;
         $scenarioCode = $data['scenario_code'] ?? null;
         $personaKey   = $data['persona'] ?? null;
