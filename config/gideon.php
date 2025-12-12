@@ -34,8 +34,8 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'max_tokens_default' => env('GIDEON_MAX_TOKENS_DEFAULT', 800),
-    'timeout_seconds'    => env('GIDEON_TIMEOUT_SECONDS', 20),
+    'max_tokens_default' => (int) env('GIDEON_MAX_TOKENS_DEFAULT', 800),
+    'timeout_seconds'    => (int) env('GIDEON_TIMEOUT_SECONDS', 20),
 
     /*
     |--------------------------------------------------------------------------
@@ -52,7 +52,13 @@ return [
         'llm_enabled'   => env('GIDEON_SPARRING_LLM_ENABLED', false),
 
         // Number of prior sparring messages sent to the LLM as context
-        'history_limit' => env('GIDEON_SPARRING_LLM_HISTORY_LIMIT', 8),
+        'history_limit' => (int) env('GIDEON_SPARRING_LLM_HISTORY_LIMIT', 8),
+
+        // Tuning knobs for sparring reply realism
+        'temperature'   => (float) env('GIDEON_SPARRING_LLM_TEMPERATURE', 0.7),
+
+        // Keep these sparring replies short; we want conversational back-and-forth
+        'max_tokens'    => (int) env('GIDEON_SPARRING_LLM_MAX_TOKENS', 280),
     ],
 
     /*
@@ -67,11 +73,11 @@ return [
 
     'rate_limits' => [
         // Sparring Partner
-        'ask_per_user_per_minute'   => env('GIDEON_ASK_PER_USER_PER_MINUTE', 6),
-        'ask_per_tenant_per_minute' => env('GIDEON_ASK_PER_TENANT_PER_MINUTE', 60),
+        'ask_per_user_per_minute'   => (int) env('GIDEON_ASK_PER_USER_PER_MINUTE', 6),
+        'ask_per_tenant_per_minute' => (int) env('GIDEON_ASK_PER_TENANT_PER_MINUTE', 60),
 
         // Opportunity refresh
-        'refresh_per_tenant_per_hour' => env('GIDEON_REFRESH_PER_TENANT_PER_HOUR', 2),
+        'refresh_per_tenant_per_hour' => (int) env('GIDEON_REFRESH_PER_TENANT_PER_HOUR', 2),
     ],
 
     /*
@@ -86,8 +92,8 @@ return [
 
     'adaptive' => [
         'enabled'                      => env('GIDEON_ADAPTIVE_ENABLED', true),
-        'min_opportunities_for_tuning' => env('GIDEON_MIN_OPPS_FOR_TUNING', 50),
-        'min_sessions_for_tuning'      => env('GIDEON_MIN_SESSIONS_FOR_TUNING', 20),
+        'min_opportunities_for_tuning' => (int) env('GIDEON_MIN_OPPS_FOR_TUNING', 50),
+        'min_sessions_for_tuning'      => (int) env('GIDEON_MIN_SESSIONS_FOR_TUNING', 20),
     ],
 
 ];
