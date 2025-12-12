@@ -13,6 +13,9 @@ use Illuminate\Validation\ValidationException;
 
 class SparringService
 {
+    public const MODE_PROSPECT_SIM = 'prospect_simulation'; // user plays Agent, Gideon plays Prospect
+    public const MODE_AGENT_SIM    = 'agent_simulation';    // user plays Prospect, Gideon plays Agent
+
     public function __construct(
         protected GideonLlmClient $llmClient,
         protected CoachingService $coachingService
@@ -36,7 +39,7 @@ class SparringService
         ?int $agencyId,
         int $userId,
         string $scenarioCode,
-        string $mode = 'prospect_simulation',
+        string $mode = self::MODE_PROSPECT_SIM,
         string $personaKey = 'adaptive'
     ): array {
         $scenario = GideonScenario::where('code', $scenarioCode)->first();
@@ -46,6 +49,8 @@ class SparringService
                 'scenario_code' => ['Invalid scenario code.'],
             ]);
         }
+
+        $mode = $this->normalizeMode($mode);
 
         return DB::transaction(function () use ($agencyId, $userId, $scenario, $mode, $personaKey) {
             $config = [
@@ -79,7 +84,8 @@ class SparringService
 
             $firstMessage = null;
 
-            if ($openingLine) {
+            // Only inject a "prospect opening line" when Gideon is the prospect.
+            if ($mode === self::MODE_PROSPECT_SIM && $openingLine) {
                 $firstMessage = GideonSparringMessage::create([
                     'session_id' => $session->id,
                     'agency_id'  => $agencyId,
@@ -89,6 +95,7 @@ class SparringService
                     'meta'       => [
                         'source'        => 'scenario_opening_line',
                         'scenario_code' => $scenario->code,
+                        'mode'          => $mode,
                     ],
                 ]);
 
@@ -105,6 +112,9 @@ class SparringService
     }
 
     /**
+     * NOTE: This method name stayed the same for API compatibility.
+     * In MODE_AGENT_SIM, $agentMessage is actually the *prospect* message typed by the user.
+     *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
     public function handleAgentMessage(
@@ -125,6 +135,8 @@ class SparringService
             ]);
         }
 
+        $mode = $this->normalizeMode($session->mode ?? self::MODE_PROSPECT_SIM);
+
         $config       = $session->config ?? [];
         $scenarioCode = is_array($config) ? ($config['scenario_code'] ?? null) : null;
 
@@ -141,68 +153,99 @@ class SparringService
             $userId,
             $agentMessage,
             $scenario,
-            $useLlm
+            $useLlm,
+            $mode
         ) {
-            // 1) Store agent message
-            $agentMsg = GideonSparringMessage::create([
+            $state = $session->state ?? [];
+
+            // Who is the user playing?
+            // - prospect_simulation: userSender=agent, systemSender=gideon
+            // - agent_simulation:    userSender=gideon, systemSender=agent
+            $userSender   = ($mode === self::MODE_PROSPECT_SIM) ? 'agent' : 'gideon';
+            $systemSender = ($mode === self::MODE_PROSPECT_SIM) ? 'gideon' : 'agent';
+
+            // 1) Store the user's message (as whichever side they are playing)
+            $userMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
                 'agency_id'  => $agencyId,
                 'user_id'    => $userId,
-                'sender'     => 'agent',
+                'sender'     => $userSender,
                 'content'    => $agentMessage,
                 'meta'       => [
-                    'analysis' => null, // C5 will populate this
+                    'analysis' => null, // C5 can populate later (most relevant when user is agent)
+                    'mode'     => $mode,
                 ],
             ]);
 
-            // 2) Pull + update state
-            $state = $session->state ?? [];
-            $state = $this->updateStateFromAgentMessage($state, $agentMessage);
+            // 2) Update state only when the AGENT speaks (whichever side that is)
+            if ($mode === self::MODE_PROSPECT_SIM) {
+                // user is the agent in this mode
+                $state = $this->updateStateFromAgentMessage($state, $agentMessage);
+            }
 
-            // 3) Generate reply text (LLM first, rules fallback)
+            // 3) Generate reply text (LLM first, fallback second)
             $replyText = null;
             $source    = 'scenario_v1_logic_with_state';
 
             if ($useLlm && $scenario) {
                 try {
-                    $context   = $this->buildLlmContextForSparring($session, $scenario, $state, $agentMessage);
+                    // Put mode + requested_role into context so GideonLlmClient can switch voices
+                    $context   = $this->buildLlmContextForSparring($session, $scenario, $state, $agentMessage, $mode);
                     $replyText = $this->llmClient->generateSparringReply($context);
-                    $source    = 'llm_v1_sparring';
+
+                    $source = ($mode === self::MODE_PROSPECT_SIM)
+                        ? 'llm_v1_sparring'      // prospect voice
+                        : 'llm_v1_agent_sim';    // agent voice
                 } catch (\Throwable $e) {
-                    // Don’t leak prompts or PII; Laravel handler will store stack safely
                     report($e);
                     $replyText = null;
                 }
             }
 
             if ($replyText === null || trim($replyText) === '') {
-                $replyText = $this->generateGideonReply($session, $scenario, $agentMessage, $state);
-                $source    = ($source === 'llm_v1_sparring')
-                    ? 'scenario_v1_logic_with_state_fallback'
-                    : 'scenario_v1_logic_with_state';
+                if ($mode === self::MODE_PROSPECT_SIM) {
+                    $replyText = $this->generateGideonReply($session, $scenario, $agentMessage, $state);
+                    $source    = ($source === 'llm_v1_sparring')
+                        ? 'scenario_v1_logic_with_state_fallback'
+                        : 'scenario_v1_logic_with_state';
+                } else {
+                    // In agent_simulation, fallback is an "agent coachy reply" if LLM fails
+                    $replyText = $this->generateAgentFallbackReply($scenario, $agentMessage);
+                    $source    = 'agent_sim_fallback';
+                }
             }
 
-            // 4) Save Gideon message
-            $gideonMsg = GideonSparringMessage::create([
+            // 4) If system reply is the AGENT (agent_simulation), update state from that reply
+            if ($mode === self::MODE_AGENT_SIM) {
+                $state = $this->updateStateFromAgentMessage($state, $replyText);
+            }
+
+            // 5) Save system reply message (as whichever side the system is playing)
+            $systemMsg = GideonSparringMessage::create([
                 'session_id' => $session->id,
                 'agency_id'  => $agencyId,
                 'user_id'    => $userId,
-                'sender'     => 'gideon',
+                'sender'     => $systemSender,
                 'content'    => $replyText,
                 'meta'       => [
                     'source'        => $source,
                     'scenario_code' => $scenario?->code,
                     'state'         => $state,
+                    'mode'          => $mode,
                 ],
             ]);
 
-            // 5) Update session state
-            $state['last_gideon_line'] = $replyText;
+            // 6) Update session state (keep last_gideon_line only when Gideon actually spoke)
+            if ($systemSender === 'gideon') {
+                $state['last_gideon_line'] = $replyText;
+            }
+
             $session->update(['state' => $state]);
 
+            // Keep return keys stable for the UI
             return [
-                'agent_message' => $agentMsg,
-                'gideon_reply'  => $gideonMsg,
+                'agent_message' => $userMsg,
+                'gideon_reply'  => $systemMsg,
             ];
         });
     }
@@ -226,6 +269,7 @@ class SparringService
             'ended_at' => now(),
         ]);
 
+        $mode  = $this->normalizeMode($session->mode ?? self::MODE_PROSPECT_SIM);
         $state = $session->state ?? [];
 
         $scores = [
@@ -246,14 +290,17 @@ class SparringService
             ? GideonScenario::where('code', $scenarioCode)->first()
             : null;
 
-        try {
-            $llmResult = $this->coachingService->generateAssessmentNarrative($session, $scenario, $scores);
+        // Coaching only makes sense when the USER was the agent.
+        if ($mode === self::MODE_PROSPECT_SIM) {
+            try {
+                $llmResult = $this->coachingService->generateAssessmentNarrative($session, $scenario, $scores);
 
-            if (is_array($llmResult) && count($llmResult) === 2) {
-                [$strengths, $improvements] = $llmResult;
+                if (is_array($llmResult) && count($llmResult) === 2) {
+                    [$strengths, $improvements] = $llmResult;
+                }
+            } catch (\Throwable $e) {
+                report($e);
             }
-        } catch (\Throwable $e) {
-            report($e);
         }
 
         // Always fallback to rules narrative
@@ -271,6 +318,7 @@ class SparringService
             'improvements' => $improvements,
             'meta'         => [
                 'state' => $state,
+                'mode'  => $mode,
             ],
         ]);
 
@@ -309,6 +357,17 @@ class SparringService
     | INTERNAL: STATE / LOGIC
     |--------------------------------------------------------------------------
     */
+
+    protected function normalizeMode(?string $mode): string
+    {
+        $mode = (string) $mode;
+
+        if ($mode === self::MODE_AGENT_SIM) {
+            return self::MODE_AGENT_SIM;
+        }
+
+        return self::MODE_PROSPECT_SIM;
+    }
 
     protected function buildInitialState(?GideonScenario $scenario, string $personaKey): array
     {
@@ -465,8 +524,6 @@ class SparringService
             }
         }
 
-        $scenarioLabel = $scenario?->name ?? 'this situation';
-
         switch ($phase) {
             case 'opening':
                 return $this->avoidRepeat(
@@ -499,12 +556,29 @@ class SparringService
         }
     }
 
+    /**
+     * Fallback when running in agent_simulation and LLM is disabled/fails.
+     */
+    protected function generateAgentFallbackReply(?GideonScenario $scenario, string $latestProspectMessage): string
+    {
+        $scenarioLabel = $scenario?->name ?? 'this situation';
+
+        return "Got it — thanks for sharing that. To make sure I’m helping you the right way in {$scenarioLabel}, what matters most to you here: keeping price low, making sure coverage is stronger, or avoiding surprises later?";
+    }
+
+    /**
+     * Build the LLM context payload for sparring.
+     * NOTE: We include mode + requested_role so GideonLlmClient can switch voices without changing method signature.
+     */
     protected function buildLlmContextForSparring(
         GideonSparringSession $session,
         GideonScenario $scenario,
         array $state,
-        string $agentMessage
+        string $latestUserMessage,
+        ?string $mode = null
     ): array {
+        $mode = $this->normalizeMode($mode ?? ($session->mode ?? self::MODE_PROSPECT_SIM));
+
         $historyLimit = (int) config('gideon.sparring.history_limit', 8);
 
         $messages = GideonSparringMessage::query()
@@ -518,12 +592,17 @@ class SparringService
         $recent = [];
         foreach ($messages as $m) {
             $recent[] = [
-                'role'    => $m->sender,   // 'agent' or 'gideon' (we map later in GideonLlmClient)
+                'role'    => $m->sender, // 'agent' or 'gideon' (client maps to OpenAI roles)
                 'content' => $m->content,
             ];
         }
 
         return [
+            'mode' => $mode,
+
+            // let the LlmClient decide which system prompt to use
+            'requested_role' => ($mode === self::MODE_PROSPECT_SIM) ? 'prospect' : 'agent',
+
             'scenario' => [
                 'code'             => $scenario->code,
                 'name'             => $scenario->name,
@@ -538,9 +617,9 @@ class SparringService
                 'mode'        => $session->mode,
                 'persona_key' => $session->persona_key ?? ($session->config['persona'] ?? null),
             ],
-            'state'                => $state,
-            'recent_messages'      => $recent,
-            'latest_agent_message' => $agentMessage,
+            'state'               => $state,
+            'recent_messages'     => $recent,
+            'latest_user_message' => $latestUserMessage,
         ];
     }
 
@@ -558,6 +637,7 @@ class SparringService
     {
         $value = (int) ($state[$key] ?? 50);
         $value = $this->clamp($value, 0, 100);
+
         return (int) max(1, min(5, ceil(($value + 1) / 20)));
     }
 
@@ -566,6 +646,7 @@ class SparringService
         $value = (int) ($state[$key] ?? 50);
         $value = $this->clamp($value, 0, 100);
         $flipped = 100 - $value;
+
         return (int) max(1, min(5, ceil(($flipped + 1) / 20)));
     }
 
