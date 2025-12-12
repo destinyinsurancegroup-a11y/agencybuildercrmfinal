@@ -13,6 +13,11 @@ use Illuminate\Validation\ValidationException;
 
 class SparringService
 {
+    public function __construct(
+        protected GideonLlmClient $llmClient
+    ) {
+    }
+
     /**
      * Small helper so controllers can ask for scenarios in a consistent way.
      *
@@ -105,7 +110,7 @@ class SparringService
 
     /**
      * Handle an agent message + generate Gideon's reply using
-     * a simple state machine and scenario tactics.
+     * a state machine + (now) optional LLM.
      *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
@@ -134,12 +139,16 @@ class SparringService
             ? GideonScenario::where('code', $scenarioCode)->first()
             : null;
 
+        $useLlm = (bool) config('gideon.enabled', false)
+            && (bool) config('gideon.sparring.llm_enabled', false);
+
         return DB::transaction(function () use (
             $session,
             $agencyId,
             $userId,
             $agentMessage,
-            $scenario
+            $scenario,
+            $useLlm
         ) {
             // 1) Store agent message
             $agentMsg = GideonSparringMessage::create([
@@ -149,7 +158,7 @@ class SparringService
                 'sender'     => 'agent',
                 'content'    => $agentMessage,
                 'meta'       => [
-                    'analysis' => null, // could store NLP / tags later
+                    'analysis' => null, // C5 will populate this
                 ],
             ]);
 
@@ -157,13 +166,38 @@ class SparringService
             $state = $session->state ?? [];
             $state = $this->updateStateFromAgentMessage($state, $agentMessage);
 
-            // 3) Choose tactic / phase + generate reply text
-            $replyText = $this->generateGideonReply(
-                $session,
-                $scenario,
-                $agentMessage,
-                $state
-            );
+            // 3) Generate reply text (LLM first, rules fallback)
+            $replyText = null;
+            $source    = 'scenario_v1_logic_with_state';
+
+            if ($useLlm && $scenario) {
+                try {
+                    $context   = $this->buildLlmContextForSparring($session, $scenario, $state, $agentMessage);
+                    $replyText = $this->llmClient->generateSparringReply($context);
+                    $source    = 'llm_v1_sparring';
+                } catch (\Throwable $e) {
+                    // Do NOT leak prompts or user data in logs; report() is fine as it uses Laravel's handler
+                    report($e);
+
+                    $replyText = $this->generateGideonReply(
+                        $session,
+                        $scenario,
+                        $agentMessage,
+                        $state
+                    );
+                    $source = 'scenario_v1_logic_with_state_fallback';
+                }
+            }
+
+            if ($replyText === null || trim($replyText) === '') {
+                $replyText = $this->generateGideonReply(
+                    $session,
+                    $scenario,
+                    $agentMessage,
+                    $state
+                );
+                $source = ($source === 'scenario_v1_logic_with_state') ? $source : 'scenario_v1_logic_with_state_fallback';
+            }
 
             // 4) Save Gideon message
             $gideonMsg = GideonSparringMessage::create([
@@ -173,7 +207,7 @@ class SparringService
                 'sender'     => 'gideon',
                 'content'    => $replyText,
                 'meta'       => [
-                    'source'        => 'scenario_v1_logic_with_state',
+                    'source'        => $source,
                     'scenario_code' => $scenario?->code,
                     'state'         => $state,
                 ],
@@ -344,7 +378,6 @@ class SparringService
         $riskWords  = ['worried', 'risk', 'afraid', 'concern', 'scared', 'nervous'];
         $clarityWords = ['next step', 'moving forward', 'what happens', 'how it works', 'process'];
 
-        // Rapport phrases => trust up, resistance down
         foreach ($rapportWords as $needle) {
             if (str_contains($text, $needle)) {
                 $state['trust']      = ($state['trust'] ?? 50) + 4;
@@ -352,7 +385,6 @@ class SparringService
             }
         }
 
-        // Overt pressure => resistance up, trust down
         foreach ($pressureWords as $needle) {
             if (str_contains($text, $needle)) {
                 $state['trust']      = ($state['trust'] ?? 50) - 5;
@@ -360,14 +392,12 @@ class SparringService
             }
         }
 
-        // Money talk can go either way; assume discovery is happening
         foreach ($moneyWords as $needle) {
             if (str_contains($text, $needle)) {
                 $state['motivation'] = ($state['motivation'] ?? 50) + 3;
             }
         }
 
-        // Risk / concern questions: usually good discovery
         if ($isQuestion) {
             foreach ($riskWords as $needle) {
                 if (str_contains($text, $needle)) {
@@ -377,24 +407,20 @@ class SparringService
             }
         }
 
-        // Clarity questions move urgency slightly
         foreach ($clarityWords as $needle) {
             if (str_contains($text, $needle)) {
                 $state['urgency'] = ($state['urgency'] ?? 50) + 3;
             }
         }
 
-        // Generic bonus if you're actually asking questions
         if ($isQuestion) {
             $state['motivation'] = ($state['motivation'] ?? 50) + 2;
         }
 
-        // Clamp everything
         foreach (['trust', 'urgency', 'motivation', 'resistance'] as $key) {
             $state[$key] = $this->clamp($state[$key] ?? 50, 0, 100);
         }
 
-        // Phase progression based on turn count + resistance
         if ($turn <= 2) {
             $state['phase'] = 'opening';
         } elseif ($turn <= 4) {
@@ -405,7 +431,6 @@ class SparringService
             $state['phase'] = 'close_soft';
         }
 
-        // If resistance is still very high, keep us in deepen / reframe
         if (($state['resistance'] ?? 60) > 70 && $state['phase'] === 'close_soft') {
             $state['phase'] = 'reframe';
         }
@@ -414,7 +439,7 @@ class SparringService
     }
 
     /**
-     * Generate Gideon's reply from scenario + state + agent input.
+     * Generate Gideon's reply from scenario + state + agent input (rule fallback).
      */
     protected function generateGideonReply(
         GideonSparringSession $session,
@@ -426,12 +451,11 @@ class SparringService
         $turn   = (int) ($state['turn'] ?? 0);
         $engine = $scenario?->script_engine ?? [];
 
-        // Map phase -> tactic key inside script_engine (if present)
         $phaseToKey = [
-            'opening'   => 'validate_and_open',
-            'deepen'    => 'deepen_questions',
-            'reframe'   => 'reframe_and_value',
-            'close_soft'=> 'soft_close',
+            'opening'    => 'validate_and_open',
+            'deepen'     => 'deepen_questions',
+            'reframe'    => 'reframe_and_value',
+            'close_soft' => 'soft_close',
         ];
 
         $tacticKey = $phaseToKey[$phase] ?? null;
@@ -443,9 +467,7 @@ class SparringService
 
         $lastLine = $state['last_gideon_line'] ?? null;
 
-        // 1) Try scenario-specific line first
         if (! empty($linesFromScenario) && is_array($linesFromScenario)) {
-            // Simple rotation by turn index so it feels different each time
             $index = $turn % max(1, count($linesFromScenario));
             $candidate = trim((string) $linesFromScenario[$index]);
 
@@ -454,7 +476,6 @@ class SparringService
             }
         }
 
-        // 2) Otherwise, fall back to generic but phase-aware replies
         $scenarioLabel = $scenario?->name ?? 'this situation';
 
         switch ($phase) {
@@ -490,8 +511,53 @@ class SparringService
     }
 
     /**
-     * Avoid sending the exact same line twice in a row.
+     * Build the LLM context payload for sparring.
      */
+    protected function buildLlmContextForSparring(
+        GideonSparringSession $session,
+        GideonScenario $scenario,
+        array $state,
+        string $agentMessage
+    ): array {
+        $historyLimit = (int) config('gideon.sparring.history_limit', 8);
+
+        $messages = GideonSparringMessage::query()
+            ->where('session_id', $session->id)
+            ->orderBy('id', 'desc')
+            ->take($historyLimit)
+            ->get()
+            ->sortBy('id')
+            ->values();
+
+        $recent = [];
+        foreach ($messages as $m) {
+            $recent[] = [
+                'role'    => $m->sender,   // 'agent' or 'gideon'
+                'content' => $m->content,
+            ];
+        }
+
+        return [
+            'scenario' => [
+                'code'             => $scenario->code,
+                'name'             => $scenario->name,
+                'product_type'     => $scenario->product_type,
+                'description'      => $scenario->description,
+                'prospect_profile' => $scenario->prospect_profile ?? [],
+            ],
+            'session' => [
+                'id'          => $session->id,
+                'agency_id'   => $session->agency_id,
+                'user_id'     => $session->user_id,
+                'mode'        => $session->mode,
+                'persona_key' => $session->persona_key ?? ($session->config['persona'] ?? null),
+            ],
+            'state'                => $state,
+            'recent_messages'      => $recent,
+            'latest_agent_message' => $agentMessage,
+        ];
+    }
+
     protected function avoidRepeat(?string $lastLine, string ...$options): string
     {
         foreach ($options as $line) {
@@ -499,41 +565,24 @@ class SparringService
                 return $line;
             }
         }
-
-        // If all options match (unlikely), just return the first
         return $options[0];
     }
 
-    /**
-     * Convert a 0-100 state dimension into a 1-5 score.
-     */
     protected function scoreFromState(array $state, string $key): int
     {
         $value = (int) ($state[$key] ?? 50);
         $value = $this->clamp($value, 0, 100);
-
-        // 0-20 => 1, 21-40 => 2, etc.
         return (int) max(1, min(5, ceil(($value + 1) / 20)));
     }
 
-    /**
-     * Inverse scoring (high resistance => low score).
-     */
     protected function scoreFromStateInverse(array $state, string $key): int
     {
         $value = (int) ($state[$key] ?? 50);
         $value = $this->clamp($value, 0, 100);
         $flipped = 100 - $value;
-
         return (int) max(1, min(5, ceil(($flipped + 1) / 20)));
     }
 
-    /**
-     * Build a human-readable narrative from numeric scores.
-     *
-     * @param array{rapport:int,discovery:int,deal_killers:int,closing_clarity:int} $scores
-     * @return array{0:string,1:string}
-     */
     protected function buildAssessmentNarrative(array $scores): array
     {
         $strengthsParts = [];
