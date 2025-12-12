@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'enabled' => env('GIDEON_ENABLED', false),
+    'enabled' => (bool) env('GIDEON_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -36,7 +36,7 @@ return [
     */
 
     'sparring' => [
-        'llm_enabled'   => env('GIDEON_SPARRING_LLM_ENABLED', false),
+        'llm_enabled'   => (bool) env('GIDEON_SPARRING_LLM_ENABLED', false),
         'history_limit' => (int) env('GIDEON_SPARRING_LLM_HISTORY_LIMIT', 8),
         'temperature'   => (float) env('GIDEON_SPARRING_LLM_TEMPERATURE', 0.7),
         'max_tokens'    => (int) env('GIDEON_SPARRING_LLM_MAX_TOKENS', 280),
@@ -54,10 +54,10 @@ return [
 
     'coaching' => [
         // Master switch for C4 coaching features
-        'enabled' => env('GIDEON_COACHING_ENABLED', false),
+        'enabled' => (bool) env('GIDEON_COACHING_ENABLED', false),
 
         // LLM-written narrative on endSession()
-        'assessment_llm_enabled' => env('GIDEON_COACHING_ASSESSMENT_LLM_ENABLED', false),
+        'assessment_llm_enabled' => (bool) env('GIDEON_COACHING_ASSESSMENT_LLM_ENABLED', false),
 
         // How many recent messages to include when writing the assessment
         'assessment_history_limit' => (int) env('GIDEON_COACHING_ASSESSMENT_HISTORY_LIMIT', 18),
@@ -76,9 +76,9 @@ return [
     */
 
     'rate_limits' => [
-        'ask_per_user_per_minute'   => (int) env('GIDEON_ASK_PER_USER_PER_MINUTE', 6),
-        'ask_per_tenant_per_minute' => (int) env('GIDEON_ASK_PER_TENANT_PER_MINUTE', 60),
-        'refresh_per_tenant_per_hour' => (int) env('GIDEON_REFRESH_PER_TENANT_PER_HOUR', 2),
+        'ask_per_user_per_minute'      => (int) env('GIDEON_ASK_PER_USER_PER_MINUTE', 6),
+        'ask_per_tenant_per_minute'    => (int) env('GIDEON_ASK_PER_TENANT_PER_MINUTE', 60),
+        'refresh_per_tenant_per_hour'  => (int) env('GIDEON_REFRESH_PER_TENANT_PER_HOUR', 2),
     ],
 
     /*
@@ -88,7 +88,7 @@ return [
     */
 
     'adaptive' => [
-        'enabled'                      => env('GIDEON_ADAPTIVE_ENABLED', true),
+        'enabled'                      => (bool) env('GIDEON_ADAPTIVE_ENABLED', true),
         'min_opportunities_for_tuning' => (int) env('GIDEON_MIN_OPPS_FOR_TUNING', 50),
         'min_sessions_for_tuning'      => (int) env('GIDEON_MIN_SESSIONS_FOR_TUNING', 20),
     ],
