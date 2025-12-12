@@ -6,25 +6,18 @@ return [
     |--------------------------------------------------------------------------
     | Global Enable / Disable
     |--------------------------------------------------------------------------
-    |
-    | Master switch for Gideon features. You can also layer in per-tenant
-    | and per-plan flags later. Nothing should run if this is false.
-    |
     */
 
-    'enabled' => (bool) env('GIDEON_ENABLED', false),
+    'enabled' => env('GIDEON_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
     | LLM Provider & Model
     |--------------------------------------------------------------------------
-    |
-    | For Tier 1 we assume OpenAI-style chat models. This is abstracted
-    | behind GideonLlmClient so we can swap later if needed.
-    |
     */
 
-    'llm_provider'    => env('GIDEON_LLM_PROVIDER', 'openai'),
+    'llm_provider' => env('GIDEON_LLM_PROVIDER', 'openai'),
+
     'llm_model_tier1' => env('GIDEON_OPENAI_MODEL_TIER1', 'gpt-4.1'),
 
     /*
@@ -38,54 +31,53 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Sparring-specific LLM Controls
+    | Sparring-specific LLM Controls (C3)
     |--------------------------------------------------------------------------
-    |
-    | These flags control LLM behavior ONLY for the Sparring Partner.
-    | Rule-based logic remains the fallback and safety net.
-    |
     */
 
     'sparring' => [
-        // Master switch for LLM replies inside SparringService
-        'llm_enabled'   => (bool) env('GIDEON_SPARRING_LLM_ENABLED', false),
-
-        // Number of prior sparring messages sent to the LLM as context
+        'llm_enabled'   => env('GIDEON_SPARRING_LLM_ENABLED', false),
         'history_limit' => (int) env('GIDEON_SPARRING_LLM_HISTORY_LIMIT', 8),
+        'temperature'   => (float) env('GIDEON_SPARRING_LLM_TEMPERATURE', 0.7),
+        'max_tokens'    => (int) env('GIDEON_SPARRING_LLM_MAX_TOKENS', 280),
+    ],
 
-        // Optional: allow sparring to use a different model than tier1 default
-        // (If not set, falls back to GIDEON_OPENAI_MODEL_TIER1)
-        'model' => env('GIDEON_SPARRING_MODEL', env('GIDEON_OPENAI_MODEL_TIER1', 'gpt-4.1')),
+    /*
+    |--------------------------------------------------------------------------
+    | Coaching (C4)
+    |--------------------------------------------------------------------------
+    |
+    | Coaching is separate from sparring replies. It must never change the
+    | "prospect" voice. Coaching writes Strengths/Improvements at end-of-session.
+    |
+    */
 
-        // Reply style controls (support both env names for backwards compatibility)
-        'temperature' => (float) env(
-            'GIDEON_SPARRING_LLM_TEMPERATURE',
-            env('GIDEON_SPARRING_TEMPERATURE', 0.7)
-        ),
+    'coaching' => [
+        // Master switch for C4 coaching features
+        'enabled' => env('GIDEON_COACHING_ENABLED', false),
 
-        // Token cap for a single Gideon reply (support both env names)
-        'max_tokens' => (int) env(
-            'GIDEON_SPARRING_LLM_MAX_TOKENS',
-            env('GIDEON_SPARRING_MAX_TOKENS', 280)
-        ),
+        // LLM-written narrative on endSession()
+        'assessment_llm_enabled' => env('GIDEON_COACHING_ASSESSMENT_LLM_ENABLED', false),
+
+        // How many recent messages to include when writing the assessment
+        'assessment_history_limit' => (int) env('GIDEON_COACHING_ASSESSMENT_HISTORY_LIMIT', 18),
+
+        // Style controls for coaching voice
+        'temperature' => (float) env('GIDEON_COACHING_TEMPERATURE', 0.4),
+
+        // Token cap for the coaching output (strengths+improvements)
+        'max_tokens'  => (int) env('GIDEON_COACHING_MAX_TOKENS', 420),
     ],
 
     /*
     |--------------------------------------------------------------------------
     | Rate Limiting (Soft Config)
     |--------------------------------------------------------------------------
-    |
-    | These are soft limits; you can enforce them using Laravel's rate
-    | limiting features. Values are "requests per timeframe".
-    |
     */
 
     'rate_limits' => [
-        // Sparring Partner
         'ask_per_user_per_minute'   => (int) env('GIDEON_ASK_PER_USER_PER_MINUTE', 6),
         'ask_per_tenant_per_minute' => (int) env('GIDEON_ASK_PER_TENANT_PER_MINUTE', 60),
-
-        // Opportunity refresh
         'refresh_per_tenant_per_hour' => (int) env('GIDEON_REFRESH_PER_TENANT_PER_HOUR', 2),
     ],
 
@@ -93,14 +85,10 @@ return [
     |--------------------------------------------------------------------------
     | Adaptive Intelligence
     |--------------------------------------------------------------------------
-    |
-    | Controls for how aggressively Gideon adjusts its internal weights
-    | based on outcomes. Tier 1: scaffolding only, simple weighting.
-    |
     */
 
     'adaptive' => [
-        'enabled'                      => (bool) env('GIDEON_ADAPTIVE_ENABLED', true),
+        'enabled'                      => env('GIDEON_ADAPTIVE_ENABLED', true),
         'min_opportunities_for_tuning' => (int) env('GIDEON_MIN_OPPS_FOR_TUNING', 50),
         'min_sessions_for_tuning'      => (int) env('GIDEON_MIN_SESSIONS_FOR_TUNING', 20),
     ],
