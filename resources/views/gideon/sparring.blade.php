@@ -4,11 +4,11 @@
 <div class="container py-4">
     <h1 class="mb-3">Gideon Sparring Partner</h1>
     <p class="text-muted mb-4">
-        Choose a scenario, then type what you would say to the prospect.
-        Gideon will push back like a real human so you can practice.
+        Choose a scenario, then type what you would say.
+        You can practice as the <strong>Agent</strong> (Gideon is the Prospect) or practice as the <strong>Prospect</strong> (Gideon is the Agent).
     </p>
 
-    {{-- Scenario + Persona selector --}}
+    {{-- Scenario + Persona + Mode selector --}}
     <div class="card mb-3">
         <div class="card-body row g-3 align-items-center">
             <div class="col-md-4">
@@ -35,11 +35,23 @@
                     <option value="direct_analytical">Direct / analytical</option>
                 </select>
                 <div class="small text-muted mt-1">
-                    Choose how Gideon should “feel” before you start.
+                    Choose how Gideon (as prospect) should “feel” before you start.
+                    (In Agent Simulation mode, this still influences the prospect behavior you play against.)
                 </div>
             </div>
 
-            <div class="col-md-4 d-flex flex-column align-items-md-end align-items-start gap-2">
+            <div class="col-md-4">
+                <label for="modeSelect" class="form-label mb-1">Mode</label>
+                <select id="modeSelect" class="form-select">
+                    <option value="prospect_simulation" selected>Practice as Agent (Gideon = Prospect)</option>
+                    <option value="agent_simulation">Practice as Prospect (Gideon = Agent)</option>
+                </select>
+                <div class="small text-muted mt-1">
+                    Pick who <strong>you</strong> are in this conversation.
+                </div>
+            </div>
+
+            <div class="col-12 d-flex flex-column flex-md-row justify-content-md-end align-items-start align-items-md-center gap-2">
                 <button id="resetSessionBtn" class="btn btn-outline-secondary btn-sm" type="button">
                     Reset Session
                 </button>
@@ -82,7 +94,7 @@
                 <input id="sparringInput"
                        type="text"
                        class="form-control"
-                       placeholder="Type what you’d say to the prospect and press Enter..."
+                       placeholder="Type your message and press Enter..."
                        autocomplete="off" />
 
                 <button id="sendBtn" class="btn btn-warning" type="submit">
@@ -117,16 +129,12 @@
 
             <div class="mb-3">
                 <h6>Strengths</h6>
-                <p class="mb-0 small" id="assStrengths">
-                    –
-                </p>
+                <p class="mb-0 small" id="assStrengths">–</p>
             </div>
 
             <div>
                 <h6>Improvements</h6>
-                <p class="mb-0 small" id="assImprovements">
-                    –
-                </p>
+                <p class="mb-0 small" id="assImprovements">–</p>
             </div>
         </div>
     </div>
@@ -146,6 +154,7 @@
         const sendBtn                 = document.getElementById('sendBtn');
         const scenarioSelectEl        = document.getElementById('scenarioSelect');
         const personaSelectEl         = document.getElementById('personaSelect');
+        const modeSelectEl            = document.getElementById('modeSelect');
         const scenarioDescriptionEl   = document.getElementById('scenarioDescription');
         const statusEl                = document.getElementById('sparringStatus');
         const resetBtn                = document.getElementById('resetSessionBtn');
@@ -171,6 +180,9 @@
             wrapper.classList.add('mb-2', 'small');
 
             const label = document.createElement('strong');
+
+            // NOTE: UI labels stay simple for now ("You" vs "Gideon").
+            // In Step A3 we may refine labels based on mode (Agent vs Prospect).
             label.textContent = sender === 'agent' ? 'You: ' : 'Gideon: ';
             label.style.color = sender === 'agent' ? '#ffd54f' : '#64b5f6';
 
@@ -200,13 +212,13 @@
         }
 
         function clearAssessment() {
-            assessmentCard.style.display   = 'none';
-            assRapportEl.textContent       = '–';
-            assDiscoveryEl.textContent     = '–';
-            assDealKillersEl.textContent   = '–';
-            assClosingClarityEl.textContent= '–';
-            assStrengthsEl.textContent     = '–';
-            assImprovementsEl.textContent  = '–';
+            assessmentCard.style.display    = 'none';
+            assRapportEl.textContent        = '–';
+            assDiscoveryEl.textContent      = '–';
+            assDealKillersEl.textContent    = '–';
+            assClosingClarityEl.textContent = '–';
+            assStrengthsEl.textContent      = '–';
+            assImprovementsEl.textContent   = '–';
         }
 
         function resetSession() {
@@ -224,9 +236,16 @@
             resetSession();
         });
 
-        // Optional: if you later store scenario descriptions in JS, update description on change.
         scenarioSelectEl?.addEventListener('change', () => {
-            // For now we only change session; description stays as initial
+            resetSession();
+        });
+
+        personaSelectEl?.addEventListener('change', () => {
+            resetSession();
+        });
+
+        modeSelectEl?.addEventListener('change', () => {
+            // Mode affects session behavior, so reset to avoid mixing contexts.
             resetSession();
         });
 
@@ -236,6 +255,7 @@
                 setStatus('Error: missing CSRF token.');
                 return;
             }
+
             const scenarioCode = scenarioSelectEl?.value || null;
             if (!scenarioCode) {
                 setStatus('Please choose a scenario first.');
@@ -243,6 +263,9 @@
             }
 
             const persona = personaSelectEl?.value || 'soft_conflict_avoidant';
+
+            // ✅ Step A2: read mode from dropdown instead of hard-coding it
+            const mode = modeSelectEl?.value || 'prospect_simulation';
 
             isSending = true;
             setStatus('Talking to Gideon...');
@@ -258,7 +281,7 @@
                     },
                     body: JSON.stringify({
                         scenario_code: scenarioCode,
-                        mode: 'prospect_simulation',
+                        mode: mode, // ✅ changed from 'prospect_simulation' to the user-selected mode
                         persona: persona,
                         session_id: currentSessionId,
                         message: message,
@@ -272,19 +295,16 @@
                 const data = await response.json();
                 console.log('Gideon response', data);
 
-                // Capture session id from response
                 if (data.session && data.session.id) {
                     currentSessionId = data.session.id;
                 } else if (data.session_id) {
                     currentSessionId = data.session_id;
                 }
 
-                // 1) opening line on first call
                 if (data.opening_line) {
                     appendMessage('gideon', data.opening_line);
                 }
 
-                // 2) Gideon's reply for this turn
                 if (data.gideon_reply && data.gideon_reply.content) {
                     appendMessage('gideon', data.gideon_reply.content);
                 }
@@ -340,7 +360,7 @@
                     assClosingClarityEl.textContent = scores.closing_clarity ?? '–';
                 }
 
-                assStrengthsEl.textContent   = data.assessment?.strengths
+                assStrengthsEl.textContent = data.assessment?.strengths
                     ?? 'Placeholder assessment. Automated coaching logic to be implemented.';
                 assImprovementsEl.textContent = data.assessment?.improvements
                     ?? 'Placeholder assessment. Automated coaching logic to be implemented.';
@@ -370,7 +390,7 @@
             if (!value) return;
 
             inputEl.value = '';
-            clearAssessment(); // if they start talking again, hide old assessment
+            clearAssessment();
             enableInput();
             sendToGideon(value);
         });
