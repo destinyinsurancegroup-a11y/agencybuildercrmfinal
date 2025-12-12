@@ -9,7 +9,6 @@ use App\Models\GideonSparringSession;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class SparringService
@@ -20,8 +19,6 @@ class SparringService
     }
 
     /**
-     * Small helper so controllers can ask for scenarios in a consistent way.
-     *
      * @return \Illuminate\Database\Eloquent\Collection<int, GideonScenario>
      */
     public function listScenariosForUi(): Collection
@@ -32,8 +29,6 @@ class SparringService
     }
 
     /**
-     * Start a new sparring session based on a scenario.
-     *
      * @return array{session: GideonSparringSession, first_message: GideonSparringMessage|null}
      */
     public function startSession(
@@ -58,7 +53,6 @@ class SparringService
                 'persona'       => $personaKey,
             ];
 
-            // Persona + scenario driven starting state
             $initialState = $this->buildInitialState($scenario, $personaKey);
 
             $prospectProfile = $scenario->prospect_profile ?? [];
@@ -110,9 +104,6 @@ class SparringService
     }
 
     /**
-     * Handle an agent message + generate Gideon's reply using
-     * a state machine + (now) optional LLM.
-     *
      * @return array{agent_message: GideonSparringMessage, gideon_reply: GideonSparringMessage}
      */
     public function handleAgentMessage(
@@ -169,67 +160,25 @@ class SparringService
 
             // 3) Generate reply text (LLM first, rules fallback)
             $replyText = null;
-            $meta = [
-                'source'        => 'scenario_v1_logic_with_state', // default unless LLM succeeds
-                'scenario_code' => $scenario?->code,
-                'state'         => $state,
-            ];
+            $source    = 'scenario_v1_logic_with_state';
 
             if ($useLlm && $scenario) {
                 try {
-                    $context = $this->buildLlmContextForSparring($session, $scenario, $state, $agentMessage);
-
-                    // These come from config/gideon.php
-                    $options = [
-                        'temperature' => (float) config('gideon.sparring.temperature', 0.7),
-                        'max_tokens'  => (int) config('gideon.sparring.max_tokens', 280),
-                    ];
-
-                    // IMPORTANT:
-                    // This method must exist in GideonLlmClient (you said you added it / will add it).
-                    // If your client method name differs, change this call ONLY.
-                    $replyText = $this->llmClient->generateSparringReply($context, $options);
-
-                    if (is_string($replyText) && trim($replyText) !== '') {
-                        $meta['source'] = 'llm_v1_sparring';
-                        $meta['llm'] = [
-                            'history_limit' => (int) config('gideon.sparring.history_limit', 8),
-                            'temperature'   => $options['temperature'],
-                            'max_tokens'    => $options['max_tokens'],
-                        ];
-                    } else {
-                        $replyText = null;
-                    }
+                    $context   = $this->buildLlmContextForSparring($session, $scenario, $state, $agentMessage);
+                    $replyText = $this->llmClient->generateSparringReply($context);
+                    $source    = 'llm_v1_sparring';
                 } catch (\Throwable $e) {
-                    // Do NOT leak prompts or user message contents in logs.
+                    // Don’t leak prompts or PII; Laravel handler will store stack safely
                     report($e);
-
-                    Log::warning('Gideon sparring LLM failed; falling back to rule engine.', [
-                        'session_id' => $session->id,
-                        'scenario'   => $scenario->code,
-                        'exception'  => class_basename($e),
-                    ]);
-
                     $replyText = null;
                 }
             }
 
-            if ($replyText === null || trim((string) $replyText) === '') {
-                $replyText = $this->generateGideonReply(
-                    $session,
-                    $scenario,
-                    $agentMessage,
-                    $state
-                );
-
-                // If LLM was attempted but failed, mark fallback
-                if (($meta['source'] ?? '') === 'llm_v1_sparring') {
-                    // shouldn't happen because we only set llm_v1_sparring on success
-                } elseif ($useLlm && $scenario) {
-                    $meta['source'] = 'scenario_v1_logic_with_state_fallback';
-                } else {
-                    $meta['source'] = 'scenario_v1_logic_with_state';
-                }
+            if ($replyText === null || trim($replyText) === '') {
+                $replyText = $this->generateGideonReply($session, $scenario, $agentMessage, $state);
+                $source    = ($source === 'llm_v1_sparring')
+                    ? 'scenario_v1_logic_with_state_fallback'
+                    : 'scenario_v1_logic_with_state';
             }
 
             // 4) Save Gideon message
@@ -239,7 +188,11 @@ class SparringService
                 'user_id'    => $userId,
                 'sender'     => 'gideon',
                 'content'    => $replyText,
-                'meta'       => $meta,
+                'meta'       => [
+                    'source'        => $source,
+                    'scenario_code' => $scenario?->code,
+                    'state'         => $state,
+                ],
             ]);
 
             // 5) Update session state
@@ -254,8 +207,6 @@ class SparringService
     }
 
     /**
-     * End a session; now we create a semi-smart assessment based on final state.
-     *
      * @return array{session: GideonSparringSession, assessment: GideonSparringAssessment}
      */
     public function endSession(
@@ -276,7 +227,6 @@ class SparringService
 
         $state = $session->state ?? [];
 
-        // Translate state (0-100) into 1-5 scores
         $scores = [
             'rapport'         => $this->scoreFromState($state, 'trust'),
             'discovery'       => $this->scoreFromState($state, 'motivation'),
@@ -305,8 +255,6 @@ class SparringService
     }
 
     /**
-     * Fetch a session + its messages for playback / review.
-     *
      * @return array{session: GideonSparringSession, messages: Collection<int, GideonSparringMessage>}
      */
     public function getSessionTranscript(
@@ -336,9 +284,6 @@ class SparringService
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * Build initial state from scenario + persona.
-     */
     protected function buildInitialState(?GideonScenario $scenario, string $personaKey): array
     {
         $state = [
@@ -351,7 +296,6 @@ class SparringService
             'last_tactic' => null,
         ];
 
-        // If scenario has a baseline state defined, use it as a starting point
         if ($scenario && is_array($scenario->prospect_profile ?? null)) {
             $baseline = Arr::get($scenario->prospect_profile, "baseline_state.{$personaKey}")
                 ?? Arr::get($scenario->prospect_profile, 'baseline_state.default');
@@ -363,7 +307,6 @@ class SparringService
             }
         }
 
-        // Persona tweaks
         switch ($personaKey) {
             case 'soft_conflict_avoidant':
                 $state['trust']      = $state['trust'] + 5;
@@ -377,10 +320,8 @@ class SparringService
                 $state['trust']      = $state['trust'] + 5;
                 $state['motivation'] = $state['motivation'] + 5;
                 break;
-            // neutral_realistic => no change
         }
 
-        // Clamp
         foreach (['trust', 'urgency', 'motivation', 'resistance'] as $key) {
             $state[$key] = $this->clamp($state[$key] ?? 50, 0, 100);
         }
@@ -388,9 +329,6 @@ class SparringService
         return $state;
     }
 
-    /**
-     * Update state based on a single agent message.
-     */
     protected function updateStateFromAgentMessage(array $state, string $agentMessage): array
     {
         $text  = mb_strtolower($agentMessage);
@@ -398,7 +336,6 @@ class SparringService
         $turn += 1;
         $state['turn'] = $turn;
 
-        // Very light-weight "NLP"
         $isQuestion = str_contains($agentMessage, '?');
 
         $rapportWords  = ['i hear you', 'i get that', 'i understand', 'makes sense', 'totally', 'thank you', 'appreciate'];
@@ -467,9 +404,6 @@ class SparringService
         return $state;
     }
 
-    /**
-     * Generate Gideon's reply from scenario + state + agent input (rule fallback).
-     */
     protected function generateGideonReply(
         GideonSparringSession $session,
         ?GideonScenario $scenario,
@@ -511,37 +445,34 @@ class SparringService
             case 'opening':
                 return $this->avoidRepeat(
                     $lastLine,
-                    "I hear what you’re saying. From my side as the prospect in {$scenarioLabel}, I’m still trying to sort out what really feels risky here. What’s one more question you’d ask me to better understand what’s underneath that?",
-                    "I get that you’re trying to help. From my side in {$scenarioLabel}, there are still a couple of things that feel a bit unclear. What would you ask next so I feel safe putting those on the table?"
+                    "I hear you. I’m just not sure I want to change anything yet. What’s the one thing you think I’m missing?",
+                    "That makes sense… I’m still a little guarded here. What would you want to know from me before we even compare options?"
                 );
 
             case 'deepen':
                 return $this->avoidRepeat(
                     $lastLine,
-                    "Your questions are helping me sort things out, but in {$scenarioLabel} there’s still something that feels a little off. What follow-up question would you ask now to get underneath what I’m really worried about?",
-                    "I’m tracking with some of what you’re saying, but I’m not fully there yet. If you were in my shoes in {$scenarioLabel}, what would you ask me next to really understand what’s still in the way?"
+                    "Okay, but help me understand—what would actually be different for me if I switched?",
+                    "I’m listening. I just don’t want to get talked into something. What’s the simplest way to compare this to what I already have?"
                 );
 
             case 'reframe':
                 return $this->avoidRepeat(
                     $lastLine,
-                    "Part of me sees the value, and part of me is still hesitating. In {$scenarioLabel}, what would you ask or say next so I can see this in a different light without feeling pushed?",
-                    "I can feel you’re trying to help, but something is still holding me back. What question would you ask to help me picture what happens if we don’t change anything?"
+                    "Part of me gets it, and part of me is still stuck. What happens if I do nothing and keep things the same?",
+                    "I’m not saying no… I just need to feel like this isn’t a mistake. What would make this feel safer?"
                 );
 
             case 'close_soft':
             default:
                 return $this->avoidRepeat(
                     $lastLine,
-                    "Okay, this is starting to make more sense. If you were wrapping up {$scenarioLabel}, what would you say now so I can make a confident decision without feeling rushed?",
-                    "I’m closer than when we started, but I still need one more piece. What would you ask or say next to help me feel clear on the decision, either way?"
+                    "Alright. If we did take a next step, what does that look like—just the simple version?",
+                    "I’m close, but I need one last thing to feel good about it. What would you ask me right now?"
                 );
         }
     }
 
-    /**
-     * Build the LLM context payload for sparring.
-     */
     protected function buildLlmContextForSparring(
         GideonSparringSession $session,
         GideonScenario $scenario,
@@ -561,8 +492,7 @@ class SparringService
         $recent = [];
         foreach ($messages as $m) {
             $recent[] = [
-                // Keep your internal sender labels. The client will map them to OpenAI roles.
-                'role'    => $m->sender,   // 'agent' or 'gideon'
+                'role'    => $m->sender,   // 'agent' or 'gideon' (we map later in GideonLlmClient)
                 'content' => $m->content,
             ];
         }
@@ -574,14 +504,13 @@ class SparringService
                 'product_type'     => $scenario->product_type,
                 'description'      => $scenario->description,
                 'prospect_profile' => $scenario->prospect_profile ?? [],
-                'script_engine'    => $scenario->script_engine ?? [],
             ],
             'session' => [
                 'id'          => $session->id,
                 'agency_id'   => $session->agency_id,
                 'user_id'     => $session->user_id,
                 'mode'        => $session->mode,
-                'persona_key' => $session->persona_key ?? (is_array($session->config ?? null) ? ($session->config['persona'] ?? null) : null),
+                'persona_key' => $session->persona_key ?? ($session->config['persona'] ?? null),
             ],
             'state'                => $state,
             'recent_messages'      => $recent,
@@ -614,10 +543,6 @@ class SparringService
         return (int) max(1, min(5, ceil(($flipped + 1) / 20)));
     }
 
-    /**
-     * @param array{rapport:int,discovery:int,deal_killers:int,closing_clarity:int} $scores
-     * @return array{0:string,1:string}
-     */
     protected function buildAssessmentNarrative(array $scores): array
     {
         $strengthsParts = [];
