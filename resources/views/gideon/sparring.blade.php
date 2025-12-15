@@ -1,21 +1,53 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    /* Quick ABC black + gold vibe (minimal, no full redesign yet) */
+    .abc-panel { background:#0b0b0b; border:1px solid rgba(255,215,0,.18); color:#eee; }
+    .abc-muted { color: rgba(255,255,255,.65); }
+    .abc-gold { color:#ffd54f; }
+    .abc-btn-gold { background:#ffd54f; border-color:#ffd54f; color:#111; font-weight:600; }
+    .abc-btn-outline { border-color: rgba(255,215,0,.35); color:#ffd54f; }
+    .abc-btn-outline:hover { background: rgba(255,215,0,.08); }
+    .abc-chip { display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .6rem; border-radius:999px; background:rgba(255,215,0,.08); border:1px solid rgba(255,215,0,.18); color:#ffd54f; font-size:.85rem; }
+    .abc-transcript { background:#0f0f10; border:1px solid rgba(255,215,0,.12); border-radius:.5rem; }
+    .bubble { max-width: 85%; padding:.55rem .7rem; border-radius: .75rem; border:1px solid rgba(255,255,255,.08); }
+    .bubble.agent { margin-left:auto; background: rgba(255,215,0,.08); border-color: rgba(255,215,0,.20); }
+    .bubble.system { margin-right:auto; background: rgba(100,181,246,.08); border-color: rgba(100,181,246,.18); }
+    .bubble small { display:block; margin-top:.25rem; color: rgba(255,255,255,.55); }
+</style>
+
 <div class="container py-4">
-    <h1 class="mb-3">Gideon Sparring Partner</h1>
-    <p class="text-muted mb-4">
-        Choose a scenario, then type what you would say to the prospect.
-        Gideon will push back like a real human so you can practice.
-    </p>
+
+    {{-- Header --}}
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="mb-1">Gideon Sparring Partner</h1>
+            <div class="abc-muted">
+                Practice a selling cycle. Sessions advance toward an end and produce coaching feedback.
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <span class="abc-chip">
+                <span>⏱</span> <span id="timerPill">00:00</span>
+            </span>
+            <button id="endSessionBtn" class="btn btn-outline-danger btn-sm" type="button">
+                End Session
+            </button>
+        </div>
+    </div>
 
     @php
         $firstScenario = ($scenarios ?? collect())->first();
         $firstDescription = $firstScenario?->description ?? 'Select a scenario to see its description.';
     @endphp
 
-    {{-- Scenario + Persona + Mode selector --}}
-    <div class="card mb-3">
+    {{-- Setup panel --}}
+    <div class="card abc-panel mb-3">
         <div class="card-body row g-3 align-items-center">
+
+            {{-- Scenario --}}
             <div class="col-md-4">
                 <label for="scenarioSelect" class="form-label mb-1">Scenario</label>
                 <select id="scenarioSelect" class="form-select">
@@ -33,110 +65,116 @@
                         <option value="" data-description="">No scenarios seeded yet</option>
                     @endforelse
                 </select>
+                <div class="small abc-muted mt-1" id="scenarioDescription">{{ $firstDescription }}</div>
             </div>
 
+            {{-- Training Mode (3 modes) --}}
             <div class="col-md-3">
-                <label for="personaSelect" class="form-label mb-1">Prospect persona</label>
+                <label for="trainingModeSelect" class="form-label mb-1">Training Mode</label>
+                <select id="trainingModeSelect" class="form-select">
+                    <option value="stages">Stages (practice one stage)</option>
+                    <option value="discovery_start" selected>Discovery-Start</option>
+                    <option value="full_presentation">Full Presentation</option>
+                </select>
+                <div class="small abc-muted mt-1">
+                    Controls where the session starts and how it ends.
+                </div>
+            </div>
+
+            {{-- Stage (only when stages mode) --}}
+            <div class="col-md-2">
+                <label for="stageSelect" class="form-label mb-1">Stage</label>
+                <select id="stageSelect" class="form-select">
+                    <option value="intro">Intro</option>
+                    <option value="discovery" selected>Discovery</option>
+                    <option value="education">Education</option>
+                    <option value="qualify">Qualify</option>
+                    <option value="quote">Quote</option>
+                    <option value="close">Close</option>
+                </select>
+                <div class="small abc-muted mt-1" id="stageHint">Used only in Stages Mode.</div>
+            </div>
+
+            {{-- Difficulty --}}
+            <div class="col-md-3">
+                <label for="difficultySelect" class="form-label mb-1">Difficulty</label>
+                <select id="difficultySelect" class="form-select">
+                    <option value="easy">Easy</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Hard</option>
+                </select>
+                <div class="small abc-muted mt-1">Affects how skeptical the prospect behaves.</div>
+            </div>
+
+            {{-- Persona + UI Mode --}}
+            <div class="col-md-4">
+                <label for="personaSelect" class="form-label mb-1">Prospect Persona</label>
                 <select id="personaSelect" class="form-select">
                     <option value="soft_conflict_avoidant" selected>Soft / conflict-avoidant</option>
                     <option value="neutral_balanced">Neutral / balanced</option>
                     <option value="direct_analytical">Direct / analytical</option>
                 </select>
-                <div class="small text-muted mt-1">
-                    Choose how Gideon should “feel” before you start.
-                </div>
             </div>
 
-            <div class="col-md-2">
-                <label for="modeSelect" class="form-label mb-1">Mode</label>
+            <div class="col-md-3">
+                <label for="modeSelect" class="form-label mb-1">UI Role Mode</label>
                 <select id="modeSelect" class="form-select">
-                    <option value="prospect_simulation" selected>Prospect sim</option>
-                    <option value="role_reversal">Role reversal</option>
+                    <option value="prospect_simulation" selected>Prospect sim (You=Agent)</option>
+                    <option value="agent_simulation">Role reversal (You=Prospect)</option>
                 </select>
-                <div class="small text-muted mt-1">
-                    Swap who plays who.
-                </div>
+                <div class="small abc-muted mt-1">This is not Training Mode.</div>
             </div>
 
-            <div class="col-md-3 d-flex flex-column align-items-md-end align-items-start gap-2">
-                <button id="resetSessionBtn" class="btn btn-outline-secondary btn-sm" type="button">
+            <div class="col-md-5 d-flex flex-column align-items-md-end align-items-start gap-2">
+                <button id="resetSessionBtn" class="btn abc-btn-outline btn-sm" type="button">
                     Reset Session
                 </button>
-                <button id="endSessionBtn" class="btn btn-outline-danger btn-sm" type="button">
-                    End Session (Assessment)
-                </button>
-            </div>
-
-            <div class="col-12">
-                <label class="form-label mb-1 d-block">Scenario description</label>
-                <div id="scenarioDescription" class="small text-muted">
-                    {{ $firstDescription }}
-                </div>
             </div>
         </div>
     </div>
 
-    {{-- Transcript window --}}
-    <div class="card mb-3">
-        <div class="card-header">
-            Conversation
-        </div>
-        <div id="sparringTranscript"
-             class="card-body"
-             style="min-height: 260px; max-height: 420px; overflow-y: auto; background-color:#111; color:#eee;">
-            <div class="text-muted small">
-                Select a scenario and send your first message to start a session.
-            </div>
+    {{-- Transcript --}}
+    <div class="abc-transcript mb-3 p-3" style="min-height: 280px; max-height: 520px; overflow-y: auto;" id="sparringTranscript">
+        <div class="abc-muted small">
+            Select a scenario and send your first message to start a session.
         </div>
     </div>
 
-    {{-- Input box --}}
-    <div class="card">
+    {{-- Input --}}
+    <div class="card abc-panel">
         <div class="card-body">
             <form id="sparringForm" class="d-flex gap-2">
                 <input id="sparringInput"
                        type="text"
                        class="form-control"
-                       placeholder="Type what you’d say to the prospect and press Enter..."
+                       placeholder="Type what you’d say and press Enter..."
                        autocomplete="off" />
 
-                <button id="sendBtn" class="btn btn-warning" type="submit">
-                    Send
-                </button>
+                <button id="sendBtn" class="btn abc-btn-gold" type="submit">Send</button>
             </form>
-
-            <div class="mt-2 small text-muted" id="sparringStatus"></div>
+            <div class="mt-2 small abc-muted" id="sparringStatus"></div>
         </div>
     </div>
 
-    {{-- Session Assessment --}}
-    <div class="card mt-4" id="assessmentCard" style="display:none;">
-        <div class="card-header">
-            Session Assessment
-        </div>
+    {{-- Assessment --}}
+    <div class="card abc-panel mt-4" id="assessmentCard" style="display:none;">
         <div class="card-body">
+            <h5 class="mb-3">Session Assessment</h5>
+
             <div class="row mb-3">
-                <div class="col-md-3">
-                    <strong>Rapport:</strong> <span id="assRapport">–</span>
-                </div>
-                <div class="col-md-3">
-                    <strong>Discovery:</strong> <span id="assDiscovery">–</span>
-                </div>
-                <div class="col-md-3">
-                    <strong>Deal killers:</strong> <span id="assDealKillers">–</span>
-                </div>
-                <div class="col-md-3">
-                    <strong>Closing clarity:</strong> <span id="assClosingClarity">–</span>
-                </div>
+                <div class="col-md-3"><strong>Rapport:</strong> <span id="assRapport">–</span></div>
+                <div class="col-md-3"><strong>Discovery:</strong> <span id="assDiscovery">–</span></div>
+                <div class="col-md-3"><strong>Deal killers:</strong> <span id="assDealKillers">–</span></div>
+                <div class="col-md-3"><strong>Closing clarity:</strong> <span id="assClosingClarity">–</span></div>
             </div>
 
             <div class="mb-3">
-                <h6>Strengths</h6>
+                <h6 class="abc-gold">Strengths</h6>
                 <p class="mb-0 small" id="assStrengths">–</p>
             </div>
 
             <div>
-                <h6>Improvements</h6>
+                <h6 class="abc-gold">Improvements</h6>
                 <p class="mb-0 small" id="assImprovements">–</p>
             </div>
         </div>
@@ -155,6 +193,12 @@ document.addEventListener('DOMContentLoaded', function () {
     var scenarioSelectEl      = document.getElementById('scenarioSelect');
     var personaSelectEl       = document.getElementById('personaSelect');
     var modeSelectEl          = document.getElementById('modeSelect');
+
+    var trainingModeEl        = document.getElementById('trainingModeSelect');
+    var stageSelectEl         = document.getElementById('stageSelect');
+    var stageHintEl           = document.getElementById('stageHint');
+    var difficultyEl          = document.getElementById('difficultySelect');
+
     var scenarioDescriptionEl = document.getElementById('scenarioDescription');
     var statusEl              = document.getElementById('sparringStatus');
     var resetBtn              = document.getElementById('resetSessionBtn');
@@ -168,26 +212,56 @@ document.addEventListener('DOMContentLoaded', function () {
     var assStrengthsEl        = document.getElementById('assStrengths');
     var assImprovementsEl     = document.getElementById('assImprovements');
 
+    var timerPillEl           = document.getElementById('timerPill');
+
     var currentSessionId = null;
     var isSending = false;
+    var timerStart = null;
+    var timerInt = null;
 
-    function appendMessage(sender, text) {
+    function fmtTime(ms) {
+        var s = Math.floor(ms / 1000);
+        var m = Math.floor(s / 60);
+        s = s % 60;
+        return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+
+    function startTimer() {
+        timerStart = Date.now();
+        if (timerInt) clearInterval(timerInt);
+        timerInt = setInterval(function(){
+            if (!timerStart || !timerPillEl) return;
+            timerPillEl.textContent = fmtTime(Date.now() - timerStart);
+        }, 500);
+    }
+
+    function stopTimer() {
+        if (timerInt) clearInterval(timerInt);
+        timerInt = null;
+        timerStart = null;
+        if (timerPillEl) timerPillEl.textContent = '00:00';
+    }
+
+    function appendBubble(who, text) {
         if (!text) return;
 
-        var wrapper = document.createElement('div');
-        wrapper.className = 'mb-2 small';
+        var wrap = document.createElement('div');
+        wrap.className = 'd-flex mb-2';
 
-        var label = document.createElement('strong');
-        label.textContent = (sender === 'agent') ? 'You: ' : 'Gideon: ';
-        label.style.color = (sender === 'agent') ? '#ffd54f' : '#64b5f6';
+        var bubble = document.createElement('div');
+        bubble.className = 'bubble ' + ((who === 'agent') ? 'agent' : 'system');
 
-        var span = document.createElement('span');
-        span.textContent = text;
+        bubble.textContent = text;
 
-        wrapper.appendChild(label);
-        wrapper.appendChild(span);
+        var ts = document.createElement('small');
+        ts.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        bubble.appendChild(ts);
 
-        transcriptEl.appendChild(wrapper);
+        if (who === 'agent') wrap.classList.add('justify-content-end');
+        else wrap.classList.add('justify-content-start');
+
+        wrap.appendChild(bubble);
+        transcriptEl.appendChild(wrap);
         transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
 
@@ -216,20 +290,28 @@ document.addEventListener('DOMContentLoaded', function () {
         assImprovementsEl.textContent = '–';
     }
 
-    function resetSession() {
-        currentSessionId = null;
-        transcriptEl.innerHTML = '<div class="text-muted small">Session reset. Send a new message to start again.</div>';
-        clearAssessment();
-        setStatus('');
-        enableInput();
-        if (inputEl) inputEl.value = '';
-    }
-
     function updateScenarioDescription() {
         if (!scenarioSelectEl || !scenarioDescriptionEl) return;
         var opt = scenarioSelectEl.options[scenarioSelectEl.selectedIndex];
         var desc = opt ? (opt.getAttribute('data-description') || '') : '';
         scenarioDescriptionEl.textContent = desc || 'No description available for this scenario.';
+    }
+
+    function updateStageEnabled() {
+        var tm = trainingModeEl ? trainingModeEl.value : 'discovery_start';
+        var isStages = (tm === 'stages');
+        if (stageSelectEl) stageSelectEl.disabled = !isStages;
+        if (stageHintEl) stageHintEl.textContent = isStages ? 'Practice only this stage.' : 'Used only in Stages Mode.';
+    }
+
+    function resetSession() {
+        currentSessionId = null;
+        transcriptEl.innerHTML = '<div class="abc-muted small">Session reset. Send a new message to start again.</div>';
+        clearAssessment();
+        setStatus('');
+        enableInput();
+        if (inputEl) inputEl.value = '';
+        stopTimer();
     }
 
     if (scenarioSelectEl) {
@@ -238,6 +320,14 @@ document.addEventListener('DOMContentLoaded', function () {
             resetSession();
         });
         updateScenarioDescription();
+    }
+
+    if (trainingModeEl) {
+        trainingModeEl.addEventListener('change', function () {
+            updateStageEnabled();
+            resetSession();
+        });
+        updateStageEnabled();
     }
 
     if (resetBtn) {
@@ -260,11 +350,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         var persona = personaSelectEl ? personaSelectEl.value : 'soft_conflict_avoidant';
-        var mode = modeSelectEl ? modeSelectEl.value : 'prospect_simulation';
+        var uiMode = modeSelectEl ? modeSelectEl.value : 'prospect_simulation';
+
+        var trainingMode = trainingModeEl ? trainingModeEl.value : 'discovery_start';
+        var selectedStage = stageSelectEl ? stageSelectEl.value : 'discovery';
+        var difficulty = difficultyEl ? difficultyEl.value : 'normal';
 
         isSending = true;
         setStatus('Talking to Gideon...');
-        appendMessage('agent', message);
+        appendBubble('agent', message);
 
         try {
             var response = await fetch('/api/gideon/sparring/ask', {
@@ -276,10 +370,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     scenario_code: scenarioCode,
-                    mode: mode,
+                    mode: uiMode,
                     persona: persona,
                     session_id: currentSessionId,
                     message: message,
+
+                    // ✅ NEW: training controls (safe to ignore until engine uses them)
+                    training_mode: trainingMode,
+                    selected_stage: selectedStage,
+                    difficulty: difficulty,
                 }),
             });
 
@@ -290,13 +389,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.session && data.session.id) currentSessionId = data.session.id;
             else if (data.session_id) currentSessionId = data.session_id;
 
-            if (data.opening_line) appendMessage('gideon', data.opening_line);
-            if (data.gideon_reply && data.gideon_reply.content) appendMessage('gideon', data.gideon_reply.content);
+            if (!timerStart) startTimer();
+
+            if (data.opening_line) appendBubble('system', data.opening_line);
+            if (data.gideon_reply && data.gideon_reply.content) appendBubble('system', data.gideon_reply.content);
 
             setStatus('Session active. Keep going!');
         } catch (err) {
             console.error(err);
-            setStatus('Error talking to Gideon. Check Runtime Logs + browser console.');
+            setStatus('Error talking to Gideon. Check runtime logs + browser console.');
         } finally {
             isSending = false;
         }
@@ -344,9 +445,10 @@ document.addEventListener('DOMContentLoaded', function () {
             assessmentCard.style.display = 'block';
             setStatus('Session ended. Review your assessment below.');
             disableInput();
+            stopTimer();
         } catch (err) {
             console.error(err);
-            setStatus('Error ending session / generating assessment. Check Runtime Logs.');
+            setStatus('Error ending session / generating assessment. Check runtime logs.');
         } finally {
             isSending = false;
         }
