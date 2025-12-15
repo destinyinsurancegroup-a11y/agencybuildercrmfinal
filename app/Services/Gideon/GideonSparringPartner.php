@@ -35,35 +35,40 @@ class GideonSparringPartner
      */
     public function handleAgentMessage(GideonSparringSession $session, string $message): string
     {
-        // Safety: only active sessions can be used
         if ($session->status !== 'active') {
             return "This sparring session has already ended. Start a new session to keep practicing.";
         }
 
-        // Save the agent's message
-        GideonSparringMessage::create([
-            'session_id' => $session->id,
-            'agency_id'  => $session->agency_id,
-            'user_id'    => $session->user_id,
-            'sender'     => 'agent',
-            'content'    => $message,
-            'meta'       => null,
-        ]);
+        return DB::transaction(function () use ($session, $message) {
 
-        // Tier 1 = fake reply for now (no real LLM call yet)
-        $reply = $this->generateFakeReply($session, $message);
+            // ✅ Save the agent's message (role, not sender)
+            GideonSparringMessage::create([
+                'session_id' => $session->id,
+                'agency_id'  => $session->agency_id,
+                'user_id'    => $session->user_id,
+                'role'       => 'agent',
+                'content'    => $message,
+                'meta'       => [
+                    'source' => 'gideon_sparring_partner_fake_brain',
+                ],
+            ]);
 
-        // Save Gideon's reply
-        GideonSparringMessage::create([
-            'session_id' => $session->id,
-            'agency_id'  => $session->agency_id,
-            'user_id'    => $session->user_id,
-            'sender'     => 'gideon',
-            'content'    => $reply,
-            'meta'       => null,
-        ]);
+            $reply = $this->generateFakeReply($session, $message);
 
-        return $reply;
+            // ✅ Save the prospect/system reply (role, not sender)
+            GideonSparringMessage::create([
+                'session_id' => $session->id,
+                'agency_id'  => $session->agency_id,
+                'user_id'    => $session->user_id,
+                'role'       => 'prospect',
+                'content'    => $reply,
+                'meta'       => [
+                    'source' => 'gideon_sparring_partner_fake_brain',
+                ],
+            ]);
+
+            return $reply;
+        });
     }
 
     /**
@@ -77,7 +82,6 @@ class GideonSparringPartner
                 'ended_at' => now(),
             ]);
 
-            // Simple placeholder scoring for v1 (non-AI).
             $scores = [
                 'rapport'            => 6,
                 'discovery'          => 5,
@@ -93,7 +97,9 @@ class GideonSparringPartner
                 'scores'       => $scores,
                 'strengths'    => 'You stayed engaged in the conversation and kept the dialogue going.',
                 'improvements' => 'Ask more discovery questions before presenting, and be more direct when asking for the sale.',
-                'meta'         => null,
+                'meta'         => [
+                    'source' => 'gideon_sparring_partner_fake_brain',
+                ],
             ]);
         });
     }
