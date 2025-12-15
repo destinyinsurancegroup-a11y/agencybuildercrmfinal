@@ -2,7 +2,8 @@
 
 namespace App\Providers;
 
-// use Illuminate\Support\Facades\Gate;
+use App\Models\GideonSparringSession;
+use App\Policies\GideonSparringSessionPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
@@ -13,7 +14,7 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        //
+        GideonSparringSession::class => GideonSparringSessionPolicy::class,
     ];
 
     /**
@@ -21,6 +22,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // If you later add Gates, define them here.
+        // Policies registered in $policies are auto-discovered by Laravel.
     }
 }
