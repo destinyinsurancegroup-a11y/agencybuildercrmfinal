@@ -45,7 +45,7 @@ class GideonSparringMessage extends Model
     public function scopeOwnedBy(Builder $query, User $user): Builder
     {
         return $query->where('agency_id', $user->agency_id)
-                     ->where('user_id', $user->id);
+            ->where('user_id', $user->id);
     }
 
     public function session(): BelongsTo
