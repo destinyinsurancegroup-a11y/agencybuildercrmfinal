@@ -367,28 +367,13 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | SPARRING PARTNER (GIDEON TRAINING)  ✅ STEP 0
+    | SPARRING PARTNER PAGE
     |--------------------------------------------------------------------------
-    | Lovable-style Sparring Partner with training modes + stage practice + coaching.
+    | Uses GideonSparringController@index to render gideon.sparring view
+    | with scenario data.
     */
-    Route::prefix('sparring-partner')->name('gideon.sparring.')->group(function () {
-
-        // Render Sparring Partner UI
-        Route::get('/', [GideonSparringController::class, 'index'])
-            ->name('index');
-
-        // Start a new sparring session
-        Route::post('/sessions', [GideonSparringController::class, 'store'])
-            ->name('sessions.store');
-
-        // Send agent message / advance sparring
-        Route::post('/sessions/{session}/message', [GideonSparringController::class, 'message'])
-            ->name('sessions.message');
-
-        // End session and return coaching feedback
-        Route::post('/sessions/{session}/end', [GideonSparringController::class, 'end'])
-            ->name('sessions.end');
-    });
+    Route::get('/sparring-partner', [GideonSparringController::class, 'index'])
+        ->name('gideon.sparring');
 
     /*
     |--------------------------------------------------------------------------
