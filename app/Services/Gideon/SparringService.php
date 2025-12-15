@@ -21,6 +21,30 @@ class SparringService
     public const UI_MODE_PROSPECT_SIM = 'prospect_simulation';
     public const UI_MODE_AGENT_SIM    = 'agent_simulation';
 
+    /**
+     * Training Modes (3 modes)
+     */
+    public const TRAINING_STAGES          = 'stages';
+    public const TRAINING_DISCOVERY_START = 'discovery_start';
+    public const TRAINING_FULL            = 'full_presentation';
+
+    /**
+     * Selling stages (your stage is "intro" not "introduction" ✅)
+     */
+    public const STAGE_INTRO     = 'intro';
+    public const STAGE_DISCOVERY = 'discovery';
+    public const STAGE_EDUCATION = 'education';
+    public const STAGE_QUALIFY   = 'qualify';
+    public const STAGE_QUOTE     = 'quote';
+    public const STAGE_CLOSE     = 'close';
+
+    /**
+     * Difficulty
+     */
+    public const DIFF_EASY   = 'easy';
+    public const DIFF_NORMAL = 'normal';
+    public const DIFF_HARD   = 'hard';
+
     public function __construct(
         protected GideonLlmClient $llmClient,
         protected CoachingService $coachingService
@@ -64,6 +88,8 @@ class SparringService
                 // Store UI mode in config so we don’t confuse it with training_mode
                 'ui_mode'       => $uiMode,
                 'persona'       => $personaKey,
+
+                // training_mode/selected_stage/difficulty may be injected later by controller
             ];
 
             $initialState = $this->buildInitialState($scenario, $personaKey);
@@ -102,7 +128,7 @@ class SparringService
                     'session_id' => $session->id,
                     'agency_id'  => $agencyId,
                     'user_id'    => $userId,
-                    'role'       => 'prospect', // ✅ correct column + consistent role
+                    'role'       => 'prospect',
                     'content'    => $openingLine,
                     'meta'       => [
                         'source'        => 'scenario_opening_line',
@@ -174,6 +200,13 @@ class SparringService
             $state = $session->state ?? [];
 
             /**
+             * Bootstraps training state if missing.
+             * (Controller saves training_mode/selected_stage/difficulty on new session,
+             * but state may not include it yet.)
+             */
+            $state = $this->ensureTrainingState($session, $state);
+
+            /**
              * Who is the user playing?
              * - prospect_simulation: userRole=agent, systemRole=prospect
              * - agent_simulation:    userRole=prospect, systemRole=agent
@@ -191,43 +224,58 @@ class SparringService
                 'meta'       => [
                     'analysis' => null,
                     'ui_mode'  => $uiMode,
+                    'stage'    => $state['training']['current_stage'] ?? null,
+                    'training_mode' => $state['training']['mode'] ?? null,
                 ],
             ]);
 
             // 2) Update state only when the AGENT speaks (agent role)
             if ($userRole === 'agent') {
                 $state = $this->updateStateFromAgentMessage($state, $agentMessage);
+
+                // ✅ Fast training progression / termination logic (only when agent speaks)
+                $state = $this->applyTrainingProgression($state, $agentMessage);
             }
 
-            // 3) Generate reply
+            // If training logic ended the session, we still generate ONE last system reply
+            // (so the UI has closure) — but you can remove this if you want hard-stop.
             $replyText = null;
             $source    = 'scenario_v1_logic_with_state';
 
-            if ($useLlm && $scenario) {
-                try {
-                    $context   = $this->buildLlmContextForSparring($session, $scenario, $state, $agentMessage, $uiMode);
-                    $replyText = $this->llmClient->generateSparringReply($context);
-                    $source    = 'llm_v1_sparring';
-                } catch (\Throwable $e) {
-                    report($e);
-                    $replyText = null;
+            if (!empty($state['training']['ended'])) {
+                $replyText = $state['training']['terminal_message'] ?? 'Session ended.';
+                $source = 'training_terminal';
+            } else {
+                // 3) Generate reply
+                if ($useLlm && $scenario) {
+                    try {
+                        $context   = $this->buildLlmContextForSparring($session, $scenario, $state, $agentMessage, $uiMode);
+                        $replyText = $this->llmClient->generateSparringReply($context);
+                        $source    = 'llm_v1_sparring';
+                    } catch (\Throwable $e) {
+                        report($e);
+                        $replyText = null;
+                    }
                 }
-            }
 
-            if ($replyText === null || trim($replyText) === '') {
-                if ($systemRole === 'prospect') {
-                    $replyText = $this->generateGideonReply($session, $scenario, $agentMessage, $state);
-                    $source    = 'scenario_v1_logic_with_state';
-                } else {
-                    // system is agent (agent_simulation) fallback
-                    $replyText = $this->generateAgentFallbackReply($scenario, $agentMessage);
-                    $source    = 'agent_sim_fallback';
+                if ($replyText === null || trim($replyText) === '') {
+                    if ($systemRole === 'prospect') {
+                        $replyText = $this->generateGideonReply($session, $scenario, $agentMessage, $state);
+                        $source    = 'scenario_v1_logic_with_state';
+                    } else {
+                        // system is agent (agent_simulation) fallback
+                        $replyText = $this->generateAgentFallbackReply($scenario, $agentMessage);
+                        $source    = 'agent_sim_fallback';
+                    }
                 }
-            }
 
-            // 4) If system reply is the AGENT, update state from that reply
-            if ($systemRole === 'agent') {
-                $state = $this->updateStateFromAgentMessage($state, $replyText);
+                // 4) If system reply is the AGENT, update state from that reply
+                if ($systemRole === 'agent') {
+                    $state = $this->updateStateFromAgentMessage($state, $replyText);
+
+                    // (Optional) If role reversal is used for training, we do NOT progress stages here.
+                    // We only progress on real agent turns (userRole === 'agent').
+                }
             }
 
             // 5) Save system reply
@@ -242,12 +290,23 @@ class SparringService
                     'scenario_code' => $scenario?->code,
                     'state'         => $state,
                     'ui_mode'       => $uiMode,
+                    'stage'         => $state['training']['current_stage'] ?? null,
+                    'training_mode' => $state['training']['mode'] ?? null,
                 ],
             ]);
 
             // 6) Update session state
             $state['last_system_line'] = $replyText;
-            $session->update(['state' => $state]);
+
+            $updates = ['state' => $state];
+
+            // If training ended, mark session ended too (quickest way to enforce "not endless")
+            if (!empty($state['training']['ended'])) {
+                $updates['status'] = 'completed';
+                $updates['ended_at'] = now();
+            }
+
+            $session->update($updates);
 
             return [
                 'agent_message' => $userMsg,
@@ -311,6 +370,15 @@ class SparringService
             [$strengths, $improvements] = $this->buildAssessmentNarrative($scores);
         }
 
+        // Quick diagnostic add-on (fast + useful)
+        $training = is_array($state) ? ($state['training'] ?? null) : null;
+        $firstFailStage  = is_array($training) ? ($training['first_failed_stage'] ?? null) : null;
+        $firstFailReason = is_array($training) ? ($training['first_failed_reason'] ?? null) : null;
+
+        if ($firstFailStage && $firstFailReason) {
+            $improvements .= " Earliest missed mini-close was at '{$firstFailStage}': {$firstFailReason}";
+        }
+
         $assessment = GideonSparringAssessment::create([
             'session_id'   => $session->id,
             'agency_id'    => $agencyId,
@@ -357,9 +425,9 @@ class SparringService
     }
 
     /*
-    |--------------------------------------------------------------------------
-    | INTERNAL: MODE / STATE / LOGIC
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
+    | INTERNAL: MODE / TRAINING / STATE / LOGIC
+    |----------------------------------------------------------------------
     */
 
     protected function normalizeUiMode(?string $mode): string
@@ -371,6 +439,212 @@ class SparringService
         }
 
         return self::UI_MODE_PROSPECT_SIM;
+    }
+
+    protected function ensureTrainingState(GideonSparringSession $session, array $state): array
+    {
+        if (isset($state['training']) && is_array($state['training'])) {
+            return $state;
+        }
+
+        $mode = $this->normalizeTrainingMode($session->training_mode ?? ($session->config['training_mode'] ?? self::TRAINING_DISCOVERY_START));
+        $difficulty = $this->normalizeDifficulty($session->difficulty ?? ($session->config['difficulty'] ?? self::DIFF_NORMAL));
+        $selectedStage = $this->normalizeStage($session->selected_stage ?? ($session->config['selected_stage'] ?? null));
+
+        $startStage = match ($mode) {
+            self::TRAINING_STAGES => $selectedStage ?? self::STAGE_INTRO,
+            self::TRAINING_DISCOVERY_START => self::STAGE_DISCOVERY,
+            self::TRAINING_FULL => self::STAGE_INTRO,
+            default => self::STAGE_DISCOVERY,
+        };
+
+        $state['training'] = [
+            'mode' => $mode,
+            'difficulty' => $difficulty,
+            'selected_stage' => $selectedStage,
+            'current_stage' => $startStage,
+            'turns_in_stage' => 0,
+            'ended' => false,
+            'terminal_reason' => null,
+            'terminal_message' => null,
+            'first_failed_stage' => null,
+            'first_failed_reason' => null,
+        ];
+
+        return $state;
+    }
+
+    protected function normalizeTrainingMode(?string $mode): string
+    {
+        $mode = (string) $mode;
+        return in_array($mode, [self::TRAINING_STAGES, self::TRAINING_DISCOVERY_START, self::TRAINING_FULL], true)
+            ? $mode
+            : self::TRAINING_DISCOVERY_START;
+    }
+
+    protected function normalizeDifficulty(?string $difficulty): string
+    {
+        $difficulty = (string) $difficulty;
+        return in_array($difficulty, [self::DIFF_EASY, self::DIFF_NORMAL, self::DIFF_HARD], true)
+            ? $difficulty
+            : self::DIFF_NORMAL;
+    }
+
+    protected function normalizeStage(?string $stage): ?string
+    {
+        if ($stage === null) return null;
+        $stage = (string) $stage;
+
+        return in_array($stage, [
+            self::STAGE_INTRO,
+            self::STAGE_DISCOVERY,
+            self::STAGE_EDUCATION,
+            self::STAGE_QUALIFY,
+            self::STAGE_QUOTE,
+            self::STAGE_CLOSE,
+        ], true) ? $stage : null;
+    }
+
+    protected function stageOrder(): array
+    {
+        return [
+            self::STAGE_INTRO,
+            self::STAGE_DISCOVERY,
+            self::STAGE_EDUCATION,
+            self::STAGE_QUALIFY,
+            self::STAGE_QUOTE,
+            self::STAGE_CLOSE,
+        ];
+    }
+
+    protected function nextStage(string $stage): ?string
+    {
+        $order = $this->stageOrder();
+        $i = array_search($stage, $order, true);
+        if ($i === false) return null;
+        return $order[$i + 1] ?? null;
+    }
+
+    /**
+     * Fast “mini-close” checks.
+     * This is intentionally simple so you can ship now and improve later.
+     */
+    protected function miniClosePassed(string $stage, string $agentTextLower, string $difficulty): bool
+    {
+        // Make Hard slightly stricter by requiring stronger signals.
+        $strict = ($difficulty === self::DIFF_HARD);
+
+        return match ($stage) {
+            self::STAGE_INTRO =>
+                $strict
+                    ? (str_contains($agentTextLower, 'mind if') || str_contains($agentTextLower, 'agenda'))
+                    : (str_contains($agentTextLower, 'mind if') || str_contains($agentTextLower, 'quick') || str_contains($agentTextLower, 'few questions') || str_contains($agentTextLower, 'agenda')),
+
+            self::STAGE_DISCOVERY =>
+                $strict
+                    ? (str_contains($agentTextLower, '?') && (str_contains($agentTextLower, 'tell me') || str_contains($agentTextLower, 'help me understand')))
+                    : (str_contains($agentTextLower, '?') || str_contains($agentTextLower, 'tell me') || str_contains($agentTextLower, 'help me understand')),
+
+            self::STAGE_EDUCATION =>
+                $strict
+                    ? (str_contains($agentTextLower, 'does that make sense') || str_contains($agentTextLower, 'fair'))
+                    : (str_contains($agentTextLower, 'does that make sense') || str_contains($agentTextLower, 'fair') || str_contains($agentTextLower, 'the reason')),
+
+            self::STAGE_QUALIFY =>
+                (str_contains($agentTextLower, 'budget') || str_contains($agentTextLower, 'decision') || str_contains($agentTextLower, 'ready') || str_contains($agentTextLower, 'if we could')),
+
+            self::STAGE_QUOTE =>
+                (str_contains($agentTextLower, 'how does that sound') || str_contains($agentTextLower, 'compared') || str_contains($agentTextLower, 'what would stop')),
+
+            self::STAGE_CLOSE =>
+                (str_contains($agentTextLower, 'submit') || str_contains($agentTextLower, 'start') || str_contains($agentTextLower, 'move forward') || str_contains($agentTextLower, 'enroll')),
+
+            default => false,
+        };
+    }
+
+    protected function applyTrainingProgression(array $state, string $agentMessage): array
+    {
+        if (!isset($state['training']) || !is_array($state['training'])) {
+            return $state;
+        }
+
+        if (!empty($state['training']['ended'])) {
+            return $state;
+        }
+
+        $mode = $this->normalizeTrainingMode($state['training']['mode'] ?? self::TRAINING_DISCOVERY_START);
+        $difficulty = $this->normalizeDifficulty($state['training']['difficulty'] ?? self::DIFF_NORMAL);
+        $currentStage = $this->normalizeStage($state['training']['current_stage'] ?? self::STAGE_DISCOVERY) ?? self::STAGE_DISCOVERY;
+
+        $text = mb_strtolower($agentMessage);
+        $passed = $this->miniClosePassed($currentStage, $text, $difficulty);
+
+        // count turns-in-stage
+        $state['training']['turns_in_stage'] = (int)($state['training']['turns_in_stage'] ?? 0) + 1;
+
+        // Full Presentation hard gate: fail intro immediately
+        if ($mode === self::TRAINING_FULL && $currentStage === self::STAGE_INTRO && !$passed) {
+            $state = $this->setFirstFailureOnce($state, $currentStage, 'Intro mini-close not achieved (permission/agenda).');
+            return $this->endTraining($state, "Failed at Intro (hard gate).");
+        }
+
+        // Stages mode: end when stage resolves
+        if ($mode === self::TRAINING_STAGES) {
+            if ($passed) {
+                return $this->endTraining($state, "Stage '{$currentStage}' resolved. Great job.");
+            }
+            // keep practicing; no auto-advance
+            // auto-fail if it stalls too long
+            if (($state['training']['turns_in_stage'] ?? 0) >= 6) {
+                $state = $this->setFirstFailureOnce($state, $currentStage, 'Stalled too long without resolving the mini-close.');
+                return $this->endTraining($state, "Session ended: stalled too long at '{$currentStage}'.");
+            }
+            return $state;
+        }
+
+        // Discovery-start and full: advance when passed, otherwise latent failure
+        if ($passed) {
+            $next = $this->nextStage($currentStage);
+            if ($next === null) {
+                return $this->endTraining($state, "Cycle complete. Nice work.");
+            }
+            $state['training']['current_stage'] = $next;
+            $state['training']['turns_in_stage'] = 0;
+            return $state;
+        }
+
+        // latent failure: remember first missed stage but continue
+        $state = $this->setFirstFailureOnce($state, $currentStage, 'Mini-close not achieved.');
+        if (($state['training']['turns_in_stage'] ?? 0) >= 6) {
+            return $this->endTraining($state, "Session ended: stalled too long at '{$currentStage}'.");
+        }
+
+        return $state;
+    }
+
+    protected function setFirstFailureOnce(array $state, string $stage, string $reason): array
+    {
+        if (!isset($state['training']) || !is_array($state['training'])) {
+            return $state;
+        }
+        if (!empty($state['training']['first_failed_stage'])) {
+            return $state;
+        }
+        $state['training']['first_failed_stage'] = $stage;
+        $state['training']['first_failed_reason'] = $reason;
+        return $state;
+    }
+
+    protected function endTraining(array $state, string $message): array
+    {
+        if (!isset($state['training']) || !is_array($state['training'])) {
+            return $state;
+        }
+        $state['training']['ended'] = true;
+        $state['training']['terminal_reason'] = $message;
+        $state['training']['terminal_message'] = $message;
+        return $state;
     }
 
     protected function buildInitialState(?GideonScenario $scenario, string $personaKey): array
@@ -589,7 +863,7 @@ class SparringService
         $recent = [];
         foreach ($messages as $m) {
             $recent[] = [
-                'role'    => $m->role, // ✅ correct column
+                'role'    => $m->role,
                 'content' => $m->content,
             ];
         }
@@ -597,7 +871,6 @@ class SparringService
         return [
             'ui_mode' => $uiMode,
 
-            // let the LlmClient choose system prompt persona
             'requested_role' => ($uiMode === self::UI_MODE_PROSPECT_SIM) ? 'prospect' : 'agent',
 
             'scenario' => [
