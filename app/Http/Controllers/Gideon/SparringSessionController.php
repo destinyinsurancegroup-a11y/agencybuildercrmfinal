@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gideon;
 
 use App\Http\Controllers\Controller;
+use App\Models\GideonSparringSession;
 use App\Services\Gideon\SparringService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ class SparringSessionController extends Controller
     public function __construct(
         protected SparringService $sparringService
     ) {
+        $this->middleware('auth:sanctum'); // or 'auth' depending on your API setup
     }
 
     /**
@@ -23,11 +25,12 @@ class SparringSessionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        $agencyId = $user->agency_id ?? null;
+        $agencyId = $user->agency_id;
 
         $validated = $request->validate([
             'scenario_code' => ['required', 'string'],
-            'mode' => ['nullable', 'string', Rule::in(['prospect_simulation', 'agent_demo'])],
+            'mode' => ['nullable', 'string', Rule::in(['prospect_simulation', 'agent_simulation'])],
+            'persona' => ['nullable', 'string'],
         ]);
 
         $mode = $validated['mode'] ?? 'prospect_simulation';
@@ -37,12 +40,16 @@ class SparringSessionController extends Controller
             userId: $user->id,
             scenarioCode: $validated['scenario_code'],
             mode: $mode,
+            personaKey: $validated['persona'] ?? null,
         );
+
+        // Policy check: user should own created session
+        $this->authorize('view', $sessionData['session']);
 
         return response()->json([
             'status' => 'ok',
             'session' => $sessionData['session'],
-            'first_message' => $sessionData['first_message'],
+            'first_message' => $sessionData['first_message'] ?? null,
         ]);
     }
 
@@ -54,11 +61,20 @@ class SparringSessionController extends Controller
     public function sendMessage(Request $request, int $session): JsonResponse
     {
         $user = $request->user();
-        $agencyId = $user->agency_id ?? null;
+        $agencyId = $user->agency_id;
 
         $validated = $request->validate([
             'message' => ['required', 'string'],
         ]);
+
+        // Tenant scope + authorize (prevents ID guessing)
+        $sessionModel = GideonSparringSession::query()
+            ->whereKey($session)
+            ->where('agency_id', $agencyId)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $this->authorize('update', $sessionModel);
 
         $result = $this->sparringService->handleAgentMessage(
             sessionId: $session,
@@ -69,20 +85,28 @@ class SparringSessionController extends Controller
 
         return response()->json([
             'status' => 'ok',
-            'agent_message' => $result['agent_message'],
-            'gideon_reply' => $result['gideon_reply'],
+            'agent_message' => $result['agent_message'] ?? null,
+            'gideon_reply' => $result['gideon_reply'] ?? null,
         ]);
     }
 
     /**
-     * End a sparring session (later: trigger assessment logic).
+     * End a sparring session.
      *
      * POST /api/gideon/sparring/sessions/{session}/end
      */
     public function end(Request $request, int $session): JsonResponse
     {
         $user = $request->user();
-        $agencyId = $user->agency_id ?? null;
+        $agencyId = $user->agency_id;
+
+        $sessionModel = GideonSparringSession::query()
+            ->whereKey($session)
+            ->where('agency_id', $agencyId)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $this->authorize('update', $sessionModel);
 
         $endResult = $this->sparringService->endSession(
             sessionId: $session,
@@ -93,7 +117,7 @@ class SparringSessionController extends Controller
         return response()->json([
             'status' => 'ok',
             'session' => $endResult['session'],
-            'assessment' => $endResult['assessment'],
+            'assessment' => $endResult['assessment'] ?? null,
         ]);
     }
 
@@ -105,7 +129,15 @@ class SparringSessionController extends Controller
     public function show(Request $request, int $session): JsonResponse
     {
         $user = $request->user();
-        $agencyId = $user->agency_id ?? null;
+        $agencyId = $user->agency_id;
+
+        $sessionModel = GideonSparringSession::query()
+            ->whereKey($session)
+            ->where('agency_id', $agencyId)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $this->authorize('view', $sessionModel);
 
         $data = $this->sparringService->getSessionTranscript(
             sessionId: $session,
