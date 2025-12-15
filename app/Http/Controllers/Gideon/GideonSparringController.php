@@ -14,17 +14,16 @@ class GideonSparringController extends Controller
 {
     public function __construct()
     {
-        // Routes already have auth middleware, this is extra safety
         $this->middleware('auth');
     }
 
     /**
      * Show the Sparring Partner page.
-     *
-     * Loads available scenarios and passes them into the view.
      */
     public function index(Request $request)
     {
+        // If scenarios are global: OK.
+        // If scenarios are tenant-specific, add agency scoping here.
         $scenarios = GideonScenario::where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -36,28 +35,19 @@ class GideonSparringController extends Controller
 
     /**
      * Main sparring endpoint (AJAX/JSON).
-     *
-     * If session_id is null:
-     *   - starts a new session using scenario_code + persona + mode
-     *   - sends the first user message
-     *
-     * If session_id is provided:
-     *   - just sends the user message to the existing session
      */
     public function ask(Request $request, SparringService $sparring): JsonResponse
     {
         $user = $request->user();
 
         $data = $request->validate([
-            'session_id'    => ['nullable', 'integer', 'exists:gideon_sparring_sessions,id'],
+            'session_id'    => ['nullable', 'integer'], // ✅ no global exists() check
             'scenario_code' => ['required_without:session_id', 'string'],
 
-            // Option A: pre-session mode toggle (user is Agent vs user is Prospect)
+            // Keep consistent with your current controller
             'mode'          => ['nullable', 'string', 'in:prospect_simulation,agent_simulation'],
 
-            // Let the service normalize / validate persona keys so we can evolve them freely
             'persona'       => ['nullable', 'string'],
-
             'message'       => ['required', 'string', 'min:1'],
         ]);
 
@@ -68,6 +58,8 @@ class GideonSparringController extends Controller
         $message      = $data['message'];
 
         try {
+            $opening = null;
+
             if (! $sessionId) {
                 // New session
                 $sessionPayload = $sparring->startSession(
@@ -79,16 +71,20 @@ class GideonSparringController extends Controller
                 );
 
                 $session   = $sessionPayload['session'];
-                $opening   = $sessionPayload['first_message'];
+                $opening   = $sessionPayload['first_message'] ?? null;
                 $sessionId = $session->id;
+
+                // ✅ policy check (defense-in-depth)
+                $this->authorize('view', $session);
             } else {
-                // Existing session
-                $session = GideonSparringSession::where('id', $sessionId)
+                // Existing session: tenant scope load + authorize
+                $session = GideonSparringSession::query()
+                    ->whereKey($sessionId)
                     ->where('agency_id', $user->agency_id)
                     ->where('user_id', $user->id)
                     ->firstOrFail();
 
-                $opening = null;
+                $this->authorize('view', $session);
             }
 
             $result = $sparring->handleAgentMessage(
@@ -104,8 +100,8 @@ class GideonSparringController extends Controller
                 'session'        => $session,
                 'state'          => $session->state ?? null,
                 'opening_line'   => $opening?->content,
-                'agent_message'  => $result['agent_message'],
-                'gideon_reply'   => $result['gideon_reply'],
+                'agent_message'  => $result['agent_message'] ?? null,
+                'gideon_reply'   => $result['gideon_reply'] ?? null,
             ]);
         } catch (ValidationException $e) {
             throw $e;
@@ -126,12 +122,21 @@ class GideonSparringController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
-            'session_id' => ['required', 'integer', 'exists:gideon_sparring_sessions,id'],
+            'session_id' => ['required', 'integer'], // ✅ no global exists() check
         ]);
 
         $sessionId = $data['session_id'];
 
         try {
+            // Tenant scope + policy check before ending
+            $session = GideonSparringSession::query()
+                ->whereKey($sessionId)
+                ->where('agency_id', $user->agency_id)
+                ->where('user_id', $user->id)
+                ->firstOrFail();
+
+            $this->authorize('update', $session);
+
             $result = $sparring->endSession(
                 $sessionId,
                 $user->agency_id,
