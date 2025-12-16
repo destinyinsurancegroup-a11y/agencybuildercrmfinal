@@ -7,14 +7,10 @@
 @endphp
 
 <div class="abc-sp-container">
-
-    {{-- Header --}}
     <div class="abc-sp-header">
         <div>
             <h1 class="abc-sp-title">ABC Sparring Partner</h1>
-            <div class="abc-sp-subtitle">
-                Live conversation training with a human-like prospect.
-            </div>
+            <div class="abc-sp-subtitle">Live conversation training with a human-like prospect.</div>
         </div>
 
         <div class="abc-sp-header-actions">
@@ -30,7 +26,7 @@
 
     <div class="abc-sp-grid">
 
-        {{-- LEFT: Controls + Stage --}}
+        {{-- LEFT --}}
         <div class="abc-card abc-right">
 
             {{-- Difficulty (TOP / CENTERED) --}}
@@ -45,7 +41,7 @@
                 </div>
             </div>
 
-            {{-- Top controls (UI Role Mode only) --}}
+            {{-- UI Role Mode --}}
             <div class="abc-top-controls abc-top-controls-single">
                 <div class="abc-control">
                     <div class="abc-label">UI Role Mode</div>
@@ -85,7 +81,7 @@
                     <div class="abc-stage-prospect-name" id="prospectName">Prospect 1</div>
                 </div>
 
-                {{-- PHONE mode: voice waves --}}
+                {{-- PHONE mode --}}
                 <div id="phonePanel" class="abc-phone-panel">
                     <div class="abc-wave-wrap">
                         <div class="abc-wave-title">On the phone…</div>
@@ -101,7 +97,7 @@
                     </div>
                 </div>
 
-                {{-- IN PERSON mode: avatar (Photo / Live2D / RPM 3D) --}}
+                {{-- IN PERSON mode --}}
                 <div id="avatarPanel" class="abc-avatar-wrap" style="display:none;">
 
                     <div class="abc-avatar-mode-row">
@@ -114,12 +110,11 @@
                         <div class="abc-help">Photo uses the prospect library. Live2D/3D are placeholders for now.</div>
                     </div>
 
-                    {{-- PHOTO AVATAR --}}
+                    {{-- PHOTO --}}
                     <div id="avatarPhotoWrap" class="abc-avatar-photo">
                         <div class="abc-avatar-ring" id="avatarRing">
-                            {{-- Start with a guaranteed fallback file --}}
                             <img
-                                src="{{ asset('images/gideon/prospect_default.jpg') }}"
+                                src="{{ url('/images/gideon/prospect_default.jpg') }}"
                                 alt="Prospect avatar"
                                 class="abc-avatar-img"
                                 id="avatarImg"
@@ -127,27 +122,29 @@
                                 decoding="async"
                             >
                             <div class="abc-avatar-missing" id="avatarMissing" style="display:none;">
-                                Missing avatar file.<br>
-                                Check <code>public/images/gideon/avatars/</code>
+                                <div style="font-weight:700;margin-bottom:6px;">Missing avatar file</div>
+                                <div style="opacity:.8;margin-bottom:6px;">Tried:</div>
+                                <code id="avatarMissingUrl" style="display:block;word-break:break-all;opacity:.95;"></code>
+                                <div style="opacity:.8;margin-top:8px;">
+                                    Ensure files exist in<br>
+                                    <code>public/images/gideon/</code>
+                                </div>
                             </div>
-                            <div class="abc-avatar-blink" id="avatarBlink"></div>
                             <div class="abc-mouth" id="avatarMouth"></div>
                         </div>
                         <div class="abc-avatar-caption" id="avatarCaption">Listening…</div>
                     </div>
 
-                    {{-- LIVE2D PLACEHOLDER --}}
+                    {{-- LIVE2D --}}
                     <div id="avatarLive2dWrap" class="abc-avatar-live2d" style="display:none;">
                         <div class="abc-live2d-canvas-wrap" id="live2dWrap">
                             <canvas id="live2dCanvas" width="420" height="420"></canvas>
-                            <div class="abc-live2d-overlay">
-                                Live2D placeholder (ready to wire)
-                            </div>
+                            <div class="abc-live2d-overlay">Live2D placeholder (ready to wire)</div>
                         </div>
                         <div class="abc-avatar-caption" id="live2dCaption">Listening…</div>
                     </div>
 
-                    {{-- 3D RPM (iframe embed) --}}
+                    {{-- 3D --}}
                     <div id="avatar3dWrap" class="abc-avatar-3d" style="display:none;">
                         <div class="abc-rpm-frame-wrap" id="rpmFrameWrap">
                             <iframe
@@ -169,7 +166,6 @@
                 </div>
             </div>
 
-            {{-- Start + Training (BOTTOM / CENTERED) --}}
             <div class="abc-center-actions">
                 <button type="button" class="abc-btn abc-btn-gold abc-btn-lg" id="startSessionBtn">
                     ▶ Start Sparring Session
@@ -202,7 +198,7 @@
 
         </div>
 
-        {{-- RIGHT: Live conversation --}}
+        {{-- RIGHT --}}
         <div class="abc-card abc-left">
             <div class="abc-card-header">
                 <div class="abc-card-title">LIVE CONVERSATION</div>
@@ -240,7 +236,6 @@
         --abc-gold-2: #b9893f;
         --abc-danger: #ff4d4f;
     }
-
     .abc-sp-container{ padding: 22px 22px 28px; max-width: 1320px; margin: 0 auto; color: var(--abc-text); }
     .abc-sp-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px; }
     .abc-sp-title{ font-size:44px; letter-spacing:.5px; margin:0; }
@@ -259,7 +254,6 @@
         box-shadow:0 18px 55px rgba(0,0,0,.55);
         overflow:hidden;
     }
-
     .abc-left{ padding:14px; display:flex; flex-direction:column; min-height:720px; }
     .abc-right{ padding:14px; min-height:720px; display:flex; flex-direction:column; }
 
@@ -403,7 +397,6 @@
         margin-top:2px;
     }
 
-    /* PHONE WAVES */
     .abc-wave-wrap{
         width:min(520px,100%);
         padding:22px;
@@ -440,14 +433,9 @@
         transform-origin:bottom;
         opacity:.55;
         transform: scaleY(.8);
-        transition: transform 70ms linear, opacity 70ms linear;
     }
-    .is-speaking .abc-wave-bars span{ opacity:.95; }
-    .is-speaking .abc-wave-hint{ color: rgba(214,162,74,.9); }
 
-    /* IN PERSON */
     .abc-avatar-wrap{ display:flex; flex-direction:column; align-items:center; gap: 14px; width:100%; }
-
     .abc-avatar-mode-row{
         width: min(740px, 100%);
         border:1px solid rgba(255,215,100,.10);
@@ -471,18 +459,14 @@
         justify-content:center;
         background: radial-gradient(circle at 30% 20%, rgba(214,162,74,.12), rgba(0,0,0,.10));
         position: relative;
-        animation: abcAvatarIdle 3.2s ease-in-out infinite;
-        transform: translateZ(0);
-        will-change: transform, filter;
         overflow:hidden;
+        animation: abcAvatarIdle 3.2s ease-in-out infinite;
     }
     @keyframes abcAvatarIdle{
         0%{ transform: translateY(0px) scale(1); }
         50%{ transform: translateY(-6px) scale(1.01); }
         100%{ transform: translateY(0px) scale(1); }
     }
-
-    /* IMPORTANT: keep image visible and inside circle */
     .abc-avatar-img{
         width: 100%;
         height: 100%;
@@ -491,35 +475,24 @@
         border: 1px solid rgba(255,255,255,.08);
         filter: saturate(1.05) contrast(1.05);
         display:block;
-        background: rgba(0,0,0,.08);
-        will-change: transform, filter;
-        transform: translateY(0) rotate(0deg);
     }
-
     .abc-avatar-missing{
         position:absolute;
         inset: 10px;
         border-radius: 999px;
         display:flex;
+        flex-direction:column;
         align-items:center;
         justify-content:center;
         text-align:center;
         padding: 18px;
-        color: rgba(255,255,255,.75);
-        background: rgba(0,0,0,.55);
+        color: rgba(255,255,255,.80);
+        background: rgba(0,0,0,.62);
         border: 1px dashed rgba(255,215,100,.30);
         font-size: 12px;
         line-height: 1.35;
-        z-index: 2;
+        z-index: 3;
     }
-    .abc-avatar-missing code{
-        color: rgba(255,215,100,.92);
-    }
-
-    .abc-avatar-blink{ position:absolute; inset:0; opacity:0; pointer-events:none; z-index:3; }
-    .blink-now .abc-avatar-blink{ opacity:1; animation: abcBlink 120ms ease-in-out 1; background: rgba(0,0,0,.55); }
-    @keyframes abcBlink{ 0%{opacity:0;} 45%{opacity:1;} 100%{opacity:0;} }
-
     .abc-mouth{
         position:absolute;
         bottom: 76px;
@@ -531,59 +504,10 @@
         background: rgba(0,0,0,.35);
         border: 1px solid rgba(255,255,255,.10);
         opacity: .0;
-        will-change: height, width, transform, opacity;
-        z-index: 4;
-    }
-
-    .avatar-speaking .abc-avatar-ring{ box-shadow: 0 0 40px rgba(214,162,74,.20); border-color: rgba(214,162,74,.85); }
-    .avatar-speaking .abc-mouth{ opacity:.95; background: rgba(214,162,74,.55); border-color: rgba(214,162,74,.75); }
-
-    .react-skeptical .abc-avatar-img{ filter: saturate(0.96) contrast(1.12) brightness(0.96); }
-    .react-friendly .abc-avatar-img{ filter: saturate(1.12) contrast(1.04) brightness(1.03); }
-    .react-assertive .abc-avatar-img{ filter: saturate(1.05) contrast(1.14) brightness(0.98); }
-    .react-thinking .abc-avatar-ring{ box-shadow: 0 0 28px rgba(214,162,74,.14); }
-    .react-listening .abc-avatar-ring{ box-shadow: 0 0 18px rgba(214,162,74,.08); }
-
-    .abc-avatar-live2d, .abc-avatar-3d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .abc-live2d-canvas-wrap{
-        width: min(520px, 100%);
-        aspect-ratio: 1 / 1;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow: hidden;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-    }
-    #live2dCanvas{ width: 100%; height: 100%; display:block; }
-    .abc-live2d-overlay{
-        position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-        font-size: 13px; color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none; text-align:center; padding: 14px;
-    }
-
-    .abc-rpm-frame-wrap{
-        width: min(720px, 100%);
-        height: 420px;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow:hidden;
-    }
-    #rpmIframe{ width:100%; height:100%; border:0; display:block; background: rgba(0,0,0,.26); }
-    .abc-rpm-overlay{
-        position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-        text-align:center; padding: 18px; color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none; font-size: 13px;
+        z-index: 5;
     }
 
     .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
-
     .abc-training-bottom{
         margin-top: 10px;
         padding-top: 10px;
@@ -592,7 +516,6 @@
         flex-direction:column;
         align-items:center;
     }
-
     .abc-select{
         width:100%;
         background:rgba(0,0,0,.35);
@@ -608,8 +531,6 @@
         .abc-left{ min-height:520px; }
         .abc-right{ min-height:620px; }
         .abc-seg-row{ flex-wrap:wrap; }
-        .abc-rpm-frame-wrap{ height: 360px; }
-
         .abc-stage-env, .abc-stage-prospect{
             position: static;
             margin-bottom: 10px;
@@ -624,42 +545,37 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const APP_BASE = "{{ rtrim(url('/'), '/') }}";
 
-    // Guaranteed fallback image (must exist)
-    const FALLBACK_AVATAR = "{{ asset('images/gideon/prospect_default.jpg') }}";
+    const FALLBACK_AVATAR = APP_BASE + "/images/gideon/prospect_default.jpg";
 
-    // === PROSPECT LIBRARY (Photo avatars) ===
-    // REQUIRED location:
-    // public/images/gideon/avatars/avatar_01.jpg ... avatar_04.jpg
+    // ✅ FIXED PATHS (NO /avatars/ folder)
     const PROSPECTS = {
         p1: { name: 'Prospect 1', images: {
-            neutral:   "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
-            friendly:  "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
-            skeptical: "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
+            neutral:   APP_BASE + "/images/gideon/avatar_01.jpg",
+            friendly:  APP_BASE + "/images/gideon/avatar_01.jpg",
+            skeptical: APP_BASE + "/images/gideon/avatar_01.jpg",
         }},
         p2: { name: 'Prospect 2', images: {
-            neutral:   "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
-            friendly:  "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
-            skeptical: "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
+            neutral:   APP_BASE + "/images/gideon/avatar_02.jpg",
+            friendly:  APP_BASE + "/images/gideon/avatar_02.jpg",
+            skeptical: APP_BASE + "/images/gideon/avatar_02.jpg",
         }},
         p3: { name: 'Prospect 3', images: {
-            neutral:   "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
-            friendly:  "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
-            skeptical: "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
+            neutral:   APP_BASE + "/images/gideon/avatar_03.jpg",
+            friendly:  APP_BASE + "/images/gideon/avatar_03.jpg",
+            skeptical: APP_BASE + "/images/gideon/avatar_03.jpg",
         }},
         p4: { name: 'Prospect 4', images: {
-            neutral:   "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
-            friendly:  "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
-            skeptical: "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
+            neutral:   APP_BASE + "/images/gideon/avatar_04.jpg",
+            friendly:  APP_BASE + "/images/gideon/avatar_04.jpg",
+            skeptical: APP_BASE + "/images/gideon/avatar_04.jpg",
         }},
     };
 
-    const RPM_AVATAR_URL = "";
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
-    const ENERGY = { idleTarget: 0.06, speakingFloor: 0.18, peakWord: 0.92 };
 
-    // ====== DOM ======
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
     const formEl = document.getElementById('sparringForm');
@@ -692,15 +608,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const timerPill = document.getElementById('timerPill');
 
-    const stagePanel = document.getElementById('stagePanel');
     const waveHint = document.getElementById('waveHint');
-    const waveBars = document.getElementById('waveBars');
 
-    const avatarRing = document.getElementById('avatarRing');
     const avatarImg = document.getElementById('avatarImg');
-    const avatarMouth = document.getElementById('avatarMouth');
     const avatarCaption = document.getElementById('avatarCaption');
+
     const avatarMissing = document.getElementById('avatarMissing');
+    const avatarMissingUrl = document.getElementById('avatarMissingUrl');
 
     const ttsToggleBtn = document.getElementById('ttsToggleBtn');
 
@@ -711,10 +625,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarPhotoWrap = document.getElementById('avatarPhotoWrap');
     const avatarLive2dWrap = document.getElementById('avatarLive2dWrap');
     const avatar3dWrap = document.getElementById('avatar3dWrap');
+
     const live2dCaption = document.getElementById('live2dCaption');
     const rpmCaption = document.getElementById('rpmCaption');
-    const rpmIframe = document.getElementById('rpmIframe');
-    const rpmOverlay = document.getElementById('rpmOverlay');
 
     const prospectNameEl = document.getElementById('prospectName');
     const prospectBtns = [
@@ -724,7 +637,6 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('prospectP4Btn'),
     ].filter(Boolean);
 
-    // ====== STATE ======
     let currentSessionId = null;
     let isSending = false;
     let sessionStarted = false;
@@ -738,40 +650,35 @@ document.addEventListener('DOMContentLoaded', function () {
     let selectedSegment = segmentSelect?.value || 'discovery';
 
     let avatarMode = 'photo';
-
     let selectedProspectId = 'p1';
 
     let timerInt = null;
     let seconds = 0;
 
     let ttsEnabled = true;
-    let speakingLock = false;
-
-    let rafId = null;
-    let lastTs = 0;
-
-    let speechEnergy = 0;
-    let speechEnergyTarget = 0;
-    let speechEnergyVel = 0;
-
-    let speakUntilTs = 0;
-    let nextBlinkAt = 0;
-
-    const AVATAR_STATE = { IDLE:'idle', LISTENING:'listening', THINKING:'thinking', SPEAKING:'speaking', REACTING:'reacting' };
-    let avatarState = AVATAR_STATE.IDLE;
-    let reactUntilTs = 0;
-    let reactionClass = '';
-
-    // ====== HELPERS ======
-    function nowMs(){ return (performance && performance.now) ? performance.now() : Date.now(); }
-    function fmtTime(s){ const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${mm}:${ss}`; }
-    function startTimer(){ stopTimer(); seconds=0; timerPill.textContent=`⏱ ${fmtTime(seconds)}`; timerInt=setInterval(()=>{ seconds++; timerPill.textContent=`⏱ ${fmtTime(seconds)}`; },1000); }
-    function stopTimer(){ if (timerInt) clearInterval(timerInt); timerInt=null; }
 
     function setStatus(msg){ statusEl.textContent = msg || ''; }
     function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
     function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
-    function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+    function fmtTime(s){
+        const mm = String(Math.floor(s/60)).padStart(2,'0');
+        const ss = String(s%60).padStart(2,'0');
+        return `${mm}:${ss}`;
+    }
+    function startTimer(){
+        stopTimer();
+        seconds = 0;
+        timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
+        timerInt = setInterval(()=> {
+            seconds++;
+            timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
+        }, 1000);
+    }
+    function stopTimer(){
+        if (timerInt) clearInterval(timerInt);
+        timerInt = null;
+    }
 
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly' };
@@ -783,19 +690,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return PROSPECTS[selectedProspectId] || PROSPECTS.p1;
     }
 
-    function showMissingAvatar(show){
+    function showMissingAvatar(show, triedUrl){
         if (!avatarMissing) return;
         avatarMissing.style.display = show ? 'flex' : 'none';
+        if (avatarMissingUrl && triedUrl) avatarMissingUrl.textContent = triedUrl;
     }
 
-    // Load image safely (so 404 doesn't silently fail)
     function setAvatarSrcSafe(url){
         if (!avatarImg) return;
-        showMissingAvatar(false);
 
-        // cache-bust to avoid stale
         const cacheBust = `cb=${Date.now()}`;
         const finalUrl = (url && url.includes('?')) ? `${url}&${cacheBust}` : `${url}?${cacheBust}`;
+
+        showMissingAvatar(false);
 
         const test = new Image();
         test.decoding = 'async';
@@ -804,10 +711,9 @@ document.addEventListener('DOMContentLoaded', function () {
             showMissingAvatar(false);
         };
         test.onerror = () => {
-            // fallback to guaranteed default
+            console.warn('[Sparring] Avatar image missing (404):', finalUrl);
             avatarImg.src = `${FALLBACK_AVATAR}?${cacheBust}`;
-            showMissingAvatar(true);
-            console.warn('[Sparring] Avatar image missing:', url);
+            showMissingAvatar(true, finalUrl);
         };
         test.src = finalUrl;
     }
@@ -816,6 +722,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const p = currentProspect();
         const src = p?.images?.[faceKey] || p?.images?.neutral || FALLBACK_AVATAR;
         setAvatarSrcSafe(src);
+    }
+
+    function setProspectCaption(text){
+        if (avatarCaption) avatarCaption.textContent = text;
+        if (live2dCaption) live2dCaption.textContent = text;
+        if (rpmCaption) rpmCaption.textContent = text;
+        if (waveHint) waveHint.textContent = text;
     }
 
     function appendBubble(who, text){
@@ -859,213 +772,10 @@ document.addEventListener('DOMContentLoaded', function () {
         transcriptEl.appendChild(wrap);
         transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
+
     function removeTypingIndicator(){
         const existing = document.getElementById('typingIndicator');
         if (existing) existing.remove();
-    }
-
-    function setProspectCaption(text){
-        if (avatarCaption) avatarCaption.textContent = text;
-        if (live2dCaption) live2dCaption.textContent = text;
-        if (rpmCaption) rpmCaption.textContent = text;
-        if (waveHint) waveHint.textContent = text;
-    }
-
-    function clearReactionClasses(){
-        document.body.classList.remove('react-skeptical','react-friendly','react-assertive','react-thinking','react-listening');
-        if (reactionClass) document.body.classList.remove(reactionClass);
-        reactionClass = '';
-    }
-
-    function setAvatarState(next){
-        avatarState = next;
-        clearReactionClasses();
-        if (avatarState === AVATAR_STATE.THINKING) document.body.classList.add('react-thinking');
-        if (avatarState === AVATAR_STATE.LISTENING) document.body.classList.add('react-listening');
-
-        if (avatarState === AVATAR_STATE.SPEAKING) {
-            if (stagePanel) stagePanel.classList.add('is-speaking');
-            document.body.classList.add('avatar-speaking');
-        } else {
-            if (stagePanel) stagePanel.classList.remove('is-speaking');
-            document.body.classList.remove('avatar-speaking');
-        }
-    }
-
-    function applyReactionFromText(text){
-        const t = (text || '').trim();
-        if (!t) return;
-
-        let r = '';
-        if (difficulty === 'advanced' && (t.includes('?') || /why|how|really|sure/i.test(t))) r = 'react-skeptical';
-        else if (t.includes('?')) r = 'react-skeptical';
-        else if (t.includes('!')) r = 'react-assertive';
-        else if (difficulty === 'beginner') r = 'react-friendly';
-
-        if (!r) return;
-
-        clearReactionClasses();
-        document.body.classList.add(r);
-        reactionClass = r;
-
-        setAvatarState(AVATAR_STATE.REACTING);
-        reactUntilTs = nowMs() + 650;
-    }
-
-    function setEnergyTarget(v){ speechEnergyTarget = clamp(v, 0, 1); }
-    function pulseWord(){
-        setEnergyTarget(Math.max(speechEnergyTarget, ENERGY.peakWord));
-        setTimeout(()=>setEnergyTarget(Math.max(ENERGY.speakingFloor, ENERGY.idleTarget)), 90);
-    }
-    function smoothEnergy(dt){
-        const k = 18;
-        const d = 0.84;
-        speechEnergyVel += (speechEnergyTarget - speechEnergy) * k * dt;
-        speechEnergyVel *= Math.pow(d, dt * 60);
-        speechEnergy += speechEnergyVel * dt;
-        speechEnergy = clamp(speechEnergy, 0, 1);
-    }
-
-    function renderWaveBars(energy, t){
-        if (!waveBars) return;
-        const bars = waveBars.querySelectorAll('span');
-        const n = bars.length || 0;
-        if (!n) return;
-
-        for (let i = 0; i < n; i++){
-            const phase = (i / n) * Math.PI * 2;
-            const wobble = Math.sin(t * 0.008 + phase) * 0.35 + Math.sin(t * 0.014 + phase * 1.7) * 0.22;
-            const jitter = (Math.sin(t * 0.032 + i * 2.1) * 0.08);
-            const base = 0.65 + wobble + jitter;
-            const amp = 0.45 + energy * 3.4;
-            const v = clamp(base * amp, 0.25, 4.0);
-
-            bars[i].style.transform = `scaleY(${v.toFixed(3)})`;
-            bars[i].style.opacity = (0.45 + energy * 0.55).toFixed(2);
-        }
-    }
-
-    function renderMouthAndBob(energy, t){
-        if (avatarMouth){
-            const trem = (Math.sin(t * 0.028) + Math.sin(t * 0.041)) * 0.9;
-            const open = clamp(energy * 16 + trem, 0, 22);
-            const wide = clamp(62 + energy * 44 + trem * 2, 50, 96);
-
-            avatarMouth.style.height = `${(8 + open).toFixed(1)}px`;
-            avatarMouth.style.width = `${wide.toFixed(1)}px`;
-            avatarMouth.style.transform = `translateX(-50%) translateY(${(-energy * 1.6).toFixed(2)}px)`;
-        }
-
-        if (avatarImg){
-            const bob = (energy * 1.5) + (Math.sin(t * 0.006) * 0.35);
-            const tilt = (Math.sin(t * 0.004) * 0.35) + (energy * 0.25);
-            avatarImg.style.transform = `translateY(${(-bob).toFixed(2)}px) rotate(${tilt.toFixed(2)}deg)`;
-        }
-    }
-
-    function scheduleNextBlink(){ nextBlinkAt = nowMs() + randInt(2600, 5200); }
-    function doBlink(){
-        if (!avatarRing) return;
-        avatarRing.classList.add('blink-now');
-        setTimeout(()=>avatarRing.classList.remove('blink-now'), 140);
-        scheduleNextBlink();
-    }
-
-    function animationLoop(ts){
-        if (!lastTs) lastTs = ts;
-        const dt = clamp((ts - lastTs) / 1000, 0.001, 0.05);
-        lastTs = ts;
-
-        const now = nowMs();
-        if (avatarState === AVATAR_STATE.REACTING && reactUntilTs && now > reactUntilTs) {
-            clearReactionClasses();
-            if (now < speakUntilTs || speakingLock) setAvatarState(AVATAR_STATE.SPEAKING);
-            else setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
-        }
-
-        if (!speakingLock && now < speakUntilTs) {
-            setAvatarState(AVATAR_STATE.SPEAKING);
-            setEnergyTarget(Math.max(ENERGY.speakingFloor, speechEnergyTarget));
-        }
-        if (!speakingLock && now >= speakUntilTs && avatarState === AVATAR_STATE.SPEAKING) {
-            setEnergyTarget(ENERGY.idleTarget);
-            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
-        }
-
-        if (avatarState === AVATAR_STATE.THINKING) setEnergyTarget(Math.max(speechEnergyTarget, 0.10));
-        if (avatarState === AVATAR_STATE.LISTENING) setEnergyTarget(Math.max(speechEnergyTarget, ENERGY.idleTarget));
-        if (avatarState === AVATAR_STATE.IDLE) setEnergyTarget(ENERGY.idleTarget);
-
-        smoothEnergy(dt);
-        renderWaveBars(speechEnergy, ts);
-        renderMouthAndBob(speechEnergy, ts);
-
-        if (now > nextBlinkAt && speechEnergy < 0.55) doBlink();
-        rafId = requestAnimationFrame(animationLoop);
-    }
-
-    function startAnimLoop(){
-        if (rafId) cancelAnimationFrame(rafId);
-        lastTs = 0;
-        scheduleNextBlink();
-        rafId = requestAnimationFrame(animationLoop);
-    }
-
-    function speakProspect(text){
-        const t = (text || '').trim();
-        if (!t) return;
-
-        setAvatarState(AVATAR_STATE.SPEAKING);
-        setProspectCaption('Speaking…');
-
-        const approxMs = Math.min(6500, 600 + t.length * 28);
-        speakUntilTs = nowMs() + approxMs;
-        setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.28));
-
-        if (!ttsEnabled || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-            const words = t.split(/\s+/).filter(Boolean);
-            let i = 0;
-            const tick = () => {
-                if (nowMs() >= speakUntilTs) return;
-                pulseWord();
-                i++;
-                if (i < words.length) setTimeout(tick, randInt(110, 190));
-            };
-            setTimeout(tick, 60);
-            return;
-        }
-
-        try { window.speechSynthesis.cancel(); } catch(e) {}
-
-        const u = new SpeechSynthesisUtterance(t);
-        u.rate = 1.02;
-        u.pitch = 0.95;
-        u.volume = 1;
-
-        const voices = window.speechSynthesis.getVoices?.() || [];
-        const preferred = voices.find(v => /en/i.test(v.lang) && /male|daniel|alex|google us english/i.test(v.name))
-                       || voices.find(v => /en/i.test(v.lang))
-                       || voices[0];
-        if (preferred) u.voice = preferred;
-
-        speakingLock = true;
-
-        u.onboundary = () => { pulseWord(); speakUntilTs = Math.max(speakUntilTs, nowMs() + 220); };
-        u.onstart = () => { setAvatarState(AVATAR_STATE.SPEAKING); setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.34)); };
-        u.onend = () => {
-            speakingLock = false;
-            setEnergyTarget(ENERGY.idleTarget);
-            setProspectCaption('Listening…');
-            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
-        };
-        u.onerror = () => {
-            speakingLock = false;
-            setEnergyTarget(ENERGY.idleTarget);
-            setProspectCaption('Listening…');
-            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
-        };
-
-        window.speechSynthesis.speak(u);
     }
 
     function resetSession(){
@@ -1089,13 +799,6 @@ document.addEventListener('DOMContentLoaded', function () {
         sendBtn.disabled = true;
         setStatus('');
 
-        speakUntilTs = 0;
-        speechEnergy = 0;
-        speechEnergyTarget = ENERGY.idleTarget;
-        speechEnergyVel = 0;
-
-        clearReactionClasses();
-        setAvatarState(AVATAR_STATE.IDLE);
         setProspectCaption('Waiting…');
         removeTypingIndicator();
     }
@@ -1106,7 +809,6 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.focus();
     }
 
-    // ====== Prospect Picker ======
     function setProspect(id){
         if (!PROSPECTS[id]) return;
         selectedProspectId = id;
@@ -1120,11 +822,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const mapped = mapDifficulty(difficulty);
         setAvatarFace(mapped.face);
     }
+
     prospectBtns.forEach(btn=>{
         btn.addEventListener('click', ()=> setProspect(btn.dataset.prospect));
     });
 
-    // ====== ENVIRONMENT ======
     envPhoneBtn.addEventListener('click', ()=>{
         environment = 'phone';
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
@@ -1138,7 +840,6 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPanel.style.display = 'flex';
     });
 
-    // ====== ROLE MODE ======
     modeYouAgentBtn.addEventListener('click', ()=>{
         uiMode = 'prospect_simulation';
         setActive(modeYouAgentBtn, [modeYouAgentBtn, modeYouProspectBtn]);
@@ -1148,7 +849,6 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
     });
 
-    // ====== DIFFICULTY ======
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
@@ -1160,7 +860,6 @@ document.addEventListener('DOMContentLoaded', function () {
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
-    // ====== TRAINING ======
     function setTraining(mode, btn){
         trainingMode = mode;
         setActive(btn, [trainFullBtn, trainDiscoBtn, trainSegmentsBtn]);
@@ -1171,7 +870,6 @@ document.addEventListener('DOMContentLoaded', function () {
     trainSegmentsBtn.addEventListener('click', ()=>setTraining('segments', trainSegmentsBtn));
     segmentSelect?.addEventListener('change', (e)=>{ selectedSegment = e.target.value; });
 
-    // ====== AVATAR MODE ======
     function setAvatarMode(mode, btn){
         avatarMode = mode;
         setActive(btn, [avatarModePhotoBtn, avatarModeLive2dBtn, avatarMode3dBtn]);
@@ -1179,36 +877,20 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPhotoWrap.style.display = (avatarMode === 'photo') ? 'flex' : 'none';
         avatarLive2dWrap.style.display = (avatarMode === 'live2d') ? 'flex' : 'none';
         avatar3dWrap.style.display = (avatarMode === '3d') ? 'flex' : 'none';
-
-        if (avatarMode === '3d') {
-            if (RPM_AVATAR_URL && RPM_AVATAR_URL.trim() !== '') {
-                rpmOverlay.style.display = 'none';
-                rpmIframe.src = RPM_AVATAR_URL;
-            } else {
-                rpmOverlay.style.display = 'flex';
-                rpmIframe.src = '';
-            }
-        }
     }
     avatarModePhotoBtn.addEventListener('click', ()=>setAvatarMode('photo', avatarModePhotoBtn));
     avatarModeLive2dBtn.addEventListener('click', ()=>setAvatarMode('live2d', avatarModeLive2dBtn));
     avatarMode3dBtn.addEventListener('click', ()=>setAvatarMode('3d', avatarMode3dBtn));
 
-    // ====== VOICE TOGGLE ======
     ttsToggleBtn.addEventListener('click', ()=>{
         ttsEnabled = !ttsEnabled;
         ttsToggleBtn.textContent = ttsEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
         if (!ttsEnabled) {
             try { window.speechSynthesis.cancel(); } catch(e) {}
-            speakingLock = false;
-            speakUntilTs = 0;
-            setEnergyTarget(ENERGY.idleTarget);
             setProspectCaption('Listening…');
-            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
         }
     });
 
-    // ====== START ======
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -1219,7 +901,6 @@ document.addEventListener('DOMContentLoaded', function () {
         startTimer();
         setStatus('Session started. Say your first line.');
         setProspectCaption('Listening…');
-        setAvatarState(AVATAR_STATE.LISTENING);
     });
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
@@ -1235,8 +916,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         showTypingIndicator();
         setProspectCaption('Thinking…');
-        setAvatarState(AVATAR_STATE.THINKING);
-        setEnergyTarget(0.12);
 
         try {
             const res = await fetch('/api/gideon/sparring/ask', {
@@ -1252,13 +931,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     persona: personaKey,
                     session_id: currentSessionId,
                     message: message,
-
                     difficulty: difficulty,
                     environment: environment,
                     training_mode: trainingMode,
                     selected_stage: selectedSegment,
                     avatar_mode: avatarMode,
-
                     selected_avatar_id: selectedProspectId,
                 }),
             });
@@ -1273,31 +950,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
             removeTypingIndicator();
 
-            if (data.opening_line) {
-                appendBubble('them', data.opening_line);
-                applyReactionFromText(data.opening_line);
-                speakProspect(data.opening_line);
-            }
+            if (data.opening_line) appendBubble('them', data.opening_line);
+            if (data.gideon_reply?.content) appendBubble('them', data.gideon_reply.content);
 
-            if (data.gideon_reply?.content) {
-                appendBubble('them', data.gideon_reply.content);
-                applyReactionFromText(data.gideon_reply.content);
-                speakProspect(data.gideon_reply.content);
-            } else {
-                setProspectCaption('Listening…');
-                setAvatarState(AVATAR_STATE.LISTENING);
-                setEnergyTarget(ENERGY.idleTarget);
-            }
-
+            setProspectCaption('Listening…');
             setStatus('Session active.');
         } catch (err) {
             console.error(err);
             removeTypingIndicator();
-            speakingLock = false;
-            speakUntilTs = 0;
-            setEnergyTarget(ENERGY.idleTarget);
             setProspectCaption('Listening…');
-            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
             setStatus('Error talking to Gideon. Check runtime logs + browser console.');
         } finally {
             isSending = false;
@@ -1333,16 +994,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!res.ok) throw new Error('HTTP ' + res.status);
 
             try { window.speechSynthesis.cancel(); } catch(e) {}
-            speakingLock = false;
-            speakUntilTs = 0;
 
             stopTimer();
             setStatus('Session ended.');
             inputEl.disabled = true;
             sendBtn.disabled = true;
             setProspectCaption('Session ended.');
-            setAvatarState(AVATAR_STATE.IDLE);
-            setEnergyTarget(ENERGY.idleTarget);
         } catch (err) {
             console.error(err);
             setStatus('Error ending session. Check runtime logs.');
@@ -1351,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // ====== INIT ======
+    // INIT
     resetSession();
     setProspect('p1');
     setDifficulty('intermediate', diffIntermediateBtn);
@@ -1359,11 +1016,8 @@ document.addEventListener('DOMContentLoaded', function () {
     setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
 
-    // Force initial avatar set now (prevents blank state)
-    const initialMapped = mapDifficulty(difficulty);
-    setAvatarFace(initialMapped.face);
-
-    startAnimLoop();
+    // Force initial avatar load
+    setAvatarFace('neutral');
 
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {};
