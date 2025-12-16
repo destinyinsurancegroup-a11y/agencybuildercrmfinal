@@ -107,6 +107,7 @@
                                 class="abc-avatar-img"
                                 id="avatarImg"
                             >
+                            <div class="abc-avatar-blink" id="avatarBlink"></div>
                             <div class="abc-mouth" id="avatarMouth"></div>
                         </div>
                         <div class="abc-avatar-caption" id="avatarCaption">Listening…</div>
@@ -132,6 +133,8 @@
                                 title="3D Avatar"
                                 allow="autoplay; microphone; camera; clipboard-read; clipboard-write"
                                 loading="lazy"
+                                referrerpolicy="no-referrer"
+                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                             ></iframe>
                             <div class="abc-rpm-overlay" id="rpmOverlay">
                                 Paste your ReadyPlayerMe avatar URL in the JS config to enable.
@@ -391,6 +394,7 @@
         transform-origin:bottom;
         opacity:.55;
         transform: scaleY(.8);
+        transition: transform 70ms linear, opacity 70ms linear;
     }
     .is-speaking .abc-wave-bars span{ opacity:.95; }
     .is-speaking .abc-wave-hint{ color: rgba(214,162,74,.9); }
@@ -423,6 +427,8 @@
         position: relative;
         animation: abcAvatarIdle 3.2s ease-in-out infinite;
         transform: translateZ(0);
+        will-change: transform, filter;
+        overflow:hidden;
     }
     @keyframes abcAvatarIdle{
         0%{ transform: translateY(0px) scale(1); }
@@ -436,6 +442,26 @@
         object-fit: cover;
         border: 1px solid rgba(255,255,255,.08);
         filter: saturate(1.05) contrast(1.05);
+        will-change: transform, filter;
+    }
+
+    /* Blink overlay */
+    .abc-avatar-blink{
+        position:absolute;
+        inset:0;
+        background: rgba(0,0,0,.0);
+        opacity: 0;
+        pointer-events:none;
+    }
+    .blink-now .abc-avatar-blink{
+        opacity: 1;
+        animation: abcBlink 120ms ease-in-out 1;
+        background: rgba(0,0,0,.55);
+    }
+    @keyframes abcBlink{
+        0%{ opacity:0; }
+        45%{ opacity:1; }
+        100%{ opacity:0; }
     }
 
     .abc-mouth{
@@ -449,11 +475,11 @@
         background: rgba(0,0,0,.35);
         border: 1px solid rgba(255,255,255,.10);
         opacity: .0;
+        will-change: height, width, transform, opacity;
     }
 
     /* Speaking state (photo + wave) */
     .avatar-speaking .abc-avatar-ring{
-        animation: abcAvatarSpeak 640ms ease-in-out infinite;
         box-shadow: 0 0 40px rgba(214,162,74,.20);
         border-color: rgba(214,162,74,.85);
     }
@@ -462,11 +488,13 @@
         background: rgba(214,162,74,.55);
         border-color: rgba(214,162,74,.75);
     }
-    @keyframes abcAvatarSpeak{
-        0%{ transform: translateY(0px) scale(1.00); }
-        50%{ transform: translateY(-2px) scale(1.02); }
-        100%{ transform: translateY(0px) scale(1.00); }
-    }
+
+    /* Reaction flavors */
+    .react-skeptical .abc-avatar-img{ filter: saturate(0.96) contrast(1.12) brightness(0.96); }
+    .react-friendly .abc-avatar-img{ filter: saturate(1.12) contrast(1.04) brightness(1.03); }
+    .react-assertive .abc-avatar-img{ filter: saturate(1.05) contrast(1.14) brightness(0.98); }
+    .react-thinking .abc-avatar-ring{ box-shadow: 0 0 28px rgba(214,162,74,.14); }
+    .react-listening .abc-avatar-ring{ box-shadow: 0 0 18px rgba(214,162,74,.08); }
 
     /* LIVE2D placeholder */
     .abc-avatar-live2d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
@@ -557,25 +585,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
     // ====== CONFIG (EDIT THESE PATHS/URLS) ======
-    // Put the images in: public/images/gideon/
-    // Example files:
-    // - prospect_neutral.jpg
-    // - prospect_friendly.jpg
-    // - prospect_skeptical.jpg
     const AVATAR_IMAGES = {
         neutral:    "{{ asset('images/gideon/prospect_default.jpg') }}",
         friendly:   "{{ asset('images/gideon/prospect_friendly.jpg') }}",
         skeptical:  "{{ asset('images/gideon/prospect_skeptical.jpg') }}",
     };
 
-    // ReadyPlayerMe (3D) – paste your avatar URL here (example URL):
-    // const RPM_AVATAR_URL = "https://models.readyplayer.me/<id>.glb";
-    // If you use a viewer page instead of a .glb, paste that URL. (We iframe it.)
+    // ReadyPlayerMe (3D) – paste your avatar URL here:
+    // - If you paste a viewer URL, we iframe it.
+    // - If you paste a .glb, most browsers won't "render" it in an iframe (will download/show blank).
+    //   Use a viewer page if you want iframe-only for now.
     const RPM_AVATAR_URL = ""; // <-- paste when you have it
 
-    // Thinking delay (ms) before prospect response is shown/spoken
+    // Thinking delay (ms)
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
+
+    // Speech energy (drives waves + mouth + subtle bob)
+    const ENERGY = {
+        idleTarget: 0.06,
+        speakingFloor: 0.18,
+        peakWord: 0.92,
+        gain: 1.0,
+    };
 
     // ====== DOM ======
     const transcriptEl = document.getElementById('sparringTranscript');
@@ -615,9 +647,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const waveHint = document.getElementById('waveHint');
     const waveBars = document.getElementById('waveBars');
 
+    const avatarRing = document.getElementById('avatarRing');
     const avatarImg = document.getElementById('avatarImg');
     const avatarMouth = document.getElementById('avatarMouth');
     const avatarCaption = document.getElementById('avatarCaption');
+    const avatarBlink = document.getElementById('avatarBlink');
 
     const ttsToggleBtn = document.getElementById('ttsToggleBtn');
 
@@ -658,10 +692,36 @@ document.addEventListener('DOMContentLoaded', function () {
     let ttsEnabled = true;
     let speakingLock = false;
 
-    // animation timers
-    let ampTimer = null;
+    // animation loop
+    let rafId = null;
+    let lastTs = 0;
+
+    // speech energy driver (single source of truth)
+    let speechEnergy = 0;         // 0..1
+    let speechEnergyTarget = 0;   // 0..1
+    let speechEnergyVel = 0;
+
+    // speaking window (fallback when no TTS or no boundary)
+    let speakUntilTs = 0;
+
+    // micro-anim
+    let nextBlinkAt = 0;
+
+    // state machine
+    const AVATAR_STATE = {
+        IDLE: 'idle',
+        LISTENING: 'listening',
+        THINKING: 'thinking',
+        SPEAKING: 'speaking',
+        REACTING: 'reacting',
+    };
+    let avatarState = AVATAR_STATE.IDLE;
+    let reactUntilTs = 0;
+    let reactionClass = '';
 
     // ====== HELPERS ======
+    function nowMs(){ return (performance && performance.now) ? performance.now() : Date.now(); }
+
     function fmtTime(s){
         const mm = String(Math.floor(s/60)).padStart(2,'0');
         const ss = String(s%60).padStart(2,'0');
@@ -691,6 +751,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function randInt(min, max){
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
+
+    function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 
     // Difficulty -> persona/emotion + avatar face
     function mapDifficulty(d){
@@ -751,51 +813,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (existing) existing.remove();
     }
 
-    // Amplitude animation (waves + mouth) – simulated
-    function startAmplitude(){
-        stopAmplitude();
-        if (stagePanel) stagePanel.classList.add('is-speaking');
-        document.body.classList.add('avatar-speaking');
-
-        const bars = waveBars ? Array.from(waveBars.querySelectorAll('span')) : [];
-        ampTimer = setInterval(()=>{
-            // make bars bounce with varied heights
-            bars.forEach((b, i)=>{
-                const v = 0.6 + Math.random() * 3.4; // 0.6..4.0
-                b.style.transform = `scaleY(${v})`;
-                b.style.opacity = 0.6 + Math.random() * 0.4;
-            });
-
-            // mouth “open/close”
-            if (avatarMouth){
-                const h = 8 + Math.random() * 12; // 8..20
-                const w = 54 + Math.random() * 36; // 54..90
-                avatarMouth.style.height = `${h}px`;
-                avatarMouth.style.width = `${w}px`;
-            }
-        }, 90);
-    }
-
-    function stopAmplitude(){
-        if (ampTimer) clearInterval(ampTimer);
-        ampTimer = null;
-
-        if (stagePanel) stagePanel.classList.remove('is-speaking');
-        document.body.classList.remove('avatar-speaking');
-
-        // reset bars
-        if (waveBars){
-            waveBars.querySelectorAll('span').forEach(b=>{
-                b.style.transform = 'scaleY(.8)';
-                b.style.opacity = '.55';
-            });
-        }
-        if (avatarMouth){
-            avatarMouth.style.height = '10px';
-            avatarMouth.style.width = '74px';
-        }
-    }
-
     function setProspectCaption(text){
         if (avatarCaption) avatarCaption.textContent = text;
         if (live2dCaption) live2dCaption.textContent = text;
@@ -803,27 +820,215 @@ document.addEventListener('DOMContentLoaded', function () {
         if (waveHint) waveHint.textContent = text;
     }
 
-    // Speak with TTS (best available voice)
+    // ====== STATE MACHINE / REACTIONS ======
+    function clearReactionClasses(){
+        document.body.classList.remove('react-skeptical','react-friendly','react-assertive','react-thinking','react-listening');
+        if (reactionClass) document.body.classList.remove(reactionClass);
+        reactionClass = '';
+    }
+
+    function setAvatarState(next){
+        avatarState = next;
+
+        // baseline vibe
+        clearReactionClasses();
+        if (avatarState === AVATAR_STATE.THINKING) document.body.classList.add('react-thinking');
+        if (avatarState === AVATAR_STATE.LISTENING) document.body.classList.add('react-listening');
+
+        // speaking flag toggles the "power" of visuals
+        if (avatarState === AVATAR_STATE.SPEAKING) {
+            if (stagePanel) stagePanel.classList.add('is-speaking');
+            document.body.classList.add('avatar-speaking');
+        } else {
+            if (stagePanel) stagePanel.classList.remove('is-speaking');
+            document.body.classList.remove('avatar-speaking');
+        }
+    }
+
+    function applyReactionFromText(text){
+        const t = (text || '').trim();
+        if (!t) return;
+
+        // quick heuristics
+        let r = '';
+        if (difficulty === 'advanced' && (t.includes('?') || /why|how|really|sure/i.test(t))) r = 'react-skeptical';
+        else if (t.includes('?')) r = 'react-skeptical';
+        else if (t.includes('!')) r = 'react-assertive';
+        else if (difficulty === 'beginner') r = 'react-friendly';
+
+        if (!r) return;
+
+        clearReactionClasses();
+        document.body.classList.add(r);
+        reactionClass = r;
+
+        setAvatarState(AVATAR_STATE.REACTING);
+        reactUntilTs = nowMs() + 650;
+    }
+
+    // ====== SPEECH ENERGY LOOP (WAVES + MOUTH) ======
+    function setEnergyTarget(v){
+        speechEnergyTarget = clamp(v, 0, 1);
+    }
+
+    function pulseWord(){
+        // word boundary pulse (more "syllable-like")
+        setEnergyTarget(Math.max(speechEnergyTarget, ENERGY.peakWord));
+        // decay a beat later so it feels like a word hit
+        setTimeout(()=>setEnergyTarget(Math.max(ENERGY.speakingFloor, ENERGY.idleTarget)), 90);
+    }
+
+    function smoothEnergy(dt){
+        // stable smoothing (avoid jitter)
+        const k = 18;
+        const d = 0.84;
+        speechEnergyVel += (speechEnergyTarget - speechEnergy) * k * dt;
+        speechEnergyVel *= Math.pow(d, dt * 60);
+        speechEnergy += speechEnergyVel * dt;
+        speechEnergy = clamp(speechEnergy, 0, 1);
+    }
+
+    function renderWaveBars(energy, t){
+        if (!waveBars) return;
+        const bars = waveBars.querySelectorAll('span');
+        const n = bars.length || 0;
+        if (!n) return;
+
+        // coherent motion: sine bed + small noise, shaped by energy
+        for (let i = 0; i < n; i++){
+            const phase = (i / n) * Math.PI * 2;
+            const wobble = Math.sin(t * 0.008 + phase) * 0.35 + Math.sin(t * 0.014 + phase * 1.7) * 0.22;
+            const jitter = (Math.sin(t * 0.032 + i * 2.1) * 0.08);
+            const base = 0.65 + wobble + jitter;
+            const amp = 0.45 + energy * 3.4;
+            const v = clamp(base * amp, 0.25, 4.0);
+
+            bars[i].style.transform = `scaleY(${v.toFixed(3)})`;
+            bars[i].style.opacity = (0.45 + energy * 0.55).toFixed(2);
+        }
+    }
+
+    function renderMouthAndBob(energy, t){
+        // mouth
+        if (avatarMouth){
+            // mouth openness based on energy + tiny tremor
+            const trem = (Math.sin(t * 0.028) + Math.sin(t * 0.041)) * 0.9;
+            const open = clamp(energy * 16 + trem, 0, 22);
+            const wide = clamp(62 + energy * 44 + trem * 2, 50, 96);
+
+            avatarMouth.style.height = `${(8 + open).toFixed(1)}px`;
+            avatarMouth.style.width = `${wide.toFixed(1)}px`;
+            avatarMouth.style.transform = `translateX(-50%) translateY(${(-energy * 1.6).toFixed(2)}px)`;
+        }
+
+        // subtle "talk bob" (stacked with CSS idle via slight img movement)
+        if (avatarImg){
+            const bob = (energy * 1.5) + (Math.sin(t * 0.006) * 0.35);
+            const tilt = (Math.sin(t * 0.004) * 0.35) + (energy * 0.25);
+            avatarImg.style.transform = `translateY(${(-bob).toFixed(2)}px) rotate(${tilt.toFixed(2)}deg)`;
+        }
+    }
+
+    function scheduleNextBlink(){
+        // 2.6s..5.2s
+        nextBlinkAt = nowMs() + randInt(2600, 5200);
+    }
+
+    function doBlink(){
+        if (!avatarRing) return;
+        avatarRing.classList.add('blink-now');
+        setTimeout(()=>avatarRing.classList.remove('blink-now'), 140);
+        scheduleNextBlink();
+    }
+
+    function animationLoop(ts){
+        if (!lastTs) lastTs = ts;
+        const dt = clamp((ts - lastTs) / 1000, 0.001, 0.05);
+        lastTs = ts;
+
+        // reaction window ends -> go back to listening/speaking appropriately
+        const now = nowMs();
+        if (avatarState === AVATAR_STATE.REACTING && reactUntilTs && now > reactUntilTs) {
+            clearReactionClasses();
+            // return to speaking if still "speaking window"
+            if (now < speakUntilTs || speakingLock) setAvatarState(AVATAR_STATE.SPEAKING);
+            else setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
+        }
+
+        // speaking window (fallback when no reliable boundary)
+        if (!speakingLock && now < speakUntilTs) {
+            setAvatarState(AVATAR_STATE.SPEAKING);
+            setEnergyTarget(Math.max(ENERGY.speakingFloor, speechEnergyTarget));
+        }
+        if (!speakingLock && now >= speakUntilTs && avatarState === AVATAR_STATE.SPEAKING) {
+            setEnergyTarget(ENERGY.idleTarget);
+            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
+        }
+
+        // baseline energy target by state
+        if (avatarState === AVATAR_STATE.THINKING) setEnergyTarget(Math.max(speechEnergyTarget, 0.10));
+        if (avatarState === AVATAR_STATE.LISTENING) setEnergyTarget(Math.max(speechEnergyTarget, ENERGY.idleTarget));
+        if (avatarState === AVATAR_STATE.IDLE) setEnergyTarget(ENERGY.idleTarget);
+
+        smoothEnergy(dt);
+
+        renderWaveBars(speechEnergy, ts);
+        renderMouthAndBob(speechEnergy, ts);
+
+        // blinking (skip during "peak speaking" for readability)
+        if (now > nextBlinkAt && speechEnergy < 0.55) doBlink();
+
+        rafId = requestAnimationFrame(animationLoop);
+    }
+
+    function startAnimLoop(){
+        if (rafId) cancelAnimationFrame(rafId);
+        lastTs = 0;
+        scheduleNextBlink();
+        rafId = requestAnimationFrame(animationLoop);
+    }
+
+    function stopAnimLoop(){
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        lastTs = 0;
+    }
+
+    // ====== Speak with TTS (word-boundary pulsing) ======
     function speakProspect(text){
-        // Always animate while “speaking”
-        startAmplitude();
+        const t = (text || '').trim();
+        if (!t) return;
+
+        // ensure we go to speaking state immediately
+        setAvatarState(AVATAR_STATE.SPEAKING);
         setProspectCaption('Speaking…');
 
+        // fallback speaking window even if we can’t get boundaries
+        const approxMs = Math.min(6500, 600 + t.length * 28);
+        speakUntilTs = nowMs() + approxMs;
+        setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.28));
+
         if (!ttsEnabled || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-            // fallback: animate approx duration
-            const ms = Math.min(3500, 700 + text.length * 22);
-            setTimeout(()=>{ stopAmplitude(); setProspectCaption('Listening…'); }, ms);
+            // no TTS: do a text-driven "word pulse" loop
+            const words = t.split(/\s+/).filter(Boolean);
+            let i = 0;
+            const tick = () => {
+                if (nowMs() >= speakUntilTs) return;
+                pulseWord();
+                i++;
+                if (i < words.length) setTimeout(tick, randInt(110, 190));
+            };
+            setTimeout(tick, 60);
             return;
         }
 
         try { window.speechSynthesis.cancel(); } catch(e) {}
 
-        const u = new SpeechSynthesisUtterance(text);
+        const u = new SpeechSynthesisUtterance(t);
         u.rate = 1.02;
         u.pitch = 0.95;
         u.volume = 1;
 
-        // Try to pick a good English voice (male-ish when available)
         const voices = window.speechSynthesis.getVoices?.() || [];
         const preferred = voices.find(v => /en/i.test(v.lang) && /male|daniel|alex|google us english/i.test(v.name))
                        || voices.find(v => /en/i.test(v.lang))
@@ -832,15 +1037,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
         speakingLock = true;
 
+        // Boundary-based pulsing (best “game feel” without audio analysis)
+        u.onboundary = (ev) => {
+            // only word/sentence boundaries matter
+            // some browsers fire only "word" events; some include "sentence"
+            pulseWord();
+            // keep speaking window extended slightly so state doesn’t snap early
+            speakUntilTs = Math.max(speakUntilTs, nowMs() + 220);
+        };
+
+        u.onstart = () => {
+            setAvatarState(AVATAR_STATE.SPEAKING);
+            setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.34));
+            speakUntilTs = Math.max(speakUntilTs, nowMs() + 350);
+        };
+
         u.onend = () => {
             speakingLock = false;
-            stopAmplitude();
+            setEnergyTarget(ENERGY.idleTarget);
             setProspectCaption('Listening…');
+            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
         };
         u.onerror = () => {
             speakingLock = false;
-            stopAmplitude();
+            setEnergyTarget(ENERGY.idleTarget);
             setProspectCaption('Listening…');
+            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
         };
 
         window.speechSynthesis.speak(u);
@@ -868,7 +1090,14 @@ document.addEventListener('DOMContentLoaded', function () {
         sendBtn.disabled = true;
         setStatus('');
 
-        stopAmplitude();
+        // reset anim state
+        speakUntilTs = 0;
+        speechEnergy = 0;
+        speechEnergyTarget = ENERGY.idleTarget;
+        speechEnergyVel = 0;
+
+        clearReactionClasses();
+        setAvatarState(AVATAR_STATE.IDLE);
         setProspectCaption('Waiting…');
         removeTypingIndicator();
     }
@@ -913,6 +1142,11 @@ document.addEventListener('DOMContentLoaded', function () {
         emotionLabel.textContent = mapped.emotion;
         setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
+
+        // baseline reaction “tone”
+        clearReactionClasses();
+        if (difficulty === 'beginner') document.body.classList.add('react-friendly');
+        if (difficulty === 'advanced') document.body.classList.add('react-skeptical');
     }
     diffBeginnerBtn.addEventListener('click', ()=>setDifficulty('beginner', diffBeginnerBtn));
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
@@ -939,7 +1173,6 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarLive2dWrap.style.display = (avatarMode === 'live2d') ? 'flex' : 'none';
         avatar3dWrap.style.display = (avatarMode === '3d') ? 'flex' : 'none';
 
-        // Wire RPM iframe if configured
         if (avatarMode === '3d') {
             if (RPM_AVATAR_URL && RPM_AVATAR_URL.trim() !== '') {
                 rpmOverlay.style.display = 'none';
@@ -960,8 +1193,11 @@ document.addEventListener('DOMContentLoaded', function () {
         ttsToggleBtn.textContent = ttsEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
         if (!ttsEnabled) {
             try { window.speechSynthesis.cancel(); } catch(e) {}
-            stopAmplitude();
+            speakingLock = false;
+            speakUntilTs = 0;
+            setEnergyTarget(ENERGY.idleTarget);
             setProspectCaption('Listening…');
+            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
         }
     });
 
@@ -976,9 +1212,19 @@ document.addEventListener('DOMContentLoaded', function () {
         startTimer();
         setStatus('Session started. Say your first line.');
         setProspectCaption('Listening…');
+        setAvatarState(AVATAR_STATE.LISTENING);
     });
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
+
+    // ====== INPUT "Gaze" micro-reaction ======
+    inputEl.addEventListener('input', ()=>{
+        // tiny “attention” bump while user types
+        if (!sessionStarted) return;
+        if (avatarState === AVATAR_STATE.SPEAKING || speakingLock) return;
+        setEnergyTarget(Math.max(speechEnergyTarget, 0.10));
+        setTimeout(()=>setEnergyTarget(ENERGY.idleTarget), 140);
+    });
 
     // ====== API CALL ======
     async function postAsk(message){
@@ -993,6 +1239,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Game-like: prospect “thinks”
         showTypingIndicator();
         setProspectCaption('Thinking…');
+        setAvatarState(AVATAR_STATE.THINKING);
+        setEnergyTarget(0.12);
 
         try {
             const res = await fetch('/api/gideon/sparring/ask', {
@@ -1032,23 +1280,30 @@ document.addEventListener('DOMContentLoaded', function () {
             // Opening line
             if (data.opening_line) {
                 appendBubble('them', data.opening_line);
+                applyReactionFromText(data.opening_line);
                 speakProspect(data.opening_line);
             }
 
             // Reply
             if (data.gideon_reply?.content) {
                 appendBubble('them', data.gideon_reply.content);
+                applyReactionFromText(data.gideon_reply.content);
                 speakProspect(data.gideon_reply.content);
             } else {
                 setProspectCaption('Listening…');
+                setAvatarState(AVATAR_STATE.LISTENING);
+                setEnergyTarget(ENERGY.idleTarget);
             }
 
             setStatus('Session active.');
         } catch (err) {
             console.error(err);
             removeTypingIndicator();
-            stopAmplitude();
+            speakingLock = false;
+            speakUntilTs = 0;
+            setEnergyTarget(ENERGY.idleTarget);
             setProspectCaption('Listening…');
+            setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
             setStatus('Error talking to Gideon. Check runtime logs + browser console.');
         } finally {
             isSending = false;
@@ -1058,8 +1313,6 @@ document.addEventListener('DOMContentLoaded', function () {
     formEl.addEventListener('submit', (e)=>{
         e.preventDefault();
         if (isSending) return;
-        // Optional: prevent interrupting while speaking
-        // if (speakingLock) return;
 
         const msg = (inputEl.value || '').trim();
         if (!msg) return;
@@ -1087,13 +1340,16 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!res.ok) throw new Error('HTTP ' + res.status);
 
             try { window.speechSynthesis.cancel(); } catch(e) {}
-            stopAmplitude();
+            speakingLock = false;
+            speakUntilTs = 0;
 
             stopTimer();
             setStatus('Session ended.');
             inputEl.disabled = true;
             sendBtn.disabled = true;
             setProspectCaption('Session ended.');
+            setAvatarState(AVATAR_STATE.IDLE);
+            setEnergyTarget(ENERGY.idleTarget);
         } catch (err) {
             console.error(err);
             setStatus('Error ending session. Check runtime logs.');
@@ -1109,10 +1365,19 @@ document.addEventListener('DOMContentLoaded', function () {
     setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
 
+    // Start the unified animation driver (waves + mouth + micro-anim)
+    startAnimLoop();
+
     // Ensure speech voices load in some browsers
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {};
     }
+
+    // Clean up on nav/unload
+    window.addEventListener('beforeunload', ()=>{
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+        stopAnimLoop();
+    });
 });
 </script>
 @endsection
