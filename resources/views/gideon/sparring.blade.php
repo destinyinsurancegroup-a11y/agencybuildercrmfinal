@@ -4,9 +4,6 @@
 @php
     $defaultScenario = ($scenarios ?? collect())->first();
     $defaultScenarioCode = $defaultScenario?->code ?? null;
-
-    // Optional: put this in .env and read it however you prefer later.
-    // For now you can paste an RPM URL directly in JS below.
 @endphp
 
 <div class="abc-sp-container">
@@ -36,16 +33,20 @@
         {{-- LEFT: Controls + Stage --}}
         <div class="abc-card abc-right">
 
-            <div class="abc-top-controls">
-
-                <div class="abc-control">
-                    <div class="abc-label">Environment</div>
-                    <div class="abc-seg">
-                        <button type="button" class="abc-seg-btn is-active" id="envPhoneBtn">Phone</button>
-                        <button type="button" class="abc-seg-btn" id="envInPersonBtn">In Person</button>
+            {{-- Difficulty (TOP / CENTERED) --}}
+            <div class="abc-difficulty-top">
+                <div class="abc-control abc-control-center">
+                    <div class="abc-label">Difficulty</div>
+                    <div class="abc-seg abc-seg-row abc-seg-center">
+                        <button type="button" class="abc-seg-btn" id="diffBeginnerBtn">Beginner</button>
+                        <button type="button" class="abc-seg-btn is-active" id="diffIntermediateBtn">Intermediate</button>
+                        <button type="button" class="abc-seg-btn" id="diffAdvancedBtn">Advanced</button>
                     </div>
-                    <div class="abc-help">Phone shows voice waves. In-person shows the avatar.</div>
                 </div>
+            </div>
+
+            {{-- Top controls (UI Role Mode only) --}}
+            <div class="abc-top-controls abc-top-controls-single">
 
                 <div class="abc-control">
                     <div class="abc-label">UI Role Mode</div>
@@ -59,14 +60,19 @@
                     </div>
                     <div class="abc-help">This is not Training Mode.</div>
                 </div>
+
             </div>
 
             {{-- Stage --}}
             <div class="abc-avatar-panel" id="stagePanel">
 
-                <div class="abc-prospect-badge">
-                    <span class="abc-prospect-label">PROSPECT</span>
-                    <span class="abc-prospect-emotion" id="emotionLabel">Neutral</span>
+                {{-- Environment toggle (moved here, smaller buttons) --}}
+                <div class="abc-stage-env">
+                    <div class="abc-stage-env-label">Environment</div>
+                    <div class="abc-seg abc-seg-row">
+                        <button type="button" class="abc-seg-btn abc-seg-btn-sm is-active" id="envPhoneBtn">Phone</button>
+                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" id="envInPersonBtn">In Person</button>
+                    </div>
                 </div>
 
                 {{-- PHONE mode: voice waves --}}
@@ -146,34 +152,26 @@
                 </div>
             </div>
 
+            {{-- Start + Training (BOTTOM / CENTERED) --}}
             <div class="abc-center-actions">
                 <button type="button" class="abc-btn abc-btn-gold abc-btn-lg" id="startSessionBtn">
                     ▶ Start Sparring Session
                 </button>
             </div>
 
-            <div class="abc-bottom-controls">
-                <div class="abc-control">
-                    <div class="abc-label">Difficulty</div>
-                    <div class="abc-seg abc-seg-row">
-                        <button type="button" class="abc-seg-btn" id="diffBeginnerBtn">Beginner</button>
-                        <button type="button" class="abc-seg-btn is-active" id="diffIntermediateBtn">Intermediate</button>
-                        <button type="button" class="abc-seg-btn" id="diffAdvancedBtn">Advanced</button>
-                    </div>
-                </div>
-
-                <div class="abc-control">
+            <div class="abc-training-bottom">
+                <div class="abc-control abc-control-center">
                     <div class="abc-label">Training</div>
-                    <div class="abc-seg abc-seg-row">
+                    <div class="abc-seg abc-seg-row abc-seg-center">
                         <button type="button" class="abc-seg-btn is-active" id="trainFullBtn">Full Presentation</button>
                         <button type="button" class="abc-seg-btn" id="trainDiscoBtn">Disco</button>
                         <button type="button" class="abc-seg-btn" id="trainSegmentsBtn">Segments</button>
                     </div>
                 </div>
 
-                <div class="abc-control abc-control-right" id="segmentWrap" style="display:none;">
+                <div class="abc-control abc-control-center" id="segmentWrap" style="display:none; margin-top:10px;">
                     <div class="abc-label">Segment</div>
-                    <select id="segmentSelect" class="abc-select">
+                    <select id="segmentSelect" class="abc-select" style="max-width:340px;">
                         <option value="intro">Intro</option>
                         <option value="discovery" selected>Disco</option>
                         <option value="education">Educ</option>
@@ -310,14 +308,12 @@
     }
     .abc-btn-lg{ padding:12px 18px; border-radius:999px; min-width:260px; }
 
-    .abc-top-controls{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
-    .abc-bottom-controls{ display:grid; grid-template-columns:1fr 1fr 280px; gap:12px; margin-top:14px; }
-
     .abc-control .abc-label{ font-size:12px; color:rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
     .abc-help{ font-size:12px; color:rgba(255,255,255,.45); margin-top:8px; }
 
     .abc-seg{ display:flex; gap:10px; flex-wrap:wrap; }
     .abc-seg-row{ flex-wrap:nowrap; }
+    .abc-seg-center{ justify-content:center; }
     .abc-seg-btn{
         padding:10px 12px;
         border-radius:12px;
@@ -332,6 +328,37 @@
         color:rgba(255,255,255,.95);
     }
 
+    /* smaller env buttons */
+    .abc-seg-btn-sm{
+        padding:7px 10px;
+        border-radius:10px;
+        font-size:12px;
+        letter-spacing:.02em;
+    }
+
+    /* TOP sections */
+    .abc-difficulty-top{
+        display:flex;
+        justify-content:center;
+        padding: 4px 0 12px;
+        border-bottom:1px solid rgba(255,215,100,.08);
+        margin-bottom:12px;
+    }
+
+    .abc-top-controls{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:12px;
+        margin-bottom:14px;
+    }
+    .abc-top-controls-single{
+        grid-template-columns:1fr;
+    }
+
+    .abc-control-center{
+        text-align:center;
+    }
+
     .abc-avatar-panel{
         flex:1;
         border-radius:18px;
@@ -344,18 +371,27 @@
         min-height:420px;
         padding:18px;
     }
-    .abc-prospect-badge{
+
+    /* ENV toggle moved into stage */
+    .abc-stage-env{
         position:absolute;
-        top:12px; left:12px;
-        display:flex; gap:10px; align-items:center;
-        padding:8px 10px;
-        border-radius:999px;
+        top:12px;
+        left:12px;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+        padding:10px 10px;
+        border-radius:14px;
         background:rgba(0,0,0,.40);
         border:1px solid rgba(255,215,100,.14);
-        z-index: 5;
+        z-index: 6;
     }
-    .abc-prospect-label{ font-size:12px; letter-spacing:.10em; color:rgba(255,215,100,.9); }
-    .abc-prospect-emotion{ font-size:12px; color:rgba(255,255,255,.75); }
+    .abc-stage-env-label{
+        font-size:11px;
+        letter-spacing:.12em;
+        color:rgba(255,215,100,.88);
+        text-transform:uppercase;
+    }
 
     /* PHONE WAVES */
     .abc-wave-wrap{
@@ -445,7 +481,6 @@
         will-change: transform, filter;
     }
 
-    /* Blink overlay */
     .abc-avatar-blink{
         position:absolute;
         inset:0;
@@ -478,7 +513,6 @@
         will-change: height, width, transform, opacity;
     }
 
-    /* Speaking state (photo + wave) */
     .avatar-speaking .abc-avatar-ring{
         box-shadow: 0 0 40px rgba(214,162,74,.20);
         border-color: rgba(214,162,74,.85);
@@ -489,7 +523,6 @@
         border-color: rgba(214,162,74,.75);
     }
 
-    /* Reaction flavors */
     .react-skeptical .abc-avatar-img{ filter: saturate(0.96) contrast(1.12) brightness(0.96); }
     .react-friendly .abc-avatar-img{ filter: saturate(1.12) contrast(1.04) brightness(1.03); }
     .react-assertive .abc-avatar-img{ filter: saturate(1.05) contrast(1.14) brightness(0.98); }
@@ -559,6 +592,15 @@
 
     .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
 
+    .abc-training-bottom{
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255,215,100,.08);
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+    }
+
     .abc-select{
         width:100%;
         background:rgba(0,0,0,.35);
@@ -573,35 +615,35 @@
         .abc-sp-grid{ grid-template-columns:1fr; }
         .abc-left{ min-height:520px; }
         .abc-right{ min-height:620px; }
-        .abc-top-controls{ grid-template-columns:1fr; }
-        .abc-bottom-controls{ grid-template-columns:1fr; }
         .abc-seg-row{ flex-wrap:wrap; }
         .abc-rpm-frame-wrap{ height: 360px; }
+
+        .abc-stage-env{
+            position: static;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 520px;
+            align-items:center;
+        }
     }
 </style>
 
+{{-- JS (unchanged; IDs preserved) --}}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-    // ====== CONFIG (EDIT THESE PATHS/URLS) ======
     const AVATAR_IMAGES = {
         neutral:    "{{ asset('images/gideon/prospect_default.jpg') }}",
         friendly:   "{{ asset('images/gideon/prospect_friendly.jpg') }}",
         skeptical:  "{{ asset('images/gideon/prospect_skeptical.jpg') }}",
     };
 
-    // ReadyPlayerMe (3D) – paste your avatar URL here:
-    // - If you paste a viewer URL, we iframe it.
-    // - If you paste a .glb, most browsers won't "render" it in an iframe (will download/show blank).
-    //   Use a viewer page if you want iframe-only for now.
-    const RPM_AVATAR_URL = ""; // <-- paste when you have it
+    const RPM_AVATAR_URL = "";
 
-    // Thinking delay (ms)
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // Speech energy (drives waves + mouth + subtle bob)
     const ENERGY = {
         idleTarget: 0.06,
         speakingFloor: 0.18,
@@ -609,7 +651,6 @@ document.addEventListener('DOMContentLoaded', function () {
         gain: 1.0,
     };
 
-    // ====== DOM ======
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
     const formEl = document.getElementById('sparringForm');
@@ -640,7 +681,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const segmentWrap = document.getElementById('segmentWrap');
     const segmentSelect = document.getElementById('segmentSelect');
 
-    const emotionLabel = document.getElementById('emotionLabel');
     const timerPill = document.getElementById('timerPill');
 
     const stagePanel = document.getElementById('stagePanel');
@@ -651,11 +691,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarImg = document.getElementById('avatarImg');
     const avatarMouth = document.getElementById('avatarMouth');
     const avatarCaption = document.getElementById('avatarCaption');
-    const avatarBlink = document.getElementById('avatarBlink');
 
     const ttsToggleBtn = document.getElementById('ttsToggleBtn');
 
-    // avatar modes
     const avatarModePhotoBtn = document.getElementById('avatarModePhotoBtn');
     const avatarModeLive2dBtn = document.getElementById('avatarModeLive2dBtn');
     const avatarMode3dBtn = document.getElementById('avatarMode3dBtn');
@@ -668,7 +706,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const rpmIframe = document.getElementById('rpmIframe');
     const rpmOverlay = document.getElementById('rpmOverlay');
 
-    // ====== STATE ======
     let currentSessionId = null;
     let isSending = false;
     let sessionStarted = false;
@@ -678,89 +715,46 @@ document.addEventListener('DOMContentLoaded', function () {
     let personaKey = 'neutral_balanced';
     let environment = 'phone';
 
-    let trainingMode = 'full'; // full|disco|segments
+    let trainingMode = 'full';
     let selectedSegment = segmentSelect?.value || 'discovery';
 
-    // avatar mode: photo|live2d|3d
     let avatarMode = 'photo';
 
-    // timer
     let timerInt = null;
     let seconds = 0;
 
-    // speech
     let ttsEnabled = true;
     let speakingLock = false;
 
-    // animation loop
     let rafId = null;
     let lastTs = 0;
 
-    // speech energy driver (single source of truth)
-    let speechEnergy = 0;         // 0..1
-    let speechEnergyTarget = 0;   // 0..1
+    let speechEnergy = 0;
+    let speechEnergyTarget = 0;
     let speechEnergyVel = 0;
 
-    // speaking window (fallback when no TTS or no boundary)
     let speakUntilTs = 0;
-
-    // micro-anim
     let nextBlinkAt = 0;
 
-    // state machine
-    const AVATAR_STATE = {
-        IDLE: 'idle',
-        LISTENING: 'listening',
-        THINKING: 'thinking',
-        SPEAKING: 'speaking',
-        REACTING: 'reacting',
-    };
+    const AVATAR_STATE = { IDLE:'idle', LISTENING:'listening', THINKING:'thinking', SPEAKING:'speaking', REACTING:'reacting' };
     let avatarState = AVATAR_STATE.IDLE;
     let reactUntilTs = 0;
     let reactionClass = '';
 
-    // ====== HELPERS ======
     function nowMs(){ return (performance && performance.now) ? performance.now() : Date.now(); }
-
-    function fmtTime(s){
-        const mm = String(Math.floor(s/60)).padStart(2,'0');
-        const ss = String(s%60).padStart(2,'0');
-        return `${mm}:${ss}`;
-    }
-    function startTimer(){
-        stopTimer();
-        seconds = 0;
-        timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
-        timerInt = setInterval(()=>{
-            seconds++;
-            timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
-        }, 1000);
-    }
-    function stopTimer(){
-        if (timerInt) clearInterval(timerInt);
-        timerInt = null;
-    }
-
+    function fmtTime(s){ const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${mm}:${ss}`; }
+    function startTimer(){ stopTimer(); seconds=0; timerPill.textContent=`⏱ ${fmtTime(seconds)}`; timerInt=setInterval(()=>{ seconds++; timerPill.textContent=`⏱ ${fmtTime(seconds)}`; },1000); }
+    function stopTimer(){ if (timerInt) clearInterval(timerInt); timerInt=null; }
     function setStatus(msg){ statusEl.textContent = msg || ''; }
-
-    function setActive(btn, group){
-        group.forEach(b=>b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-    }
-
-    function randInt(min, max){
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
+    function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
+    function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
     function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 
-    // Difficulty -> persona/emotion + avatar face
     function mapDifficulty(d){
-        if (d === 'beginner') return { persona: 'soft_conflict_avoidant', emotion: 'Friendly', face: 'friendly' };
-        if (d === 'advanced') return { persona: 'skeptical_guarded', emotion: 'Skeptical', face: 'skeptical' };
-        return { persona: 'neutral_balanced', emotion: 'Neutral', face: 'neutral' };
+        if (d === 'beginner') return { persona:'soft_conflict_avoidant', emotion:'Friendly', face:'friendly' };
+        if (d === 'advanced') return { persona:'skeptical_guarded', emotion:'Skeptical', face:'skeptical' };
+        return { persona:'neutral_balanced', emotion:'Neutral', face:'neutral' };
     }
-
     function setAvatarFace(faceKey){
         const src = AVATAR_IMAGES[faceKey] || AVATAR_IMAGES.neutral;
         if (avatarImg) avatarImg.src = src;
@@ -807,7 +801,6 @@ document.addEventListener('DOMContentLoaded', function () {
         transcriptEl.appendChild(wrap);
         transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
-
     function removeTypingIndicator(){
         const existing = document.getElementById('typingIndicator');
         if (existing) existing.remove();
@@ -820,7 +813,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (waveHint) waveHint.textContent = text;
     }
 
-    // ====== STATE MACHINE / REACTIONS ======
     function clearReactionClasses(){
         document.body.classList.remove('react-skeptical','react-friendly','react-assertive','react-thinking','react-listening');
         if (reactionClass) document.body.classList.remove(reactionClass);
@@ -830,12 +822,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function setAvatarState(next){
         avatarState = next;
 
-        // baseline vibe
         clearReactionClasses();
         if (avatarState === AVATAR_STATE.THINKING) document.body.classList.add('react-thinking');
         if (avatarState === AVATAR_STATE.LISTENING) document.body.classList.add('react-listening');
 
-        // speaking flag toggles the "power" of visuals
         if (avatarState === AVATAR_STATE.SPEAKING) {
             if (stagePanel) stagePanel.classList.add('is-speaking');
             document.body.classList.add('avatar-speaking');
@@ -849,7 +839,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const t = (text || '').trim();
         if (!t) return;
 
-        // quick heuristics
         let r = '';
         if (difficulty === 'advanced' && (t.includes('?') || /why|how|really|sure/i.test(t))) r = 'react-skeptical';
         else if (t.includes('?')) r = 'react-skeptical';
@@ -866,20 +855,14 @@ document.addEventListener('DOMContentLoaded', function () {
         reactUntilTs = nowMs() + 650;
     }
 
-    // ====== SPEECH ENERGY LOOP (WAVES + MOUTH) ======
-    function setEnergyTarget(v){
-        speechEnergyTarget = clamp(v, 0, 1);
-    }
+    function setEnergyTarget(v){ speechEnergyTarget = clamp(v, 0, 1); }
 
     function pulseWord(){
-        // word boundary pulse (more "syllable-like")
         setEnergyTarget(Math.max(speechEnergyTarget, ENERGY.peakWord));
-        // decay a beat later so it feels like a word hit
         setTimeout(()=>setEnergyTarget(Math.max(ENERGY.speakingFloor, ENERGY.idleTarget)), 90);
     }
 
     function smoothEnergy(dt){
-        // stable smoothing (avoid jitter)
         const k = 18;
         const d = 0.84;
         speechEnergyVel += (speechEnergyTarget - speechEnergy) * k * dt;
@@ -894,7 +877,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const n = bars.length || 0;
         if (!n) return;
 
-        // coherent motion: sine bed + small noise, shaped by energy
         for (let i = 0; i < n; i++){
             const phase = (i / n) * Math.PI * 2;
             const wobble = Math.sin(t * 0.008 + phase) * 0.35 + Math.sin(t * 0.014 + phase * 1.7) * 0.22;
@@ -909,9 +891,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderMouthAndBob(energy, t){
-        // mouth
         if (avatarMouth){
-            // mouth openness based on energy + tiny tremor
             const trem = (Math.sin(t * 0.028) + Math.sin(t * 0.041)) * 0.9;
             const open = clamp(energy * 16 + trem, 0, 22);
             const wide = clamp(62 + energy * 44 + trem * 2, 50, 96);
@@ -921,7 +901,6 @@ document.addEventListener('DOMContentLoaded', function () {
             avatarMouth.style.transform = `translateX(-50%) translateY(${(-energy * 1.6).toFixed(2)}px)`;
         }
 
-        // subtle "talk bob" (stacked with CSS idle via slight img movement)
         if (avatarImg){
             const bob = (energy * 1.5) + (Math.sin(t * 0.006) * 0.35);
             const tilt = (Math.sin(t * 0.004) * 0.35) + (energy * 0.25);
@@ -929,11 +908,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function scheduleNextBlink(){
-        // 2.6s..5.2s
-        nextBlinkAt = nowMs() + randInt(2600, 5200);
-    }
-
+    function scheduleNextBlink(){ nextBlinkAt = nowMs() + randInt(2600, 5200); }
     function doBlink(){
         if (!avatarRing) return;
         avatarRing.classList.add('blink-now');
@@ -946,16 +921,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const dt = clamp((ts - lastTs) / 1000, 0.001, 0.05);
         lastTs = ts;
 
-        // reaction window ends -> go back to listening/speaking appropriately
         const now = nowMs();
         if (avatarState === AVATAR_STATE.REACTING && reactUntilTs && now > reactUntilTs) {
             clearReactionClasses();
-            // return to speaking if still "speaking window"
             if (now < speakUntilTs || speakingLock) setAvatarState(AVATAR_STATE.SPEAKING);
             else setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
         }
 
-        // speaking window (fallback when no reliable boundary)
         if (!speakingLock && now < speakUntilTs) {
             setAvatarState(AVATAR_STATE.SPEAKING);
             setEnergyTarget(Math.max(ENERGY.speakingFloor, speechEnergyTarget));
@@ -965,17 +937,14 @@ document.addEventListener('DOMContentLoaded', function () {
             setAvatarState(sessionStarted ? AVATAR_STATE.LISTENING : AVATAR_STATE.IDLE);
         }
 
-        // baseline energy target by state
         if (avatarState === AVATAR_STATE.THINKING) setEnergyTarget(Math.max(speechEnergyTarget, 0.10));
         if (avatarState === AVATAR_STATE.LISTENING) setEnergyTarget(Math.max(speechEnergyTarget, ENERGY.idleTarget));
         if (avatarState === AVATAR_STATE.IDLE) setEnergyTarget(ENERGY.idleTarget);
 
         smoothEnergy(dt);
-
         renderWaveBars(speechEnergy, ts);
         renderMouthAndBob(speechEnergy, ts);
 
-        // blinking (skip during "peak speaking" for readability)
         if (now > nextBlinkAt && speechEnergy < 0.55) doBlink();
 
         rafId = requestAnimationFrame(animationLoop);
@@ -987,29 +956,24 @@ document.addEventListener('DOMContentLoaded', function () {
         scheduleNextBlink();
         rafId = requestAnimationFrame(animationLoop);
     }
-
     function stopAnimLoop(){
         if (rafId) cancelAnimationFrame(rafId);
         rafId = null;
         lastTs = 0;
     }
 
-    // ====== Speak with TTS (word-boundary pulsing) ======
     function speakProspect(text){
         const t = (text || '').trim();
         if (!t) return;
 
-        // ensure we go to speaking state immediately
         setAvatarState(AVATAR_STATE.SPEAKING);
         setProspectCaption('Speaking…');
 
-        // fallback speaking window even if we can’t get boundaries
         const approxMs = Math.min(6500, 600 + t.length * 28);
         speakUntilTs = nowMs() + approxMs;
         setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.28));
 
         if (!ttsEnabled || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-            // no TTS: do a text-driven "word pulse" loop
             const words = t.split(/\s+/).filter(Boolean);
             let i = 0;
             const tick = () => {
@@ -1037,21 +1001,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         speakingLock = true;
 
-        // Boundary-based pulsing (best “game feel” without audio analysis)
-        u.onboundary = (ev) => {
-            // only word/sentence boundaries matter
-            // some browsers fire only "word" events; some include "sentence"
+        u.onboundary = () => {
             pulseWord();
-            // keep speaking window extended slightly so state doesn’t snap early
             speakUntilTs = Math.max(speakUntilTs, nowMs() + 220);
         };
-
         u.onstart = () => {
             setAvatarState(AVATAR_STATE.SPEAKING);
             setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.34));
             speakUntilTs = Math.max(speakUntilTs, nowMs() + 350);
         };
-
         u.onend = () => {
             speakingLock = false;
             setEnergyTarget(ENERGY.idleTarget);
@@ -1068,7 +1026,6 @@ document.addEventListener('DOMContentLoaded', function () {
         window.speechSynthesis.speak(u);
     }
 
-    // ====== UI RESET ======
     function resetSession(){
         currentSessionId = null;
         sessionStarted = false;
@@ -1090,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', function () {
         sendBtn.disabled = true;
         setStatus('');
 
-        // reset anim state
         speakUntilTs = 0;
         speechEnergy = 0;
         speechEnergyTarget = ENERGY.idleTarget;
@@ -1108,7 +1064,6 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.focus();
     }
 
-    // ====== ENVIRONMENT ======
     envPhoneBtn.addEventListener('click', ()=>{
         environment = 'phone';
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
@@ -1123,7 +1078,6 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPanel.style.display = 'flex';
     });
 
-    // ====== ROLE MODE ======
     modeYouAgentBtn.addEventListener('click', ()=>{
         uiMode = 'prospect_simulation';
         setActive(modeYouAgentBtn, [modeYouAgentBtn, modeYouProspectBtn]);
@@ -1134,16 +1088,13 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
     });
 
-    // ====== DIFFICULTY (controls face + emotion) ======
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
         personaKey = mapped.persona;
-        emotionLabel.textContent = mapped.emotion;
         setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
 
-        // baseline reaction “tone”
         clearReactionClasses();
         if (difficulty === 'beginner') document.body.classList.add('react-friendly');
         if (difficulty === 'advanced') document.body.classList.add('react-skeptical');
@@ -1152,7 +1103,6 @@ document.addEventListener('DOMContentLoaded', function () {
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
-    // ====== TRAINING ======
     function setTraining(mode, btn){
         trainingMode = mode;
         setActive(btn, [trainFullBtn, trainDiscoBtn, trainSegmentsBtn]);
@@ -1164,7 +1114,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     segmentSelect?.addEventListener('change', (e)=>{ selectedSegment = e.target.value; });
 
-    // ====== AVATAR MODE (photo/live2d/3d) ======
     function setAvatarMode(mode, btn){
         avatarMode = mode;
         setActive(btn, [avatarModePhotoBtn, avatarModeLive2dBtn, avatarMode3dBtn]);
@@ -1187,7 +1136,6 @@ document.addEventListener('DOMContentLoaded', function () {
     avatarModeLive2dBtn.addEventListener('click', ()=>setAvatarMode('live2d', avatarModeLive2dBtn));
     avatarMode3dBtn.addEventListener('click', ()=>setAvatarMode('3d', avatarMode3dBtn));
 
-    // ====== VOICE TOGGLE ======
     ttsToggleBtn.addEventListener('click', ()=>{
         ttsEnabled = !ttsEnabled;
         ttsToggleBtn.textContent = ttsEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
@@ -1201,7 +1149,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // ====== START ======
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -1217,16 +1164,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
-    // ====== INPUT "Gaze" micro-reaction ======
     inputEl.addEventListener('input', ()=>{
-        // tiny “attention” bump while user types
         if (!sessionStarted) return;
         if (avatarState === AVATAR_STATE.SPEAKING || speakingLock) return;
         setEnergyTarget(Math.max(speechEnergyTarget, 0.10));
         setTimeout(()=>setEnergyTarget(ENERGY.idleTarget), 140);
     });
 
-    // ====== API CALL ======
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
@@ -1236,7 +1180,6 @@ document.addEventListener('DOMContentLoaded', function () {
         setStatus('Talking to Gideon...');
         appendBubble('you', message);
 
-        // Game-like: prospect “thinks”
         showTypingIndicator();
         setProspectCaption('Thinking…');
         setAvatarState(AVATAR_STATE.THINKING);
@@ -1257,7 +1200,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     session_id: currentSessionId,
                     message: message,
 
-                    // UI extras
                     difficulty: difficulty,
                     environment: environment,
                     training_mode: trainingMode,
@@ -1271,20 +1213,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (data.session?.id) currentSessionId = data.session.id;
 
-            // Slight delay for realism
             const thinkDelay = randInt(THINKING_MIN_MS, THINKING_MAX_MS);
             await new Promise(r => setTimeout(r, thinkDelay));
 
             removeTypingIndicator();
 
-            // Opening line
             if (data.opening_line) {
                 appendBubble('them', data.opening_line);
                 applyReactionFromText(data.opening_line);
                 speakProspect(data.opening_line);
             }
 
-            // Reply
             if (data.gideon_reply?.content) {
                 appendBubble('them', data.gideon_reply.content);
                 applyReactionFromText(data.gideon_reply.content);
@@ -1358,22 +1297,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // ====== INIT ======
     resetSession();
     setDifficulty('intermediate', diffIntermediateBtn);
     setTraining('full', trainFullBtn);
     setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
 
-    // Start the unified animation driver (waves + mouth + micro-anim)
     startAnimLoop();
 
-    // Ensure speech voices load in some browsers
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {};
     }
 
-    // Clean up on nav/unload
     window.addEventListener('beforeunload', ()=>{
         try { window.speechSynthesis.cancel(); } catch(e) {}
         stopAnimLoop();
