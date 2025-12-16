@@ -112,15 +112,24 @@
 
                     {{-- PHOTO --}}
                     <div id="avatarPhotoWrap" class="abc-avatar-photo">
-                        <div class="abc-avatar-ring" id="avatarRing">
-                            <img
-                                src="{{ url('/images/gideon/prospect_default.jpg') }}"
-                                alt="Prospect avatar"
-                                class="abc-avatar-img"
-                                id="avatarImg"
-                                loading="eager"
-                                decoding="async"
-                            >
+                        <div class="abc-avatar-ring avatar-react-neutral" id="avatarRing">
+                            <div class="abc-avatar-head" id="avatarHead">
+                                <img
+                                    src="{{ url('/images/gideon/prospect_default.jpg') }}"
+                                    alt="Prospect avatar"
+                                    class="abc-avatar-img"
+                                    id="avatarImg"
+                                    loading="eager"
+                                    decoding="async"
+                                >
+                                {{-- Blink overlay --}}
+                                <div class="abc-blink" id="avatarBlink"></div>
+                            </div>
+
+                            {{-- Viseme mouth --}}
+                            <div class="abc-mouth" id="avatarMouth"></div>
+
+                            {{-- Debug missing avatar overlay --}}
                             <div class="abc-avatar-missing" id="avatarMissing" style="display:none;">
                                 <div style="font-weight:700;margin-bottom:6px;">Missing avatar file</div>
                                 <div style="opacity:.8;margin-bottom:6px;">Tried:</div>
@@ -130,8 +139,8 @@
                                     <code>public/images/gideon/</code>
                                 </div>
                             </div>
-                            <div class="abc-mouth" id="avatarMouth"></div>
                         </div>
+
                         <div class="abc-avatar-caption" id="avatarCaption">Listening…</div>
                     </div>
 
@@ -397,6 +406,7 @@
         margin-top:2px;
     }
 
+    /* PHONE WAVES (kept simple) */
     .abc-wave-wrap{
         width:min(520px,100%);
         padding:22px;
@@ -408,7 +418,6 @@
     .abc-wave-title{ font-size:18px; font-weight:700; }
     .abc-wave-sub{ margin-top:4px; font-size:13px; color:rgba(255,255,255,.65); }
     .abc-wave-hint{ margin-top:14px; font-size:12px; color:rgba(255,255,255,.55); }
-
     .abc-wave-bars{
         margin:18px auto 0;
         height:110px;
@@ -435,6 +444,7 @@
         transform: scaleY(.8);
     }
 
+    /* IN PERSON */
     .abc-avatar-wrap{ display:flex; flex-direction:column; align-items:center; gap: 14px; width:100%; }
     .abc-avatar-mode-row{
         width: min(740px, 100%);
@@ -448,6 +458,7 @@
     .abc-avatar-photo{ display:flex; flex-direction:column; align-items:center; gap: 10px; }
     .abc-avatar-caption{ font-size:12px; color: rgba(255,255,255,.60); }
 
+    /* ==== PHOTO REALISM UPGRADES ==== */
     .abc-avatar-ring{
         width: 340px;
         height: 340px;
@@ -460,22 +471,113 @@
         background: radial-gradient(circle at 30% 20%, rgba(214,162,74,.12), rgba(0,0,0,.10));
         position: relative;
         overflow:hidden;
-        animation: abcAvatarIdle 3.2s ease-in-out infinite;
+        transform: translateZ(0);
+        transition: box-shadow 220ms ease, border-color 220ms ease, filter 220ms ease;
     }
-    @keyframes abcAvatarIdle{
-        0%{ transform: translateY(0px) scale(1); }
-        50%{ transform: translateY(-6px) scale(1.01); }
-        100%{ transform: translateY(0px) scale(1); }
+
+    /* Head wrapper (idle micro movement) */
+    .abc-avatar-head{
+        width:100%;
+        height:100%;
+        border-radius:999px;
+        overflow:hidden;
+        position:relative;
+        transform-origin: 50% 60%;
+        animation: abcHeadIdle 4.4s ease-in-out infinite;
+        will-change: transform;
     }
+    @keyframes abcHeadIdle{
+        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+        30%{ transform: translateY(-2px) scale(1.01) rotate(-0.35deg); }
+        60%{ transform: translateY(-1px) scale(1.012) rotate(0.25deg); }
+        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+    }
+
     .abc-avatar-img{
         width: 100%;
         height: 100%;
         border-radius: 999px;
         object-fit: cover;
         border: 1px solid rgba(255,255,255,.08);
-        filter: saturate(1.05) contrast(1.05);
+        filter: saturate(1.06) contrast(1.06);
         display:block;
+        transform: translateZ(0);
     }
+
+    /* Blink overlay (we fade a “lid” quickly) */
+    .abc-blink{
+        position:absolute;
+        inset:0;
+        opacity:0;
+        pointer-events:none;
+        background:
+            linear-gradient(180deg, rgba(0,0,0,.70) 0%, rgba(0,0,0,.10) 45%, rgba(0,0,0,.70) 100%);
+        transform: scaleY(0.08);
+        transform-origin: 50% 50%;
+    }
+    .blink-now .abc-blink{
+        opacity:1;
+        animation: abcBlink 140ms ease-in-out 1;
+    }
+    @keyframes abcBlink{
+        0%   { transform: scaleY(0.08); opacity:0; }
+        35%  { transform: scaleY(1); opacity:1; }
+        100% { transform: scaleY(0.08); opacity:0; }
+    }
+
+    /* Viseme mouth */
+    .abc-mouth{
+        position:absolute;
+        bottom: 78px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 62px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(0,0,0,.40);
+        border: 1px solid rgba(255,255,255,.10);
+        opacity: 0.0;
+        z-index: 5;
+        transition: opacity 120ms ease;
+        will-change: width, height, border-radius, transform;
+    }
+
+    /* Speaking: ring + head */
+    .avatar-speaking{
+        box-shadow: 0 0 45px rgba(214,162,74,.22);
+        border-color: rgba(214,162,74,.92);
+        filter: saturate(1.02);
+    }
+    .avatar-speaking .abc-avatar-head{
+        animation: abcHeadSpeak 520ms ease-in-out infinite;
+    }
+    @keyframes abcHeadSpeak{
+        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+        50%{ transform: translateY(-1px) scale(1.012) rotate(0.20deg); }
+        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+    }
+    .avatar-speaking .abc-mouth{
+        opacity: 0.95;
+        background: rgba(214,162,74,.55);
+        border-color: rgba(214,162,74,.75);
+    }
+
+    /* Reaction styles (applied based on difficulty/persona) */
+    .avatar-react-friendly{
+        border-color: rgba(214,162,74,.92);
+        box-shadow: 0 0 55px rgba(214,162,74,.22);
+    }
+    .avatar-react-neutral{
+        border-color: rgba(214,162,74,.55);
+        box-shadow: 0 0 28px rgba(214,162,74,.10);
+    }
+    .avatar-react-skeptical{
+        border-color: rgba(255,255,255,.18);
+        box-shadow: 0 0 22px rgba(255,255,255,.06);
+        filter: contrast(1.03) saturate(0.98);
+    }
+
+    /* Debug overlay */
     .abc-avatar-missing{
         position:absolute;
         inset: 10px;
@@ -491,20 +593,7 @@
         border: 1px dashed rgba(255,215,100,.30);
         font-size: 12px;
         line-height: 1.35;
-        z-index: 3;
-    }
-    .abc-mouth{
-        position:absolute;
-        bottom: 76px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 74px;
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(0,0,0,.35);
-        border: 1px solid rgba(255,255,255,.10);
-        opacity: .0;
-        z-index: 5;
+        z-index: 10;
     }
 
     .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
@@ -516,6 +605,66 @@
         flex-direction:column;
         align-items:center;
     }
+
+    .abc-avatar-live2d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .abc-live2d-canvas-wrap{
+        width: min(520px, 100%);
+        aspect-ratio: 1 / 1;
+        border-radius: 18px;
+        border: 1px solid rgba(255,215,100,.12);
+        background: rgba(0,0,0,.26);
+        position: relative;
+        overflow: hidden;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    }
+    #live2dCanvas{ width: 100%; height: 100%; display:block; }
+    .abc-live2d-overlay{
+        position:absolute;
+        inset: 0;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size: 13px;
+        color: rgba(255,255,255,.65);
+        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
+        pointer-events:none;
+        text-align:center;
+        padding: 14px;
+    }
+
+    .abc-avatar-3d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .abc-rpm-frame-wrap{
+        width: min(720px, 100%);
+        height: 420px;
+        border-radius: 18px;
+        border: 1px solid rgba(255,215,100,.12);
+        background: rgba(0,0,0,.26);
+        position: relative;
+        overflow:hidden;
+    }
+    #rpmIframe{
+        width:100%;
+        height:100%;
+        border: 0;
+        display:block;
+        background: rgba(0,0,0,.26);
+    }
+    .abc-rpm-overlay{
+        position:absolute;
+        inset:0;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        padding: 18px;
+        color: rgba(255,255,255,.65);
+        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
+        pointer-events:none;
+        font-size: 13px;
+    }
+
     .abc-select{
         width:100%;
         background:rgba(0,0,0,.35);
@@ -539,6 +688,7 @@
             align-items:center;
         }
         .abc-stage-prospect{ align-items:center; }
+        .abc-rpm-frame-wrap{ height: 360px; }
     }
 </style>
 
@@ -549,28 +699,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const FALLBACK_AVATAR = APP_BASE + "/images/gideon/prospect_default.jpg";
 
-    // ✅ FIXED PATHS (NO /avatars/ folder)
+    // Your confirmed paths:
+    // public/images/gideon/avatar_01.jpg ... avatar_04.jpg
     const PROSPECTS = {
-        p1: { name: 'Prospect 1', images: {
-            neutral:   APP_BASE + "/images/gideon/avatar_01.jpg",
-            friendly:  APP_BASE + "/images/gideon/avatar_01.jpg",
-            skeptical: APP_BASE + "/images/gideon/avatar_01.jpg",
-        }},
-        p2: { name: 'Prospect 2', images: {
-            neutral:   APP_BASE + "/images/gideon/avatar_02.jpg",
-            friendly:  APP_BASE + "/images/gideon/avatar_02.jpg",
-            skeptical: APP_BASE + "/images/gideon/avatar_02.jpg",
-        }},
-        p3: { name: 'Prospect 3', images: {
-            neutral:   APP_BASE + "/images/gideon/avatar_03.jpg",
-            friendly:  APP_BASE + "/images/gideon/avatar_03.jpg",
-            skeptical: APP_BASE + "/images/gideon/avatar_03.jpg",
-        }},
-        p4: { name: 'Prospect 4', images: {
-            neutral:   APP_BASE + "/images/gideon/avatar_04.jpg",
-            friendly:  APP_BASE + "/images/gideon/avatar_04.jpg",
-            skeptical: APP_BASE + "/images/gideon/avatar_04.jpg",
-        }},
+        p1: { name: 'Prospect 1', images: { neutral: APP_BASE + "/images/gideon/avatar_01.jpg", friendly: APP_BASE + "/images/gideon/avatar_01.jpg", skeptical: APP_BASE + "/images/gideon/avatar_01.jpg" }},
+        p2: { name: 'Prospect 2', images: { neutral: APP_BASE + "/images/gideon/avatar_02.jpg", friendly: APP_BASE + "/images/gideon/avatar_02.jpg", skeptical: APP_BASE + "/images/gideon/avatar_02.jpg" }},
+        p3: { name: 'Prospect 3', images: { neutral: APP_BASE + "/images/gideon/avatar_03.jpg", friendly: APP_BASE + "/images/gideon/avatar_03.jpg", skeptical: APP_BASE + "/images/gideon/avatar_03.jpg" }},
+        p4: { name: 'Prospect 4', images: { neutral: APP_BASE + "/images/gideon/avatar_04.jpg", friendly: APP_BASE + "/images/gideon/avatar_04.jpg", skeptical: APP_BASE + "/images/gideon/avatar_04.jpg" }},
     };
 
     const THINKING_MIN_MS = 350;
@@ -606,28 +741,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const segmentWrap = document.getElementById('segmentWrap');
     const segmentSelect = document.getElementById('segmentSelect');
 
-    const timerPill = document.getElementById('timerPill');
-
     const waveHint = document.getElementById('waveHint');
+    const waveBars = document.getElementById('waveBars');
 
-    const avatarImg = document.getElementById('avatarImg');
-    const avatarCaption = document.getElementById('avatarCaption');
-
-    const avatarMissing = document.getElementById('avatarMissing');
-    const avatarMissingUrl = document.getElementById('avatarMissingUrl');
-
+    const timerPill = document.getElementById('timerPill');
     const ttsToggleBtn = document.getElementById('ttsToggleBtn');
 
     const avatarModePhotoBtn = document.getElementById('avatarModePhotoBtn');
     const avatarModeLive2dBtn = document.getElementById('avatarModeLive2dBtn');
     const avatarMode3dBtn = document.getElementById('avatarMode3dBtn');
-
     const avatarPhotoWrap = document.getElementById('avatarPhotoWrap');
     const avatarLive2dWrap = document.getElementById('avatarLive2dWrap');
     const avatar3dWrap = document.getElementById('avatar3dWrap');
-
     const live2dCaption = document.getElementById('live2dCaption');
     const rpmCaption = document.getElementById('rpmCaption');
+
+    const avatarRing = document.getElementById('avatarRing');
+    const avatarImg = document.getElementById('avatarImg');
+    const avatarCaption = document.getElementById('avatarCaption');
+    const avatarMouth = document.getElementById('avatarMouth');
+    const avatarBlink = document.getElementById('avatarBlink');
+
+    const avatarMissing = document.getElementById('avatarMissing');
+    const avatarMissingUrl = document.getElementById('avatarMissingUrl');
 
     const prospectNameEl = document.getElementById('prospectName');
     const prospectBtns = [
@@ -637,6 +773,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('prospectP4Btn'),
     ].filter(Boolean);
 
+    // ====== STATE ======
     let currentSessionId = null;
     let isSending = false;
     let sessionStarted = false;
@@ -656,7 +793,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let seconds = 0;
 
     let ttsEnabled = true;
+    let speakingTimer = null;
+    let visemeTimer = null;
+    let blinkTimer = null;
 
+    // ====== HELPERS ======
     function setStatus(msg){ statusEl.textContent = msg || ''; }
     function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
     function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -670,10 +811,7 @@ document.addEventListener('DOMContentLoaded', function () {
         stopTimer();
         seconds = 0;
         timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
-        timerInt = setInterval(()=> {
-            seconds++;
-            timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
-        }, 1000);
+        timerInt = setInterval(()=>{ seconds++; timerPill.textContent = `⏱ ${fmtTime(seconds)}`; }, 1000);
     }
     function stopTimer(){
         if (timerInt) clearInterval(timerInt);
@@ -681,9 +819,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function mapDifficulty(d){
-        if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly' };
-        if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical' };
-        return { persona:'neutral_balanced', face:'neutral' };
+        if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
+        if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
+        return { persona:'neutral_balanced', face:'neutral', react:'neutral' };
     }
 
     function currentProspect(){
@@ -701,7 +839,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const cacheBust = `cb=${Date.now()}`;
         const finalUrl = (url && url.includes('?')) ? `${url}&${cacheBust}` : `${url}?${cacheBust}`;
-
         showMissingAvatar(false);
 
         const test = new Image();
@@ -722,6 +859,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const p = currentProspect();
         const src = p?.images?.[faceKey] || p?.images?.neutral || FALLBACK_AVATAR;
         setAvatarSrcSafe(src);
+    }
+
+    function setReactionStyle(react){
+        if (!avatarRing) return;
+        avatarRing.classList.remove('avatar-react-friendly','avatar-react-neutral','avatar-react-skeptical');
+        avatarRing.classList.add(`avatar-react-${react || 'neutral'}`);
     }
 
     function setProspectCaption(text){
@@ -772,12 +915,138 @@ document.addEventListener('DOMContentLoaded', function () {
         transcriptEl.appendChild(wrap);
         transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
-
     function removeTypingIndicator(){
         const existing = document.getElementById('typingIndicator');
         if (existing) existing.remove();
     }
 
+    // ====== BLINK SYSTEM ======
+    function scheduleBlink(){
+        if (blinkTimer) clearTimeout(blinkTimer);
+        const nextMs = randInt(2200, 6500); // natural-ish
+        blinkTimer = setTimeout(()=>{
+            doBlink();
+            scheduleBlink();
+        }, nextMs);
+    }
+    function doBlink(){
+        if (!avatarRing) return;
+        avatarRing.classList.add('blink-now');
+        setTimeout(()=> avatarRing.classList.remove('blink-now'), 180);
+        // occasional double-blink
+        if (Math.random() < 0.12){
+            setTimeout(()=>{
+                avatarRing.classList.add('blink-now');
+                setTimeout(()=> avatarRing.classList.remove('blink-now'), 170);
+            }, 220);
+        }
+    }
+
+    // ====== SPEAKING / VISEMES ======
+    function setSpeaking(on){
+        if (!avatarRing) return;
+        if (on) avatarRing.classList.add('avatar-speaking');
+        else avatarRing.classList.remove('avatar-speaking');
+    }
+
+    function setMouthShape(shape){
+        if (!avatarMouth) return;
+
+        // default closed
+        let w = 62, h = 10, r = 999;
+
+        if (shape === 'O'){ w = 30; h = 22; r = 18; }
+        if (shape === 'E'){ w = 72; h = 12; r = 14; }
+        if (shape === 'A'){ w = 60; h = 20; r = 16; }
+        if (shape === 'U'){ w = 36; h = 18; r = 16; }
+        if (shape === 'F'){ w = 66; h = 14; r = 10; }
+        if (shape === 'M'){ w = 56; h = 8;  r = 999; }
+
+        avatarMouth.style.width = `${w}px`;
+        avatarMouth.style.height = `${h}px`;
+        avatarMouth.style.borderRadius = `${r}px`;
+    }
+
+    function startVisemes(text){
+        stopVisemes();
+        if (!text || !avatarMouth) return;
+
+        const chars = String(text).split('');
+        let i = 0;
+
+        visemeTimer = setInterval(()=>{
+            const c = (chars[i] || ' ').toLowerCase();
+            i++;
+
+            if (i >= chars.length) i = 0;
+
+            // simple mapping — looks WAY better than random
+            if ('ae'.includes(c)) setMouthShape('E');
+            else if ('ou'.includes(c)) setMouthShape('O');
+            else if ('i'.includes(c)) setMouthShape('E');
+            else if ('fvs'.includes(c)) setMouthShape('F');
+            else if ('bmp'.includes(c)) setMouthShape('M');
+            else if (c === ' ') setMouthShape('M');
+            else setMouthShape(Math.random() < 0.45 ? 'A' : 'E');
+        }, 85);
+    }
+
+    function stopVisemes(){
+        if (visemeTimer) clearInterval(visemeTimer);
+        visemeTimer = null;
+        setMouthShape('M');
+    }
+
+    function speakProspect(text){
+        // Always animate speaking state
+        setSpeaking(true);
+        setProspectCaption('Speaking…');
+        startVisemes(text);
+
+        // also bounce phone bars if user is in phone mode
+        const bars = waveBars ? Array.from(waveBars.querySelectorAll('span')) : [];
+        const waveTimer = setInterval(()=>{
+            bars.forEach(b=>{
+                const v = 0.6 + Math.random() * 3.2;
+                b.style.transform = `scaleY(${v})`;
+                b.style.opacity = 0.6 + Math.random()*0.4;
+            });
+        }, 95);
+
+        function endSpeaking(){
+            clearInterval(waveTimer);
+            if (bars.length){
+                bars.forEach(b=>{ b.style.transform = 'scaleY(.8)'; b.style.opacity = '.55'; });
+            }
+            stopVisemes();
+            setSpeaking(false);
+            setProspectCaption('Listening…');
+        }
+
+        // Use browser TTS if enabled, otherwise time it
+        if (ttsEnabled && ('speechSynthesis' in window) && typeof SpeechSynthesisUtterance !== 'undefined'){
+            try { window.speechSynthesis.cancel(); } catch(e) {}
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 1.02;
+            u.pitch = 0.95;
+            u.volume = 1;
+
+            const voices = window.speechSynthesis.getVoices?.() || [];
+            const preferred = voices.find(v => /en/i.test(v.lang)) || voices[0];
+            if (preferred) u.voice = preferred;
+
+            u.onend = endSpeaking;
+            u.onerror = endSpeaking;
+
+            window.speechSynthesis.speak(u);
+        } else {
+            const ms = Math.min(5200, 650 + String(text).length * 24);
+            if (speakingTimer) clearTimeout(speakingTimer);
+            speakingTimer = setTimeout(endSpeaking, ms);
+        }
+    }
+
+    // ====== RESET ======
     function resetSession(){
         currentSessionId = null;
         sessionStarted = false;
@@ -799,8 +1068,12 @@ document.addEventListener('DOMContentLoaded', function () {
         sendBtn.disabled = true;
         setStatus('');
 
+        stopVisemes();
+        setSpeaking(false);
         setProspectCaption('Waiting…');
         removeTypingIndicator();
+
+        scheduleBlink();
     }
 
     function unlockInput(){
@@ -809,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.focus();
     }
 
+    // ====== PROSPECT PICKER ======
     function setProspect(id){
         if (!PROSPECTS[id]) return;
         selectedProspectId = id;
@@ -820,13 +1094,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (prospectNameEl) prospectNameEl.textContent = PROSPECTS[id].name;
 
         const mapped = mapDifficulty(difficulty);
+        setReactionStyle(mapped.react);
         setAvatarFace(mapped.face);
     }
+    prospectBtns.forEach(btn => btn.addEventListener('click', ()=> setProspect(btn.dataset.prospect)));
 
-    prospectBtns.forEach(btn=>{
-        btn.addEventListener('click', ()=> setProspect(btn.dataset.prospect));
-    });
-
+    // ====== ENVIRONMENT ======
     envPhoneBtn.addEventListener('click', ()=>{
         environment = 'phone';
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
@@ -840,6 +1113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPanel.style.display = 'flex';
     });
 
+    // ====== ROLE MODE ======
     modeYouAgentBtn.addEventListener('click', ()=>{
         uiMode = 'prospect_simulation';
         setActive(modeYouAgentBtn, [modeYouAgentBtn, modeYouProspectBtn]);
@@ -849,10 +1123,12 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
     });
 
+    // ====== DIFFICULTY (drives persona + reactions) ======
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
         personaKey = mapped.persona;
+        setReactionStyle(mapped.react);
         setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
     }
@@ -860,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', function () {
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
+    // ====== TRAINING ======
     function setTraining(mode, btn){
         trainingMode = mode;
         setActive(btn, [trainFullBtn, trainDiscoBtn, trainSegmentsBtn]);
@@ -870,10 +1147,10 @@ document.addEventListener('DOMContentLoaded', function () {
     trainSegmentsBtn.addEventListener('click', ()=>setTraining('segments', trainSegmentsBtn));
     segmentSelect?.addEventListener('change', (e)=>{ selectedSegment = e.target.value; });
 
+    // ====== AVATAR MODE ======
     function setAvatarMode(mode, btn){
         avatarMode = mode;
         setActive(btn, [avatarModePhotoBtn, avatarModeLive2dBtn, avatarMode3dBtn]);
-
         avatarPhotoWrap.style.display = (avatarMode === 'photo') ? 'flex' : 'none';
         avatarLive2dWrap.style.display = (avatarMode === 'live2d') ? 'flex' : 'none';
         avatar3dWrap.style.display = (avatarMode === '3d') ? 'flex' : 'none';
@@ -882,15 +1159,19 @@ document.addEventListener('DOMContentLoaded', function () {
     avatarModeLive2dBtn.addEventListener('click', ()=>setAvatarMode('live2d', avatarModeLive2dBtn));
     avatarMode3dBtn.addEventListener('click', ()=>setAvatarMode('3d', avatarMode3dBtn));
 
+    // ====== VOICE TOGGLE ======
     ttsToggleBtn.addEventListener('click', ()=>{
         ttsEnabled = !ttsEnabled;
         ttsToggleBtn.textContent = ttsEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
         if (!ttsEnabled) {
             try { window.speechSynthesis.cancel(); } catch(e) {}
+            stopVisemes();
+            setSpeaking(false);
             setProspectCaption('Listening…');
         }
     });
 
+    // ====== START ======
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -905,6 +1186,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
+    // ====== API ======
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
@@ -931,6 +1213,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     persona: personaKey,
                     session_id: currentSessionId,
                     message: message,
+
                     difficulty: difficulty,
                     environment: environment,
                     training_mode: trainingMode,
@@ -950,14 +1233,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
             removeTypingIndicator();
 
-            if (data.opening_line) appendBubble('them', data.opening_line);
-            if (data.gideon_reply?.content) appendBubble('them', data.gideon_reply.content);
+            // Speak and animate each prospect line
+            if (data.opening_line) {
+                appendBubble('them', data.opening_line);
+                speakProspect(data.opening_line);
+            }
+            if (data.gideon_reply?.content) {
+                appendBubble('them', data.gideon_reply.content);
+                speakProspect(data.gideon_reply.content);
+            } else {
+                setProspectCaption('Listening…');
+            }
 
-            setProspectCaption('Listening…');
             setStatus('Session active.');
         } catch (err) {
             console.error(err);
             removeTypingIndicator();
+            stopVisemes();
+            setSpeaking(false);
             setProspectCaption('Listening…');
             setStatus('Error talking to Gideon. Check runtime logs + browser console.');
         } finally {
@@ -994,6 +1287,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!res.ok) throw new Error('HTTP ' + res.status);
 
             try { window.speechSynthesis.cancel(); } catch(e) {}
+            stopVisemes();
+            setSpeaking(false);
 
             stopTimer();
             setStatus('Session ended.');
@@ -1008,7 +1303,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // INIT
+    // ====== INIT ======
     resetSession();
     setProspect('p1');
     setDifficulty('intermediate', diffIntermediateBtn);
@@ -1016,9 +1311,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
 
-    // Force initial avatar load
-    setAvatarFace('neutral');
-
+    // Preload voices in some browsers
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {};
     }
