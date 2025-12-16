@@ -1,339 +1,354 @@
 @extends('layouts.app')
 
 @section('content')
-<style>
-    /* Quick ABC black + gold vibe (minimal, no full redesign yet) */
-    .abc-panel { background:#0b0b0b; border:1px solid rgba(255,215,0,.18); color:#eee; }
-    .abc-muted { color: rgba(255,255,255,.65); }
-    .abc-gold { color:#ffd54f; }
-    .abc-btn-gold { background:#ffd54f; border-color:#ffd54f; color:#111; font-weight:600; }
-    .abc-btn-outline { border-color: rgba(255,215,0,.35); color:#ffd54f; }
-    .abc-btn-outline:hover { background: rgba(255,215,0,.08); }
-    .abc-chip { display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .6rem; border-radius:999px; background:rgba(255,215,0,.08); border:1px solid rgba(255,215,0,.18); color:#ffd54f; font-size:.85rem; }
-    .abc-transcript { background:#0f0f10; border:1px solid rgba(255,215,0,.12); border-radius:.5rem; }
-    .bubble { max-width: 85%; padding:.55rem .7rem; border-radius: .75rem; border:1px solid rgba(255,255,255,.08); }
-    .bubble.agent { margin-left:auto; background: rgba(255,215,0,.08); border-color: rgba(255,215,0,.20); }
-    .bubble.system { margin-right:auto; background: rgba(100,181,246,.08); border-color: rgba(100,181,246,.18); }
-    .bubble small { display:block; margin-top:.25rem; color: rgba(255,255,255,.55); }
-</style>
-
-<div class="container py-4">
-
-    {{-- Header --}}
-    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
-        <div>
-            <h1 class="mb-1">Gideon Sparring Partner</h1>
-            <div class="abc-muted">
-                Practice a selling cycle. Sessions advance toward an end and produce coaching feedback.
+<div class="container-fluid py-4">
+    <div class="row">
+        {{-- Left: (placeholder) Coaching HUD later --}}
+        <div class="col-lg-3 mb-3">
+            <div class="card" style="background:#0b0b0b; color:#eee; border:1px solid #222;">
+                <div class="card-body">
+                    <div class="text-uppercase small" style="color:#bfa24a; letter-spacing:.08em;">Live Coaching</div>
+                    <div class="mt-3 small text-muted">
+                        (Coming next) Rapport / Clarity / Resistance / Momentum + Coaching Whisper.
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="d-flex align-items-center gap-2">
-            <span class="abc-chip">
-                <span>⏱</span> <span id="timerPill">00:00</span>
-            </span>
-            <button id="endSessionBtn" class="btn btn-outline-danger btn-sm" type="button">
-                End Session
-            </button>
-        </div>
-    </div>
+        {{-- Right: Main sparring experience --}}
+        <div class="col-lg-9">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h2 class="mb-0" style="color:#fff;">Sparring Partner</h2>
+                    <div class="text-muted">Live conversation training with a human-like prospect.</div>
+                </div>
 
-    @php
-        $firstScenario = ($scenarios ?? collect())->first();
-        $firstDescription = $firstScenario?->description ?? 'Select a scenario to see its description.';
-    @endphp
+                <div class="d-flex align-items-center gap-2">
+                    {{-- Timer pill (static for now; you can wire later) --}}
+                    <div class="px-3 py-2 rounded-pill"
+                         style="background:#111; border:1px solid #222; color:#ddd; font-size:.9rem;">
+                        ⏱ <span id="sessionTimer">00:00</span>
+                    </div>
 
-    {{-- Setup panel --}}
-    <div class="card abc-panel mb-3">
-        <div class="card-body row g-3 align-items-center">
-
-            {{-- Scenario --}}
-            <div class="col-md-4">
-                <label for="scenarioSelect" class="form-label mb-1">Scenario</label>
-                <select id="scenarioSelect" class="form-select">
-                    @forelse(($scenarios ?? collect()) as $scenario)
-                        <option
-                            value="{{ $scenario->code }}"
-                            data-description="{{ $scenario->description ?? '' }}"
-                        >
-                            {{ $scenario->name }}
-                            @if($scenario->product_type)
-                                ({{ $scenario->product_type }})
-                            @endif
-                        </option>
-                    @empty
-                        <option value="" data-description="">No scenarios seeded yet</option>
-                    @endforelse
-                </select>
-                <div class="small abc-muted mt-1" id="scenarioDescription">{{ $firstDescription }}</div>
-            </div>
-
-            {{-- Training Mode (3 modes) --}}
-            <div class="col-md-3">
-                <label for="trainingModeSelect" class="form-label mb-1">Training Mode</label>
-                <select id="trainingModeSelect" class="form-select">
-                    <option value="stages">Stages (practice one stage)</option>
-                    <option value="discovery_start" selected>Discovery-Start</option>
-                    <option value="full_presentation">Full Presentation</option>
-                </select>
-                <div class="small abc-muted mt-1">
-                    Controls where the session starts and how it ends.
+                    <button id="endSessionBtn" class="btn btn-outline-danger btn-sm" type="button">
+                        End Session
+                    </button>
                 </div>
             </div>
 
-            {{-- Stage (only when stages mode) --}}
-            <div class="col-md-2">
-                <label for="stageSelect" class="form-label mb-1">Stage</label>
-                <select id="stageSelect" class="form-select">
-                    <option value="intro">Intro</option>
-                    <option value="discovery" selected>Discovery</option>
-                    <option value="education">Education</option>
-                    <option value="qualify">Qualify</option>
-                    <option value="quote">Quote</option>
-                    <option value="close">Close</option>
-                </select>
-                <div class="small abc-muted mt-1" id="stageHint">Used only in Stages Mode.</div>
+            {{-- Top controls row --}}
+            <div class="card mb-3" style="background:#0b0b0b; color:#eee; border:1px solid #222;">
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label mb-1" style="color:#bfa24a;">Scenario</label>
+                            <select id="scenarioSelect" class="form-select" style="background:#111; color:#eee; border:1px solid #222;">
+                                @forelse(($scenarios ?? collect()) as $scenario)
+                                    <option
+                                        value="{{ $scenario->code }}"
+                                        data-description="{{ $scenario->description ?? '' }}"
+                                    >
+                                        {{ $scenario->name }}@if($scenario->product_type) ({{ $scenario->product_type }})@endif
+                                    </option>
+                                @empty
+                                    <option value="" data-description="">No scenarios seeded yet</option>
+                                @endforelse
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label mb-1" style="color:#bfa24a;">Prospect persona</label>
+                            <select id="personaSelect" class="form-select" style="background:#111; color:#eee; border:1px solid #222;">
+                                <option value="soft_conflict_avoidant" selected>Soft / conflict-avoidant</option>
+                                <option value="neutral_balanced">Neutral / balanced</option>
+                                <option value="direct_analytical">Direct / analytical</option>
+                                <option value="skeptical_guarded">Skeptical / guarded</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label mb-1" style="color:#bfa24a;">Mode</label>
+                            <select id="modeSelect" class="form-select" style="background:#111; color:#eee; border:1px solid #222;">
+                                <option value="prospect_simulation" selected>You = Agent</option>
+                                <option value="agent_simulation">Role reversal</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label mb-1" style="color:#bfa24a;">Environment</label>
+                            <div class="d-flex gap-2">
+                                <button id="envPhone" type="button" class="btn btn-sm w-50"
+                                        style="background:#111; color:#eee; border:1px solid #222;">
+                                    📞 Phone
+                                </button>
+                                <button id="envInPerson" type="button" class="btn btn-sm w-50"
+                                        style="background:#bfa24a; color:#000; border:1px solid #bfa24a;">
+                                    In Person
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="small text-muted" id="scenarioDescription"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {{-- Difficulty --}}
-            <div class="col-md-3">
-                <label for="difficultySelect" class="form-label mb-1">Difficulty</label>
-                <select id="difficultySelect" class="form-select">
-                    <option value="easy">Easy</option>
-                    <option value="normal" selected>Normal</option>
-                    <option value="hard">Hard</option>
-                </select>
-                <div class="small abc-muted mt-1">Affects how skeptical the prospect behaves.</div>
+            {{-- Avatar + Subtitle Panel --}}
+            <div class="card mb-3" style="background:#0b0b0b; color:#eee; border:1px solid #222;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="text-uppercase small" style="color:#bfa24a; letter-spacing:.08em;">
+                                Prospect
+                            </div>
+                            <span id="expressionLabel"
+                                  class="px-2 py-1 rounded-pill"
+                                  style="background:#111; border:1px solid #222; color:#ddd; font-size:.75rem;">
+                                Neutral
+                            </span>
+                        </div>
+
+                        <div id="speakingStatus" class="small text-muted"></div>
+                    </div>
+
+                    <div id="avatarStage"
+                         class="d-flex align-items-center justify-content-center"
+                         style="height:320px; background:#070707; border:1px solid #222; border-radius:12px; position:relative; overflow:hidden;">
+
+                        {{-- Phone image (hidden by default) --}}
+                        <div id="phoneVisual" style="display:none; text-align:center;">
+                            <div style="font-size:4rem;">📞</div>
+                            <div class="text-muted small">Phone call mode</div>
+                        </div>
+
+                        {{-- In-person avatar (default) --}}
+                        <div id="avatarVisual" style="text-align:center;">
+                            {{-- Replace this with your real avatar image/video later --}}
+                            <div style="
+                                width:220px; height:220px; border-radius:50%;
+                                border:3px solid #bfa24a;
+                                background:#111;
+                                display:flex; align-items:center; justify-content:center;
+                                box-shadow:0 0 30px rgba(191,162,74,.15);
+                                margin:0 auto;">
+                                <span id="avatarStateEmoji" style="font-size:3rem;">🙂</span>
+                            </div>
+                            <div class="text-muted small mt-2">In-person avatar</div>
+                        </div>
+
+                        {{-- Subtitle overlay --}}
+                        <div id="subtitleBox"
+                             style="
+                                position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
+                                width:min(720px, 92%);
+                                background:rgba(0,0,0,.65);
+                                border:1px solid rgba(191,162,74,.35);
+                                border-radius:12px;
+                                padding:12px 14px;
+                                font-size:1.05rem;
+                                line-height:1.35;
+                                display:none;">
+                            <div id="subtitleText" style="color:#fff;"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {{-- Persona + UI Mode --}}
-            <div class="col-md-4">
-                <label for="personaSelect" class="form-label mb-1">Prospect Persona</label>
-                <select id="personaSelect" class="form-select">
-                    <option value="soft_conflict_avoidant" selected>Soft / conflict-avoidant</option>
-                    <option value="neutral_balanced">Neutral / balanced</option>
-                    <option value="direct_analytical">Direct / analytical</option>
-                </select>
+            {{-- Input Row --}}
+            <div class="card" style="background:#0b0b0b; color:#eee; border:1px solid #222;">
+                <div class="card-body">
+                    <form id="sparringForm" class="d-flex gap-2">
+                        <input id="sparringInput"
+                               type="text"
+                               class="form-control"
+                               placeholder="Say your next line to the prospect..."
+                               autocomplete="off"
+                               style="background:#111; color:#eee; border:1px solid #222;" />
+
+                        <button id="sendBtn" class="btn" type="submit"
+                                style="background:#bfa24a; color:#000; border:1px solid #bfa24a;">
+                            Send
+                        </button>
+                    </form>
+
+                    <div class="mt-2 small text-muted" id="sparringStatus"></div>
+                </div>
             </div>
 
-            <div class="col-md-3">
-                <label for="modeSelect" class="form-label mb-1">UI Role Mode</label>
-                <select id="modeSelect" class="form-select">
-                    <option value="prospect_simulation" selected>Prospect sim (You=Agent)</option>
-                    <option value="agent_simulation">Role reversal (You=Prospect)</option>
-                </select>
-                <div class="small abc-muted mt-1">This is not Training Mode.</div>
-            </div>
-
-            <div class="col-md-5 d-flex flex-column align-items-md-end align-items-start gap-2">
-                <button id="resetSessionBtn" class="btn abc-btn-outline btn-sm" type="button">
-                    Reset Session
-                </button>
-            </div>
-        </div>
-    </div>
-
-    {{-- Transcript --}}
-    <div class="abc-transcript mb-3 p-3" style="min-height: 280px; max-height: 520px; overflow-y: auto;" id="sparringTranscript">
-        <div class="abc-muted small">
-            Select a scenario and send your first message to start a session.
-        </div>
-    </div>
-
-    {{-- Input --}}
-    <div class="card abc-panel">
-        <div class="card-body">
-            <form id="sparringForm" class="d-flex gap-2">
-                <input id="sparringInput"
-                       type="text"
-                       class="form-control"
-                       placeholder="Type what you’d say and press Enter..."
-                       autocomplete="off" />
-
-                <button id="sendBtn" class="btn abc-btn-gold" type="submit">Send</button>
-            </form>
-            <div class="mt-2 small abc-muted" id="sparringStatus"></div>
-        </div>
-    </div>
-
-    {{-- Assessment --}}
-    <div class="card abc-panel mt-4" id="assessmentCard" style="display:none;">
-        <div class="card-body">
-            <h5 class="mb-3">Session Assessment</h5>
-
-            <div class="row mb-3">
-                <div class="col-md-3"><strong>Rapport:</strong> <span id="assRapport">–</span></div>
-                <div class="col-md-3"><strong>Discovery:</strong> <span id="assDiscovery">–</span></div>
-                <div class="col-md-3"><strong>Deal killers:</strong> <span id="assDealKillers">–</span></div>
-                <div class="col-md-3"><strong>Closing clarity:</strong> <span id="assClosingClarity">–</span></div>
-            </div>
-
-            <div class="mb-3">
-                <h6 class="abc-gold">Strengths</h6>
-                <p class="mb-0 small" id="assStrengths">–</p>
-            </div>
-
-            <div>
-                <h6 class="abc-gold">Improvements</h6>
-                <p class="mb-0 small" id="assImprovements">–</p>
-            </div>
         </div>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
 
-    var transcriptEl          = document.getElementById('sparringTranscript');
-    var inputEl               = document.getElementById('sparringInput');
-    var formEl                = document.getElementById('sparringForm');
-    var sendBtn               = document.getElementById('sendBtn');
-    var scenarioSelectEl      = document.getElementById('scenarioSelect');
-    var personaSelectEl       = document.getElementById('personaSelect');
-    var modeSelectEl          = document.getElementById('modeSelect');
+    const scenarioSelectEl = document.getElementById('scenarioSelect');
+    const personaSelectEl  = document.getElementById('personaSelect');
+    const modeSelectEl     = document.getElementById('modeSelect');
+    const descEl           = document.getElementById('scenarioDescription');
 
-    var trainingModeEl        = document.getElementById('trainingModeSelect');
-    var stageSelectEl         = document.getElementById('stageSelect');
-    var stageHintEl           = document.getElementById('stageHint');
-    var difficultyEl          = document.getElementById('difficultySelect');
+    const formEl  = document.getElementById('sparringForm');
+    const inputEl = document.getElementById('sparringInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const endBtn  = document.getElementById('endSessionBtn');
+    const statusEl= document.getElementById('sparringStatus');
 
-    var scenarioDescriptionEl = document.getElementById('scenarioDescription');
-    var statusEl              = document.getElementById('sparringStatus');
-    var resetBtn              = document.getElementById('resetSessionBtn');
-    var endBtn                = document.getElementById('endSessionBtn');
+    const envPhoneBtn   = document.getElementById('envPhone');
+    const envInPersonBtn= document.getElementById('envInPerson');
+    const phoneVisual   = document.getElementById('phoneVisual');
+    const avatarVisual  = document.getElementById('avatarVisual');
 
-    var assessmentCard        = document.getElementById('assessmentCard');
-    var assRapportEl          = document.getElementById('assRapport');
-    var assDiscoveryEl        = document.getElementById('assDiscovery');
-    var assDealKillersEl      = document.getElementById('assDealKillers');
-    var assClosingClarityEl   = document.getElementById('assClosingClarity');
-    var assStrengthsEl        = document.getElementById('assStrengths');
-    var assImprovementsEl     = document.getElementById('assImprovements');
+    const subtitleBox   = document.getElementById('subtitleBox');
+    const subtitleText  = document.getElementById('subtitleText');
+    const speakingStatus= document.getElementById('speakingStatus');
+    const avatarStateEmoji = document.getElementById('avatarStateEmoji');
 
-    var timerPillEl           = document.getElementById('timerPill');
+    let currentSessionId = null;
+    let isSending = false;
 
-    var currentSessionId = null;
-    var isSending = false;
-    var timerStart = null;
-    var timerInt = null;
+    // Environment: "in_person" default
+    let environment = 'in_person';
 
-    function fmtTime(ms) {
-        var s = Math.floor(ms / 1000);
-        var m = Math.floor(s / 60);
-        s = s % 60;
-        return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-    }
-
-    function startTimer() {
-        timerStart = Date.now();
-        if (timerInt) clearInterval(timerInt);
-        timerInt = setInterval(function(){
-            if (!timerStart || !timerPillEl) return;
-            timerPillEl.textContent = fmtTime(Date.now() - timerStart);
-        }, 500);
-    }
-
-    function stopTimer() {
-        if (timerInt) clearInterval(timerInt);
-        timerInt = null;
-        timerStart = null;
-        if (timerPillEl) timerPillEl.textContent = '00:00';
-    }
-
-    function appendBubble(who, text) {
-        if (!text) return;
-
-        var wrap = document.createElement('div');
-        wrap.className = 'd-flex mb-2';
-
-        var bubble = document.createElement('div');
-        bubble.className = 'bubble ' + ((who === 'agent') ? 'agent' : 'system');
-
-        bubble.textContent = text;
-
-        var ts = document.createElement('small');
-        ts.textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        bubble.appendChild(ts);
-
-        if (who === 'agent') wrap.classList.add('justify-content-end');
-        else wrap.classList.add('justify-content-start');
-
-        wrap.appendChild(bubble);
-        transcriptEl.appendChild(wrap);
-        transcriptEl.scrollTop = transcriptEl.scrollHeight;
-    }
+    // Speech lock (No Interrupt)
+    let isSpeaking = false;
 
     function setStatus(msg) {
         if (statusEl) statusEl.textContent = msg || '';
     }
 
-    function enableInput() {
-        if (inputEl) inputEl.disabled = false;
-        if (sendBtn) sendBtn.disabled = false;
+    function setSendEnabled(enabled) {
+        if (sendBtn) sendBtn.disabled = !enabled;
+        // You can allow typing while speaking if you want.
+        // For strict no-interrupt, disable input too:
+        if (inputEl) inputEl.disabled = !enabled;
     }
 
-    function disableInput() {
-        if (inputEl) inputEl.disabled = true;
-        if (sendBtn) sendBtn.disabled = true;
+    function showSubtitle(text) {
+        if (!text) return;
+        subtitleText.textContent = text;
+        subtitleBox.style.display = 'block';
     }
 
-    function clearAssessment() {
-        if (!assessmentCard) return;
-        assessmentCard.style.display = 'none';
-        assRapportEl.textContent = '–';
-        assDiscoveryEl.textContent = '–';
-        assDealKillersEl.textContent = '–';
-        assClosingClarityEl.textContent = '–';
-        assStrengthsEl.textContent = '–';
-        assImprovementsEl.textContent = '–';
+    function hideSubtitle() {
+        subtitleBox.style.display = 'none';
+        subtitleText.textContent = '';
+    }
+
+    function setAvatarState(state) {
+        // MVP visuals; replace with real avatar state hooks later
+        if (state === 'idle') {
+            avatarStateEmoji.textContent = '🙂';
+            speakingStatus.textContent = '';
+        } else if (state === 'listening') {
+            avatarStateEmoji.textContent = '👂';
+            speakingStatus.textContent = 'Listening...';
+        } else if (state === 'thinking') {
+            avatarStateEmoji.textContent = '🤔';
+            speakingStatus.textContent = 'Thinking...';
+        } else if (state === 'speaking') {
+            avatarStateEmoji.textContent = '🗣️';
+            speakingStatus.textContent = 'Speaking...';
+        }
     }
 
     function updateScenarioDescription() {
-        if (!scenarioSelectEl || !scenarioDescriptionEl) return;
-        var opt = scenarioSelectEl.options[scenarioSelectEl.selectedIndex];
-        var desc = opt ? (opt.getAttribute('data-description') || '') : '';
-        scenarioDescriptionEl.textContent = desc || 'No description available for this scenario.';
-    }
-
-    function updateStageEnabled() {
-        var tm = trainingModeEl ? trainingModeEl.value : 'discovery_start';
-        var isStages = (tm === 'stages');
-        if (stageSelectEl) stageSelectEl.disabled = !isStages;
-        if (stageHintEl) stageHintEl.textContent = isStages ? 'Practice only this stage.' : 'Used only in Stages Mode.';
-    }
-
-    function resetSession() {
-        currentSessionId = null;
-        transcriptEl.innerHTML = '<div class="abc-muted small">Session reset. Send a new message to start again.</div>';
-        clearAssessment();
-        setStatus('');
-        enableInput();
-        if (inputEl) inputEl.value = '';
-        stopTimer();
+        if (!scenarioSelectEl || !descEl) return;
+        const opt = scenarioSelectEl.options[scenarioSelectEl.selectedIndex];
+        const d = opt ? (opt.getAttribute('data-description') || '') : '';
+        descEl.textContent = d || 'No description available for this scenario.';
     }
 
     if (scenarioSelectEl) {
         scenarioSelectEl.addEventListener('change', function () {
             updateScenarioDescription();
-            resetSession();
+            // reset session
+            currentSessionId = null;
+            hideSubtitle();
+            setStatus('Session reset. Say your first line to start.');
         });
         updateScenarioDescription();
     }
 
-    if (trainingModeEl) {
-        trainingModeEl.addEventListener('change', function () {
-            updateStageEnabled();
-            resetSession();
-        });
-        updateStageEnabled();
+    function setEnvironment(env) {
+        environment = env;
+        if (env === 'phone') {
+            phoneVisual.style.display = 'block';
+            avatarVisual.style.display = 'none';
+
+            envPhoneBtn.style.background = '#bfa24a';
+            envPhoneBtn.style.color = '#000';
+            envPhoneBtn.style.borderColor = '#bfa24a';
+
+            envInPersonBtn.style.background = '#111';
+            envInPersonBtn.style.color = '#eee';
+            envInPersonBtn.style.borderColor = '#222';
+        } else {
+            phoneVisual.style.display = 'none';
+            avatarVisual.style.display = 'block';
+
+            envInPersonBtn.style.background = '#bfa24a';
+            envInPersonBtn.style.color = '#000';
+            envInPersonBtn.style.borderColor = '#bfa24a';
+
+            envPhoneBtn.style.background = '#111';
+            envPhoneBtn.style.color = '#eee';
+            envPhoneBtn.style.borderColor = '#222';
+        }
     }
 
-    if (resetBtn) {
-        resetBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            resetSession();
+    envPhoneBtn?.addEventListener('click', () => setEnvironment('phone'));
+    envInPersonBtn?.addEventListener('click', () => setEnvironment('in_person'));
+    setEnvironment('in_person');
+
+    // --- Speech (Browser TTS MVP) ---
+    function speakText(text) {
+        return new Promise((resolve) => {
+            // If browser doesn't support TTS, just show subtitles.
+            if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+                resolve();
+                return;
+            }
+
+            // Cancel anything queued (safety)
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+
+            const utter = new SpeechSynthesisUtterance(text);
+
+            // Optional: tune voice slightly; keep simple for MVP
+            utter.rate = 1.0;
+            utter.pitch = 1.0;
+            utter.volume = 1.0;
+
+            utter.onstart = () => {
+                isSpeaking = true;
+                setSendEnabled(false);        // ✅ No interrupt
+                setAvatarState('speaking');
+            };
+
+            utter.onend = () => {
+                isSpeaking = false;
+                setSendEnabled(true);
+                setAvatarState('idle');
+                // Let subtitle linger briefly
+                setTimeout(() => {
+                    // keep it visible a bit; or comment out if you want persistent
+                    // hideSubtitle();
+                }, 800);
+                resolve();
+            };
+
+            utter.onerror = () => {
+                isSpeaking = false;
+                setSendEnabled(true);
+                setAvatarState('idle');
+                resolve();
+            };
+
+            window.speechSynthesis.speak(utter);
         });
     }
 
@@ -342,26 +357,26 @@ document.addEventListener('DOMContentLoaded', function () {
             setStatus('Error: missing CSRF token.');
             return;
         }
+        if (isSpeaking) {
+            // strict no-interrupt safety
+            return;
+        }
 
-        var scenarioCode = scenarioSelectEl ? scenarioSelectEl.value : null;
+        const scenarioCode = scenarioSelectEl ? scenarioSelectEl.value : null;
         if (!scenarioCode) {
             setStatus('Please choose a scenario first.');
             return;
         }
 
-        var persona = personaSelectEl ? personaSelectEl.value : 'soft_conflict_avoidant';
-        var uiMode = modeSelectEl ? modeSelectEl.value : 'prospect_simulation';
-
-        var trainingMode = trainingModeEl ? trainingModeEl.value : 'discovery_start';
-        var selectedStage = stageSelectEl ? stageSelectEl.value : 'discovery';
-        var difficulty = difficultyEl ? difficultyEl.value : 'normal';
+        const persona = personaSelectEl ? personaSelectEl.value : 'soft_conflict_avoidant';
+        const mode = modeSelectEl ? modeSelectEl.value : 'prospect_simulation';
 
         isSending = true;
-        setStatus('Talking to Gideon...');
-        appendBubble('agent', message);
+        setStatus('Sending...');
+        setAvatarState('listening');
 
         try {
-            var response = await fetch('/api/gideon/sparring/ask', {
+            const response = await fetch('/api/gideon/sparring/ask', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -370,34 +385,47 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     scenario_code: scenarioCode,
-                    mode: uiMode,
+                    mode: mode,
                     persona: persona,
                     session_id: currentSessionId,
                     message: message,
-
-                    // ✅ NEW: training controls (safe to ignore until engine uses them)
-                    training_mode: trainingMode,
-                    selected_stage: selectedStage,
-                    difficulty: difficulty,
+                    // environment is front-end only for now; we can store later if you want:
+                    // environment: environment,
                 }),
             });
 
-            if (!response.ok) throw new Error('HTTP ' + response.status);
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('Ask error:', response.status, text);
+                setAvatarState('idle');
+                setStatus('Error talking to Gideon (check logs).');
+                return;
+            }
 
-            var data = await response.json();
+            const data = await response.json();
 
             if (data.session && data.session.id) currentSessionId = data.session.id;
             else if (data.session_id) currentSessionId = data.session_id;
 
-            if (!timerStart) startTimer();
+            const reply = (data.gideon_reply && data.gideon_reply.content) ? data.gideon_reply.content : null;
 
-            if (data.opening_line) appendBubble('system', data.opening_line);
-            if (data.gideon_reply && data.gideon_reply.content) appendBubble('system', data.gideon_reply.content);
+            if (!reply) {
+                setAvatarState('idle');
+                setStatus('No reply received.');
+                return;
+            }
 
-            setStatus('Session active. Keep going!');
+            // Show subtitles and speak EVERY response
+            showSubtitle(reply);
+            setAvatarState('thinking');
+            setStatus('Prospect responding...');
+            await speakText(reply);
+
+            setStatus('Your turn.');
         } catch (err) {
             console.error(err);
-            setStatus('Error talking to Gideon. Check runtime logs + browser console.');
+            setAvatarState('idle');
+            setStatus('Error talking to Gideon. Check Runtime Logs + browser console.');
         } finally {
             isSending = false;
         }
@@ -412,12 +440,13 @@ document.addEventListener('DOMContentLoaded', function () {
             setStatus('Error: missing CSRF token.');
             return;
         }
+        if (isSpeaking) return;
 
-        isSending = true;
-        setStatus('Ending session and generating assessment...');
+        setStatus('Ending session...');
+        setAvatarState('thinking');
 
         try {
-            var response = await fetch('/api/gideon/sparring/end', {
+            const response = await fetch('/api/gideon/sparring/end', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -427,55 +456,45 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify({ session_id: currentSessionId }),
             });
 
-            if (!response.ok) throw new Error('HTTP ' + response.status);
-
-            var data = await response.json();
-
-            if (data.assessment && data.assessment.scores) {
-                var scores = data.assessment.scores;
-                assRapportEl.textContent = (scores.rapport != null) ? scores.rapport : '–';
-                assDiscoveryEl.textContent = (scores.discovery != null) ? scores.discovery : '–';
-                assDealKillersEl.textContent = (scores.deal_killers != null) ? scores.deal_killers : '–';
-                assClosingClarityEl.textContent = (scores.closing_clarity != null) ? scores.closing_clarity : '–';
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('End error:', response.status, text);
+                setAvatarState('idle');
+                setStatus('Error ending session (check logs).');
+                return;
             }
 
-            assStrengthsEl.textContent = (data.assessment && data.assessment.strengths) ? data.assessment.strengths : '–';
-            assImprovementsEl.textContent = (data.assessment && data.assessment.improvements) ? data.assessment.improvements : '–';
-
-            assessmentCard.style.display = 'block';
-            setStatus('Session ended. Review your assessment below.');
-            disableInput();
-            stopTimer();
+            currentSessionId = null;
+            setAvatarState('idle');
+            setStatus('Session ended.');
         } catch (err) {
             console.error(err);
-            setStatus('Error ending session / generating assessment. Check runtime logs.');
-        } finally {
-            isSending = false;
+            setAvatarState('idle');
+            setStatus('Error ending session. Check Runtime Logs.');
         }
     }
 
-    if (endBtn) {
-        endBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            if (isSending) return;
-            endSession();
-        });
-    }
+    endBtn?.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (isSending || isSpeaking) return;
+        endSession();
+    });
 
-    if (formEl) {
-        formEl.addEventListener('submit', function (e) {
-            e.preventDefault();
-            if (isSending) return;
+    formEl?.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (isSending || isSpeaking) return;
 
-            var value = inputEl ? (inputEl.value || '').trim() : '';
-            if (!value) return;
+        const value = inputEl ? (inputEl.value || '').trim() : '';
+        if (!value) return;
 
-            inputEl.value = '';
-            clearAssessment();
-            enableInput();
-            sendToGideon(value);
-        });
-    }
+        inputEl.value = '';
+        sendToGideon(value);
+    });
+
+    // initial UI state
+    setSendEnabled(true);
+    setAvatarState('idle');
+    setStatus('Say your first line to start.');
 });
 </script>
 @endsection
