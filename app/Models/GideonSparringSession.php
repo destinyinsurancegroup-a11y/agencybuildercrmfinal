@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\Gideon\TrainingMode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -24,7 +23,7 @@ class GideonSparringSession extends Model
         // legacy (keep for compatibility; stop using going forward)
         'mode',
 
-        // ✅ canonical fields (now in DB)
+        // canonical fields
         'training_mode',
         'selected_stage',
         'difficulty',
@@ -38,8 +37,10 @@ class GideonSparringSession extends Model
     ];
 
     protected $casts = [
-        // If the enum exists, this is ideal:
-        'training_mode' => TrainingMode::class,
+        // ✅ keep safe casts (avoid enum mismatches causing crashes)
+        'training_mode' => 'string',
+        'selected_stage'=> 'string',
+        'difficulty'    => 'string',
 
         'config'     => 'array',
         'state'      => 'array',
@@ -86,19 +87,23 @@ class GideonSparringSession extends Model
     }
 
     /**
-     * Small helper: only set "first failed stage" once (supports latent failure).
-     * Keeps your "intro" stage naming as-is.
+     * Small helper: only set "first failed stage" once.
+     * ✅ Writes into state['training']... to match SparringService.
      */
     public function setFirstFailureOnce(string $stageKey, string $reason): void
     {
-        $state = $this->state ?? [];
+        $state = is_array($this->state) ? $this->state : [];
 
-        if (!empty($state['first_failed_stage'])) {
+        if (!isset($state['training']) || !is_array($state['training'])) {
+            $state['training'] = [];
+        }
+
+        if (!empty($state['training']['first_failed_stage'])) {
             return; // already set; do not overwrite
         }
 
-        $state['first_failed_stage'] = $stageKey; // e.g. "intro"
-        $state['first_failed_reason'] = $reason;
+        $state['training']['first_failed_stage'] = $stageKey;
+        $state['training']['first_failed_reason'] = $reason;
 
         $this->state = $state;
     }
