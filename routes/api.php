@@ -37,12 +37,14 @@ Route::middleware(['web', 'auth'])->group(function () {
     |--------------------------------------------------------------------------
     | GIDEON SPARRING PARTNER ENDPOINTS
     |--------------------------------------------------------------------------
-    | - POST /api/gideon/sparring/ask : send a message, get Gideon's reply
-    | - POST /api/gideon/sparring/end : end session + get assessment
+    | - POST /api/gideon/sparring/start : create session (+ optional opening line)
+    | - POST /api/gideon/sparring/ask   : send a message, get Gideon's reply
+    | - POST /api/gideon/sparring/end   : end session + get assessment
     |--------------------------------------------------------------------------
     */
-    Route::post('/gideon/sparring/ask', [GideonSparringController::class, 'ask']);
-    Route::post('/gideon/sparring/end', [GideonSparringController::class, 'end']);
+    Route::post('/gideon/sparring/start', [GideonSparringController::class, 'start']);
+    Route::post('/gideon/sparring/ask',   [GideonSparringController::class, 'ask']);
+    Route::post('/gideon/sparring/end',   [GideonSparringController::class, 'end']);
 
     /*
     |--------------------------------------------------------------------------
