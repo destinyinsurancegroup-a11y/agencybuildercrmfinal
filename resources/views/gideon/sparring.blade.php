@@ -27,10 +27,10 @@
 
     <div class="abc-sp-grid">
 
-        {{-- LEFT: Controls + Avatar/Phone (SWAPPED to be first/left) --}}
+        {{-- LEFT: Controls + Avatar/Phone --}}
         <div class="abc-card abc-right">
 
-            {{-- Top control row (NO scenario/persona dropdowns) --}}
+            {{-- Top control row --}}
             <div class="abc-top-controls">
 
                 <div class="abc-control">
@@ -105,43 +105,48 @@
                 </button>
             </div>
 
-            {{-- Difficulty replaces scenario/persona --}}
+            {{-- Bottom controls --}}
             <div class="abc-bottom-controls">
+
+                {{-- Difficulty: all on ONE line --}}
                 <div class="abc-control">
                     <div class="abc-label">Difficulty</div>
-                    <div class="abc-seg">
+                    <div class="abc-seg abc-seg-nowrap">
                         <button type="button" class="abc-seg-btn" data-difficulty="beginner" id="diffBeginnerBtn">Beginner</button>
                         <button type="button" class="abc-seg-btn is-active" data-difficulty="intermediate" id="diffIntermediateBtn">Intermediate</button>
                         <button type="button" class="abc-seg-btn" data-difficulty="advanced" id="diffAdvancedBtn">Advanced</button>
                     </div>
                 </div>
 
+                {{-- Training: all on ONE line, Segment dropdown only appears when Segments is active --}}
                 <div class="abc-control">
                     <div class="abc-label">Training</div>
-                    <div class="abc-seg">
-                        <button type="button" class="abc-seg-btn is-active" id="trainFullBtn">Full Preso</button>
-                        <button type="button" class="abc-seg-btn" id="trainSegmentsBtn">Segments</button>
+                    <div class="abc-seg abc-seg-nowrap">
+                        <button type="button" class="abc-seg-btn is-active" id="trainFullBtn">Full Presentation</button>
                         <button type="button" class="abc-seg-btn" id="trainDiscoBtn">Disco</button>
+                        <button type="button" class="abc-seg-btn" id="trainSegmentsBtn">Segments</button>
+                    </div>
+
+                    {{-- Segment dropdown: hidden unless Segments selected --}}
+                    <div id="segmentWrap" class="abc-segment-wrap" style="display:none;">
+                        <div class="abc-label" style="margin-top:12px;">Segment</div>
+                        <select id="segmentSelect" class="abc-select">
+                            <option value="intro">Intro</option>
+                            <option value="discovery" selected>Disco</option>
+                            <option value="education">Educ</option>
+                            <option value="qualify">Qual</option>
+                            <option value="quote">Quote</option>
+                            <option value="close">Close</option>
+                        </select>
+                        <div class="abc-help">Highlights what you’re training.</div>
                     </div>
                 </div>
 
-                <div class="abc-control abc-control-right">
-                    <div class="abc-label">Segment</div>
-                    <select id="segmentSelect" class="abc-select">
-                        <option value="intro">Intro</option>
-                        <option value="discovery" selected>Disco</option>
-                        <option value="education">Educ</option>
-                        <option value="qualify">Qual</option>
-                        <option value="quote">Quote</option>
-                        <option value="close">Close</option>
-                    </select>
-                    <div class="abc-help">Highlights what you’re training.</div>
-                </div>
             </div>
 
         </div>
 
-        {{-- RIGHT: Live conversation panel (SWAPPED to be second/right) --}}
+        {{-- RIGHT: Live conversation panel --}}
         <div class="abc-card abc-left">
             <div class="abc-card-header">
                 <div class="abc-card-title">LIVE CONVERSATION</div>
@@ -173,7 +178,6 @@
     </div>
 </div>
 
-{{-- Styles --}}
 <style>
     :root{
         --abc-bg: #0b0c0f;
@@ -212,7 +216,6 @@
         font-size: 14px;
     }
 
-    /* ✅ SWAP LAYOUT: big left (controls/avatar), fixed chat right */
     .abc-sp-grid{
         display:grid;
         grid-template-columns: 1fr 420px;
@@ -230,9 +233,7 @@
         overflow:hidden;
     }
 
-    /* chat panel */
     .abc-left{ padding: 14px; display:flex; flex-direction:column; min-height: 720px;}
-    /* controls/avatar panel */
     .abc-right{ padding: 14px; min-height: 720px; display:flex; flex-direction:column; }
 
     .abc-card-header{
@@ -253,12 +254,7 @@
     }
     .abc-muted{ color: var(--abc-muted); font-size: 13px; }
 
-    .abc-msg{
-        display:flex;
-        flex-direction:column;
-        gap:6px;
-        margin: 10px 0;
-    }
+    .abc-msg{ display:flex; flex-direction:column; gap:6px; margin: 10px 0; }
     .abc-bubble{
         max-width: 92%;
         border-radius: 14px;
@@ -269,20 +265,9 @@
         font-size: 14px;
         white-space: pre-wrap;
     }
-    .abc-bubble.you{
-        margin-left:auto;
-        border-color: rgba(214,162,74,.30);
-        background: rgba(214,162,74,.12);
-    }
-    .abc-bubble.them{
-        margin-right:auto;
-        border-color: rgba(255,255,255,.10);
-        background: rgba(255,255,255,.06);
-    }
-    .abc-time{
-        font-size: 12px;
-        color: rgba(255,255,255,.45);
-    }
+    .abc-bubble.you{ margin-left:auto; border-color: rgba(214,162,74,.30); background: rgba(214,162,74,.12); }
+    .abc-bubble.them{ margin-right:auto; border-color: rgba(255,255,255,.10); background: rgba(255,255,255,.06); }
+    .abc-time{ font-size: 12px; color: rgba(255,255,255,.45); }
 
     .abc-input-row{
         display:flex;
@@ -339,9 +324,10 @@
         margin-bottom: 14px;
     }
 
+    /* ✅ Only TWO blocks now (Difficulty + Training) */
     .abc-bottom-controls{
         display:grid;
-        grid-template-columns: 1fr 1fr 280px;
+        grid-template-columns: 1fr 1fr;
         gap: 12px;
         margin-top: 14px;
     }
@@ -352,17 +338,13 @@
         letter-spacing: .10em;
         margin-bottom: 8px;
     }
-    .abc-help{
-        font-size: 12px;
-        color: rgba(255,255,255,.45);
-        margin-top: 8px;
-    }
+    .abc-help{ font-size: 12px; color: rgba(255,255,255,.45); margin-top: 8px; }
 
-    .abc-seg{
-        display:flex;
-        gap: 10px;
-        flex-wrap:wrap;
-    }
+    .abc-seg{ display:flex; gap: 10px; flex-wrap:wrap; }
+    /* ✅ Force single-line buttons */
+    .abc-seg-nowrap{ flex-wrap: nowrap; }
+    .abc-seg-nowrap .abc-seg-btn{ flex: 0 0 auto; }
+
     .abc-seg-btn{
         padding: 10px 12px;
         border-radius: 12px;
@@ -423,21 +405,12 @@
         border: 1px solid rgba(255,255,255,.08);
     }
 
-    /* ✅ LANDLINE PHONE */
+    /* LANDLINE */
     .abc-phone-panel{ display:flex; align-items:center; justify-content:center; width:100%; }
-    .abc-landline{
-        width: 420px;
-        max-width: 100%;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        gap: 12px;
-    }
+    .abc-landline{ width: 420px; max-width: 100%; display:flex; flex-direction:column; align-items:center; gap: 12px; }
     .abc-landline-handset{
-        width: 360px;
-        max-width: 92%;
-        height: 64px;
-        border-radius: 999px;
+        width: 360px; max-width: 92%;
+        height: 64px; border-radius: 999px;
         background: rgba(255,255,255,.06);
         border: 1px solid rgba(255,215,100,.18);
         box-shadow: inset 0 0 0 2px rgba(0,0,0,.25);
@@ -458,8 +431,7 @@
     .abc-landline-handset:after{ right: 10px; }
 
     .abc-landline-base{
-        width: 420px;
-        max-width: 100%;
+        width: 420px; max-width: 100%;
         height: 260px;
         border-radius: 26px;
         background: rgba(0,0,0,.45);
@@ -492,9 +464,7 @@
         background: rgba(255,255,255,.06);
         border: 1px solid rgba(255,215,100,.12);
     }
-    .abc-landline-keypad span.wide{
-        grid-column: span 2;
-    }
+    .abc-landline-keypad span.wide{ grid-column: span 2; }
 
     .abc-landline-led{
         position:absolute;
@@ -525,7 +495,11 @@
         .abc-right{ min-height: 620px; }
         .abc-top-controls{ grid-template-columns: 1fr; }
         .abc-bottom-controls{ grid-template-columns: 1fr; }
-        .abc-landline-base{ height: 250px; }
+
+        /* On small screens, allow horizontal scroll instead of wrapping */
+        .abc-seg-nowrap{ overflow-x:auto; padding-bottom: 2px; }
+        .abc-seg-nowrap::-webkit-scrollbar{ height: 6px; }
+        .abc-seg-nowrap::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.10); border-radius: 999px; }
     }
 </style>
 
@@ -557,6 +531,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const diffIntermediateBtn = document.getElementById('diffIntermediateBtn');
     const diffAdvancedBtn = document.getElementById('diffAdvancedBtn');
 
+    const trainFullBtn = document.getElementById('trainFullBtn');
+    const trainDiscoBtn = document.getElementById('trainDiscoBtn');
+    const trainSegmentsBtn = document.getElementById('trainSegmentsBtn');
+    const segmentWrap = document.getElementById('segmentWrap');
+    const segmentSelect = document.getElementById('segmentSelect');
+
     const emotionLabel = document.getElementById('emotionLabel');
     const timerPill = document.getElementById('timerPill');
 
@@ -568,6 +548,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let difficulty = 'intermediate';
     let personaKey = 'neutral_balanced';
     let environment = 'phone';
+
+    // ✅ training state
+    let trainingMode = 'full_presentation'; // full_presentation | disco | segments
 
     let timerInt = null;
     let seconds = 0;
@@ -685,6 +668,18 @@ document.addEventListener('DOMContentLoaded', function () {
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
+    // ✅ training toggles
+    function setTraining(mode, btn){
+        trainingMode = mode;
+        setActive(btn, [trainFullBtn, trainDiscoBtn, trainSegmentsBtn]);
+
+        // show segment dropdown ONLY when Segments is active
+        segmentWrap.style.display = (trainingMode === 'segments') ? 'block' : 'none';
+    }
+    trainFullBtn.addEventListener('click', ()=>setTraining('full_presentation', trainFullBtn));
+    trainDiscoBtn.addEventListener('click', ()=>setTraining('disco', trainDiscoBtn));
+    trainSegmentsBtn.addEventListener('click', ()=>setTraining('segments', trainSegmentsBtn));
+
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -723,6 +718,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     message: message,
                     difficulty: difficulty,
                     environment: environment,
+
+                    // backend can ignore for now
+                    training_mode: trainingMode,
+                    segment: (trainingMode === 'segments') ? (segmentSelect?.value || null) : null,
                 }),
             });
 
@@ -787,6 +786,7 @@ document.addEventListener('DOMContentLoaded', function () {
     resetSession();
     setDifficulty('intermediate', diffIntermediateBtn);
     envPhoneBtn.click(); // default to Phone (landline)
+    setTraining('full_presentation', trainFullBtn); // default training + hides segment dropdown
 });
 </script>
 @endsection
