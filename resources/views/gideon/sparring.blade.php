@@ -202,11 +202,14 @@
         font-size: 14px;
     }
 
+    /* ✅ ONLY CHANGE: swap columns so avatar is LEFT (wide) and conversation is RIGHT (420px) */
     .abc-sp-grid{
         display:grid;
-        grid-template-columns: 420px 1fr;
+        grid-template-columns: 1fr 420px; /* was: 420px 1fr */
         gap: 18px;
     }
+    .abc-left{ grid-column: 2; }  /* conversation moves to the right */
+    .abc-right{ grid-column: 1; } /* avatar/controls move to the left */
 
     .abc-card{
         background: radial-gradient(1200px 600px at 20% 10%, rgba(214,162,74,.18), transparent 55%),
@@ -483,8 +486,8 @@
 
     @media (max-width: 1100px){
         .abc-sp-grid{ grid-template-columns: 1fr; }
-        .abc-left{ min-height: 520px; }
-        .abc-right{ min-height: 620px; }
+        .abc-left{ min-height: 520px; grid-column: auto; }
+        .abc-right{ min-height: 620px; grid-column: auto; }
         .abc-top-controls{ grid-template-columns: 1fr; }
         .abc-bottom-controls{ grid-template-columns: 1fr; }
     }
