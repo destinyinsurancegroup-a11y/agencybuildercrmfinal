@@ -1,161 +1,513 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    :root{
+        --abc-bg: #0b0b0c;
+        --abc-panel: rgba(18,18,20,.92);
+        --abc-panel-2: rgba(14,14,16,.88);
+        --abc-border: rgba(255, 205, 90, .18);
+        --abc-border-2: rgba(255, 205, 90, .10);
+        --abc-gold: #d8b25a;
+        --abc-gold-2: #b88b3d;
+        --abc-text: rgba(255,255,255,.92);
+        --abc-muted: rgba(255,255,255,.62);
+        --abc-shadow: 0 18px 50px rgba(0,0,0,.55);
+        --abc-radius: 18px;
+        --abc-radius-sm: 14px;
+    }
+
+    .abc-wrap {
+        padding: 24px;
+        background: radial-gradient(1200px 600px at 30% 0%, rgba(216,178,90,.12), transparent 60%),
+                    radial-gradient(900px 500px at 80% 30%, rgba(216,178,90,.08), transparent 55%),
+                    var(--abc-bg);
+        min-height: calc(100vh - 80px);
+    }
+
+    .abc-shell{
+        max-width: 1320px;
+        margin: 0 auto;
+        border-radius: 26px;
+        background: linear-gradient(180deg, rgba(20,20,22,.95), rgba(10,10,11,.92));
+        border: 1px solid rgba(255,255,255,.06);
+        box-shadow: var(--abc-shadow);
+        padding: 22px;
+    }
+
+    .abc-topbar{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap: 16px;
+        padding: 6px 6px 18px 6px;
+    }
+
+    .abc-title{
+        font-size: 38px;
+        font-weight: 700;
+        color: var(--abc-text);
+        letter-spacing: .2px;
+        line-height: 1.1;
+        margin: 0;
+    }
+    .abc-subtitle{
+        color: var(--abc-muted);
+        margin-top: 6px;
+        font-size: 14px;
+    }
+
+    .abc-pill{
+        display:inline-flex;
+        align-items:center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.08);
+        background: rgba(0,0,0,.35);
+        color: var(--abc-text);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .abc-btn-danger{
+        border: 1px solid rgba(255, 80, 80, .35);
+        background: rgba(255, 80, 80, .10);
+        color: rgba(255,255,255,.9);
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        cursor:pointer;
+    }
+    .abc-btn-danger:hover{
+        background: rgba(255, 80, 80, .16);
+    }
+
+    /* MAIN GRID (LEFT avatar/phone, RIGHT conversation) */
+    .abc-grid{
+        display:grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 18px;
+    }
+
+    .abc-card{
+        border-radius: var(--abc-radius);
+        border: 1px solid rgba(255,255,255,.07);
+        background: linear-gradient(180deg, rgba(15,15,16,.92), rgba(10,10,11,.88));
+        box-shadow: 0 12px 28px rgba(0,0,0,.35);
+        overflow:hidden;
+    }
+
+    .abc-card-head{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .abc-card-title{
+        color: rgba(255,255,255,.86);
+        font-size: 12px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+    }
+
+    .abc-btn-outline{
+        border: 1px solid rgba(255,205,90,.22);
+        background: rgba(0,0,0,.18);
+        color: rgba(255,255,255,.86);
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        cursor:pointer;
+    }
+    .abc-btn-outline:hover{
+        border-color: rgba(255,205,90,.35);
+        background: rgba(0,0,0,.26);
+    }
+
+    /* LEFT PANEL (avatar/phone) */
+    .abc-controls{
+        display:grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 12px;
+        padding: 14px 16px 8px 16px;
+    }
+
+    .abc-control{
+        background: rgba(0,0,0,.25);
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: var(--abc-radius-sm);
+        padding: 12px 12px;
+    }
+    .abc-label{
+        color: rgba(255,255,255,.72);
+        font-size: 11px;
+        letter-spacing: .10em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .abc-seg-row{
+        display:flex;
+        gap: 10px;
+        align-items:center;
+        flex-wrap: wrap;
+        padding: 10px 16px 12px 16px;
+    }
+
+    .abc-toggle{
+        display:inline-flex;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.07);
+        overflow:hidden;
+        background: rgba(0,0,0,.25);
+    }
+    .abc-toggle button{
+        padding: 10px 14px;
+        font-size: 13px;
+        border: 0;
+        cursor:pointer;
+        color: rgba(255,255,255,.85);
+        background: transparent;
+        min-width: 120px;
+    }
+    .abc-toggle button.active{
+        background: linear-gradient(180deg, rgba(216,178,90,.25), rgba(184,139,61,.18));
+        border-right: 1px solid rgba(255,255,255,.05);
+        color: rgba(255,255,255,.95);
+    }
+
+    .abc-avatar-area{
+        padding: 12px 16px 8px 16px;
+    }
+    .abc-avatar-stage{
+        border-radius: var(--abc-radius);
+        border: 1px solid rgba(255,255,255,.06);
+        background: radial-gradient(520px 220px at 50% 0%, rgba(216,178,90,.10), transparent 60%),
+                    rgba(0,0,0,.22);
+        min-height: 360px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        position: relative;
+    }
+
+    .abc-prospect-pill{
+        position:absolute;
+        top: 14px;
+        left: 14px;
+        display:inline-flex;
+        gap: 8px;
+        align-items:center;
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.08);
+        background: rgba(0,0,0,.30);
+        color: rgba(255,255,255,.90);
+        font-size: 12px;
+    }
+    .abc-prospect-pill .dot{
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(216,178,90,.9);
+        box-shadow: 0 0 0 3px rgba(216,178,90,.15);
+    }
+
+    .abc-avatar-circle{
+        width: 250px;
+        height: 250px;
+        border-radius: 999px;
+        border: 2px solid rgba(216,178,90,.55);
+        background: rgba(0,0,0,.35);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        overflow:hidden;
+        box-shadow: 0 18px 40px rgba(0,0,0,.55);
+    }
+    .abc-avatar-circle img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display:block;
+    }
+
+    .abc-phone-panel{
+        width: 250px;
+        height: 250px;
+        border-radius: 24px;
+        border: 2px solid rgba(216,178,90,.40);
+        background: linear-gradient(180deg, rgba(0,0,0,.40), rgba(0,0,0,.18));
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap: 10px;
+        box-shadow: 0 18px 40px rgba(0,0,0,.55);
+        color: rgba(255,255,255,.9);
+        font-size: 14px;
+    }
+    .abc-phone-icon{
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(216,178,90,.20);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size: 28px;
+    }
+
+    .abc-center-actions{
+        padding: 10px 16px 16px 16px;
+        display:flex;
+        justify-content:center;
+    }
+    .abc-btn-gold{
+        border: 0;
+        background: linear-gradient(180deg, rgba(216,178,90,.95), rgba(184,139,61,.95));
+        color: rgba(0,0,0,.85);
+        font-weight: 700;
+        padding: 12px 18px;
+        border-radius: 999px;
+        cursor:pointer;
+        min-width: 240px;
+        display:inline-flex;
+        justify-content:center;
+        align-items:center;
+        gap: 10px;
+        box-shadow: 0 10px 20px rgba(0,0,0,.35);
+    }
+    .abc-btn-gold:hover{
+        filter: brightness(1.02);
+    }
+
+    /* RIGHT PANEL (conversation) */
+    .abc-convo-body{
+        padding: 14px 16px;
+        display:flex;
+        flex-direction:column;
+        gap: 12px;
+        min-height: 520px;
+    }
+
+    .abc-transcript{
+        flex: 1 1 auto;
+        border-radius: var(--abc-radius);
+        border: 1px solid rgba(255,255,255,.06);
+        background: rgba(0,0,0,.25);
+        padding: 14px;
+        overflow-y:auto;
+        min-height: 360px;
+    }
+
+    .abc-bubble{
+        max-width: 85%;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,.06);
+        margin-bottom: 10px;
+        font-size: 14px;
+        line-height: 1.35;
+        position: relative;
+        word-wrap: break-word;
+    }
+    .abc-bubble .ts{
+        display:block;
+        font-size: 11px;
+        color: rgba(255,255,255,.55);
+        margin-top: 6px;
+    }
+    .abc-bubble.agent{
+        margin-left:auto;
+        background: rgba(216,178,90,.14);
+        border-color: rgba(216,178,90,.20);
+    }
+    .abc-bubble.system{
+        margin-right:auto;
+        background: rgba(255,255,255,.06);
+    }
+
+    .abc-input-row{
+        display:flex;
+        gap: 10px;
+        align-items:center;
+    }
+    .abc-input{
+        flex: 1 1 auto;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,.08);
+        background: rgba(0,0,0,.28);
+        color: rgba(255,255,255,.92);
+        padding: 12px 12px;
+        outline:none;
+    }
+    .abc-input::placeholder{ color: rgba(255,255,255,.40); }
+    .abc-send{
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        background: linear-gradient(180deg, rgba(216,178,90,.95), rgba(184,139,61,.95));
+        color: rgba(0,0,0,.85);
+        font-weight: 700;
+        cursor:pointer;
+        min-width: 86px;
+    }
+
+    .abc-muted{
+        color: rgba(255,255,255,.55);
+        font-size: 12px;
+    }
+
+    @media (max-width: 1100px){
+        .abc-grid{ grid-template-columns: 1fr; }
+        .abc-convo-body{ min-height: unset; }
+    }
+</style>
+
 @php
-    // We removed the scenario/persona dropdowns from UI.
-    // For now we default to the first active scenario (still required by the API).
-    $defaultScenario = ($scenarios ?? collect())->first();
-    $defaultScenarioCode = $defaultScenario?->code ?? null;
+    // You said: remove scenario + persona dropdowns from the TOP.
+    // This page assumes scenario_code exists in the backend, but we can use the first seeded scenario silently.
+    $firstScenario = ($scenarios ?? collect())->first();
+    $scenarioCode = $firstScenario?->code ?? null;
 @endphp
 
-<div class="abc-sp-container">
+<div class="abc-wrap">
+    <div class="abc-shell">
+        <div class="abc-topbar">
+            <div>
+                <h1 class="abc-title">ABC Sparring Partner</h1>
+                <div class="abc-subtitle">
+                    Live conversation training with a human-like prospect. Practice in segments or run a full presentation.
+                </div>
+            </div>
 
-    {{-- Header --}}
-    <div class="abc-sp-header">
-        <div>
-            <h1 class="abc-sp-title">ABC Sparring Partner</h1>
-            <div class="abc-sp-subtitle">
-                Live conversation training with a human-like prospect.
+            <div style="display:flex; gap:10px; align-items:center;">
+                <div class="abc-pill">
+                    ⏱ <span id="timerText">00:00</span>
+                </div>
+                <button id="endSessionBtn" class="abc-btn-danger" type="button">End Session</button>
             </div>
         </div>
 
-        <div class="abc-sp-header-actions">
-            <div class="abc-pill" id="timerPill">⏱ 00:00</div>
-            <button class="abc-btn abc-btn-danger" id="endSessionBtn" type="button">End Session</button>
-        </div>
-    </div>
+        <div class="abc-grid">
 
-    <div class="abc-sp-grid">
-
-        {{-- LEFT: Live conversation panel (every response shown) --}}
-        <div class="abc-card abc-left">
-            <div class="abc-card-header">
-                <div class="abc-card-title">LIVE CONVERSATION</div>
-                <button class="abc-btn abc-btn-ghost" id="resetSessionBtn" type="button">Reset</button>
-            </div>
-
-            <div id="sparringTranscript" class="abc-transcript">
-                <div class="abc-muted">
-                    Click <strong>Start Sparring Session</strong>, then type your first line.
-                </div>
-            </div>
-
-            <form id="sparringForm" class="abc-input-row">
-                {{-- still required by API even though UI removed dropdown --}}
-                <input type="hidden" id="scenarioCode" value="{{ $defaultScenarioCode }}">
-
-                <input id="sparringInput"
-                       type="text"
-                       class="abc-input"
-                       placeholder="Type what you'd say and press Enter..."
-                       autocomplete="off" />
-
-                <button id="sendBtn" class="abc-btn abc-btn-gold" type="submit">Send</button>
-            </form>
-
-            <div class="abc-status" id="sparringStatus"></div>
-        </div>
-
-        {{-- RIGHT: Controls + Avatar/Phone --}}
-        <div class="abc-card abc-right">
-
-            {{-- Top control row (NO scenario/persona dropdowns) --}}
-            <div class="abc-top-controls">
-
-                <div class="abc-control">
-                    <div class="abc-label">Environment</div>
-                    <div class="abc-seg">
-                        <button type="button" class="abc-seg-btn is-active" id="envPhoneBtn">Phone</button>
-                        <button type="button" class="abc-seg-btn" id="envInPersonBtn">In Person</button>
-                    </div>
-                    <div class="abc-help">Phone shows a phone panel. In-person shows the avatar.</div>
+            {{-- LEFT: Avatar / Phone (environment) --}}
+            <div class="abc-card">
+                <div class="abc-card-head">
+                    <div class="abc-card-title">Prospect</div>
+                    <button id="resetSessionBtn" class="abc-btn-outline" type="button">Reset</button>
                 </div>
 
-                <div class="abc-control">
-                    <div class="abc-label">UI Role Mode</div>
-                    <div class="abc-seg">
-                        <button type="button" class="abc-seg-btn is-active" data-uimode="prospect_simulation" id="modeYouAgentBtn">
-                            Prospect sim (You = Agent)
-                        </button>
-                        <button type="button" class="abc-seg-btn" data-uimode="agent_simulation" id="modeYouProspectBtn">
-                            Role reversal (You = Prospect)
-                        </button>
-                    </div>
-                    <div class="abc-help">This is not Training Mode.</div>
-                </div>
-            </div>
-
-            {{-- Avatar/Phone Panel --}}
-            <div class="abc-avatar-panel">
-
-                <div class="abc-prospect-badge">
-                    <span class="abc-prospect-label">PROSPECT</span>
-                    <span class="abc-prospect-emotion" id="emotionLabel">Neutral</span>
-                </div>
-
-                {{-- Phone view --}}
-                <div id="phonePanel" class="abc-phone-panel">
-                    <div class="abc-phone-shell">
-                        <div class="abc-phone-notch"></div>
-                        <div class="abc-phone-screen">
-                            <div class="abc-phone-title">Phone Call</div>
-                            <div class="abc-phone-sub">Prospect on the line…</div>
-                            <div class="abc-phone-wave"></div>
+                {{-- Controls (keep minimal; beginner/intermediate/advanced etc are UI only for now) --}}
+                <div class="abc-controls">
+                    <div class="abc-control">
+                        <div class="abc-label">Difficulty</div>
+                        <div class="abc-toggle" role="tablist" aria-label="Difficulty">
+                            <button type="button" class="active" data-difficulty="beginner">Beginner</button>
+                            <button type="button" data-difficulty="intermediate">Intermediate</button>
+                            <button type="button" data-difficulty="advanced">Advanced</button>
                         </div>
-                        <div class="abc-phone-home"></div>
+                        <div class="abc-muted" style="margin-top:8px;">Affects how skeptical the prospect starts.</div>
+                    </div>
+
+                    <div class="abc-control">
+                        <div class="abc-label">Training</div>
+                        <div class="abc-toggle" role="tablist" aria-label="Training Mode">
+                            <button type="button" class="active" data-training="full">Full Preso</button>
+                            <button type="button" data-training="segments">Segments</button>
+                            <button type="button" data-training="disco">Disco</button>
+                        </div>
+                        <div class="abc-muted" style="margin-top:8px;">Controls where the session starts/ends.</div>
+                    </div>
+
+                    <div class="abc-control">
+                        <div class="abc-label">Environment</div>
+                        <div class="abc-toggle" role="tablist" aria-label="Environment">
+                            <button id="envPhoneBtn" type="button" class="active" data-env="phone">📞 Phone</button>
+                            <button id="envInPersonBtn" type="button" data-env="in_person">In Person</button>
+                        </div>
+                        <div class="abc-muted" style="margin-top:8px;">Phone shows a phone panel. In-person shows the avatar.</div>
                     </div>
                 </div>
 
-                {{-- In-person avatar view --}}
-                <div id="avatarPanel" class="abc-avatar-wrap" style="display:none;">
-                    <div class="abc-avatar-ring">
-                        <img
-                            src="{{ asset('images/gideon/prospect_default.jpg') }}"
-                            alt="Prospect avatar"
-                            class="abc-avatar-img"
-                        >
+                <div class="abc-seg-row">
+                    <div style="min-width: 220px;">
+                        <div class="abc-label">Segments</div>
+                        <select id="segmentSelect" class="abc-input" style="padding:10px 12px;">
+                            <option value="intro">Intro</option>
+                            <option value="discovery" selected>Disco</option>
+                            <option value="education">Educ</option>
+                            <option value="qualify">Qual</option>
+                            <option value="quote">Quote</option>
+                            <option value="close">Close</option>
+                        </select>
+                        <div class="abc-muted" style="margin-top:8px;">Highlights what you’re training.</div>
                     </div>
                 </div>
 
+                <div class="abc-avatar-area">
+                    <div class="abc-avatar-stage">
+                        <div class="abc-prospect-pill">
+                            <span class="dot"></span>
+                            <span>PROSPECT</span>
+                            <span style="opacity:.75;">•</span>
+                            <span id="expressionText">Neutral</span>
+                        </div>
+
+                        {{-- In-Person Avatar --}}
+                        <div id="avatarPanel" class="abc-avatar-circle" style="display:flex;">
+                            {{-- Use your own stored image later. For now, a safe placeholder --}}
+                            <img
+                                src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=500&q=60"
+                                alt="Prospect Avatar"
+                            />
+                        </div>
+
+                        {{-- Phone Panel --}}
+                        <div id="phonePanel" class="abc-phone-panel" style="display:none;">
+                            <div class="abc-phone-icon">📞</div>
+                            <div style="font-weight:700;">Phone Call</div>
+                            <div class="abc-muted">Prospect responds by voice + text.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="abc-center-actions">
+                    <button id="startSessionBtn" class="abc-btn-gold" type="button">
+                        ▶ Start Sparring Session
+                    </button>
+                </div>
+
+                <div class="abc-muted" style="padding: 0 16px 16px 16px;">
+                    <span id="sparringStatus"></span>
+                </div>
             </div>
 
-            <div class="abc-center-actions">
-                <button type="button" class="abc-btn abc-btn-gold abc-btn-lg" id="startSessionBtn">
-                    ▶ Start Sparring Session
-                </button>
-            </div>
-
-            {{-- Difficulty replaces scenario/persona --}}
-            <div class="abc-bottom-controls">
-                <div class="abc-control">
-                    <div class="abc-label">Difficulty</div>
-                    <div class="abc-seg">
-                        <button type="button" class="abc-seg-btn" data-difficulty="beginner" id="diffBeginnerBtn">Beginner</button>
-                        <button type="button" class="abc-seg-btn is-active" data-difficulty="intermediate" id="diffIntermediateBtn">Intermediate</button>
-                        <button type="button" class="abc-seg-btn" data-difficulty="advanced" id="diffAdvancedBtn">Advanced</button>
-                    </div>
+            {{-- RIGHT: LIVE CONVERSATION (moved to the right of avatar/phone) --}}
+            <div class="abc-card">
+                <div class="abc-card-head">
+                    <div class="abc-card-title">Live Conversation</div>
+                    <div class="abc-muted">Type your next line and press Enter.</div>
                 </div>
 
-                <div class="abc-control">
-                    <div class="abc-label">Training</div>
-                    <div class="abc-seg">
-                        <button type="button" class="abc-seg-btn is-active" id="trainFullBtn">Full Preso</button>
-                        <button type="button" class="abc-seg-btn" id="trainSegmentsBtn">Segments</button>
-                        <button type="button" class="abc-seg-btn" id="trainDiscoBtn">Disco</button>
+                <div class="abc-convo-body">
+                    <div id="sparringTranscript" class="abc-transcript">
+                        <div class="abc-muted">Click <strong>Start Sparring Session</strong>, then send your first message.</div>
                     </div>
-                </div>
 
-                <div class="abc-control abc-control-right">
-                    <div class="abc-label">Segment</div>
-                    <select id="segmentSelect" class="abc-select">
-                        <option value="intro">Intro</option>
-                        <option value="discovery" selected>Disco</option>
-                        <option value="education">Educ</option>
-                        <option value="qualify">Qual</option>
-                        <option value="quote">Quote</option>
-                        <option value="close">Close</option>
-                    </select>
-                    <div class="abc-help">Highlights what you’re training.</div>
+                    <form id="sparringForm" class="abc-input-row">
+                        <input id="sparringInput" class="abc-input" type="text" autocomplete="off"
+                               placeholder="Type what you’d say and press Enter..." />
+                        <button id="sendBtn" class="abc-send" type="submit">Send</button>
+                    </form>
+
+                    <div class="abc-muted" id="sparringHint">
+                        {{ $scenarioCode ? '' : 'No scenarios found. Seed at least one scenario to start sparring.' }}
+                    </div>
                 </div>
             </div>
 
@@ -163,520 +515,162 @@
     </div>
 </div>
 
-{{-- Styles --}}
-<style>
-    :root{
-        --abc-bg: #0b0c0f;
-        --abc-panel: #0f1116;
-        --abc-panel-2: #0d0f14;
-        --abc-border: rgba(255,215,100,.14);
-        --abc-text: rgba(255,255,255,.92);
-        --abc-muted: rgba(255,255,255,.58);
-        --abc-gold: #d6a24a;
-        --abc-gold-2: #b9893f;
-        --abc-danger: #ff4d4f;
-    }
-    .abc-sp-container{
-        padding: 22px 22px 28px;
-        max-width: 1320px;
-        margin: 0 auto;
-        color: var(--abc-text);
-    }
-    .abc-sp-header{
-        display:flex;
-        justify-content:space-between;
-        align-items:flex-start;
-        gap: 16px;
-        margin-bottom: 16px;
-    }
-    .abc-sp-title{ font-size: 44px; letter-spacing:.5px; margin:0; }
-    .abc-sp-subtitle{ color: var(--abc-muted); margin-top: 4px; }
-
-    .abc-sp-header-actions{ display:flex; align-items:center; gap: 10px; }
-    .abc-pill{
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(0,0,0,.45);
-        border: 1px solid var(--abc-border);
-        color: var(--abc-text);
-        font-size: 14px;
-    }
-
-    /* ✅ ONLY CHANGE: swap columns so avatar is LEFT (wide) and conversation is RIGHT (420px) */
-    .abc-sp-grid{
-        display:grid;
-        grid-template-columns: 1fr 420px; /* was: 420px 1fr */
-        gap: 18px;
-    }
-    .abc-left{ grid-column: 2; }  /* conversation moves to the right */
-    .abc-right{ grid-column: 1; } /* avatar/controls move to the left */
-
-    .abc-card{
-        background: radial-gradient(1200px 600px at 20% 10%, rgba(214,162,74,.18), transparent 55%),
-                    radial-gradient(800px 500px at 90% 30%, rgba(214,162,74,.08), transparent 55%),
-                    linear-gradient(180deg, rgba(20,22,29,.9), rgba(10,11,15,.9));
-        border: 1px solid rgba(255,215,100,.10);
-        border-radius: 18px;
-        box-shadow: 0 18px 55px rgba(0,0,0,.55);
-        overflow:hidden;
-    }
-
-    .abc-left{ padding: 14px; display:flex; flex-direction:column; min-height: 720px;}
-    .abc-right{ padding: 14px; min-height: 720px; display:flex; flex-direction:column; }
-
-    .abc-card-header{
-        display:flex; align-items:center; justify-content:space-between;
-        padding: 10px 10px 12px;
-        border-bottom: 1px solid rgba(255,215,100,.08);
-    }
-    .abc-card-title{ font-size: 12px; letter-spacing: .18em; color: rgba(255,215,100,.85); }
-
-    .abc-transcript{
-        padding: 12px 10px;
-        margin-top: 10px;
-        border-radius: 14px;
-        border: 1px dashed rgba(255,215,100,.18);
-        background: rgba(0,0,0,.22);
-        flex: 1;
-        overflow-y:auto;
-    }
-    .abc-muted{ color: var(--abc-muted); font-size: 13px; }
-
-    .abc-msg{
-        display:flex;
-        flex-direction:column;
-        gap:6px;
-        margin: 10px 0;
-    }
-    .abc-bubble{
-        max-width: 92%;
-        border-radius: 14px;
-        padding: 10px 12px;
-        line-height: 1.35;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.30);
-        font-size: 14px;
-        white-space: pre-wrap;
-    }
-    .abc-bubble.you{
-        margin-left:auto;
-        border-color: rgba(214,162,74,.30);
-        background: rgba(214,162,74,.12);
-    }
-    .abc-bubble.them{
-        margin-right:auto;
-        border-color: rgba(255,255,255,.10);
-        background: rgba(255,255,255,.06);
-    }
-    .abc-time{
-        font-size: 12px;
-        color: rgba(255,255,255,.45);
-    }
-
-    .abc-input-row{
-        display:flex;
-        gap:10px;
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid rgba(255,215,100,.08);
-    }
-    .abc-input{
-        flex: 1;
-        background: rgba(0,0,0,.35);
-        border: 1px solid rgba(255,215,100,.14);
-        color: var(--abc-text);
-        border-radius: 12px;
-        padding: 12px 12px;
-        outline:none;
-    }
-    .abc-input:focus{ border-color: rgba(214,162,74,.45); }
-
-    .abc-status{ margin-top: 10px; color: rgba(255,255,255,.55); font-size: 12px; min-height: 16px; }
-
-    .abc-btn{
-        border-radius: 12px;
-        padding: 10px 12px;
-        border: 1px solid rgba(255,215,100,.14);
-        background: rgba(0,0,0,.35);
-        color: var(--abc-text);
-        cursor:pointer;
-        white-space:nowrap;
-    }
-    .abc-btn:hover{ border-color: rgba(214,162,74,.40); }
-    .abc-btn-ghost{ background: transparent; }
-    .abc-btn-danger{
-        border-color: rgba(255,77,79,.45);
-        color: rgba(255,255,255,.92);
-        background: rgba(255,77,79,.10);
-    }
-    .abc-btn-gold{
-        background: linear-gradient(180deg, rgba(214,162,74,.95), rgba(185,137,63,.95));
-        border-color: rgba(214,162,74,.55);
-        color: #0b0c0f;
-        font-weight: 700;
-    }
-    .abc-btn-lg{
-        padding: 12px 18px;
-        border-radius: 999px;
-        min-width: 260px;
-    }
-
-    .abc-top-controls{
-        display:grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 14px;
-    }
-
-    .abc-bottom-controls{
-        display:grid;
-        grid-template-columns: 1fr 1fr 280px;
-        gap: 12px;
-        margin-top: 14px;
-    }
-
-    .abc-control .abc-label{
-        font-size: 12px;
-        color: rgba(255,215,100,.85);
-        letter-spacing: .10em;
-        margin-bottom: 8px;
-    }
-    .abc-help{
-        font-size: 12px;
-        color: rgba(255,255,255,.45);
-        margin-top: 8px;
-    }
-
-    .abc-seg{
-        display:flex;
-        gap: 10px;
-        flex-wrap:wrap;
-    }
-    .abc-seg-btn{
-        padding: 10px 12px;
-        border-radius: 12px;
-        border: 1px solid rgba(255,215,100,.14);
-        background: rgba(0,0,0,.28);
-        color: rgba(255,255,255,.85);
-        cursor:pointer;
-    }
-    .abc-seg-btn.is-active{
-        border-color: rgba(214,162,74,.55);
-        background: rgba(214,162,74,.18);
-        color: rgba(255,255,255,.95);
-    }
-
-    .abc-avatar-panel{
-        flex: 1;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.10);
-        background: rgba(0,0,0,.22);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        position:relative;
-        min-height: 420px;
-        padding: 18px;
-    }
-    .abc-prospect-badge{
-        position:absolute;
-        top: 12px;
-        left: 12px;
-        display:flex;
-        gap: 10px;
-        align-items:center;
-        padding: 8px 10px;
-        border-radius: 999px;
-        background: rgba(0,0,0,.40);
-        border: 1px solid rgba(255,215,100,.14);
-    }
-    .abc-prospect-label{ font-size: 12px; letter-spacing:.10em; color: rgba(255,215,100,.9); }
-    .abc-prospect-emotion{ font-size: 12px; color: rgba(255,255,255,.75); }
-
-    .abc-avatar-ring{
-        width: 340px;
-        height: 340px;
-        border-radius: 999px;
-        border: 2px solid rgba(214,162,74,.55);
-        padding: 10px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        background: radial-gradient(circle at 30% 20%, rgba(214,162,74,.12), rgba(0,0,0,.10));
-    }
-    .abc-avatar-img{
-        width: 100%;
-        height: 100%;
-        border-radius: 999px;
-        object-fit: cover;
-        border: 1px solid rgba(255,255,255,.08);
-    }
-
-    .abc-phone-panel{ display:flex; align-items:center; justify-content:center; width:100%; }
-    .abc-phone-shell{
-        width: 260px;
-        height: 520px;
-        border-radius: 36px;
-        border: 1px solid rgba(255,215,100,.18);
-        background: rgba(0,0,0,.45);
-        box-shadow: inset 0 0 0 2px rgba(255,255,255,.04);
-        position:relative;
-        padding: 18px;
-    }
-    .abc-phone-notch{
-        position:absolute;
-        top: 10px; left: 50%;
-        transform: translateX(-50%);
-        width: 120px; height: 22px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.06);
-    }
-    .abc-phone-screen{
-        height: 100%;
-        border-radius: 26px;
-        border: 1px solid rgba(255,255,255,.06);
-        background: radial-gradient(600px 400px at 20% 10%, rgba(214,162,74,.14), transparent 55%),
-                    rgba(255,255,255,.04);
-        padding: 18px;
-        display:flex;
-        flex-direction:column;
-        gap: 8px;
-        justify-content:center;
-        align-items:center;
-        text-align:center;
-    }
-    .abc-phone-title{ font-size: 18px; font-weight: 700; }
-    .abc-phone-sub{ font-size: 13px; color: rgba(255,255,255,.65); }
-    .abc-phone-wave{
-        margin-top: 18px;
-        width: 160px;
-        height: 48px;
-        border-radius: 14px;
-        border: 1px solid rgba(214,162,74,.25);
-        background: repeating-linear-gradient(
-            90deg,
-            rgba(214,162,74,.35),
-            rgba(214,162,74,.35) 10px,
-            rgba(0,0,0,.0) 10px,
-            rgba(0,0,0,.0) 18px
-        );
-        opacity: .65;
-    }
-    .abc-phone-home{
-        position:absolute;
-        bottom: 12px; left: 50%;
-        transform: translateX(-50%);
-        width: 120px; height: 6px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.10);
-    }
-
-    .abc-center-actions{ display:flex; justify-content:center; margin-top: 14px; }
-
-    .abc-select{
-        width: 100%;
-        background: rgba(0,0,0,.35);
-        border: 1px solid rgba(255,215,100,.14);
-        color: rgba(255,255,255,.88);
-        border-radius: 12px;
-        padding: 10px 12px;
-        outline:none;
-    }
-
-    @media (max-width: 1100px){
-        .abc-sp-grid{ grid-template-columns: 1fr; }
-        .abc-left{ min-height: 520px; grid-column: auto; }
-        .abc-right{ min-height: 620px; grid-column: auto; }
-        .abc-top-controls{ grid-template-columns: 1fr; }
-        .abc-bottom-controls{ grid-template-columns: 1fr; }
-    }
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const csrfMeta  = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
 
     const transcriptEl = document.getElementById('sparringTranscript');
-    const inputEl = document.getElementById('sparringInput');
-    const formEl = document.getElementById('sparringForm');
-    const sendBtn = document.getElementById('sendBtn');
-    const statusEl = document.getElementById('sparringStatus');
+    const inputEl      = document.getElementById('sparringInput');
+    const formEl       = document.getElementById('sparringForm');
+    const sendBtn      = document.getElementById('sendBtn');
 
-    const resetBtn = document.getElementById('resetSessionBtn');
-    const endBtn = document.getElementById('endSessionBtn');
-    const startBtn = document.getElementById('startSessionBtn');
+    const resetBtn     = document.getElementById('resetSessionBtn');
+    const endBtn       = document.getElementById('endSessionBtn');
+    const startBtn     = document.getElementById('startSessionBtn');
 
-    const scenarioCodeEl = document.getElementById('scenarioCode');
+    const statusEl     = document.getElementById('sparringStatus');
+    const timerTextEl  = document.getElementById('timerText');
 
-    const envPhoneBtn = document.getElementById('envPhoneBtn');
-    const envInPersonBtn = document.getElementById('envInPersonBtn');
-    const phonePanel = document.getElementById('phonePanel');
-    const avatarPanel = document.getElementById('avatarPanel');
+    const envPhoneBtn  = document.getElementById('envPhoneBtn');
+    const envInBtn     = document.getElementById('envInPersonBtn');
+    const avatarPanel  = document.getElementById('avatarPanel');
+    const phonePanel   = document.getElementById('phonePanel');
 
-    const modeYouAgentBtn = document.getElementById('modeYouAgentBtn');
-    const modeYouProspectBtn = document.getElementById('modeYouProspectBtn');
+    const expressionTextEl = document.getElementById('expressionText');
+    const segmentSelectEl  = document.getElementById('segmentSelect');
 
-    const diffBeginnerBtn = document.getElementById('diffBeginnerBtn');
-    const diffIntermediateBtn = document.getElementById('diffIntermediateBtn');
-    const diffAdvancedBtn = document.getElementById('diffAdvancedBtn');
-
-    const emotionLabel = document.getElementById('emotionLabel');
-    const timerPill = document.getElementById('timerPill');
+    const scenarioCode = @json($scenarioCode);
 
     let currentSessionId = null;
     let isSending = false;
-    let sessionStarted = false;
 
-    // stateful UI selections (mapped into existing API fields)
-    let uiMode = 'prospect_simulation';
-    let difficulty = 'intermediate'; // beginner|intermediate|advanced
-    let personaKey = 'neutral_balanced'; // mapped from difficulty
-    let environment = 'phone'; // phone|in_person
+    // simple timer (UI only)
+    let timerInterval = null;
+    let startedAt = null;
 
-    // timer
-    let timerInt = null;
-    let seconds = 0;
-
-    function fmtTime(s){
-        const mm = String(Math.floor(s/60)).padStart(2,'0');
-        const ss = String(s%60).padStart(2,'0');
-        return `${mm}:${ss}`;
+    function setStatus(msg){
+        if (!statusEl) return;
+        statusEl.textContent = msg || '';
     }
+
+    function fmtTime(seconds){
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const s = String(seconds % 60).padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
     function startTimer(){
-        stopTimer();
-        seconds = 0;
-        timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
-        timerInt = setInterval(()=>{
-            seconds++;
-            timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
-        }, 1000);
+        startedAt = Date.now();
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            const secs = Math.floor((Date.now() - startedAt) / 1000);
+            if (timerTextEl) timerTextEl.textContent = fmtTime(secs);
+        }, 250);
     }
+
     function stopTimer(){
-        if (timerInt) clearInterval(timerInt);
-        timerInt = null;
-    }
-
-    function setStatus(msg){ statusEl.textContent = msg || ''; }
-
-    function setActive(btn, group){
-        group.forEach(b=>b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-    }
-
-    function mapDifficultyToPersona(d){
-        // quick mapping for “fastest working version”
-        if (d === 'beginner') return { persona: 'soft_conflict_avoidant', emotion: 'Neutral' };
-        if (d === 'advanced') return { persona: 'skeptical_guarded', emotion: 'Skeptical' };
-        return { persona: 'neutral_balanced', emotion: 'Neutral' };
-    }
-
-    function appendBubble(who, text){
-        if (!text) return;
-
-        const msg = document.createElement('div');
-        msg.className = 'abc-msg';
-
-        const bubble = document.createElement('div');
-        bubble.className = 'abc-bubble ' + (who === 'you' ? 'you' : 'them');
-        bubble.textContent = text;
-
-        const time = document.createElement('div');
-        time.className = 'abc-time';
-        const now = new Date();
-        time.textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-
-        msg.appendChild(bubble);
-        msg.appendChild(time);
-        transcriptEl.appendChild(msg);
-        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = null;
+        if (timerTextEl) timerTextEl.textContent = '00:00';
+        startedAt = null;
     }
 
     function resetSession(){
         currentSessionId = null;
-        sessionStarted = false;
         isSending = false;
         stopTimer();
-        timerPill.textContent = '⏱ 00:00';
-
-        transcriptEl.innerHTML = `
-            <div class="abc-muted">
-                Click <strong>Start Sparring Session</strong>, then type your first line.
-            </div>
-        `;
-        inputEl.value = '';
-        inputEl.disabled = true; // locked until Start clicked
-        sendBtn.disabled = true;
+        transcriptEl.innerHTML = '<div class="abc-muted">Session reset. Click <strong>Start Sparring Session</strong>, then send your first message.</div>';
         setStatus('');
+        if (inputEl) inputEl.value = '';
+        if (inputEl) inputEl.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        if (expressionTextEl) expressionTextEl.textContent = 'Neutral';
     }
 
-    function unlockInput(){
-        inputEl.disabled = false;
-        sendBtn.disabled = false;
-        inputEl.focus();
+    function appendBubble(role, text, createdAt){
+        if (!text) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = `abc-bubble ${role === 'agent' ? 'agent' : 'system'}`;
+
+        const content = document.createElement('div');
+        content.textContent = text;
+
+        const ts = document.createElement('span');
+        ts.className = 'ts';
+        const d = createdAt ? new Date(createdAt) : new Date();
+        ts.textContent = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+        wrap.appendChild(content);
+        wrap.appendChild(ts);
+
+        transcriptEl.appendChild(wrap);
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
 
-    // environment toggles
-    envPhoneBtn.addEventListener('click', ()=>{
-        environment = 'phone';
-        setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
-        phonePanel.style.display = 'flex';
-        avatarPanel.style.display = 'none';
-    });
-    envInPersonBtn.addEventListener('click', ()=>{
-        environment = 'in_person';
-        setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
-        phonePanel.style.display = 'none';
-        avatarPanel.style.display = 'block';
-    });
-
-    // role mode toggles
-    modeYouAgentBtn.addEventListener('click', ()=>{
-        uiMode = 'prospect_simulation';
-        setActive(modeYouAgentBtn, [modeYouAgentBtn, modeYouProspectBtn]);
-    });
-    modeYouProspectBtn.addEventListener('click', ()=>{
-        uiMode = 'agent_simulation';
-        setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
-    });
-
-    // difficulty toggles (replaces persona/scenario dropdown)
-    function setDifficulty(d, btn){
-        difficulty = d;
-        const mapped = mapDifficultyToPersona(difficulty);
-        personaKey = mapped.persona;
-        emotionLabel.textContent = mapped.emotion;
-        setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
+    function setEnv(env){
+        // env is UI-only; does not change backend text responses.
+        if (env === 'phone') {
+            envPhoneBtn.classList.add('active');
+            envInBtn.classList.remove('active');
+            phonePanel.style.display = 'flex';
+            avatarPanel.style.display = 'none';
+        } else {
+            envInBtn.classList.add('active');
+            envPhoneBtn.classList.remove('active');
+            avatarPanel.style.display = 'flex';
+            phonePanel.style.display = 'none';
+        }
     }
-    diffBeginnerBtn.addEventListener('click', ()=>setDifficulty('beginner', diffBeginnerBtn));
-    diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
-    diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
-    // Start session button: just enables conversation + timer
-    startBtn.addEventListener('click', ()=>{
-        if (!scenarioCodeEl.value) {
-            setStatus('No scenarios found. Seed at least one GideonScenario.');
+    if (envPhoneBtn) envPhoneBtn.addEventListener('click', () => setEnv('phone'));
+    if (envInBtn)    envInBtn.addEventListener('click', () => setEnv('in_person'));
+
+    // default env = in person (matches your vision)
+    setEnv('in_person');
+
+    async function startSessionOnly(){
+        if (!scenarioCode) {
+            setStatus('No scenario available. Seed at least one scenario.');
             return;
         }
-        sessionStarted = true;
-        unlockInput();
+        if (!csrfToken) {
+            setStatus('Missing CSRF token.');
+            return;
+        }
+
+        // We create the session on first message in your controller.
+        // But user asked for "Start Session" UX.
+        // So we start the timer + prime the UI, and first message will create session.
         startTimer();
-        setStatus('Session started. Say your first line.');
-    });
+        setStatus('Session ready. Send your first line.');
+        if (inputEl) inputEl.focus();
+    }
 
-    resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
-
-    async function postAsk(message){
-        if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
-        if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
-        if (!sessionStarted) { setStatus('Click Start Sparring Session first.'); return; }
+    async function sendToGideon(message){
+        if (!scenarioCode) {
+            setStatus('No scenario available. Seed at least one scenario.');
+            return;
+        }
+        if (!csrfToken) {
+            setStatus('Missing CSRF token.');
+            return;
+        }
 
         isSending = true;
         setStatus('Talking to Gideon...');
-        appendBubble('you', message);
+        appendBubble('agent', message);
+
+        // UI role mode: keep prospect_simulation for now (You = Agent)
+        const uiMode = 'prospect_simulation';
+
+        // Segment is UI-only right now; we pass it in meta via "persona" or "message" later if needed.
+        // For now: keep persona = adaptive (service default) to avoid mismatch.
+        const persona = 'adaptive';
 
         try {
-            const res = await fetch('/api/gideon/sparring/ask', {
+            const resp = await fetch('/api/gideon/sparring/ask', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -684,55 +678,60 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
-                    scenario_code: scenarioCodeEl.value,
-                    mode: uiMode,
-                    persona: personaKey,
                     session_id: currentSessionId,
+                    scenario_code: scenarioCode,
+                    mode: uiMode,
+                    persona: persona,
                     message: message,
-
-                    // optional: UI can pass these; backend can ignore for now
-                    difficulty: difficulty,
-                    environment: environment,
                 }),
             });
 
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
 
-            if (data.session?.id) currentSessionId = data.session.id;
+            if (data.session && data.session.id) currentSessionId = data.session.id;
 
-            // Opening line (if service emits it)
-            if (data.opening_line) appendBubble('them', data.opening_line);
+            // opening line (if any)
+            if (data.opening_line) {
+                appendBubble('system', data.opening_line);
+            }
 
-            if (data.gideon_reply?.content) appendBubble('them', data.gideon_reply.content);
+            if (data.gideon_reply && data.gideon_reply.content) {
+                appendBubble('system', data.gideon_reply.content, data.gideon_reply.created_at);
+
+                // cheap expression mapping (UI-only)
+                // You can replace this later with a real state machine.
+                const txt = (data.gideon_reply.content || '').toLowerCase();
+                let expr = 'Neutral';
+                if (txt.includes('not sure') || txt.includes('skept') || txt.includes('guard')) expr = 'Skeptical';
+                if (txt.includes('ok') || txt.includes('thanks')) expr = 'Neutral';
+                if (txt.includes('concern') || txt.includes('worried')) expr = 'Concerned';
+                if (expressionTextEl) expressionTextEl.textContent = expr;
+            }
 
             setStatus('Session active.');
-        } catch (err) {
-            console.error(err);
+        } catch (e) {
+            console.error(e);
             setStatus('Error talking to Gideon. Check runtime logs + browser console.');
         } finally {
             isSending = false;
         }
     }
 
-    formEl.addEventListener('submit', (e)=>{
-        e.preventDefault();
-        if (isSending) return;
-        const msg = (inputEl.value || '').trim();
-        if (!msg) return;
-        inputEl.value = '';
-        postAsk(msg);
-    });
-
-    endBtn.addEventListener('click', async (e)=>{
-        e.preventDefault();
-        if (!currentSessionId) { setStatus('No active session.'); return; }
-        if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
+    async function endSession(){
+        if (!currentSessionId) {
+            setStatus('No active session to end.');
+            return;
+        }
+        if (!csrfToken) {
+            setStatus('Missing CSRF token.');
+            return;
+        }
 
         isSending = true;
         setStatus('Ending session...');
         try {
-            const res = await fetch('/api/gideon/sparring/end', {
+            const resp = await fetch('/api/gideon/sparring/end', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -741,24 +740,42 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({ session_id: currentSessionId }),
             });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
+
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
             stopTimer();
             setStatus('Session ended.');
-            inputEl.disabled = true;
-            sendBtn.disabled = true;
-        } catch (err) {
-            console.error(err);
+            if (inputEl) inputEl.disabled = true;
+            if (sendBtn) sendBtn.disabled = true;
+        } catch (e) {
+            console.error(e);
             setStatus('Error ending session. Check runtime logs.');
         } finally {
             isSending = false;
         }
-    });
+    }
 
-    // init
+    if (resetBtn) resetBtn.addEventListener('click', (e) => { e.preventDefault(); resetSession(); });
+    if (endBtn)   endBtn.addEventListener('click',   (e) => { e.preventDefault(); if (!isSending) endSession(); });
+    if (startBtn) startBtn.addEventListener('click', (e) => { e.preventDefault(); startSessionOnly(); });
+
+    if (formEl) {
+        formEl.addEventListener('submit', function(e){
+            e.preventDefault();
+            if (isSending) return;
+
+            const value = (inputEl.value || '').trim();
+            if (!value) return;
+
+            // if they never hit Start, we still start timer on first send
+            if (!startedAt) startTimer();
+
+            inputEl.value = '';
+            sendToGideon(value);
+        });
+    }
+
     resetSession();
-    setDifficulty('intermediate', diffIntermediateBtn);
-    envPhoneBtn.click(); // default to Phone
 });
 </script>
 @endsection
