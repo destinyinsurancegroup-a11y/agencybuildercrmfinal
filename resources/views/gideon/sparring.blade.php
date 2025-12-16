@@ -354,7 +354,6 @@
         gap:14px;
     }
 
-    /* NEW: stage HUD row (prevents overlap) */
     .abc-stage-hud{
         width:100%;
         display:flex;
@@ -673,8 +672,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const FALLBACK_AVATAR = APP_BASE + "/images/gideon/prospect_default.jpg";
 
-    // Your confirmed library:
-    // public/images/gideon/avatar_01.jpg ... avatar_04.jpg
     const PROSPECTS = {
         p1: { name: 'Prospect 1', images: { neutral: APP_BASE + "/images/gideon/avatar_01.jpg", friendly: APP_BASE + "/images/gideon/avatar_01.jpg", skeptical: APP_BASE + "/images/gideon/avatar_01.jpg" }},
         p2: { name: 'Prospect 2', images: { neutral: APP_BASE + "/images/gideon/avatar_02.jpg", friendly: APP_BASE + "/images/gideon/avatar_02.jpg", skeptical: APP_BASE + "/images/gideon/avatar_02.jpg" }},
@@ -753,11 +750,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // UI role mode removed for now; fixed mode
     const uiMode = 'prospect_simulation';
 
-    let difficulty = 'intermediate';
+    let difficulty = 'intermediate';      // UI label
     let personaKey = 'neutral_balanced';
     let environment = 'phone';
 
-    let trainingMode = 'full';
+    let trainingMode = 'full';            // UI label
     let selectedSegment = segmentSelect?.value || 'discovery';
 
     let avatarMode = 'photo';
@@ -789,6 +786,21 @@ document.addEventListener('DOMContentLoaded', function () {
     function stopTimer(){
         if (timerInt) clearInterval(timerInt);
         timerInt = null;
+    }
+
+    // ✅ map UI to backend validation enums (VERY IMPORTANT)
+    function apiDifficultyFromUi(ui){
+        // backend expects: easy|normal|hard
+        if (ui === 'beginner') return 'easy';
+        if (ui === 'advanced') return 'hard';
+        return 'normal'; // intermediate
+    }
+
+    function apiTrainingModeFromUi(ui){
+        // backend expects: stages|discovery_start|full_presentation
+        if (ui === 'segments') return 'stages';
+        if (ui === 'disco') return 'discovery_start';
+        return 'full_presentation'; // full
     }
 
     function mapDifficulty(d){
@@ -916,7 +928,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const c = (chars[i] || ' ').toLowerCase();
             i++; if (i >= chars.length) i = 0;
 
-            // light viseme feel
             let w = 62, h = 10, r = 999;
             if ('ou'.includes(c)) { w = 32; h = 20; r = 16; }
             else if ('aei'.includes(c)) { w = 74; h = 12; r = 14; }
@@ -939,7 +950,6 @@ document.addEventListener('DOMContentLoaded', function () {
         setProspectCaption('Speaking…');
         startVisemes(text);
 
-        // animate phone bars too
         const bars = waveBars ? Array.from(waveBars.querySelectorAll('span')) : [];
         const waveTimer = setInterval(()=>{
             bars.forEach(b=>{
@@ -984,6 +994,8 @@ document.addEventListener('DOMContentLoaded', function () {
         currentSessionId = null;
         sessionStarted = false;
         isSending = false;
+
+        startBtn.disabled = false;
 
         try { window.speechSynthesis.cancel(); } catch(e) {}
 
@@ -1036,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'flex';
         avatarPanel.style.display = 'none';
-        setProspectCaption('Waiting…');
+        setProspectCaption(sessionStarted ? 'Listening…' : 'Waiting…');
     });
 
     envInPersonBtn.addEventListener('click', ()=>{
@@ -1044,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
-        setProspectCaption('Listening…');
+        setProspectCaption(sessionStarted ? 'Listening…' : 'Waiting…');
     });
 
     // ===== DIFFICULTY =====
@@ -1091,22 +1103,81 @@ document.addEventListener('DOMContentLoaded', function () {
             try { window.speechSynthesis.cancel(); } catch(e) {}
             stopVisemes();
             setSpeaking(false);
-            setProspectCaption('Listening…');
+            setProspectCaption(sessionStarted ? 'Listening…' : 'Waiting…');
         }
     });
 
-    // ===== START =====
-    startBtn.addEventListener('click', ()=>{
-        if (!scenarioCodeEl.value) {
-            setStatus('No scenarios found. Seed at least one GideonScenario.');
-            return;
+    // ===== START (✅ NOW CALLS /start) =====
+    async function postStartSession(){
+        if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
+        if (!scenarioCodeEl.value) { setStatus('No scenarios found. Seed at least one GideonScenario.'); return; }
+
+        // prevent double clicks
+        if (isSending) return;
+        isSending = true;
+
+        startBtn.disabled = true;
+        setStatus('Starting session...');
+        setProspectCaption('Booting…');
+
+        try {
+            const res = await fetch('/api/gideon/sparring/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    scenario_code: scenarioCodeEl.value,
+                    mode: uiMode,
+                    persona: personaKey,
+
+                    // ✅ mapped to backend enums
+                    training_mode: apiTrainingModeFromUi(trainingMode),
+                    selected_stage: selectedSegment,
+                    difficulty: apiDifficultyFromUi(difficulty),
+
+                    // optional UI-only fields (backend can ignore safely)
+                    environment: environment,
+                    avatar_mode: avatarMode,
+                    selected_avatar_id: selectedProspectId,
+                }),
+            });
+
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+
+            if (!data.session?.id) {
+                throw new Error('No session id returned from /start');
+            }
+
+            currentSessionId = data.session.id;
+            sessionStarted = true;
+
+            // unlock + timer
+            unlockInput();
+            startTimer();
+
+            setStatus('Session started. Say your first line.');
+            setProspectCaption('Listening…');
+
+            // show opening line immediately if present
+            if (data.opening_line && String(data.opening_line).trim() !== '') {
+                appendBubble('them', data.opening_line);
+                speakProspect(data.opening_line);
+            }
+        } catch (err) {
+            console.error(err);
+            startBtn.disabled = false;
+            setProspectCaption('Waiting…');
+            setStatus('Error starting session. Check runtime logs + browser console.');
+        } finally {
+            isSending = false;
         }
-        sessionStarted = true;
-        unlockInput();
-        startTimer();
-        setStatus('Session started. Say your first line.');
-        setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
-    });
+    }
+
+    startBtn.addEventListener('click', ()=>{ postStartSession(); });
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
@@ -1114,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
-        if (!sessionStarted) { setStatus('Click Start Sparring Session first.'); return; }
+        if (!sessionStarted || !currentSessionId) { setStatus('Click Start Sparring Session first.'); return; }
 
         isSending = true;
         setStatus('Talking to Gideon...');
@@ -1132,15 +1203,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
+                    session_id: currentSessionId,     // ✅ always use existing session
                     scenario_code: scenarioCodeEl.value,
                     mode: uiMode,
                     persona: personaKey,
-                    session_id: currentSessionId,
                     message: message,
 
-                    difficulty: difficulty,
+                    // send for telemetry (backend ignores once session_id exists)
+                    difficulty: apiDifficultyFromUi(difficulty),
                     environment: environment,
-                    training_mode: trainingMode,
+                    training_mode: apiTrainingModeFromUi(trainingMode),
                     selected_stage: selectedSegment,
                     avatar_mode: avatarMode,
                     selected_avatar_id: selectedProspectId,
@@ -1150,17 +1222,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
 
-            if (data.session?.id) currentSessionId = data.session.id;
-
             const thinkDelay = randInt(THINKING_MIN_MS, THINKING_MAX_MS);
             await new Promise(r => setTimeout(r, thinkDelay));
 
             removeTypingIndicator();
 
-            if (data.opening_line) {
-                appendBubble('them', data.opening_line);
-                speakProspect(data.opening_line);
-            }
             if (data.gideon_reply?.content) {
                 appendBubble('them', data.gideon_reply.content);
                 speakProspect(data.gideon_reply.content);
