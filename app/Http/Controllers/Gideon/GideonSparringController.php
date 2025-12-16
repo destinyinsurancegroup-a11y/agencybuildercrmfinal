@@ -22,8 +22,6 @@ class GideonSparringController extends Controller
      */
     public function index(Request $request)
     {
-        // If scenarios are global: OK.
-        // If scenarios are tenant-specific, add agency scoping here.
         $scenarios = GideonScenario::where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -35,8 +33,11 @@ class GideonSparringController extends Controller
 
     /**
      * ✅ NEW: Start a sparring session (AJAX/JSON).
-     * This makes the "Start Sparring Session" button actually create a session,
-     * and optionally returns the opening line (when system is the prospect).
+     * Frontend should call this when "Start Sparring Session" is clicked.
+     *
+     * Returns:
+     * - session (with id)
+     * - opening_line (string|null)
      */
     public function start(Request $request, SparringService $sparring): JsonResponse
     {
@@ -47,18 +48,23 @@ class GideonSparringController extends Controller
 
             // UI role mode (NOT training mode)
             'mode'          => ['nullable', 'string', 'in:prospect_simulation,agent_simulation'],
+
+            // persona key (optional)
             'persona'       => ['nullable', 'string'],
 
-            // Training controls (applied at session creation)
+            // training controls
             'training_mode'  => ['nullable', 'string', 'in:stages,discovery_start,full_presentation'],
             'selected_stage' => ['nullable', 'string', 'in:intro,discovery,education,qualify,quote,close'],
             'difficulty'     => ['nullable', 'string', 'in:easy,normal,hard'],
+
+            // UI-only fields (safe to accept + ignore)
+            'environment'        => ['nullable', 'string'],
+            'avatar_mode'        => ['nullable', 'string'],
+            'selected_avatar_id' => ['nullable', 'string'],
         ]);
 
-        $mode         = $data['mode'] ?? SparringService::UI_MODE_PROSPECT_SIM;
         $scenarioCode = $data['scenario_code'];
-
-        // Let service default persona if null
+        $mode         = $data['mode'] ?? SparringService::UI_MODE_PROSPECT_SIM;
         $personaKey   = $data['persona'] ?? 'adaptive';
 
         $trainingMode  = $data['training_mode'] ?? null;
@@ -71,9 +77,10 @@ class GideonSparringController extends Controller
                 $user->id,
                 $scenarioCode,
                 $mode,
-                $personaKey,
+                $personaKey
             );
 
+            /** @var GideonSparringSession $session */
             $session = $sessionPayload['session'];
             $opening = $sessionPayload['first_message'] ?? null;
 
@@ -82,7 +89,9 @@ class GideonSparringController extends Controller
 
             /**
              * ✅ Apply training controls at session creation time.
-             * Store in dedicated columns (if they exist) and in config JSON.
+             * Store in:
+             * - dedicated columns (training_mode / selected_stage / difficulty)
+             * - config JSON (traceability)
              */
             $updates = [];
 
@@ -110,6 +119,7 @@ class GideonSparringController extends Controller
 
             return response()->json([
                 'session'      => $session,
+                'state'        => $session->state ?? null,
                 'opening_line' => $opening?->content,
             ]);
         } catch (ValidationException $e) {
@@ -125,6 +135,9 @@ class GideonSparringController extends Controller
 
     /**
      * Main sparring endpoint (AJAX/JSON).
+     * Accepts either:
+     * - existing session_id (recommended)
+     * - OR no session_id (backwards compatible): will create a new session
      */
     public function ask(Request $request, SparringService $sparring): JsonResponse
     {
@@ -140,22 +153,23 @@ class GideonSparringController extends Controller
             'persona'       => ['nullable', 'string'],
             'message'       => ['required', 'string', 'min:1'],
 
-            // ✅ training controls (accepted, but only applied when creating a NEW session)
+            // training controls (applied only if a NEW session is created)
             'training_mode'  => ['nullable', 'string', 'in:stages,discovery_start,full_presentation'],
             'selected_stage' => ['nullable', 'string', 'in:intro,discovery,education,qualify,quote,close'],
             'difficulty'     => ['nullable', 'string', 'in:easy,normal,hard'],
+
+            // UI-only fields (safe to accept + ignore)
+            'environment'        => ['nullable', 'string'],
+            'avatar_mode'        => ['nullable', 'string'],
+            'selected_avatar_id' => ['nullable', 'string'],
         ]);
 
         $mode         = $data['mode'] ?? SparringService::UI_MODE_PROSPECT_SIM;
         $sessionId    = $data['session_id'] ?? null;
         $scenarioCode = $data['scenario_code'] ?? null;
-
-        // Let service default persona if null
         $personaKey   = $data['persona'] ?? 'adaptive';
-
         $message      = $data['message'];
 
-        // Training controls (used only when starting a NEW session)
         $trainingMode  = $data['training_mode'] ?? null;
         $selectedStage = $data['selected_stage'] ?? null;
         $difficulty    = $data['difficulty'] ?? null;
@@ -164,28 +178,22 @@ class GideonSparringController extends Controller
             $opening = null;
 
             if (!$sessionId) {
-                // New session
+                // Backward compatible: create session here if ask() is called first.
                 $sessionPayload = $sparring->startSession(
                     $user->agency_id,
                     $user->id,
                     $scenarioCode,
                     $mode,
-                    $personaKey,
+                    $personaKey
                 );
 
                 $session   = $sessionPayload['session'];
                 $opening   = $sessionPayload['first_message'] ?? null;
                 $sessionId = $session->id;
 
-                // ✅ policy check (defense-in-depth)
                 $this->authorize('view', $session);
 
-                /**
-                 * ✅ Apply training controls only at session creation time.
-                 * Store them in BOTH:
-                 * - dedicated columns (training_mode / selected_stage / difficulty) if present
-                 * - config JSON for traceability
-                 */
+                // Apply training controls ONLY at creation time
                 $updates = [];
 
                 if ($trainingMode !== null) {
@@ -221,7 +229,6 @@ class GideonSparringController extends Controller
 
                 // IMPORTANT:
                 // Do NOT allow changing training_mode/selected_stage/difficulty mid-session.
-                // We intentionally ignore $trainingMode/$selectedStage/$difficulty when session_id is present.
             }
 
             $result = $sparring->handleAgentMessage(
@@ -265,7 +272,6 @@ class GideonSparringController extends Controller
         $sessionId = $data['session_id'];
 
         try {
-            // Tenant scope + policy check before ending
             $session = GideonSparringSession::query()
                 ->whereKey($sessionId)
                 ->where('agency_id', $user->agency_id)
