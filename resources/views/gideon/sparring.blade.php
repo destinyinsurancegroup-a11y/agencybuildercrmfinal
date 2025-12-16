@@ -27,36 +27,7 @@
 
     <div class="abc-sp-grid">
 
-        {{-- LEFT: Live conversation panel (every response shown) --}}
-        <div class="abc-card abc-left">
-            <div class="abc-card-header">
-                <div class="abc-card-title">LIVE CONVERSATION</div>
-                <button class="abc-btn abc-btn-ghost" id="resetSessionBtn" type="button">Reset</button>
-            </div>
-
-            <div id="sparringTranscript" class="abc-transcript">
-                <div class="abc-muted">
-                    Click <strong>Start Sparring Session</strong>, then type your first line.
-                </div>
-            </div>
-
-            <form id="sparringForm" class="abc-input-row">
-                {{-- still required by API even though UI removed dropdown --}}
-                <input type="hidden" id="scenarioCode" value="{{ $defaultScenarioCode }}">
-
-                <input id="sparringInput"
-                       type="text"
-                       class="abc-input"
-                       placeholder="Type what you'd say and press Enter..."
-                       autocomplete="off" />
-
-                <button id="sendBtn" class="abc-btn abc-btn-gold" type="submit">Send</button>
-            </form>
-
-            <div class="abc-status" id="sparringStatus"></div>
-        </div>
-
-        {{-- RIGHT: Controls + Avatar/Phone --}}
+        {{-- LEFT: Controls + Avatar/Phone (SWAPPED to be first/left) --}}
         <div class="abc-card abc-right">
 
             {{-- Top control row (NO scenario/persona dropdowns) --}}
@@ -68,7 +39,7 @@
                         <button type="button" class="abc-seg-btn is-active" id="envPhoneBtn">Phone</button>
                         <button type="button" class="abc-seg-btn" id="envInPersonBtn">In Person</button>
                     </div>
-                    <div class="abc-help">Phone shows a phone panel. In-person shows the avatar.</div>
+                    <div class="abc-help">Phone shows a landline. In-person shows the human avatar.</div>
                 </div>
 
                 <div class="abc-control">
@@ -93,20 +64,29 @@
                     <span class="abc-prospect-emotion" id="emotionLabel">Neutral</span>
                 </div>
 
-                {{-- Phone view --}}
+                {{-- Phone view (LANDLINE) --}}
                 <div id="phonePanel" class="abc-phone-panel">
-                    <div class="abc-phone-shell">
-                        <div class="abc-phone-notch"></div>
-                        <div class="abc-phone-screen">
-                            <div class="abc-phone-title">Phone Call</div>
-                            <div class="abc-phone-sub">Prospect on the line…</div>
-                            <div class="abc-phone-wave"></div>
+                    <div class="abc-landline">
+                        <div class="abc-landline-handset"></div>
+                        <div class="abc-landline-base">
+                            <div class="abc-landline-display">
+                                <div class="abc-landline-title">Landline Call</div>
+                                <div class="abc-landline-sub">Prospect on the line…</div>
+                            </div>
+
+                            <div class="abc-landline-keypad">
+                                <span></span><span></span><span></span>
+                                <span></span><span></span><span></span>
+                                <span></span><span></span><span></span>
+                                <span class="wide"></span><span></span>
+                            </div>
+
+                            <div class="abc-landline-led"></div>
                         </div>
-                        <div class="abc-phone-home"></div>
                     </div>
                 </div>
 
-                {{-- In-person avatar view --}}
+                {{-- In-person avatar view (ACTUAL HUMAN IMAGE) --}}
                 <div id="avatarPanel" class="abc-avatar-wrap" style="display:none;">
                     <div class="abc-avatar-ring">
                         <img
@@ -160,6 +140,36 @@
             </div>
 
         </div>
+
+        {{-- RIGHT: Live conversation panel (SWAPPED to be second/right) --}}
+        <div class="abc-card abc-left">
+            <div class="abc-card-header">
+                <div class="abc-card-title">LIVE CONVERSATION</div>
+                <button class="abc-btn abc-btn-ghost" id="resetSessionBtn" type="button">Reset</button>
+            </div>
+
+            <div id="sparringTranscript" class="abc-transcript">
+                <div class="abc-muted">
+                    Click <strong>Start Sparring Session</strong>, then type your first line.
+                </div>
+            </div>
+
+            <form id="sparringForm" class="abc-input-row">
+                {{-- still required by API even though UI removed dropdown --}}
+                <input type="hidden" id="scenarioCode" value="{{ $defaultScenarioCode }}">
+
+                <input id="sparringInput"
+                       type="text"
+                       class="abc-input"
+                       placeholder="Type what you'd say and press Enter..."
+                       autocomplete="off" />
+
+                <button id="sendBtn" class="abc-btn abc-btn-gold" type="submit">Send</button>
+            </form>
+
+            <div class="abc-status" id="sparringStatus"></div>
+        </div>
+
     </div>
 </div>
 
@@ -202,10 +212,12 @@
         font-size: 14px;
     }
 
+    /* ✅ SWAP LAYOUT: big left (controls/avatar), fixed chat right */
     .abc-sp-grid{
         display:grid;
-        grid-template-columns: 420px 1fr;
+        grid-template-columns: 1fr 420px;
         gap: 18px;
+        align-items: stretch;
     }
 
     .abc-card{
@@ -218,7 +230,9 @@
         overflow:hidden;
     }
 
+    /* chat panel */
     .abc-left{ padding: 14px; display:flex; flex-direction:column; min-height: 720px;}
+    /* controls/avatar panel */
     .abc-right{ padding: 14px; min-height: 720px; display:flex; flex-direction:column; }
 
     .abc-card-header{
@@ -409,64 +423,88 @@
         border: 1px solid rgba(255,255,255,.08);
     }
 
+    /* ✅ LANDLINE PHONE */
     .abc-phone-panel{ display:flex; align-items:center; justify-content:center; width:100%; }
-    .abc-phone-shell{
-        width: 260px;
-        height: 520px;
-        border-radius: 36px;
-        border: 1px solid rgba(255,215,100,.18);
-        background: rgba(0,0,0,.45);
-        box-shadow: inset 0 0 0 2px rgba(255,255,255,.04);
-        position:relative;
-        padding: 18px;
-    }
-    .abc-phone-notch{
-        position:absolute;
-        top: 10px; left: 50%;
-        transform: translateX(-50%);
-        width: 120px; height: 22px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.06);
-    }
-    .abc-phone-screen{
-        height: 100%;
-        border-radius: 26px;
-        border: 1px solid rgba(255,255,255,.06);
-        background: radial-gradient(600px 400px at 20% 10%, rgba(214,162,74,.14), transparent 55%),
-                    rgba(255,255,255,.04);
-        padding: 18px;
+    .abc-landline{
+        width: 420px;
+        max-width: 100%;
         display:flex;
         flex-direction:column;
-        gap: 8px;
-        justify-content:center;
         align-items:center;
+        gap: 12px;
+    }
+    .abc-landline-handset{
+        width: 360px;
+        max-width: 92%;
+        height: 64px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,215,100,.18);
+        box-shadow: inset 0 0 0 2px rgba(0,0,0,.25);
+        position:relative;
+    }
+    .abc-landline-handset:before,
+    .abc-landline-handset:after{
+        content:'';
+        position:absolute;
+        top: 10px;
+        width: 64px;
+        height: 44px;
+        border-radius: 999px;
+        background: rgba(0,0,0,.25);
+        border: 1px solid rgba(255,255,255,.08);
+    }
+    .abc-landline-handset:before{ left: 10px; }
+    .abc-landline-handset:after{ right: 10px; }
+
+    .abc-landline-base{
+        width: 420px;
+        max-width: 100%;
+        height: 260px;
+        border-radius: 26px;
+        background: rgba(0,0,0,.45);
+        border: 1px solid rgba(255,215,100,.18);
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,.04);
+        padding: 16px;
+        position:relative;
+    }
+    .abc-landline-display{
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,.08);
+        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.14), transparent 60%),
+                    rgba(255,255,255,.04);
+        padding: 14px;
         text-align:center;
     }
-    .abc-phone-title{ font-size: 18px; font-weight: 700; }
-    .abc-phone-sub{ font-size: 13px; color: rgba(255,255,255,.65); }
-    .abc-phone-wave{
-        margin-top: 18px;
-        width: 160px;
-        height: 48px;
-        border-radius: 14px;
-        border: 1px solid rgba(214,162,74,.25);
-        background: repeating-linear-gradient(
-            90deg,
-            rgba(214,162,74,.35),
-            rgba(214,162,74,.35) 10px,
-            rgba(0,0,0,.0) 10px,
-            rgba(0,0,0,.0) 18px
-        );
-        opacity: .65;
+    .abc-landline-title{ font-size: 18px; font-weight: 700; }
+    .abc-landline-sub{ font-size: 13px; color: rgba(255,255,255,.65); margin-top: 4px; }
+
+    .abc-landline-keypad{
+        margin-top: 14px;
+        display:grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 0 18px;
     }
-    .abc-phone-home{
+    .abc-landline-keypad span{
+        height: 26px;
+        border-radius: 10px;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,215,100,.12);
+    }
+    .abc-landline-keypad span.wide{
+        grid-column: span 2;
+    }
+
+    .abc-landline-led{
         position:absolute;
-        bottom: 12px; left: 50%;
-        transform: translateX(-50%);
-        width: 120px; height: 6px;
+        right: 18px;
+        bottom: 16px;
+        width: 10px;
+        height: 10px;
         border-radius: 999px;
-        background: rgba(255,255,255,.10);
+        background: rgba(214,162,74,.85);
+        box-shadow: 0 0 18px rgba(214,162,74,.55);
     }
 
     .abc-center-actions{ display:flex; justify-content:center; margin-top: 14px; }
@@ -487,6 +525,7 @@
         .abc-right{ min-height: 620px; }
         .abc-top-controls{ grid-template-columns: 1fr; }
         .abc-bottom-controls{ grid-template-columns: 1fr; }
+        .abc-landline-base{ height: 250px; }
     }
 </style>
 
@@ -525,13 +564,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let isSending = false;
     let sessionStarted = false;
 
-    // stateful UI selections (mapped into existing API fields)
     let uiMode = 'prospect_simulation';
-    let difficulty = 'intermediate'; // beginner|intermediate|advanced
-    let personaKey = 'neutral_balanced'; // mapped from difficulty
-    let environment = 'phone'; // phone|in_person
+    let difficulty = 'intermediate';
+    let personaKey = 'neutral_balanced';
+    let environment = 'phone';
 
-    // timer
     let timerInt = null;
     let seconds = 0;
 
@@ -562,7 +599,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function mapDifficultyToPersona(d){
-        // quick mapping for “fastest working version”
         if (d === 'beginner') return { persona: 'soft_conflict_avoidant', emotion: 'Neutral' };
         if (d === 'advanced') return { persona: 'skeptical_guarded', emotion: 'Skeptical' };
         return { persona: 'neutral_balanced', emotion: 'Neutral' };
@@ -602,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `;
         inputEl.value = '';
-        inputEl.disabled = true; // locked until Start clicked
+        inputEl.disabled = true;
         sendBtn.disabled = true;
         setStatus('');
     }
@@ -637,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
     });
 
-    // difficulty toggles (replaces persona/scenario dropdown)
+    // difficulty toggles
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficultyToPersona(difficulty);
@@ -649,7 +685,6 @@ document.addEventListener('DOMContentLoaded', function () {
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
-    // Start session button: just enables conversation + timer
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -686,8 +721,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     persona: personaKey,
                     session_id: currentSessionId,
                     message: message,
-
-                    // optional: UI can pass these; backend can ignore for now
                     difficulty: difficulty,
                     environment: environment,
                 }),
@@ -698,9 +731,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (data.session?.id) currentSessionId = data.session.id;
 
-            // Opening line (if service emits it)
             if (data.opening_line) appendBubble('them', data.opening_line);
-
             if (data.gideon_reply?.content) appendBubble('them', data.gideon_reply.content);
 
             setStatus('Session active.');
@@ -755,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // init
     resetSession();
     setDifficulty('intermediate', diffIntermediateBtn);
-    envPhoneBtn.click(); // default to Phone
+    envPhoneBtn.click(); // default to Phone (landline)
 });
 </script>
 @endsection
