@@ -41,44 +41,29 @@
                 </div>
             </div>
 
-            {{-- UI Role Mode --}}
-            <div class="abc-top-controls abc-top-controls-single">
-                <div class="abc-control">
-                    <div class="abc-label">UI Role Mode</div>
-                    <div class="abc-seg">
-                        <button type="button" class="abc-seg-btn is-active" data-uimode="prospect_simulation" id="modeYouAgentBtn">
-                            Prospect sim (You = Agent)
-                        </button>
-                        <button type="button" class="abc-seg-btn" data-uimode="agent_simulation" id="modeYouProspectBtn">
-                            Role reversal (You = Prospect)
-                        </button>
-                    </div>
-                    <div class="abc-help">This is not Training Mode.</div>
-                </div>
-            </div>
-
             {{-- Stage --}}
             <div class="abc-avatar-panel" id="stagePanel">
 
-                {{-- Environment toggle (top-left) --}}
-                <div class="abc-stage-env">
-                    <div class="abc-stage-env-label">Environment</div>
-                    <div class="abc-seg abc-seg-row">
-                        <button type="button" class="abc-seg-btn abc-seg-btn-sm is-active" id="envPhoneBtn">Phone</button>
-                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" id="envInPersonBtn">In Person</button>
+                {{-- STAGE HUD (no overlap) --}}
+                <div class="abc-stage-hud">
+                    <div class="abc-stage-group">
+                        <div class="abc-stage-label">Environment</div>
+                        <div class="abc-seg abc-seg-row">
+                            <button type="button" class="abc-seg-btn abc-seg-btn-sm is-active" id="envPhoneBtn">Phone</button>
+                            <button type="button" class="abc-seg-btn abc-seg-btn-sm" id="envInPersonBtn">In Person</button>
+                        </div>
                     </div>
-                </div>
 
-                {{-- Prospect picker (top-right) --}}
-                <div class="abc-stage-prospect">
-                    <div class="abc-stage-env-label">Prospect</div>
-                    <div class="abc-seg abc-seg-row">
-                        <button type="button" class="abc-seg-btn abc-seg-btn-sm is-active" data-prospect="p1" id="prospectP1Btn">P1</button>
-                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p2" id="prospectP2Btn">P2</button>
-                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p3" id="prospectP3Btn">P3</button>
-                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p4" id="prospectP4Btn">P4</button>
+                    <div class="abc-stage-group abc-stage-group-right">
+                        <div class="abc-stage-label">Prospect</div>
+                        <div class="abc-seg abc-seg-row">
+                            <button type="button" class="abc-seg-btn abc-seg-btn-sm is-active" data-prospect="p1" id="prospectP1Btn">P1</button>
+                            <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p2" id="prospectP2Btn">P2</button>
+                            <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p3" id="prospectP3Btn">P3</button>
+                            <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p4" id="prospectP4Btn">P4</button>
+                        </div>
+                        <div class="abc-stage-prospect-name" id="prospectName">Prospect 1</div>
                     </div>
-                    <div class="abc-stage-prospect-name" id="prospectName">Prospect 1</div>
                 </div>
 
                 {{-- PHONE mode --}}
@@ -122,14 +107,11 @@
                                     loading="eager"
                                     decoding="async"
                                 >
-                                {{-- Blink overlay --}}
                                 <div class="abc-blink" id="avatarBlink"></div>
                             </div>
 
-                            {{-- Viseme mouth --}}
                             <div class="abc-mouth" id="avatarMouth"></div>
 
-                            {{-- Debug missing avatar overlay --}}
                             <div class="abc-avatar-missing" id="avatarMissing" style="display:none;">
                                 <div style="font-weight:700;margin-bottom:6px;">Missing avatar file</div>
                                 <div style="opacity:.8;margin-bottom:6px;">Tried:</div>
@@ -153,20 +135,11 @@
                         <div class="abc-avatar-caption" id="live2dCaption">Listening…</div>
                     </div>
 
-                    {{-- 3D --}}
+                    {{-- 3D (placeholder container only) --}}
                     <div id="avatar3dWrap" class="abc-avatar-3d" style="display:none;">
                         <div class="abc-rpm-frame-wrap" id="rpmFrameWrap">
-                            <iframe
-                                id="rpmIframe"
-                                src=""
-                                title="3D Avatar"
-                                allow="autoplay; microphone; camera; clipboard-read; clipboard-write"
-                                loading="lazy"
-                                referrerpolicy="no-referrer"
-                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                            ></iframe>
                             <div class="abc-rpm-overlay" id="rpmOverlay">
-                                Paste your ReadyPlayerMe avatar URL in the JS config to enable.
+                                3D placeholder (wiring later)
                             </div>
                         </div>
                         <div class="abc-avatar-caption" id="rpmCaption">Listening…</div>
@@ -245,6 +218,7 @@
         --abc-gold-2: #b9893f;
         --abc-danger: #ff4d4f;
     }
+
     .abc-sp-container{ padding: 22px 22px 28px; max-width: 1320px; margin: 0 auto; color: var(--abc-text); }
     .abc-sp-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px; }
     .abc-sp-title{ font-size:44px; letter-spacing:.5px; margin:0; }
@@ -263,6 +237,7 @@
         box-shadow:0 18px 55px rgba(0,0,0,.55);
         overflow:hidden;
     }
+
     .abc-left{ padding:14px; display:flex; flex-direction:column; min-height:720px; }
     .abc-right{ padding:14px; min-height:720px; display:flex; flex-direction:column; }
 
@@ -334,6 +309,7 @@
     .abc-seg{ display:flex; gap:10px; flex-wrap:wrap; }
     .abc-seg-row{ flex-wrap:nowrap; }
     .abc-seg-center{ justify-content:center; }
+
     .abc-seg-btn{
         padding:10px 12px;
         border-radius:12px;
@@ -361,8 +337,6 @@
         border-bottom:1px solid rgba(255,215,100,.08);
         margin-bottom:12px;
     }
-
-    .abc-top-controls{ display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:14px; }
     .abc-control-center{ text-align:center; }
 
     .abc-avatar-panel{
@@ -371,29 +345,38 @@
         border:1px solid rgba(255,215,100,.10);
         background:rgba(0,0,0,.22);
         display:flex;
+        flex-direction:column;
         align-items:center;
-        justify-content:center;
+        justify-content:flex-start;
         position:relative;
         min-height:420px;
-        padding:18px;
+        padding:16px;
+        gap:14px;
     }
 
-    .abc-stage-env, .abc-stage-prospect{
-        position:absolute;
-        top:12px;
-        padding:10px 10px;
-        border-radius:14px;
+    /* NEW: stage HUD row (prevents overlap) */
+    .abc-stage-hud{
+        width:100%;
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+        padding:12px 12px;
+        border-radius:16px;
         background:rgba(0,0,0,.40);
         border:1px solid rgba(255,215,100,.14);
-        z-index: 6;
+    }
+    .abc-stage-group{
         display:flex;
         flex-direction:column;
         gap:8px;
+        min-width: 260px;
     }
-    .abc-stage-env{ left:12px; }
-    .abc-stage-prospect{ right:12px; align-items:flex-end; }
-
-    .abc-stage-env-label{
+    .abc-stage-group-right{
+        align-items:flex-end;
+        min-width: 260px;
+    }
+    .abc-stage-label{
         font-size:11px;
         letter-spacing:.12em;
         color:rgba(255,215,100,.88);
@@ -406,7 +389,14 @@
         margin-top:2px;
     }
 
-    /* PHONE WAVES (kept simple) */
+    .abc-phone-panel{
+        width:100%;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        flex:1;
+    }
+
     .abc-wave-wrap{
         width:min(520px,100%);
         padding:22px;
@@ -444,21 +434,28 @@
         transform: scaleY(.8);
     }
 
-    /* IN PERSON */
-    .abc-avatar-wrap{ display:flex; flex-direction:column; align-items:center; gap: 14px; width:100%; }
+    .abc-avatar-wrap{
+        width:100%;
+        display:flex;
+        flex:1;
+        flex-direction:column;
+        align-items:center;
+        justify-content:flex-start;
+        gap: 14px;
+    }
     .abc-avatar-mode-row{
         width: min(740px, 100%);
         border:1px solid rgba(255,215,100,.10);
         background: rgba(0,0,0,.18);
         border-radius: 16px;
         padding: 12px 12px;
+        margin-top: 2px;
     }
     .abc-avatar-mode-label{ font-size: 12px; color: rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
 
     .abc-avatar-photo{ display:flex; flex-direction:column; align-items:center; gap: 10px; }
     .abc-avatar-caption{ font-size:12px; color: rgba(255,255,255,.60); }
 
-    /* ==== PHOTO REALISM UPGRADES ==== */
     .abc-avatar-ring{
         width: 340px;
         height: 340px;
@@ -475,7 +472,6 @@
         transition: box-shadow 220ms ease, border-color 220ms ease, filter 220ms ease;
     }
 
-    /* Head wrapper (idle micro movement) */
     .abc-avatar-head{
         width:100%;
         height:100%;
@@ -504,14 +500,12 @@
         transform: translateZ(0);
     }
 
-    /* Blink overlay (we fade a “lid” quickly) */
     .abc-blink{
         position:absolute;
         inset:0;
         opacity:0;
         pointer-events:none;
-        background:
-            linear-gradient(180deg, rgba(0,0,0,.70) 0%, rgba(0,0,0,.10) 45%, rgba(0,0,0,.70) 100%);
+        background: linear-gradient(180deg, rgba(0,0,0,.70) 0%, rgba(0,0,0,.10) 45%, rgba(0,0,0,.70) 100%);
         transform: scaleY(0.08);
         transform-origin: 50% 50%;
     }
@@ -525,7 +519,6 @@
         100% { transform: scaleY(0.08); opacity:0; }
     }
 
-    /* Viseme mouth */
     .abc-mouth{
         position:absolute;
         bottom: 78px;
@@ -542,7 +535,6 @@
         will-change: width, height, border-radius, transform;
     }
 
-    /* Speaking: ring + head */
     .avatar-speaking{
         box-shadow: 0 0 45px rgba(214,162,74,.22);
         border-color: rgba(214,162,74,.92);
@@ -562,22 +554,14 @@
         border-color: rgba(214,162,74,.75);
     }
 
-    /* Reaction styles (applied based on difficulty/persona) */
-    .avatar-react-friendly{
-        border-color: rgba(214,162,74,.92);
-        box-shadow: 0 0 55px rgba(214,162,74,.22);
-    }
-    .avatar-react-neutral{
-        border-color: rgba(214,162,74,.55);
-        box-shadow: 0 0 28px rgba(214,162,74,.10);
-    }
+    .avatar-react-friendly{ border-color: rgba(214,162,74,.92); box-shadow: 0 0 55px rgba(214,162,74,.22); }
+    .avatar-react-neutral{ border-color: rgba(214,162,74,.55); box-shadow: 0 0 28px rgba(214,162,74,.10); }
     .avatar-react-skeptical{
         border-color: rgba(255,255,255,.18);
         box-shadow: 0 0 22px rgba(255,255,255,.06);
         filter: contrast(1.03) saturate(0.98);
     }
 
-    /* Debug overlay */
     .abc-avatar-missing{
         position:absolute;
         inset: 10px;
@@ -597,6 +581,7 @@
     }
 
     .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
+
     .abc-training-bottom{
         margin-top: 10px;
         padding-top: 10px;
@@ -643,17 +628,11 @@
         background: rgba(0,0,0,.26);
         position: relative;
         overflow:hidden;
-    }
-    #rpmIframe{
-        width:100%;
-        height:100%;
-        border: 0;
-        display:block;
-        background: rgba(0,0,0,.26);
+        display:flex;
+        align-items:center;
+        justify-content:center;
     }
     .abc-rpm-overlay{
-        position:absolute;
-        inset:0;
         display:flex;
         align-items:center;
         justify-content:center;
@@ -661,8 +640,9 @@
         padding: 18px;
         color: rgba(255,255,255,.65);
         background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none;
         font-size: 13px;
+        width:100%;
+        height:100%;
     }
 
     .abc-select{
@@ -680,14 +660,8 @@
         .abc-left{ min-height:520px; }
         .abc-right{ min-height:620px; }
         .abc-seg-row{ flex-wrap:wrap; }
-        .abc-stage-env, .abc-stage-prospect{
-            position: static;
-            margin-bottom: 10px;
-            width: 100%;
-            max-width: 520px;
-            align-items:center;
-        }
-        .abc-stage-prospect{ align-items:center; }
+        .abc-stage-hud{ flex-direction:column; align-items:center; }
+        .abc-stage-group, .abc-stage-group-right{ align-items:center; min-width: unset; width:100%; }
         .abc-rpm-frame-wrap{ height: 360px; }
     }
 </style>
@@ -699,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const FALLBACK_AVATAR = APP_BASE + "/images/gideon/prospect_default.jpg";
 
-    // Your confirmed paths:
+    // Your confirmed library:
     // public/images/gideon/avatar_01.jpg ... avatar_04.jpg
     const PROSPECTS = {
         p1: { name: 'Prospect 1', images: { neutral: APP_BASE + "/images/gideon/avatar_01.jpg", friendly: APP_BASE + "/images/gideon/avatar_01.jpg", skeptical: APP_BASE + "/images/gideon/avatar_01.jpg" }},
@@ -711,6 +685,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
+    // ===== DOM =====
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
     const formEl = document.getElementById('sparringForm');
@@ -727,9 +702,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const envInPersonBtn = document.getElementById('envInPersonBtn');
     const phonePanel = document.getElementById('phonePanel');
     const avatarPanel = document.getElementById('avatarPanel');
-
-    const modeYouAgentBtn = document.getElementById('modeYouAgentBtn');
-    const modeYouProspectBtn = document.getElementById('modeYouProspectBtn');
 
     const diffBeginnerBtn = document.getElementById('diffBeginnerBtn');
     const diffIntermediateBtn = document.getElementById('diffIntermediateBtn');
@@ -750,6 +722,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarModePhotoBtn = document.getElementById('avatarModePhotoBtn');
     const avatarModeLive2dBtn = document.getElementById('avatarModeLive2dBtn');
     const avatarMode3dBtn = document.getElementById('avatarMode3dBtn');
+
     const avatarPhotoWrap = document.getElementById('avatarPhotoWrap');
     const avatarLive2dWrap = document.getElementById('avatarLive2dWrap');
     const avatar3dWrap = document.getElementById('avatar3dWrap');
@@ -760,7 +733,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarImg = document.getElementById('avatarImg');
     const avatarCaption = document.getElementById('avatarCaption');
     const avatarMouth = document.getElementById('avatarMouth');
-    const avatarBlink = document.getElementById('avatarBlink');
 
     const avatarMissing = document.getElementById('avatarMissing');
     const avatarMissingUrl = document.getElementById('avatarMissingUrl');
@@ -773,12 +745,14 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('prospectP4Btn'),
     ].filter(Boolean);
 
-    // ====== STATE ======
+    // ===== STATE =====
     let currentSessionId = null;
     let isSending = false;
     let sessionStarted = false;
 
-    let uiMode = 'prospect_simulation';
+    // UI role mode removed for now; fixed mode
+    const uiMode = 'prospect_simulation';
+
     let difficulty = 'intermediate';
     let personaKey = 'neutral_balanced';
     let environment = 'phone';
@@ -795,9 +769,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let ttsEnabled = true;
     let speakingTimer = null;
     let visemeTimer = null;
-    let blinkTimer = null;
 
-    // ====== HELPERS ======
+    // ===== HELPERS =====
     function setStatus(msg){ statusEl.textContent = msg || ''; }
     function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
     function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -920,53 +893,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (existing) existing.remove();
     }
 
-    // ====== BLINK SYSTEM ======
-    function scheduleBlink(){
-        if (blinkTimer) clearTimeout(blinkTimer);
-        const nextMs = randInt(2200, 6500); // natural-ish
-        blinkTimer = setTimeout(()=>{
-            doBlink();
-            scheduleBlink();
-        }, nextMs);
-    }
-    function doBlink(){
-        if (!avatarRing) return;
-        avatarRing.classList.add('blink-now');
-        setTimeout(()=> avatarRing.classList.remove('blink-now'), 180);
-        // occasional double-blink
-        if (Math.random() < 0.12){
-            setTimeout(()=>{
-                avatarRing.classList.add('blink-now');
-                setTimeout(()=> avatarRing.classList.remove('blink-now'), 170);
-            }, 220);
-        }
-    }
-
-    // ====== SPEAKING / VISEMES ======
+    // ===== SPEAKING (kept simple) =====
     function setSpeaking(on){
         if (!avatarRing) return;
         if (on) avatarRing.classList.add('avatar-speaking');
         else avatarRing.classList.remove('avatar-speaking');
     }
-
-    function setMouthShape(shape){
+    function setMouthShapeClosed(){
         if (!avatarMouth) return;
-
-        // default closed
-        let w = 62, h = 10, r = 999;
-
-        if (shape === 'O'){ w = 30; h = 22; r = 18; }
-        if (shape === 'E'){ w = 72; h = 12; r = 14; }
-        if (shape === 'A'){ w = 60; h = 20; r = 16; }
-        if (shape === 'U'){ w = 36; h = 18; r = 16; }
-        if (shape === 'F'){ w = 66; h = 14; r = 10; }
-        if (shape === 'M'){ w = 56; h = 8;  r = 999; }
-
-        avatarMouth.style.width = `${w}px`;
-        avatarMouth.style.height = `${h}px`;
-        avatarMouth.style.borderRadius = `${r}px`;
+        avatarMouth.style.width = '62px';
+        avatarMouth.style.height = '10px';
+        avatarMouth.style.borderRadius = '999px';
     }
-
     function startVisemes(text){
         stopVisemes();
         if (!text || !avatarMouth) return;
@@ -976,34 +914,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
         visemeTimer = setInterval(()=>{
             const c = (chars[i] || ' ').toLowerCase();
-            i++;
+            i++; if (i >= chars.length) i = 0;
 
-            if (i >= chars.length) i = 0;
+            // light viseme feel
+            let w = 62, h = 10, r = 999;
+            if ('ou'.includes(c)) { w = 32; h = 20; r = 16; }
+            else if ('aei'.includes(c)) { w = 74; h = 12; r = 14; }
+            else if ('bmp'.includes(c) || c === ' ') { w = 56; h = 8; r = 999; }
+            else { w = 60; h = 18; r = 16; }
 
-            // simple mapping — looks WAY better than random
-            if ('ae'.includes(c)) setMouthShape('E');
-            else if ('ou'.includes(c)) setMouthShape('O');
-            else if ('i'.includes(c)) setMouthShape('E');
-            else if ('fvs'.includes(c)) setMouthShape('F');
-            else if ('bmp'.includes(c)) setMouthShape('M');
-            else if (c === ' ') setMouthShape('M');
-            else setMouthShape(Math.random() < 0.45 ? 'A' : 'E');
-        }, 85);
+            avatarMouth.style.width = `${w}px`;
+            avatarMouth.style.height = `${h}px`;
+            avatarMouth.style.borderRadius = `${r}px`;
+        }, 90);
     }
-
     function stopVisemes(){
         if (visemeTimer) clearInterval(visemeTimer);
         visemeTimer = null;
-        setMouthShape('M');
+        setMouthShapeClosed();
     }
 
     function speakProspect(text){
-        // Always animate speaking state
         setSpeaking(true);
         setProspectCaption('Speaking…');
         startVisemes(text);
 
-        // also bounce phone bars if user is in phone mode
+        // animate phone bars too
         const bars = waveBars ? Array.from(waveBars.querySelectorAll('span')) : [];
         const waveTimer = setInterval(()=>{
             bars.forEach(b=>{
@@ -1023,13 +959,10 @@ document.addEventListener('DOMContentLoaded', function () {
             setProspectCaption('Listening…');
         }
 
-        // Use browser TTS if enabled, otherwise time it
         if (ttsEnabled && ('speechSynthesis' in window) && typeof SpeechSynthesisUtterance !== 'undefined'){
             try { window.speechSynthesis.cancel(); } catch(e) {}
             const u = new SpeechSynthesisUtterance(text);
-            u.rate = 1.02;
-            u.pitch = 0.95;
-            u.volume = 1;
+            u.rate = 1.02; u.pitch = 0.95; u.volume = 1;
 
             const voices = window.speechSynthesis.getVoices?.() || [];
             const preferred = voices.find(v => /en/i.test(v.lang)) || voices[0];
@@ -1046,7 +979,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ====== RESET ======
+    // ===== RESET =====
     function resetSession(){
         currentSessionId = null;
         sessionStarted = false;
@@ -1072,8 +1005,6 @@ document.addEventListener('DOMContentLoaded', function () {
         setSpeaking(false);
         setProspectCaption('Waiting…');
         removeTypingIndicator();
-
-        scheduleBlink();
     }
 
     function unlockInput(){
@@ -1082,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.focus();
     }
 
-    // ====== PROSPECT PICKER ======
+    // ===== PROSPECT PICKER =====
     function setProspect(id){
         if (!PROSPECTS[id]) return;
         selectedProspectId = id;
@@ -1099,31 +1030,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     prospectBtns.forEach(btn => btn.addEventListener('click', ()=> setProspect(btn.dataset.prospect)));
 
-    // ====== ENVIRONMENT ======
+    // ===== ENVIRONMENT =====
     envPhoneBtn.addEventListener('click', ()=>{
         environment = 'phone';
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'flex';
         avatarPanel.style.display = 'none';
+        setProspectCaption('Waiting…');
     });
+
     envInPersonBtn.addEventListener('click', ()=>{
         environment = 'in_person';
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
+        setProspectCaption('Listening…');
     });
 
-    // ====== ROLE MODE ======
-    modeYouAgentBtn.addEventListener('click', ()=>{
-        uiMode = 'prospect_simulation';
-        setActive(modeYouAgentBtn, [modeYouAgentBtn, modeYouProspectBtn]);
-    });
-    modeYouProspectBtn.addEventListener('click', ()=>{
-        uiMode = 'agent_simulation';
-        setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
-    });
-
-    // ====== DIFFICULTY (drives persona + reactions) ======
+    // ===== DIFFICULTY =====
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
@@ -1136,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', function () {
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
-    // ====== TRAINING ======
+    // ===== TRAINING =====
     function setTraining(mode, btn){
         trainingMode = mode;
         setActive(btn, [trainFullBtn, trainDiscoBtn, trainSegmentsBtn]);
@@ -1147,7 +1071,7 @@ document.addEventListener('DOMContentLoaded', function () {
     trainSegmentsBtn.addEventListener('click', ()=>setTraining('segments', trainSegmentsBtn));
     segmentSelect?.addEventListener('change', (e)=>{ selectedSegment = e.target.value; });
 
-    // ====== AVATAR MODE ======
+    // ===== AVATAR MODE =====
     function setAvatarMode(mode, btn){
         avatarMode = mode;
         setActive(btn, [avatarModePhotoBtn, avatarModeLive2dBtn, avatarMode3dBtn]);
@@ -1159,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', function () {
     avatarModeLive2dBtn.addEventListener('click', ()=>setAvatarMode('live2d', avatarModeLive2dBtn));
     avatarMode3dBtn.addEventListener('click', ()=>setAvatarMode('3d', avatarMode3dBtn));
 
-    // ====== VOICE TOGGLE ======
+    // ===== VOICE TOGGLE =====
     ttsToggleBtn.addEventListener('click', ()=>{
         ttsEnabled = !ttsEnabled;
         ttsToggleBtn.textContent = ttsEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
@@ -1171,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // ====== START ======
+    // ===== START =====
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -1181,12 +1105,12 @@ document.addEventListener('DOMContentLoaded', function () {
         unlockInput();
         startTimer();
         setStatus('Session started. Say your first line.');
-        setProspectCaption('Listening…');
+        setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
     });
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
-    // ====== API ======
+    // ===== API =====
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
@@ -1233,7 +1157,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             removeTypingIndicator();
 
-            // Speak and animate each prospect line
             if (data.opening_line) {
                 appendBubble('them', data.opening_line);
                 speakProspect(data.opening_line);
@@ -1303,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // ====== INIT ======
+    // ===== INIT =====
     resetSession();
     setProspect('p1');
     setDifficulty('intermediate', diffIntermediateBtn);
@@ -1311,7 +1234,6 @@ document.addEventListener('DOMContentLoaded', function () {
     setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
 
-    // Preload voices in some browsers
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {};
     }
