@@ -202,14 +202,15 @@
         font-size: 14px;
     }
 
-    /* ✅ ONLY CHANGE: swap columns so avatar is LEFT (wide) and conversation is RIGHT (420px) */
+    /* ✅ FIX: Make main area left (1fr) and chat panel right (420px) */
     .abc-sp-grid{
         display:grid;
-        grid-template-columns: 1fr 420px; /* was: 420px 1fr */
+        grid-template-columns: 1fr 420px;
         gap: 18px;
     }
-    .abc-left{ grid-column: 2; }  /* conversation moves to the right */
-    .abc-right{ grid-column: 1; } /* avatar/controls move to the left */
+    /* ✅ FIX: Force which column each panel lives in */
+    .abc-right{ grid-column: 1; }
+    .abc-left{ grid-column: 2; }
 
     .abc-card{
         background: radial-gradient(1200px 600px at 20% 10%, rgba(214,162,74,.18), transparent 55%),
@@ -486,8 +487,11 @@
 
     @media (max-width: 1100px){
         .abc-sp-grid{ grid-template-columns: 1fr; }
-        .abc-left{ min-height: 520px; grid-column: auto; }
-        .abc-right{ min-height: 620px; grid-column: auto; }
+        .abc-right{ grid-column: 1; }
+        .abc-left{ grid-column: 1; }
+
+        .abc-left{ min-height: 520px; }
+        .abc-right{ min-height: 620px; }
         .abc-top-controls{ grid-template-columns: 1fr; }
         .abc-bottom-controls{ grid-template-columns: 1fr; }
     }
@@ -528,13 +532,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let isSending = false;
     let sessionStarted = false;
 
-    // stateful UI selections (mapped into existing API fields)
     let uiMode = 'prospect_simulation';
-    let difficulty = 'intermediate'; // beginner|intermediate|advanced
-    let personaKey = 'neutral_balanced'; // mapped from difficulty
-    let environment = 'phone'; // phone|in_person
+    let difficulty = 'intermediate';
+    let personaKey = 'neutral_balanced';
+    let environment = 'phone';
 
-    // timer
     let timerInt = null;
     let seconds = 0;
 
@@ -565,7 +567,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function mapDifficultyToPersona(d){
-        // quick mapping for “fastest working version”
         if (d === 'beginner') return { persona: 'soft_conflict_avoidant', emotion: 'Neutral' };
         if (d === 'advanced') return { persona: 'skeptical_guarded', emotion: 'Skeptical' };
         return { persona: 'neutral_balanced', emotion: 'Neutral' };
@@ -605,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `;
         inputEl.value = '';
-        inputEl.disabled = true; // locked until Start clicked
+        inputEl.disabled = true;
         sendBtn.disabled = true;
         setStatus('');
     }
@@ -616,7 +617,6 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.focus();
     }
 
-    // environment toggles
     envPhoneBtn.addEventListener('click', ()=>{
         environment = 'phone';
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
@@ -630,7 +630,6 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPanel.style.display = 'block';
     });
 
-    // role mode toggles
     modeYouAgentBtn.addEventListener('click', ()=>{
         uiMode = 'prospect_simulation';
         setActive(modeYouAgentBtn, [modeYouAgentBtn, modeYouProspectBtn]);
@@ -640,7 +639,6 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
     });
 
-    // difficulty toggles (replaces persona/scenario dropdown)
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficultyToPersona(difficulty);
@@ -652,7 +650,6 @@ document.addEventListener('DOMContentLoaded', function () {
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
-    // Start session button: just enables conversation + timer
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -689,8 +686,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     persona: personaKey,
                     session_id: currentSessionId,
                     message: message,
-
-                    // optional: UI can pass these; backend can ignore for now
                     difficulty: difficulty,
                     environment: environment,
                 }),
@@ -701,9 +696,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (data.session?.id) currentSessionId = data.session.id;
 
-            // Opening line (if service emits it)
             if (data.opening_line) appendBubble('them', data.opening_line);
-
             if (data.gideon_reply?.content) appendBubble('them', data.gideon_reply.content);
 
             setStatus('Session active.');
@@ -755,10 +748,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // init
     resetSession();
     setDifficulty('intermediate', diffIntermediateBtn);
-    envPhoneBtn.click(); // default to Phone
+    envPhoneBtn.click();
 });
 </script>
 @endsection
