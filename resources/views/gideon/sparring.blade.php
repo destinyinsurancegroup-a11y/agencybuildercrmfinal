@@ -117,12 +117,19 @@
                     {{-- PHOTO AVATAR --}}
                     <div id="avatarPhotoWrap" class="abc-avatar-photo">
                         <div class="abc-avatar-ring" id="avatarRing">
+                            {{-- Start with a guaranteed fallback file --}}
                             <img
-                                src="{{ asset('images/gideon/avatars/avatar_01.jpg') }}"
+                                src="{{ asset('images/gideon/prospect_default.jpg') }}"
                                 alt="Prospect avatar"
                                 class="abc-avatar-img"
                                 id="avatarImg"
+                                loading="eager"
+                                decoding="async"
                             >
+                            <div class="abc-avatar-missing" id="avatarMissing" style="display:none;">
+                                Missing avatar file.<br>
+                                Check <code>public/images/gideon/avatars/</code>
+                            </div>
                             <div class="abc-avatar-blink" id="avatarBlink"></div>
                             <div class="abc-mouth" id="avatarMouth"></div>
                         </div>
@@ -353,7 +360,6 @@
     }
 
     .abc-top-controls{ display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:14px; }
-
     .abc-control-center{ text-align:center; }
 
     .abc-avatar-panel{
@@ -441,6 +447,7 @@
 
     /* IN PERSON */
     .abc-avatar-wrap{ display:flex; flex-direction:column; align-items:center; gap: 14px; width:100%; }
+
     .abc-avatar-mode-row{
         width: min(740px, 100%);
         border:1px solid rgba(255,215,100,.10);
@@ -474,6 +481,8 @@
         50%{ transform: translateY(-6px) scale(1.01); }
         100%{ transform: translateY(0px) scale(1); }
     }
+
+    /* IMPORTANT: keep image visible and inside circle */
     .abc-avatar-img{
         width: 100%;
         height: 100%;
@@ -481,10 +490,33 @@
         object-fit: cover;
         border: 1px solid rgba(255,255,255,.08);
         filter: saturate(1.05) contrast(1.05);
+        display:block;
+        background: rgba(0,0,0,.08);
         will-change: transform, filter;
+        transform: translateY(0) rotate(0deg);
     }
 
-    .abc-avatar-blink{ position:absolute; inset:0; opacity:0; pointer-events:none; }
+    .abc-avatar-missing{
+        position:absolute;
+        inset: 10px;
+        border-radius: 999px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        padding: 18px;
+        color: rgba(255,255,255,.75);
+        background: rgba(0,0,0,.55);
+        border: 1px dashed rgba(255,215,100,.30);
+        font-size: 12px;
+        line-height: 1.35;
+        z-index: 2;
+    }
+    .abc-avatar-missing code{
+        color: rgba(255,215,100,.92);
+    }
+
+    .abc-avatar-blink{ position:absolute; inset:0; opacity:0; pointer-events:none; z-index:3; }
     .blink-now .abc-avatar-blink{ opacity:1; animation: abcBlink 120ms ease-in-out 1; background: rgba(0,0,0,.55); }
     @keyframes abcBlink{ 0%{opacity:0;} 45%{opacity:1;} 100%{opacity:0;} }
 
@@ -500,6 +532,7 @@
         border: 1px solid rgba(255,255,255,.10);
         opacity: .0;
         will-change: height, width, transform, opacity;
+        z-index: 4;
     }
 
     .avatar-speaking .abc-avatar-ring{ box-shadow: 0 0 40px rgba(214,162,74,.20); border-color: rgba(214,162,74,.85); }
@@ -592,52 +625,38 @@
 document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
+    // Guaranteed fallback image (must exist)
+    const FALLBACK_AVATAR = "{{ asset('images/gideon/prospect_default.jpg') }}";
+
     // === PROSPECT LIBRARY (Photo avatars) ===
-    // Place these in: public/images/gideon/avatars/
-    // You can later replace friendly/skeptical with distinct files per prospect without changing JS logic.
+    // REQUIRED location:
+    // public/images/gideon/avatars/avatar_01.jpg ... avatar_04.jpg
     const PROSPECTS = {
-        p1: {
-            name: 'Prospect 1',
-            images: {
-                neutral:   "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
-                friendly:  "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
-                skeptical: "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
-            }
-        },
-        p2: {
-            name: 'Prospect 2',
-            images: {
-                neutral:   "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
-                friendly:  "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
-                skeptical: "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
-            }
-        },
-        p3: {
-            name: 'Prospect 3',
-            images: {
-                neutral:   "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
-                friendly:  "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
-                skeptical: "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
-            }
-        },
-        p4: {
-            name: 'Prospect 4',
-            images: {
-                neutral:   "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
-                friendly:  "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
-                skeptical: "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
-            }
-        },
+        p1: { name: 'Prospect 1', images: {
+            neutral:   "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
+            friendly:  "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
+            skeptical: "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
+        }},
+        p2: { name: 'Prospect 2', images: {
+            neutral:   "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
+            friendly:  "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
+            skeptical: "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
+        }},
+        p3: { name: 'Prospect 3', images: {
+            neutral:   "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
+            friendly:  "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
+            skeptical: "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
+        }},
+        p4: { name: 'Prospect 4', images: {
+            neutral:   "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
+            friendly:  "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
+            skeptical: "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
+        }},
     };
 
-    // ReadyPlayerMe (3D) – optional later
     const RPM_AVATAR_URL = "";
-
-    // Thinking delay (ms)
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
-
-    // Speech energy driver
     const ENERGY = { idleTarget: 0.06, speakingFloor: 0.18, peakWord: 0.92 };
 
     // ====== DOM ======
@@ -681,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarImg = document.getElementById('avatarImg');
     const avatarMouth = document.getElementById('avatarMouth');
     const avatarCaption = document.getElementById('avatarCaption');
+    const avatarMissing = document.getElementById('avatarMissing');
 
     const ttsToggleBtn = document.getElementById('ttsToggleBtn');
 
@@ -696,7 +716,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const rpmIframe = document.getElementById('rpmIframe');
     const rpmOverlay = document.getElementById('rpmOverlay');
 
-    // Prospect picker buttons
     const prospectNameEl = document.getElementById('prospectName');
     const prospectBtns = [
         document.getElementById('prospectP1Btn'),
@@ -720,18 +739,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let avatarMode = 'photo';
 
-    // Selected prospect
     let selectedProspectId = 'p1';
 
-    // Timer
     let timerInt = null;
     let seconds = 0;
 
-    // Speech
     let ttsEnabled = true;
     let speakingLock = false;
 
-    // Animation loop
     let rafId = null;
     let lastTs = 0;
 
@@ -768,17 +783,39 @@ document.addEventListener('DOMContentLoaded', function () {
         return PROSPECTS[selectedProspectId] || PROSPECTS.p1;
     }
 
-    function setAvatarFace(faceKey){
-        const p = currentProspect();
-        const src = p?.images?.[faceKey] || p?.images?.neutral;
-        if (avatarImg && src) avatarImg.src = src;
+    function showMissingAvatar(show){
+        if (!avatarMissing) return;
+        avatarMissing.style.display = show ? 'flex' : 'none';
     }
 
-    function setProspectCaption(text){
-        if (avatarCaption) avatarCaption.textContent = text;
-        if (live2dCaption) live2dCaption.textContent = text;
-        if (rpmCaption) rpmCaption.textContent = text;
-        if (waveHint) waveHint.textContent = text;
+    // Load image safely (so 404 doesn't silently fail)
+    function setAvatarSrcSafe(url){
+        if (!avatarImg) return;
+        showMissingAvatar(false);
+
+        // cache-bust to avoid stale
+        const cacheBust = `cb=${Date.now()}`;
+        const finalUrl = (url && url.includes('?')) ? `${url}&${cacheBust}` : `${url}?${cacheBust}`;
+
+        const test = new Image();
+        test.decoding = 'async';
+        test.onload = () => {
+            avatarImg.src = finalUrl;
+            showMissingAvatar(false);
+        };
+        test.onerror = () => {
+            // fallback to guaranteed default
+            avatarImg.src = `${FALLBACK_AVATAR}?${cacheBust}`;
+            showMissingAvatar(true);
+            console.warn('[Sparring] Avatar image missing:', url);
+        };
+        test.src = finalUrl;
+    }
+
+    function setAvatarFace(faceKey){
+        const p = currentProspect();
+        const src = p?.images?.[faceKey] || p?.images?.neutral || FALLBACK_AVATAR;
+        setAvatarSrcSafe(src);
     }
 
     function appendBubble(who, text){
@@ -825,6 +862,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function removeTypingIndicator(){
         const existing = document.getElementById('typingIndicator');
         if (existing) existing.remove();
+    }
+
+    function setProspectCaption(text){
+        if (avatarCaption) avatarCaption.textContent = text;
+        if (live2dCaption) live2dCaption.textContent = text;
+        if (rpmCaption) rpmCaption.textContent = text;
+        if (waveHint) waveHint.textContent = text;
     }
 
     function clearReactionClasses(){
@@ -1067,18 +1111,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!PROSPECTS[id]) return;
         selectedProspectId = id;
 
-        // UI active state
         prospectBtns.forEach(b=>b.classList.remove('is-active'));
         const activeBtn = prospectBtns.find(b => b.dataset.prospect === id);
         if (activeBtn) activeBtn.classList.add('is-active');
 
         if (prospectNameEl) prospectNameEl.textContent = PROSPECTS[id].name;
 
-        // update avatar image immediately based on current difficulty
         const mapped = mapDifficulty(difficulty);
         setAvatarFace(mapped.face);
     }
-
     prospectBtns.forEach(btn=>{
         btn.addEventListener('click', ()=> setProspect(btn.dataset.prospect));
     });
@@ -1183,7 +1224,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
-    // ====== API CALL ======
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
@@ -1219,7 +1259,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     selected_stage: selectedSegment,
                     avatar_mode: avatarMode,
 
-                    // NEW: tell backend which photo prospect user selected
                     selected_avatar_id: selectedProspectId,
                 }),
             });
@@ -1319,6 +1358,10 @@ document.addEventListener('DOMContentLoaded', function () {
     setTraining('full', trainFullBtn);
     setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
+
+    // Force initial avatar set now (prevents blank state)
+    const initialMapped = mapDifficulty(difficulty);
+    setAvatarFace(initialMapped.face);
 
     startAnimLoop();
 
