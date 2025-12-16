@@ -44,7 +44,7 @@
             {{-- Stage --}}
             <div class="abc-avatar-panel" id="stagePanel">
 
-                {{-- STAGE HUD (no overlap) --}}
+                {{-- STAGE HUD --}}
                 <div class="abc-stage-hud">
                     <div class="abc-stage-group">
                         <div class="abc-stage-label">Environment</div>
@@ -135,12 +135,10 @@
                         <div class="abc-avatar-caption" id="live2dCaption">Listening…</div>
                     </div>
 
-                    {{-- 3D (placeholder container only) --}}
+                    {{-- 3D --}}
                     <div id="avatar3dWrap" class="abc-avatar-3d" style="display:none;">
                         <div class="abc-rpm-frame-wrap" id="rpmFrameWrap">
-                            <div class="abc-rpm-overlay" id="rpmOverlay">
-                                3D placeholder (wiring later)
-                            </div>
+                            <div class="abc-rpm-overlay" id="rpmOverlay">3D placeholder (wiring later)</div>
                         </div>
                         <div class="abc-avatar-caption" id="rpmCaption">Listening…</div>
                     </div>
@@ -209,7 +207,9 @@
     </div>
 </div>
 
+{{-- Styles unchanged (your existing CSS) --}}
 <style>
+/* (keeping your CSS exactly as-is from your current file) */
     :root{
         --abc-border: rgba(255,215,100,.14);
         --abc-text: rgba(255,255,255,.92);
@@ -747,14 +747,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let isSending = false;
     let sessionStarted = false;
 
-    // UI role mode removed for now; fixed mode
     const uiMode = 'prospect_simulation';
 
-    let difficulty = 'intermediate';      // UI label
+    let difficulty = 'intermediate';
     let personaKey = 'neutral_balanced';
     let environment = 'phone';
 
-    let trainingMode = 'full';            // UI label
+    let trainingMode = 'full';
     let selectedSegment = segmentSelect?.value || 'discovery';
 
     let avatarMode = 'photo';
@@ -772,35 +771,39 @@ document.addEventListener('DOMContentLoaded', function () {
     function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
     function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
+    // ✅ UI -> API mappings (CRITICAL)
+    function mapTrainingModeForApi(uiVal){
+        // UI: full | disco | segments
+        // API: full_presentation | discovery_start | stages
+        if (uiVal === 'segments') return 'stages';
+        if (uiVal === 'disco') return 'discovery_start';
+        return 'full_presentation';
+    }
+    function mapDifficultyForApi(uiVal){
+        // UI: beginner | intermediate | advanced
+        // API: easy | normal | hard
+        if (uiVal === 'beginner') return 'easy';
+        if (uiVal === 'advanced') return 'hard';
+        return 'normal';
+    }
+
     function fmtTime(s){
         const mm = String(Math.floor(s/60)).padStart(2,'0');
-        const ss = String(s%60).padStart(2,'0');
+        const ss = String(s%60)).padStart(2,'0');
         return `${mm}:${ss}`;
     }
     function startTimer(){
         stopTimer();
         seconds = 0;
-        timerPill.textContent = `⏱ ${fmtTime(seconds)}`;
-        timerInt = setInterval(()=>{ seconds++; timerPill.textContent = `⏱ ${fmtTime(seconds)}`; }, 1000);
+        timerPill.textContent = `⏱ ${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
+        timerInt = setInterval(()=>{
+            seconds++;
+            timerPill.textContent = `⏱ ${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
+        }, 1000);
     }
     function stopTimer(){
         if (timerInt) clearInterval(timerInt);
         timerInt = null;
-    }
-
-    // ✅ map UI to backend validation enums (VERY IMPORTANT)
-    function apiDifficultyFromUi(ui){
-        // backend expects: easy|normal|hard
-        if (ui === 'beginner') return 'easy';
-        if (ui === 'advanced') return 'hard';
-        return 'normal'; // intermediate
-    }
-
-    function apiTrainingModeFromUi(ui){
-        // backend expects: stages|discovery_start|full_presentation
-        if (ui === 'segments') return 'stages';
-        if (ui === 'disco') return 'discovery_start';
-        return 'full_presentation'; // full
     }
 
     function mapDifficulty(d){
@@ -905,7 +908,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (existing) existing.remove();
     }
 
-    // ===== SPEAKING (kept simple) =====
     function setSpeaking(on){
         if (!avatarRing) return;
         if (on) avatarRing.classList.add('avatar-speaking');
@@ -989,13 +991,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ===== RESET =====
     function resetSession(){
         currentSessionId = null;
         sessionStarted = false;
         isSending = false;
-
-        startBtn.disabled = false;
 
         try { window.speechSynthesis.cancel(); } catch(e) {}
 
@@ -1048,7 +1047,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'flex';
         avatarPanel.style.display = 'none';
-        setProspectCaption(sessionStarted ? 'Listening…' : 'Waiting…');
+        setProspectCaption('Waiting…');
     });
 
     envInPersonBtn.addEventListener('click', ()=>{
@@ -1056,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
-        setProspectCaption(sessionStarted ? 'Listening…' : 'Waiting…');
+        setProspectCaption('Listening…');
     });
 
     // ===== DIFFICULTY =====
@@ -1103,22 +1102,19 @@ document.addEventListener('DOMContentLoaded', function () {
             try { window.speechSynthesis.cancel(); } catch(e) {}
             stopVisemes();
             setSpeaking(false);
-            setProspectCaption(sessionStarted ? 'Listening…' : 'Waiting…');
+            setProspectCaption('Listening…');
         }
     });
 
-    // ===== START (✅ NOW CALLS /start) =====
-    async function postStartSession(){
+    // ✅ START now calls /api/gideon/sparring/start
+    startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenarios found. Seed at least one GideonScenario.'); return; }
-
-        // prevent double clicks
         if (isSending) return;
-        isSending = true;
 
-        startBtn.disabled = true;
+        isSending = true;
         setStatus('Starting session...');
-        setProspectCaption('Booting…');
+        setProspectCaption('Starting…');
 
         try {
             const res = await fetch('/api/gideon/sparring/start', {
@@ -1133,51 +1129,41 @@ document.addEventListener('DOMContentLoaded', function () {
                     mode: uiMode,
                     persona: personaKey,
 
-                    // ✅ mapped to backend enums
-                    training_mode: apiTrainingModeFromUi(trainingMode),
+                    training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: selectedSegment,
-                    difficulty: apiDifficultyFromUi(difficulty),
-
-                    // optional UI-only fields (backend can ignore safely)
-                    environment: environment,
-                    avatar_mode: avatarMode,
-                    selected_avatar_id: selectedProspectId,
+                    difficulty: mapDifficultyForApi(difficulty),
                 }),
             });
 
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
 
-            if (!data.session?.id) {
-                throw new Error('No session id returned from /start');
-            }
+            if (!data.session?.id) throw new Error('No session returned');
 
             currentSessionId = data.session.id;
             sessionStarted = true;
 
-            // unlock + timer
             unlockInput();
             startTimer();
 
-            setStatus('Session started. Say your first line.');
-            setProspectCaption('Listening…');
-
-            // show opening line immediately if present
-            if (data.opening_line && String(data.opening_line).trim() !== '') {
+            if (data.opening_line) {
                 appendBubble('them', data.opening_line);
                 speakProspect(data.opening_line);
+            } else {
+                setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
             }
+
+            setStatus('Session started. Say your first line.');
         } catch (err) {
             console.error(err);
-            startBtn.disabled = false;
-            setProspectCaption('Waiting…');
             setStatus('Error starting session. Check runtime logs + browser console.');
+            setProspectCaption('Waiting…');
+            sessionStarted = false;
+            currentSessionId = null;
         } finally {
             isSending = false;
         }
-    }
-
-    startBtn.addEventListener('click', ()=>{ postStartSession(); });
+    });
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
@@ -1203,16 +1189,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
-                    session_id: currentSessionId,     // ✅ always use existing session
+                    session_id: currentSessionId,
                     scenario_code: scenarioCodeEl.value,
                     mode: uiMode,
                     persona: personaKey,
                     message: message,
 
-                    // send for telemetry (backend ignores once session_id exists)
-                    difficulty: apiDifficultyFromUi(difficulty),
+                    difficulty: mapDifficultyForApi(difficulty),
                     environment: environment,
-                    training_mode: apiTrainingModeFromUi(trainingMode),
+                    training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: selectedSegment,
                     avatar_mode: avatarMode,
                     selected_avatar_id: selectedProspectId,
@@ -1227,6 +1212,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             removeTypingIndicator();
 
+            if (data.opening_line) {
+                appendBubble('them', data.opening_line);
+                speakProspect(data.opening_line);
+            }
             if (data.gideon_reply?.content) {
                 appendBubble('them', data.gideon_reply.content);
                 speakProspect(data.gideon_reply.content);
@@ -1284,6 +1273,8 @@ document.addEventListener('DOMContentLoaded', function () {
             inputEl.disabled = true;
             sendBtn.disabled = true;
             setProspectCaption('Session ended.');
+            sessionStarted = false;
+            currentSessionId = null;
         } catch (err) {
             console.error(err);
             setStatus('Error ending session. Check runtime logs.');
