@@ -47,7 +47,6 @@
 
             {{-- Top controls (UI Role Mode only) --}}
             <div class="abc-top-controls abc-top-controls-single">
-
                 <div class="abc-control">
                     <div class="abc-label">UI Role Mode</div>
                     <div class="abc-seg">
@@ -60,19 +59,30 @@
                     </div>
                     <div class="abc-help">This is not Training Mode.</div>
                 </div>
-
             </div>
 
             {{-- Stage --}}
             <div class="abc-avatar-panel" id="stagePanel">
 
-                {{-- Environment toggle (moved here, smaller buttons) --}}
+                {{-- Environment toggle (top-left) --}}
                 <div class="abc-stage-env">
                     <div class="abc-stage-env-label">Environment</div>
                     <div class="abc-seg abc-seg-row">
                         <button type="button" class="abc-seg-btn abc-seg-btn-sm is-active" id="envPhoneBtn">Phone</button>
                         <button type="button" class="abc-seg-btn abc-seg-btn-sm" id="envInPersonBtn">In Person</button>
                     </div>
+                </div>
+
+                {{-- Prospect picker (top-right) --}}
+                <div class="abc-stage-prospect">
+                    <div class="abc-stage-env-label">Prospect</div>
+                    <div class="abc-seg abc-seg-row">
+                        <button type="button" class="abc-seg-btn abc-seg-btn-sm is-active" data-prospect="p1" id="prospectP1Btn">P1</button>
+                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p2" id="prospectP2Btn">P2</button>
+                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p3" id="prospectP3Btn">P3</button>
+                        <button type="button" class="abc-seg-btn abc-seg-btn-sm" data-prospect="p4" id="prospectP4Btn">P4</button>
+                    </div>
+                    <div class="abc-stage-prospect-name" id="prospectName">Prospect 1</div>
                 </div>
 
                 {{-- PHONE mode: voice waves --}}
@@ -101,14 +111,14 @@
                             <button type="button" class="abc-seg-btn" id="avatarModeLive2dBtn">Live2D</button>
                             <button type="button" class="abc-seg-btn" id="avatarMode3dBtn">3D</button>
                         </div>
-                        <div class="abc-help">Photo works now. Live2D is ready to wire. 3D uses ReadyPlayerMe URL.</div>
+                        <div class="abc-help">Photo uses the prospect library. Live2D/3D are placeholders for now.</div>
                     </div>
 
                     {{-- PHOTO AVATAR --}}
                     <div id="avatarPhotoWrap" class="abc-avatar-photo">
                         <div class="abc-avatar-ring" id="avatarRing">
                             <img
-                                src="{{ asset('images/gideon/prospect_default.jpg') }}"
+                                src="{{ asset('images/gideon/avatars/avatar_01.jpg') }}"
                                 alt="Prospect avatar"
                                 class="abc-avatar-img"
                                 id="avatarImg"
@@ -119,7 +129,7 @@
                         <div class="abc-avatar-caption" id="avatarCaption">Listening…</div>
                     </div>
 
-                    {{-- LIVE2D PLACEHOLDER (canvas-ready) --}}
+                    {{-- LIVE2D PLACEHOLDER --}}
                     <div id="avatarLive2dWrap" class="abc-avatar-live2d" style="display:none;">
                         <div class="abc-live2d-canvas-wrap" id="live2dWrap">
                             <canvas id="live2dCanvas" width="420" height="420"></canvas>
@@ -327,8 +337,6 @@
         background:rgba(214,162,74,.18);
         color:rgba(255,255,255,.95);
     }
-
-    /* smaller env buttons */
     .abc-seg-btn-sm{
         padding:7px 10px;
         border-radius:10px;
@@ -336,7 +344,6 @@
         letter-spacing:.02em;
     }
 
-    /* TOP sections */
     .abc-difficulty-top{
         display:flex;
         justify-content:center;
@@ -345,19 +352,9 @@
         margin-bottom:12px;
     }
 
-    .abc-top-controls{
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        gap:12px;
-        margin-bottom:14px;
-    }
-    .abc-top-controls-single{
-        grid-template-columns:1fr;
-    }
+    .abc-top-controls{ display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:14px; }
 
-    .abc-control-center{
-        text-align:center;
-    }
+    .abc-control-center{ text-align:center; }
 
     .abc-avatar-panel{
         flex:1;
@@ -372,25 +369,32 @@
         padding:18px;
     }
 
-    /* ENV toggle moved into stage */
-    .abc-stage-env{
+    .abc-stage-env, .abc-stage-prospect{
         position:absolute;
         top:12px;
-        left:12px;
-        display:flex;
-        flex-direction:column;
-        gap:8px;
         padding:10px 10px;
         border-radius:14px;
         background:rgba(0,0,0,.40);
         border:1px solid rgba(255,215,100,.14);
         z-index: 6;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
     }
+    .abc-stage-env{ left:12px; }
+    .abc-stage-prospect{ right:12px; align-items:flex-end; }
+
     .abc-stage-env-label{
         font-size:11px;
         letter-spacing:.12em;
         color:rgba(255,215,100,.88);
         text-transform:uppercase;
+    }
+    .abc-stage-prospect-name{
+        font-size:12px;
+        color:rgba(255,255,255,.70);
+        line-height:1;
+        margin-top:2px;
     }
 
     /* PHONE WAVES */
@@ -435,7 +439,7 @@
     .is-speaking .abc-wave-bars span{ opacity:.95; }
     .is-speaking .abc-wave-hint{ color: rgba(214,162,74,.9); }
 
-    /* IN PERSON: mode row */
+    /* IN PERSON */
     .abc-avatar-wrap{ display:flex; flex-direction:column; align-items:center; gap: 14px; width:100%; }
     .abc-avatar-mode-row{
         width: min(740px, 100%);
@@ -446,7 +450,6 @@
     }
     .abc-avatar-mode-label{ font-size: 12px; color: rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
 
-    /* PHOTO AVATAR */
     .abc-avatar-photo{ display:flex; flex-direction:column; align-items:center; gap: 10px; }
     .abc-avatar-caption{ font-size:12px; color: rgba(255,255,255,.60); }
 
@@ -481,23 +484,9 @@
         will-change: transform, filter;
     }
 
-    .abc-avatar-blink{
-        position:absolute;
-        inset:0;
-        background: rgba(0,0,0,.0);
-        opacity: 0;
-        pointer-events:none;
-    }
-    .blink-now .abc-avatar-blink{
-        opacity: 1;
-        animation: abcBlink 120ms ease-in-out 1;
-        background: rgba(0,0,0,.55);
-    }
-    @keyframes abcBlink{
-        0%{ opacity:0; }
-        45%{ opacity:1; }
-        100%{ opacity:0; }
-    }
+    .abc-avatar-blink{ position:absolute; inset:0; opacity:0; pointer-events:none; }
+    .blink-now .abc-avatar-blink{ opacity:1; animation: abcBlink 120ms ease-in-out 1; background: rgba(0,0,0,.55); }
+    @keyframes abcBlink{ 0%{opacity:0;} 45%{opacity:1;} 100%{opacity:0;} }
 
     .abc-mouth{
         position:absolute;
@@ -513,15 +502,8 @@
         will-change: height, width, transform, opacity;
     }
 
-    .avatar-speaking .abc-avatar-ring{
-        box-shadow: 0 0 40px rgba(214,162,74,.20);
-        border-color: rgba(214,162,74,.85);
-    }
-    .avatar-speaking .abc-mouth{
-        opacity: .95;
-        background: rgba(214,162,74,.55);
-        border-color: rgba(214,162,74,.75);
-    }
+    .avatar-speaking .abc-avatar-ring{ box-shadow: 0 0 40px rgba(214,162,74,.20); border-color: rgba(214,162,74,.85); }
+    .avatar-speaking .abc-mouth{ opacity:.95; background: rgba(214,162,74,.55); border-color: rgba(214,162,74,.75); }
 
     .react-skeptical .abc-avatar-img{ filter: saturate(0.96) contrast(1.12) brightness(0.96); }
     .react-friendly .abc-avatar-img{ filter: saturate(1.12) contrast(1.04) brightness(1.03); }
@@ -529,8 +511,7 @@
     .react-thinking .abc-avatar-ring{ box-shadow: 0 0 28px rgba(214,162,74,.14); }
     .react-listening .abc-avatar-ring{ box-shadow: 0 0 18px rgba(214,162,74,.08); }
 
-    /* LIVE2D placeholder */
-    .abc-avatar-live2d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .abc-avatar-live2d, .abc-avatar-3d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
     .abc-live2d-canvas-wrap{
         width: min(520px, 100%);
         aspect-ratio: 1 / 1;
@@ -545,21 +526,12 @@
     }
     #live2dCanvas{ width: 100%; height: 100%; display:block; }
     .abc-live2d-overlay{
-        position:absolute;
-        inset: 0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size: 13px;
-        color: rgba(255,255,255,.65);
+        position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+        font-size: 13px; color: rgba(255,255,255,.65);
         background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none;
-        text-align:center;
-        padding: 14px;
+        pointer-events:none; text-align:center; padding: 14px;
     }
 
-    /* RPM 3D iframe */
-    .abc-avatar-3d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
     .abc-rpm-frame-wrap{
         width: min(720px, 100%);
         height: 420px;
@@ -569,25 +541,12 @@
         position: relative;
         overflow:hidden;
     }
-    #rpmIframe{
-        width:100%;
-        height:100%;
-        border: 0;
-        display:block;
-        background: rgba(0,0,0,.26);
-    }
+    #rpmIframe{ width:100%; height:100%; border:0; display:block; background: rgba(0,0,0,.26); }
     .abc-rpm-overlay{
-        position:absolute;
-        inset:0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        padding: 18px;
-        color: rgba(255,255,255,.65);
+        position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+        text-align:center; padding: 18px; color: rgba(255,255,255,.65);
         background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none;
-        font-size: 13px;
+        pointer-events:none; font-size: 13px;
     }
 
     .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
@@ -618,39 +577,70 @@
         .abc-seg-row{ flex-wrap:wrap; }
         .abc-rpm-frame-wrap{ height: 360px; }
 
-        .abc-stage-env{
+        .abc-stage-env, .abc-stage-prospect{
             position: static;
             margin-bottom: 10px;
             width: 100%;
             max-width: 520px;
             align-items:center;
         }
+        .abc-stage-prospect{ align-items:center; }
     }
 </style>
 
-{{-- JS (unchanged; IDs preserved) --}}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-    const AVATAR_IMAGES = {
-        neutral:    "{{ asset('images/gideon/prospect_default.jpg') }}",
-        friendly:   "{{ asset('images/gideon/prospect_friendly.jpg') }}",
-        skeptical:  "{{ asset('images/gideon/prospect_skeptical.jpg') }}",
+    // === PROSPECT LIBRARY (Photo avatars) ===
+    // Place these in: public/images/gideon/avatars/
+    // You can later replace friendly/skeptical with distinct files per prospect without changing JS logic.
+    const PROSPECTS = {
+        p1: {
+            name: 'Prospect 1',
+            images: {
+                neutral:   "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
+                friendly:  "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
+                skeptical: "{{ asset('images/gideon/avatars/avatar_01.jpg') }}",
+            }
+        },
+        p2: {
+            name: 'Prospect 2',
+            images: {
+                neutral:   "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
+                friendly:  "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
+                skeptical: "{{ asset('images/gideon/avatars/avatar_02.jpg') }}",
+            }
+        },
+        p3: {
+            name: 'Prospect 3',
+            images: {
+                neutral:   "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
+                friendly:  "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
+                skeptical: "{{ asset('images/gideon/avatars/avatar_03.jpg') }}",
+            }
+        },
+        p4: {
+            name: 'Prospect 4',
+            images: {
+                neutral:   "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
+                friendly:  "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
+                skeptical: "{{ asset('images/gideon/avatars/avatar_04.jpg') }}",
+            }
+        },
     };
 
+    // ReadyPlayerMe (3D) – optional later
     const RPM_AVATAR_URL = "";
 
+    // Thinking delay (ms)
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    const ENERGY = {
-        idleTarget: 0.06,
-        speakingFloor: 0.18,
-        peakWord: 0.92,
-        gain: 1.0,
-    };
+    // Speech energy driver
+    const ENERGY = { idleTarget: 0.06, speakingFloor: 0.18, peakWord: 0.92 };
 
+    // ====== DOM ======
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
     const formEl = document.getElementById('sparringForm');
@@ -706,6 +696,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const rpmIframe = document.getElementById('rpmIframe');
     const rpmOverlay = document.getElementById('rpmOverlay');
 
+    // Prospect picker buttons
+    const prospectNameEl = document.getElementById('prospectName');
+    const prospectBtns = [
+        document.getElementById('prospectP1Btn'),
+        document.getElementById('prospectP2Btn'),
+        document.getElementById('prospectP3Btn'),
+        document.getElementById('prospectP4Btn'),
+    ].filter(Boolean);
+
+    // ====== STATE ======
     let currentSessionId = null;
     let isSending = false;
     let sessionStarted = false;
@@ -720,12 +720,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let avatarMode = 'photo';
 
+    // Selected prospect
+    let selectedProspectId = 'p1';
+
+    // Timer
     let timerInt = null;
     let seconds = 0;
 
+    // Speech
     let ttsEnabled = true;
     let speakingLock = false;
 
+    // Animation loop
     let rafId = null;
     let lastTs = 0;
 
@@ -741,23 +747,38 @@ document.addEventListener('DOMContentLoaded', function () {
     let reactUntilTs = 0;
     let reactionClass = '';
 
+    // ====== HELPERS ======
     function nowMs(){ return (performance && performance.now) ? performance.now() : Date.now(); }
     function fmtTime(s){ const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${mm}:${ss}`; }
     function startTimer(){ stopTimer(); seconds=0; timerPill.textContent=`⏱ ${fmtTime(seconds)}`; timerInt=setInterval(()=>{ seconds++; timerPill.textContent=`⏱ ${fmtTime(seconds)}`; },1000); }
     function stopTimer(){ if (timerInt) clearInterval(timerInt); timerInt=null; }
+
     function setStatus(msg){ statusEl.textContent = msg || ''; }
     function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
     function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
     function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 
     function mapDifficulty(d){
-        if (d === 'beginner') return { persona:'soft_conflict_avoidant', emotion:'Friendly', face:'friendly' };
-        if (d === 'advanced') return { persona:'skeptical_guarded', emotion:'Skeptical', face:'skeptical' };
-        return { persona:'neutral_balanced', emotion:'Neutral', face:'neutral' };
+        if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly' };
+        if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical' };
+        return { persona:'neutral_balanced', face:'neutral' };
     }
+
+    function currentProspect(){
+        return PROSPECTS[selectedProspectId] || PROSPECTS.p1;
+    }
+
     function setAvatarFace(faceKey){
-        const src = AVATAR_IMAGES[faceKey] || AVATAR_IMAGES.neutral;
-        if (avatarImg) avatarImg.src = src;
+        const p = currentProspect();
+        const src = p?.images?.[faceKey] || p?.images?.neutral;
+        if (avatarImg && src) avatarImg.src = src;
+    }
+
+    function setProspectCaption(text){
+        if (avatarCaption) avatarCaption.textContent = text;
+        if (live2dCaption) live2dCaption.textContent = text;
+        if (rpmCaption) rpmCaption.textContent = text;
+        if (waveHint) waveHint.textContent = text;
     }
 
     function appendBubble(who, text){
@@ -806,13 +827,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (existing) existing.remove();
     }
 
-    function setProspectCaption(text){
-        if (avatarCaption) avatarCaption.textContent = text;
-        if (live2dCaption) live2dCaption.textContent = text;
-        if (rpmCaption) rpmCaption.textContent = text;
-        if (waveHint) waveHint.textContent = text;
-    }
-
     function clearReactionClasses(){
         document.body.classList.remove('react-skeptical','react-friendly','react-assertive','react-thinking','react-listening');
         if (reactionClass) document.body.classList.remove(reactionClass);
@@ -821,7 +835,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setAvatarState(next){
         avatarState = next;
-
         clearReactionClasses();
         if (avatarState === AVATAR_STATE.THINKING) document.body.classList.add('react-thinking');
         if (avatarState === AVATAR_STATE.LISTENING) document.body.classList.add('react-listening');
@@ -856,12 +869,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setEnergyTarget(v){ speechEnergyTarget = clamp(v, 0, 1); }
-
     function pulseWord(){
         setEnergyTarget(Math.max(speechEnergyTarget, ENERGY.peakWord));
         setTimeout(()=>setEnergyTarget(Math.max(ENERGY.speakingFloor, ENERGY.idleTarget)), 90);
     }
-
     function smoothEnergy(dt){
         const k = 18;
         const d = 0.84;
@@ -946,7 +957,6 @@ document.addEventListener('DOMContentLoaded', function () {
         renderMouthAndBob(speechEnergy, ts);
 
         if (now > nextBlinkAt && speechEnergy < 0.55) doBlink();
-
         rafId = requestAnimationFrame(animationLoop);
     }
 
@@ -955,11 +965,6 @@ document.addEventListener('DOMContentLoaded', function () {
         lastTs = 0;
         scheduleNextBlink();
         rafId = requestAnimationFrame(animationLoop);
-    }
-    function stopAnimLoop(){
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-        lastTs = 0;
     }
 
     function speakProspect(text){
@@ -1001,15 +1006,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         speakingLock = true;
 
-        u.onboundary = () => {
-            pulseWord();
-            speakUntilTs = Math.max(speakUntilTs, nowMs() + 220);
-        };
-        u.onstart = () => {
-            setAvatarState(AVATAR_STATE.SPEAKING);
-            setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.34));
-            speakUntilTs = Math.max(speakUntilTs, nowMs() + 350);
-        };
+        u.onboundary = () => { pulseWord(); speakUntilTs = Math.max(speakUntilTs, nowMs() + 220); };
+        u.onstart = () => { setAvatarState(AVATAR_STATE.SPEAKING); setEnergyTarget(Math.max(ENERGY.speakingFloor, 0.34)); };
         u.onend = () => {
             speakingLock = false;
             setEnergyTarget(ENERGY.idleTarget);
@@ -1064,13 +1062,34 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.focus();
     }
 
+    // ====== Prospect Picker ======
+    function setProspect(id){
+        if (!PROSPECTS[id]) return;
+        selectedProspectId = id;
+
+        // UI active state
+        prospectBtns.forEach(b=>b.classList.remove('is-active'));
+        const activeBtn = prospectBtns.find(b => b.dataset.prospect === id);
+        if (activeBtn) activeBtn.classList.add('is-active');
+
+        if (prospectNameEl) prospectNameEl.textContent = PROSPECTS[id].name;
+
+        // update avatar image immediately based on current difficulty
+        const mapped = mapDifficulty(difficulty);
+        setAvatarFace(mapped.face);
+    }
+
+    prospectBtns.forEach(btn=>{
+        btn.addEventListener('click', ()=> setProspect(btn.dataset.prospect));
+    });
+
+    // ====== ENVIRONMENT ======
     envPhoneBtn.addEventListener('click', ()=>{
         environment = 'phone';
         setActive(envPhoneBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'flex';
         avatarPanel.style.display = 'none';
     });
-
     envInPersonBtn.addEventListener('click', ()=>{
         environment = 'in_person';
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
@@ -1078,31 +1097,29 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPanel.style.display = 'flex';
     });
 
+    // ====== ROLE MODE ======
     modeYouAgentBtn.addEventListener('click', ()=>{
         uiMode = 'prospect_simulation';
         setActive(modeYouAgentBtn, [modeYouAgentBtn, modeYouProspectBtn]);
     });
-
     modeYouProspectBtn.addEventListener('click', ()=>{
         uiMode = 'agent_simulation';
         setActive(modeYouProspectBtn, [modeYouAgentBtn, modeYouProspectBtn]);
     });
 
+    // ====== DIFFICULTY ======
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
         personaKey = mapped.persona;
         setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
-
-        clearReactionClasses();
-        if (difficulty === 'beginner') document.body.classList.add('react-friendly');
-        if (difficulty === 'advanced') document.body.classList.add('react-skeptical');
     }
     diffBeginnerBtn.addEventListener('click', ()=>setDifficulty('beginner', diffBeginnerBtn));
     diffIntermediateBtn.addEventListener('click', ()=>setDifficulty('intermediate', diffIntermediateBtn));
     diffAdvancedBtn.addEventListener('click', ()=>setDifficulty('advanced', diffAdvancedBtn));
 
+    // ====== TRAINING ======
     function setTraining(mode, btn){
         trainingMode = mode;
         setActive(btn, [trainFullBtn, trainDiscoBtn, trainSegmentsBtn]);
@@ -1111,9 +1128,9 @@ document.addEventListener('DOMContentLoaded', function () {
     trainFullBtn.addEventListener('click', ()=>setTraining('full', trainFullBtn));
     trainDiscoBtn.addEventListener('click', ()=>setTraining('disco', trainDiscoBtn));
     trainSegmentsBtn.addEventListener('click', ()=>setTraining('segments', trainSegmentsBtn));
-
     segmentSelect?.addEventListener('change', (e)=>{ selectedSegment = e.target.value; });
 
+    // ====== AVATAR MODE ======
     function setAvatarMode(mode, btn){
         avatarMode = mode;
         setActive(btn, [avatarModePhotoBtn, avatarModeLive2dBtn, avatarMode3dBtn]);
@@ -1136,6 +1153,7 @@ document.addEventListener('DOMContentLoaded', function () {
     avatarModeLive2dBtn.addEventListener('click', ()=>setAvatarMode('live2d', avatarModeLive2dBtn));
     avatarMode3dBtn.addEventListener('click', ()=>setAvatarMode('3d', avatarMode3dBtn));
 
+    // ====== VOICE TOGGLE ======
     ttsToggleBtn.addEventListener('click', ()=>{
         ttsEnabled = !ttsEnabled;
         ttsToggleBtn.textContent = ttsEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
@@ -1149,6 +1167,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // ====== START ======
     startBtn.addEventListener('click', ()=>{
         if (!scenarioCodeEl.value) {
             setStatus('No scenarios found. Seed at least one GideonScenario.');
@@ -1164,13 +1183,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
-    inputEl.addEventListener('input', ()=>{
-        if (!sessionStarted) return;
-        if (avatarState === AVATAR_STATE.SPEAKING || speakingLock) return;
-        setEnergyTarget(Math.max(speechEnergyTarget, 0.10));
-        setTimeout(()=>setEnergyTarget(ENERGY.idleTarget), 140);
-    });
-
+    // ====== API CALL ======
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
@@ -1205,6 +1218,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     training_mode: trainingMode,
                     selected_stage: selectedSegment,
                     avatar_mode: avatarMode,
+
+                    // NEW: tell backend which photo prospect user selected
+                    selected_avatar_id: selectedProspectId,
                 }),
             });
 
@@ -1252,7 +1268,6 @@ document.addEventListener('DOMContentLoaded', function () {
     formEl.addEventListener('submit', (e)=>{
         e.preventDefault();
         if (isSending) return;
-
         const msg = (inputEl.value || '').trim();
         if (!msg) return;
         inputEl.value = '';
@@ -1297,7 +1312,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // ====== INIT ======
     resetSession();
+    setProspect('p1');
     setDifficulty('intermediate', diffIntermediateBtn);
     setTraining('full', trainFullBtn);
     setAvatarMode('photo', avatarModePhotoBtn);
@@ -1308,11 +1325,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {};
     }
-
-    window.addEventListener('beforeunload', ()=>{
-        try { window.speechSynthesis.cancel(); } catch(e) {}
-        stopAnimLoop();
-    });
 });
 </script>
 @endsection
