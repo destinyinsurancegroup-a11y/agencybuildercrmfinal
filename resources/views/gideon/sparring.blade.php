@@ -184,7 +184,7 @@
                 <button class="abc-btn abc-btn-ghost" id="resetSessionBtn" type="button">Reset</button>
             </div>
 
-            {{-- ✅ NEW: Scenario input --}}
+            {{-- Scenario input --}}
             <div class="abc-scenario-wrap">
                 <div class="abc-label">Scenario (optional)</div>
                 <textarea
@@ -423,11 +423,7 @@
         transform: scaleY(.8);
     }
 
-    /* ✅ NEW Scenario styles */
-    .abc-scenario-wrap{
-        padding:10px 10px 0;
-        margin-top:8px;
-    }
+    .abc-scenario-wrap{ padding:10px 10px 0; margin-top:8px; }
     .abc-textarea{
         width:100%;
         background:rgba(0,0,0,.35);
@@ -468,42 +464,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ outgoing call sound (plays fully before salutation)
+    // ✅ Outgoing call WAV (must exist at public/audio/phone-outgoing-call-72202.wav)
     const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.wav";
     const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
     outgoingCallAudio.preload = "auto";
     outgoingCallAudio.loop = false;
     outgoingCallAudio.volume = 0.9;
 
-    async function playOutgoingCallOnce(){
-        if (environment !== 'phone') return;
-        try{
-            outgoingCallAudio.currentTime = 0;
-            const p = outgoingCallAudio.play();
-            if (p && typeof p.catch === 'function') await p.catch(()=>{});
-            // wait until file ends (or fallback estimate)
-            await new Promise(resolve => {
-                const done = ()=>{ cleanup(); resolve(); };
-                const cleanup = ()=>{
-                    outgoingCallAudio.removeEventListener('ended', done);
-                    outgoingCallAudio.removeEventListener('error', done);
-                };
-                outgoingCallAudio.addEventListener('ended', done, { once:true });
-                outgoingCallAudio.addEventListener('error', done, { once:true });
-
-                // hard fallback in case browser never fires ended
-                setTimeout(done, 6000);
-            });
-        } catch(e) {}
-    }
-
-    function stopOutgoingCallSound(){
-        try{
-            outgoingCallAudio.pause();
-            outgoingCallAudio.currentTime = 0;
-        } catch(e) {}
-    }
-
+    // Elements
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
     const formEl = document.getElementById('sparringForm');
@@ -515,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const startBtn = document.getElementById('startSessionBtn');
 
     const scenarioCodeEl = document.getElementById('scenarioCode');
-    const scenarioTextEl = document.getElementById('scenarioText'); // ✅ NEW
+    const scenarioTextEl = document.getElementById('scenarioText');
 
     const envPhoneBtn = document.getElementById('envPhoneBtn');
     const envInPersonBtn = document.getElementById('envInPersonBtn');
@@ -564,6 +532,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('prospectP4Btn'),
     ].filter(Boolean);
 
+    // State
     let currentSessionId = null;
     let isSending = false;
     let sessionStarted = false;
@@ -587,6 +556,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let speakingTimer = null;
     let visemeTimer = null;
 
+    // ✅ NEW: prevent any speech while ringing / dialing
+    let isDialing = false;
+
     function setStatus(msg){ statusEl.textContent = msg || ''; }
     function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
     function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -600,6 +572,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (uiVal === 'beginner') return 'easy';
         if (uiVal === 'advanced') return 'hard';
         return 'normal';
+    }
+
+    // ✅ Required salutations (phone-only)
+    function phoneSalutationForDifficulty(d){
+        if (d === 'beginner') return 'Hello';
+        if (d === 'advanced') return 'Who is it?';
+        return 'Yeah'; // intermediate
     }
 
     function fmtTime(s){
@@ -757,7 +736,10 @@ document.addEventListener('DOMContentLoaded', function () {
         setMouthShapeClosed();
     }
 
+    // ✅ block speaking while dialing
     function speakProspect(text){
+        if (isDialing) return;
+
         setSpeaking(true);
         setProspectCaption('Speaking…');
         startVisemes(text);
@@ -801,8 +783,62 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function stopOutgoingCallSound(){
+        try{
+            outgoingCallAudio.pause();
+            outgoingCallAudio.currentTime = 0;
+        } catch(e) {}
+    }
+
+    // ✅ HARD wait for full WAV end before continuing
+    async function playOutgoingCallFull(){
+        if (environment !== 'phone') return;
+
+        isDialing = true;
+        setProspectCaption('Dialing…');
+
+        try {
+            // Ensure metadata loaded so duration is valid
+            await new Promise(resolve => {
+                if (!isNaN(outgoingCallAudio.duration) && outgoingCallAudio.duration > 0) return resolve();
+                const onMeta = ()=>{ cleanup(); resolve(); };
+                const onErr = ()=>{ cleanup(); resolve(); };
+                const cleanup = ()=>{
+                    outgoingCallAudio.removeEventListener('loadedmetadata', onMeta);
+                    outgoingCallAudio.removeEventListener('error', onErr);
+                };
+                outgoingCallAudio.addEventListener('loadedmetadata', onMeta, { once:true });
+                outgoingCallAudio.addEventListener('error', onErr, { once:true });
+            });
+
+            outgoingCallAudio.currentTime = 0;
+            const p = outgoingCallAudio.play();
+            if (p && typeof p.catch === 'function') await p.catch(()=>{});
+
+            await new Promise(resolve => {
+                const done = ()=>{ cleanup(); resolve(); };
+                const cleanup = ()=>{
+                    outgoingCallAudio.removeEventListener('ended', done);
+                    outgoingCallAudio.removeEventListener('error', done);
+                };
+                outgoingCallAudio.addEventListener('ended', done, { once:true });
+                outgoingCallAudio.addEventListener('error', done, { once:true });
+
+                // Fallback: duration-based (plus small buffer)
+                const durMs = (!isNaN(outgoingCallAudio.duration) && outgoingCallAudio.duration > 0)
+                    ? Math.ceil(outgoingCallAudio.duration * 1000) + 150
+                    : 6000;
+                setTimeout(done, durMs);
+            });
+        } finally {
+            stopOutgoingCallSound();
+            isDialing = false;
+        }
+    }
+
     function resetSession(){
         stopOutgoingCallSound();
+        isDialing = false;
 
         currentSessionId = null;
         sessionStarted = false;
@@ -863,6 +899,7 @@ document.addEventListener('DOMContentLoaded', function () {
     envInPersonBtn.addEventListener('click', ()=>{
         environment = 'in_person';
         stopOutgoingCallSound();
+        isDialing = false;
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
@@ -927,7 +964,6 @@ document.addEventListener('DOMContentLoaded', function () {
     startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
 
-        // default scenario must exist if no custom scenario is typed
         const scenarioText = (scenarioTextEl?.value || '').trim();
         if (!scenarioText && !scenarioCodeEl.value) {
             setStatus('No default scenario found, and no custom scenario typed.');
@@ -938,14 +974,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         isSending = true;
         setStatus('Starting session...');
-        setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
 
         try {
-            // ✅ Phone rings first (full WAV), THEN we call backend
+            // ✅ 1) Ring fully first (phone only) - and BLOCK speaking during dial
             if (environment === 'phone') {
-                await playOutgoingCallOnce();
+                await playOutgoingCallFull();
             }
 
+            // ✅ 2) Only AFTER ring is done do we call backend
             const res = await fetch('/api/gideon/sparring/start', {
                 method: 'POST',
                 headers: {
@@ -955,7 +991,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     scenario_code: scenarioText ? null : scenarioCodeEl.value,
-                    scenario_text: scenarioText ? scenarioText : null, // ✅ NEW
+                    scenario_text: scenarioText ? scenarioText : null,
                     mode: uiMode,
                     persona: personaKey,
                     training_mode: mapTrainingModeForApi(trainingMode),
@@ -978,9 +1014,17 @@ document.addEventListener('DOMContentLoaded', function () {
             unlockInput();
             startTimer();
 
-            if (data.opening_line) {
-                appendBubble('them', data.opening_line);
-                speakProspect(data.opening_line);
+            // ✅ 3) Enforce PHONE salutations (ignore scenario opening_line on phone)
+            let openingLine = null;
+            if (environment === 'phone') {
+                openingLine = phoneSalutationForDifficulty(difficulty);
+            } else {
+                openingLine = data.opening_line || null;
+            }
+
+            if (openingLine) {
+                appendBubble('them', openingLine);
+                speakProspect(openingLine);
             } else {
                 setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
             }
@@ -989,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (err) {
             console.error('[StartSession] Error:', err);
             stopOutgoingCallSound();
+            isDialing = false;
             setStatus(`Error starting session: ${err?.message || 'unknown error'}`);
             setProspectCaption('Waiting…');
             sessionStarted = false;
@@ -1007,6 +1052,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!scenarioText && !scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
 
         if (!sessionStarted || !currentSessionId) { setStatus('Click Start Sparring Session first.'); return; }
+        if (isDialing) return;
 
         isSending = true;
         setStatus('Talking to Gideon...');
@@ -1026,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify({
                     session_id: currentSessionId,
                     scenario_code: scenarioText ? null : scenarioCodeEl.value,
-                    scenario_text: scenarioText ? scenarioText : null, // ✅ keep aligned if backend wants it
+                    scenario_text: scenarioText ? scenarioText : null,
                     mode: uiMode,
                     persona: personaKey,
                     message: message,
@@ -1101,6 +1147,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             stopOutgoingCallSound();
+            isDialing = false;
 
             try { window.speechSynthesis.cancel(); } catch(e) {}
             stopVisemes();
@@ -1116,6 +1163,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (err) {
             console.error(err);
             stopOutgoingCallSound();
+            isDialing = false;
             setStatus(`Error ending session: ${err?.message || 'unknown error'}`);
         } finally {
             isSending = false;
