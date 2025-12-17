@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\GideonScenario;
 use App\Models\GideonSparringSession;
 use App\Services\Gideon\SparringService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -17,9 +18,6 @@ class GideonSparringController extends Controller
         $this->middleware('auth');
     }
 
-    /**
-     * Show the Sparring Partner page.
-     */
     public function index(Request $request)
     {
         $scenarios = GideonScenario::where('is_active', true)
@@ -32,7 +30,7 @@ class GideonSparringController extends Controller
     }
 
     /**
-     * ✅ Start a NEW sparring session (no message required).
+     * Start a NEW sparring session (no message required).
      */
     public function start(Request $request, SparringService $sparring): JsonResponse
     {
@@ -40,27 +38,24 @@ class GideonSparringController extends Controller
 
         $data = $request->validate([
             'scenario_code'  => ['required', 'string'],
-
-            // UI role mode (NOT training mode)
             'mode'           => ['nullable', 'string', 'in:prospect_simulation,agent_simulation'],
             'persona'        => ['nullable', 'string'],
 
-            // training controls
             'training_mode'  => ['nullable', 'string', 'in:stages,discovery_start,full_presentation'],
             'selected_stage' => ['nullable', 'string', 'in:intro,discovery,education,qualify,quote,close'],
             'difficulty'     => ['nullable', 'string', 'in:easy,normal,hard'],
         ]);
 
-        $mode          = $data['mode'] ?? SparringService::UI_MODE_PROSPECT_SIM;
-        $personaKey    = $data['persona'] ?? 'adaptive';
-        $scenarioCode  = $data['scenario_code'];
+        $mode         = $data['mode'] ?? SparringService::UI_MODE_PROSPECT_SIM;
+        $personaKey   = $data['persona'] ?? 'adaptive';
+        $scenarioCode = $data['scenario_code'];
 
         $trainingMode  = $data['training_mode'] ?? null;
         $selectedStage = $data['selected_stage'] ?? null;
         $difficulty    = $data['difficulty'] ?? null;
 
         try {
-            $sessionPayload = $sparring->startSession(
+            $payload = $sparring->startSession(
                 $user->agency_id,
                 $user->id,
                 $scenarioCode,
@@ -68,12 +63,13 @@ class GideonSparringController extends Controller
                 $personaKey
             );
 
-            $session = $sessionPayload['session'];
-            $opening = $sessionPayload['first_message'] ?? null;
+            $session = $payload['session'];
+            $opening = $payload['first_message'] ?? null;
 
+            // ✅ If you have policies, keep it; but return 403 if it fails (not 500)
             $this->authorize('view', $session);
 
-            // Apply training controls only at session creation time.
+            // ✅ Apply training controls (safe: strings, and config mirror)
             $updates = [];
             if ($trainingMode !== null)  $updates['training_mode'] = $trainingMode;
             if ($selectedStage !== null) $updates['selected_stage'] = $selectedStage;
@@ -95,18 +91,26 @@ class GideonSparringController extends Controller
                 'session'      => $session,
                 'opening_line' => $opening?->content,
             ]);
+        } catch (AuthorizationException $e) {
+            throw $e; // Laravel will respond 403
         } catch (\Throwable $e) {
             report($e);
 
-            return response()->json([
-                'message' => 'Failed to start sparring session.',
-            ], 500);
+            $resp = ['message' => 'Failed to start sparring session.'];
+
+            if (config('app.debug')) {
+                $resp['debug'] = [
+                    'exception' => get_class($e),
+                    'error'     => $e->getMessage(),
+                    'file'      => $e->getFile(),
+                    'line'      => $e->getLine(),
+                ];
+            }
+
+            return response()->json($resp, 500);
         }
     }
 
-    /**
-     * Main sparring endpoint (AJAX/JSON).
-     */
     public function ask(Request $request, SparringService $sparring): JsonResponse
     {
         $user = $request->user();
@@ -119,7 +123,6 @@ class GideonSparringController extends Controller
             'persona'       => ['nullable', 'string'],
             'message'       => ['required', 'string', 'min:1'],
 
-            // training controls (only used when starting a NEW session via ask)
             'training_mode'  => ['nullable', 'string', 'in:stages,discovery_start,full_presentation'],
             'selected_stage' => ['nullable', 'string', 'in:intro,discovery,education,qualify,quote,close'],
             'difficulty'     => ['nullable', 'string', 'in:easy,normal,hard'],
@@ -139,16 +142,16 @@ class GideonSparringController extends Controller
             $opening = null;
 
             if (! $sessionId) {
-                $sessionPayload = $sparring->startSession(
+                $payload = $sparring->startSession(
                     $user->agency_id,
                     $user->id,
                     $scenarioCode,
                     $mode,
-                    $personaKey,
+                    $personaKey
                 );
 
-                $session   = $sessionPayload['session'];
-                $opening   = $sessionPayload['first_message'] ?? null;
+                $session   = $payload['session'];
+                $opening   = $payload['first_message'] ?? null;
                 $sessionId = $session->id;
 
                 $this->authorize('view', $session);
@@ -163,6 +166,7 @@ class GideonSparringController extends Controller
                     $config['training_mode']  = $trainingMode ?? ($config['training_mode'] ?? null);
                     $config['selected_stage'] = $selectedStage ?? ($config['selected_stage'] ?? null);
                     $config['difficulty']     = $difficulty ?? ($config['difficulty'] ?? null);
+
                     $updates['config'] = $config;
 
                     $session->update($updates);
@@ -198,16 +202,10 @@ class GideonSparringController extends Controller
             throw $e;
         } catch (\Throwable $e) {
             report($e);
-
-            return response()->json([
-                'message' => 'Gideon sparring error.',
-            ], 500);
+            return response()->json(['message' => 'Gideon sparring error.'], 500);
         }
     }
 
-    /**
-     * End the session and return assessment summary.
-     */
     public function end(Request $request, SparringService $sparring): JsonResponse
     {
         $user = $request->user();
@@ -227,11 +225,7 @@ class GideonSparringController extends Controller
 
             $this->authorize('update', $session);
 
-            $result = $sparring->endSession(
-                $sessionId,
-                $user->agency_id,
-                $user->id
-            );
+            $result = $sparring->endSession($sessionId, $user->agency_id, $user->id);
 
             return response()->json([
                 'session'    => $result['session'],
@@ -239,10 +233,7 @@ class GideonSparringController extends Controller
             ]);
         } catch (\Throwable $e) {
             report($e);
-
-            return response()->json([
-                'message' => 'Failed to end Gideon sparring session.',
-            ], 500);
+            return response()->json(['message' => 'Failed to end Gideon sparring session.'], 500);
         }
     }
 }
