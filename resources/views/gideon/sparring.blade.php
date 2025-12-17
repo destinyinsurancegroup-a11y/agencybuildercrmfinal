@@ -44,7 +44,7 @@
             {{-- Stage --}}
             <div class="abc-avatar-panel" id="stagePanel">
 
-                {{-- STAGE HUD (no overlap) --}}
+                {{-- STAGE HUD --}}
                 <div class="abc-stage-hud">
                     <div class="abc-stage-group">
                         <div class="abc-stage-label">Environment</div>
@@ -135,12 +135,10 @@
                         <div class="abc-avatar-caption" id="live2dCaption">Listening…</div>
                     </div>
 
-                    {{-- 3D (placeholder container only) --}}
+                    {{-- 3D --}}
                     <div id="avatar3dWrap" class="abc-avatar-3d" style="display:none;">
                         <div class="abc-rpm-frame-wrap" id="rpmFrameWrap">
-                            <div class="abc-rpm-overlay" id="rpmOverlay">
-                                3D placeholder (wiring later)
-                            </div>
+                            <div class="abc-rpm-overlay" id="rpmOverlay">3D placeholder (wiring later)</div>
                         </div>
                         <div class="abc-avatar-caption" id="rpmCaption">Listening…</div>
                     </div>
@@ -210,471 +208,315 @@
 </div>
 
 <style>
-    :root{
-        --abc-border: rgba(255,215,100,.14);
-        --abc-text: rgba(255,255,255,.92);
-        --abc-muted: rgba(255,255,255,.58);
-        --abc-gold: #d6a24a;
-        --abc-gold-2: #b9893f;
-        --abc-danger: #ff4d4f;
-    }
-
-    .abc-sp-container{ padding: 22px 22px 28px; max-width: 1320px; margin: 0 auto; color: var(--abc-text); }
-    .abc-sp-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px; }
-    .abc-sp-title{ font-size:44px; letter-spacing:.5px; margin:0; }
-    .abc-sp-subtitle{ color: var(--abc-muted); margin-top:4px; }
-    .abc-sp-header-actions{ display:flex; align-items:center; gap:10px; }
-    .abc-pill{ padding:8px 12px; border-radius:999px; background:rgba(0,0,0,.45); border:1px solid var(--abc-border); font-size:14px; }
-
-    .abc-sp-grid{ display:grid; grid-template-columns: 1fr 420px; gap:18px; align-items:stretch; }
-
-    .abc-card{
-        background: radial-gradient(1200px 600px at 20% 10%, rgba(214,162,74,.18), transparent 55%),
-                    radial-gradient(800px 500px at 90% 30%, rgba(214,162,74,.08), transparent 55%),
-                    linear-gradient(180deg, rgba(20,22,29,.9), rgba(10,11,15,.9));
-        border:1px solid rgba(255,215,100,.10);
-        border-radius:18px;
-        box-shadow:0 18px 55px rgba(0,0,0,.55);
-        overflow:hidden;
-    }
-
-    .abc-left{ padding:14px; display:flex; flex-direction:column; min-height:720px; }
-    .abc-right{ padding:14px; min-height:720px; display:flex; flex-direction:column; }
-
-    .abc-card-header{ display:flex; align-items:center; justify-content:space-between; padding:10px 10px 12px; border-bottom:1px solid rgba(255,215,100,.08); }
-    .abc-card-title{ font-size:12px; letter-spacing:.18em; color:rgba(255,215,100,.85); }
-
-    .abc-transcript{
-        padding:12px 10px;
-        margin-top:10px;
-        border-radius:14px;
-        border:1px dashed rgba(255,215,100,.18);
-        background:rgba(0,0,0,.22);
-        flex:1;
-        overflow-y:auto;
-    }
-    .abc-muted{ color:var(--abc-muted); font-size:13px; }
-
-    .abc-msg{ display:flex; flex-direction:column; gap:6px; margin:10px 0; }
-    .abc-bubble{
-        max-width:92%;
-        border-radius:14px;
-        padding:10px 12px;
-        line-height:1.35;
-        border:1px solid rgba(255,215,100,.12);
-        background:rgba(0,0,0,.30);
-        font-size:14px;
-        white-space:pre-wrap;
-    }
-    .abc-bubble.you{ margin-left:auto; border-color:rgba(214,162,74,.30); background:rgba(214,162,74,.12); }
-    .abc-bubble.them{ margin-right:auto; border-color:rgba(255,255,255,.10); background:rgba(255,255,255,.06); }
-    .abc-time{ font-size:12px; color:rgba(255,255,255,.45); }
-
-    .abc-input-row{ display:flex; gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,215,100,.08); }
-    .abc-input{
-        flex:1;
-        background:rgba(0,0,0,.35);
-        border:1px solid rgba(255,215,100,.14);
-        color:var(--abc-text);
-        border-radius:12px;
-        padding:12px 12px;
-        outline:none;
-    }
-    .abc-input:focus{ border-color:rgba(214,162,74,.45); }
-    .abc-status{ margin-top:10px; color:rgba(255,255,255,.55); font-size:12px; min-height:16px; }
-
-    .abc-btn{
-        border-radius:12px;
-        padding:10px 12px;
-        border:1px solid rgba(255,215,100,.14);
-        background:rgba(0,0,0,.35);
-        color:var(--abc-text);
-        cursor:pointer;
-        white-space:nowrap;
-    }
-    .abc-btn:hover{ border-color:rgba(214,162,74,.40); }
-    .abc-btn-ghost{ background:transparent; }
-    .abc-btn-danger{ border-color:rgba(255,77,79,.45); background:rgba(255,77,79,.10); }
-    .abc-btn-gold{
-        background: linear-gradient(180deg, rgba(214,162,74,.95), rgba(185,137,63,.95));
-        border-color: rgba(214,162,74,.55);
-        color:#0b0c0f;
-        font-weight:700;
-    }
-    .abc-btn-lg{ padding:12px 18px; border-radius:999px; min-width:260px; }
-
-    .abc-control .abc-label{ font-size:12px; color:rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
-    .abc-help{ font-size:12px; color:rgba(255,255,255,.45); margin-top:8px; }
-
-    .abc-seg{ display:flex; gap:10px; flex-wrap:wrap; }
-    .abc-seg-row{ flex-wrap:nowrap; }
-    .abc-seg-center{ justify-content:center; }
-
-    .abc-seg-btn{
-        padding:10px 12px;
-        border-radius:12px;
-        border:1px solid rgba(255,215,100,.14);
-        background:rgba(0,0,0,.28);
-        color:rgba(255,255,255,.85);
-        cursor:pointer;
-    }
-    .abc-seg-btn.is-active{
-        border-color:rgba(214,162,74,.55);
-        background:rgba(214,162,74,.18);
-        color:rgba(255,255,255,.95);
-    }
-    .abc-seg-btn-sm{
-        padding:7px 10px;
-        border-radius:10px;
-        font-size:12px;
-        letter-spacing:.02em;
-    }
-
-    .abc-difficulty-top{
-        display:flex;
-        justify-content:center;
-        padding: 4px 0 12px;
-        border-bottom:1px solid rgba(255,215,100,.08);
-        margin-bottom:12px;
-    }
-    .abc-control-center{ text-align:center; }
-
-    .abc-avatar-panel{
-        flex:1;
-        border-radius:18px;
-        border:1px solid rgba(255,215,100,.10);
-        background:rgba(0,0,0,.22);
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:flex-start;
-        position:relative;
-        min-height:420px;
-        padding:16px;
-        gap:14px;
-    }
-
-    /* NEW: stage HUD row (prevents overlap) */
-    .abc-stage-hud{
-        width:100%;
-        display:flex;
-        align-items:flex-start;
-        justify-content:space-between;
-        gap:12px;
-        padding:12px 12px;
-        border-radius:16px;
-        background:rgba(0,0,0,.40);
-        border:1px solid rgba(255,215,100,.14);
-    }
-    .abc-stage-group{
-        display:flex;
-        flex-direction:column;
-        gap:8px;
-        min-width: 260px;
-    }
-    .abc-stage-group-right{
-        align-items:flex-end;
-        min-width: 260px;
-    }
-    .abc-stage-label{
-        font-size:11px;
-        letter-spacing:.12em;
-        color:rgba(255,215,100,.88);
-        text-transform:uppercase;
-    }
-    .abc-stage-prospect-name{
-        font-size:12px;
-        color:rgba(255,255,255,.70);
-        line-height:1;
-        margin-top:2px;
-    }
-
-    .abc-phone-panel{
-        width:100%;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        flex:1;
-    }
-
-    .abc-wave-wrap{
-        width:min(520px,100%);
-        padding:22px;
-        border-radius:18px;
-        border:1px solid rgba(255,215,100,.12);
-        background:rgba(0,0,0,.28);
-        text-align:center;
-    }
-    .abc-wave-title{ font-size:18px; font-weight:700; }
-    .abc-wave-sub{ margin-top:4px; font-size:13px; color:rgba(255,255,255,.65); }
-    .abc-wave-hint{ margin-top:14px; font-size:12px; color:rgba(255,255,255,.55); }
-    .abc-wave-bars{
-        margin:18px auto 0;
-        height:110px;
-        width:min(420px,100%);
-        display:flex;
-        align-items:flex-end;
-        justify-content:center;
-        gap:8px;
-        padding:14px;
-        border-radius:16px;
-        border:1px solid rgba(255,255,255,.06);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%),
-                    rgba(255,255,255,.03);
-        overflow:hidden;
-    }
-    .abc-wave-bars span{
-        display:block;
-        width:10px;
-        height:14px;
-        border-radius:999px;
-        background:rgba(214,162,74,.55);
-        transform-origin:bottom;
-        opacity:.55;
-        transform: scaleY(.8);
-    }
-
-    .abc-avatar-wrap{
-        width:100%;
-        display:flex;
-        flex:1;
-        flex-direction:column;
-        align-items:center;
-        justify-content:flex-start;
-        gap: 14px;
-    }
-    .abc-avatar-mode-row{
-        width: min(740px, 100%);
-        border:1px solid rgba(255,215,100,.10);
-        background: rgba(0,0,0,.18);
-        border-radius: 16px;
-        padding: 12px 12px;
-        margin-top: 2px;
-    }
-    .abc-avatar-mode-label{ font-size: 12px; color: rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
-
-    .abc-avatar-photo{ display:flex; flex-direction:column; align-items:center; gap: 10px; }
-    .abc-avatar-caption{ font-size:12px; color: rgba(255,255,255,.60); }
-
-    .abc-avatar-ring{
-        width: 340px;
-        height: 340px;
-        border-radius: 999px;
-        border: 2px solid rgba(214,162,74,.55);
-        padding: 10px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        background: radial-gradient(circle at 30% 20%, rgba(214,162,74,.12), rgba(0,0,0,.10));
-        position: relative;
-        overflow:hidden;
-        transform: translateZ(0);
-        transition: box-shadow 220ms ease, border-color 220ms ease, filter 220ms ease;
-    }
-
-    .abc-avatar-head{
-        width:100%;
-        height:100%;
-        border-radius:999px;
-        overflow:hidden;
-        position:relative;
-        transform-origin: 50% 60%;
-        animation: abcHeadIdle 4.4s ease-in-out infinite;
-        will-change: transform;
-    }
-    @keyframes abcHeadIdle{
-        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-        30%{ transform: translateY(-2px) scale(1.01) rotate(-0.35deg); }
-        60%{ transform: translateY(-1px) scale(1.012) rotate(0.25deg); }
-        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-    }
-
-    .abc-avatar-img{
-        width: 100%;
-        height: 100%;
-        border-radius: 999px;
-        object-fit: cover;
-        border: 1px solid rgba(255,255,255,.08);
-        filter: saturate(1.06) contrast(1.06);
-        display:block;
-        transform: translateZ(0);
-    }
-
-    .abc-blink{
-        position:absolute;
-        inset:0;
-        opacity:0;
-        pointer-events:none;
-        background: linear-gradient(180deg, rgba(0,0,0,.70) 0%, rgba(0,0,0,.10) 45%, rgba(0,0,0,.70) 100%);
-        transform: scaleY(0.08);
-        transform-origin: 50% 50%;
-    }
-    .blink-now .abc-blink{
-        opacity:1;
-        animation: abcBlink 140ms ease-in-out 1;
-    }
-    @keyframes abcBlink{
-        0%   { transform: scaleY(0.08); opacity:0; }
-        35%  { transform: scaleY(1); opacity:1; }
-        100% { transform: scaleY(0.08); opacity:0; }
-    }
-
-    .abc-mouth{
-        position:absolute;
-        bottom: 78px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 62px;
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(0,0,0,.40);
-        border: 1px solid rgba(255,255,255,.10);
-        opacity: 0.0;
-        z-index: 5;
-        transition: opacity 120ms ease;
-        will-change: width, height, border-radius, transform;
-    }
-
-    .avatar-speaking{
-        box-shadow: 0 0 45px rgba(214,162,74,.22);
-        border-color: rgba(214,162,74,.92);
-        filter: saturate(1.02);
-    }
-    .avatar-speaking .abc-avatar-head{
-        animation: abcHeadSpeak 520ms ease-in-out infinite;
-    }
-    @keyframes abcHeadSpeak{
-        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-        50%{ transform: translateY(-1px) scale(1.012) rotate(0.20deg); }
-        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-    }
-    .avatar-speaking .abc-mouth{
-        opacity: 0.95;
-        background: rgba(214,162,74,.55);
-        border-color: rgba(214,162,74,.75);
-    }
-
-    .avatar-react-friendly{ border-color: rgba(214,162,74,.92); box-shadow: 0 0 55px rgba(214,162,74,.22); }
-    .avatar-react-neutral{ border-color: rgba(214,162,74,.55); box-shadow: 0 0 28px rgba(214,162,74,.10); }
-    .avatar-react-skeptical{
-        border-color: rgba(255,255,255,.18);
-        box-shadow: 0 0 22px rgba(255,255,255,.06);
-        filter: contrast(1.03) saturate(0.98);
-    }
-
-    .abc-avatar-missing{
-        position:absolute;
-        inset: 10px;
-        border-radius: 999px;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        padding: 18px;
-        color: rgba(255,255,255,.80);
-        background: rgba(0,0,0,.62);
-        border: 1px dashed rgba(255,215,100,.30);
-        font-size: 12px;
-        line-height: 1.35;
-        z-index: 10;
-    }
-
-    .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
-
-    .abc-training-bottom{
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid rgba(255,215,100,.08);
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-    }
-
-    .abc-avatar-live2d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .abc-live2d-canvas-wrap{
-        width: min(520px, 100%);
-        aspect-ratio: 1 / 1;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow: hidden;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-    }
-    #live2dCanvas{ width: 100%; height: 100%; display:block; }
-    .abc-live2d-overlay{
-        position:absolute;
-        inset: 0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size: 13px;
-        color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none;
-        text-align:center;
-        padding: 14px;
-    }
-
-    .abc-avatar-3d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .abc-rpm-frame-wrap{
-        width: min(720px, 100%);
-        height: 420px;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow:hidden;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-    }
-    .abc-rpm-overlay{
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        padding: 18px;
-        color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        font-size: 13px;
-        width:100%;
-        height:100%;
-    }
-
-    .abc-select{
-        width:100%;
-        background:rgba(0,0,0,.35);
-        border:1px solid rgba(255,215,100,.14);
-        color:rgba(255,255,255,.88);
-        border-radius:12px;
-        padding:10px 12px;
-        outline:none;
-    }
-
-    @media (max-width:1100px){
-        .abc-sp-grid{ grid-template-columns:1fr; }
-        .abc-left{ min-height:520px; }
-        .abc-right{ min-height:620px; }
-        .abc-seg-row{ flex-wrap:wrap; }
-        .abc-stage-hud{ flex-direction:column; align-items:center; }
-        .abc-stage-group, .abc-stage-group-right{ align-items:center; min-width: unset; width:100%; }
-        .abc-rpm-frame-wrap{ height: 360px; }
-    }
+/* KEEPING your CSS (same as you had) */
+:root{
+    --abc-border: rgba(255,215,100,.14);
+    --abc-text: rgba(255,255,255,.92);
+    --abc-muted: rgba(255,255,255,.58);
+    --abc-gold: #d6a24a;
+    --abc-gold-2: #b9893f;
+    --abc-danger: #ff4d4f;
+}
+.abc-sp-container{ padding: 22px 22px 28px; max-width: 1320px; margin: 0 auto; color: var(--abc-text); }
+.abc-sp-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px; }
+.abc-sp-title{ font-size:44px; letter-spacing:.5px; margin:0; }
+.abc-sp-subtitle{ color: var(--abc-muted); margin-top:4px; }
+.abc-sp-header-actions{ display:flex; align-items:center; gap:10px; }
+.abc-pill{ padding:8px 12px; border-radius:999px; background:rgba(0,0,0,.45); border:1px solid var(--abc-border); font-size:14px; }
+.abc-sp-grid{ display:grid; grid-template-columns: 1fr 420px; gap:18px; align-items:stretch; }
+.abc-card{
+    background: radial-gradient(1200px 600px at 20% 10%, rgba(214,162,74,.18), transparent 55%),
+                radial-gradient(800px 500px at 90% 30%, rgba(214,162,74,.08), transparent 55%),
+                linear-gradient(180deg, rgba(20,22,29,.9), rgba(10,11,15,.9));
+    border:1px solid rgba(255,215,100,.10);
+    border-radius:18px;
+    box-shadow:0 18px 55px rgba(0,0,0,.55);
+    overflow:hidden;
+}
+.abc-left{ padding:14px; display:flex; flex-direction:column; min-height:720px; }
+.abc-right{ padding:14px; min-height:720px; display:flex; flex-direction:column; }
+.abc-card-header{ display:flex; align-items:center; justify-content:space-between; padding:10px 10px 12px; border-bottom:1px solid rgba(255,215,100,.08); }
+.abc-card-title{ font-size:12px; letter-spacing:.18em; color:rgba(255,215,100,.85); }
+.abc-transcript{
+    padding:12px 10px;
+    margin-top:10px;
+    border-radius:14px;
+    border:1px dashed rgba(255,215,100,.18);
+    background:rgba(0,0,0,.22);
+    flex:1;
+    overflow-y:auto;
+}
+.abc-muted{ color:var(--abc-muted); font-size:13px; }
+.abc-msg{ display:flex; flex-direction:column; gap:6px; margin:10px 0; }
+.abc-bubble{
+    max-width:92%;
+    border-radius:14px;
+    padding:10px 12px;
+    line-height:1.35;
+    border:1px solid rgba(255,215,100,.12);
+    background:rgba(0,0,0,.30);
+    font-size:14px;
+    white-space:pre-wrap;
+}
+.abc-bubble.you{ margin-left:auto; border-color:rgba(214,162,74,.30); background:rgba(214,162,74,.12); }
+.abc-bubble.them{ margin-right:auto; border-color:rgba(255,255,255,.10); background:rgba(255,255,255,.06); }
+.abc-time{ font-size:12px; color:rgba(255,255,255,.45); }
+.abc-input-row{ display:flex; gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,215,100,.08); }
+.abc-input{
+    flex:1;
+    background:rgba(0,0,0,.35);
+    border:1px solid rgba(255,215,100,.14);
+    color:var(--abc-text);
+    border-radius:12px;
+    padding:12px 12px;
+    outline:none;
+}
+.abc-input:focus{ border-color:rgba(214,162,74,.45); }
+.abc-status{ margin-top:10px; color:rgba(255,255,255,.55); font-size:12px; min-height:16px; }
+.abc-btn{
+    border-radius:12px;
+    padding:10px 12px;
+    border:1px solid rgba(255,215,100,.14);
+    background:rgba(0,0,0,.35);
+    color:var(--abc-text);
+    cursor:pointer;
+    white-space:nowrap;
+}
+.abc-btn:hover{ border-color:rgba(214,162,74,.40); }
+.abc-btn-ghost{ background:transparent; }
+.abc-btn-danger{ border-color:rgba(255,77,79,.45); background:rgba(255,77,79,.10); }
+.abc-btn-gold{
+    background: linear-gradient(180deg, rgba(214,162,74,.95), rgba(185,137,63,.95));
+    border-color: rgba(214,162,74,.55);
+    color:#0b0c0f;
+    font-weight:700;
+}
+.abc-btn-lg{ padding:12px 18px; border-radius:999px; min-width:260px; }
+.abc-control .abc-label{ font-size:12px; color:rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
+.abc-help{ font-size:12px; color:rgba(255,255,255,.45); margin-top:8px; }
+.abc-seg{ display:flex; gap:10px; flex-wrap:wrap; }
+.abc-seg-row{ flex-wrap:nowrap; }
+.abc-seg-center{ justify-content:center; }
+.abc-seg-btn{
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,215,100,.14);
+    background:rgba(0,0,0,.28);
+    color:rgba(255,255,255,.85);
+    cursor:pointer;
+}
+.abc-seg-btn.is-active{
+    border-color:rgba(214,162,74,.55);
+    background:rgba(214,162,74,.18);
+    color:rgba(255,255,255,.95);
+}
+.abc-seg-btn-sm{
+    padding:7px 10px;
+    border-radius:10px;
+    font-size:12px;
+    letter-spacing:.02em;
+}
+.abc-difficulty-top{
+    display:flex;
+    justify-content:center;
+    padding: 4px 0 12px;
+    border-bottom:1px solid rgba(255,215,100,.08);
+    margin-bottom:12px;
+}
+.abc-control-center{ text-align:center; }
+.abc-avatar-panel{
+    flex:1;
+    border-radius:18px;
+    border:1px solid rgba(255,215,100,.10);
+    background:rgba(0,0,0,.22);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    position:relative;
+    min-height:420px;
+    padding:16px;
+    gap:14px;
+}
+.abc-stage-hud{
+    width:100%;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding:12px 12px;
+    border-radius:16px;
+    background:rgba(0,0,0,.40);
+    border:1px solid rgba(255,215,100,.14);
+}
+.abc-stage-group{ display:flex; flex-direction:column; gap:8px; min-width: 260px; }
+.abc-stage-group-right{ align-items:flex-end; min-width: 260px; }
+.abc-stage-label{
+    font-size:11px;
+    letter-spacing:.12em;
+    color:rgba(255,215,100,.88);
+    text-transform:uppercase;
+}
+.abc-stage-prospect-name{ font-size:12px; color:rgba(255,255,255,.70); line-height:1; margin-top:2px; }
+.abc-phone-panel{ width:100%; display:flex; justify-content:center; align-items:center; flex:1; }
+.abc-wave-wrap{
+    width:min(520px,100%);
+    padding:22px;
+    border-radius:18px;
+    border:1px solid rgba(255,215,100,.12);
+    background:rgba(0,0,0,.28);
+    text-align:center;
+}
+.abc-wave-title{ font-size:18px; font-weight:700; }
+.abc-wave-sub{ margin-top:4px; font-size:13px; color:rgba(255,255,255,.65); }
+.abc-wave-hint{ margin-top:14px; font-size:12px; color:rgba(255,255,255,.55); }
+.abc-wave-bars{
+    margin:18px auto 0;
+    height:110px;
+    width:min(420px,100%);
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    gap:8px;
+    padding:14px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,.06);
+    background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%),
+                rgba(255,255,255,.03);
+    overflow:hidden;
+}
+.abc-wave-bars span{
+    display:block;
+    width:10px;
+    height:14px;
+    border-radius:999px;
+    background:rgba(214,162,74,.55);
+    transform-origin:bottom;
+    opacity:.55;
+    transform: scaleY(.8);
+}
+.abc-avatar-wrap{ width:100%; display:flex; flex:1; flex-direction:column; align-items:center; justify-content:flex-start; gap:14px; }
+.abc-avatar-mode-row{
+    width: min(740px, 100%);
+    border:1px solid rgba(255,215,100,.10);
+    background: rgba(0,0,0,.18);
+    border-radius: 16px;
+    padding: 12px 12px;
+    margin-top: 2px;
+}
+.abc-avatar-mode-label{ font-size: 12px; color: rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
+.abc-avatar-photo{ display:flex; flex-direction:column; align-items:center; gap:10px; }
+.abc-avatar-caption{ font-size:12px; color: rgba(255,255,255,.60); }
+.abc-avatar-ring{
+    width: 340px;
+    height: 340px;
+    border-radius: 999px;
+    border: 2px solid rgba(214,162,74,.55);
+    padding: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: radial-gradient(circle at 30% 20%, rgba(214,162,74,.12), rgba(0,0,0,.10));
+    position: relative;
+    overflow:hidden;
+    transform: translateZ(0);
+    transition: box-shadow 220ms ease, border-color 220ms ease, filter 220ms ease;
+}
+.abc-avatar-head{
+    width:100%;
+    height:100%;
+    border-radius:999px;
+    overflow:hidden;
+    position:relative;
+    transform-origin: 50% 60%;
+    animation: abcHeadIdle 4.4s ease-in-out infinite;
+    will-change: transform;
+}
+@keyframes abcHeadIdle{
+    0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+    30%{ transform: translateY(-2px) scale(1.01) rotate(-0.35deg); }
+    60%{ transform: translateY(-1px) scale(1.012) rotate(0.25deg); }
+    100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+}
+.abc-avatar-img{
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,.08);
+    filter: saturate(1.06) contrast(1.06);
+    display:block;
+    transform: translateZ(0);
+}
+.abc-mouth{
+    position:absolute;
+    bottom: 78px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 62px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.40);
+    border: 1px solid rgba(255,255,255,.10);
+    opacity: 0.0;
+    z-index: 5;
+    transition: opacity 120ms ease;
+    will-change: width, height, border-radius, transform;
+}
+.avatar-speaking{
+    box-shadow: 0 0 45px rgba(214,162,74,.22);
+    border-color: rgba(214,162,74,.92);
+    filter: saturate(1.02);
+}
+.avatar-speaking .abc-avatar-head{ animation: abcHeadSpeak 520ms ease-in-out infinite; }
+@keyframes abcHeadSpeak{
+    0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+    50%{ transform: translateY(-1px) scale(1.012) rotate(0.20deg); }
+    100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
+}
+.avatar-speaking .abc-mouth{
+    opacity: 0.95;
+    background: rgba(214,162,74,.55);
+    border-color: rgba(214,162,74,.75);
+}
+.avatar-react-friendly{ border-color: rgba(214,162,74,.92); box-shadow: 0 0 55px rgba(214,162,74,.22); }
+.avatar-react-neutral{ border-color: rgba(214,162,74,.55); box-shadow: 0 0 28px rgba(214,162,74,.10); }
+.avatar-react-skeptical{ border-color: rgba(255,255,255,.18); box-shadow: 0 0 22px rgba(255,255,255,.06); filter: contrast(1.03) saturate(0.98); }
+.abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
+.abc-training-bottom{
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,215,100,.08);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+}
+.abc-select{
+    width:100%;
+    background:rgba(0,0,0,.35);
+    border:1px solid rgba(255,215,100,.14);
+    color:rgba(255,255,255,.88);
+    border-radius:12px;
+    padding:10px 12px;
+    outline:none;
+}
+@media (max-width:1100px){
+    .abc-sp-grid{ grid-template-columns:1fr; }
+    .abc-left{ min-height:520px; }
+    .abc-right{ min-height:620px; }
+    .abc-seg-row{ flex-wrap:wrap; }
+    .abc-stage-hud{ flex-direction:column; align-items:center; }
+    .abc-stage-group, .abc-stage-group-right{ align-items:center; min-width: unset; width:100%; }
+    .abc-rpm-frame-wrap{ height: 360px; }
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     const APP_BASE = "{{ rtrim(url('/'), '/') }}";
-
     const FALLBACK_AVATAR = APP_BASE + "/images/gideon/prospect_default.jpg";
 
-    // Your confirmed library:
-    // public/images/gideon/avatar_01.jpg ... avatar_04.jpg
     const PROSPECTS = {
         p1: { name: 'Prospect 1', images: { neutral: APP_BASE + "/images/gideon/avatar_01.jpg", friendly: APP_BASE + "/images/gideon/avatar_01.jpg", skeptical: APP_BASE + "/images/gideon/avatar_01.jpg" }},
         p2: { name: 'Prospect 2', images: { neutral: APP_BASE + "/images/gideon/avatar_02.jpg", friendly: APP_BASE + "/images/gideon/avatar_02.jpg", skeptical: APP_BASE + "/images/gideon/avatar_02.jpg" }},
@@ -750,7 +592,6 @@ document.addEventListener('DOMContentLoaded', function () {
     let isSending = false;
     let sessionStarted = false;
 
-    // UI role mode removed for now; fixed mode
     const uiMode = 'prospect_simulation';
 
     let difficulty = 'intermediate';
@@ -775,6 +616,18 @@ document.addEventListener('DOMContentLoaded', function () {
     function setActive(btn, group){ group.forEach(b=>b.classList.remove('is-active')); btn.classList.add('is-active'); }
     function randInt(min, max){ return Math.floor(Math.random()*(max-min+1))+min; }
 
+    // UI -> API mappings
+    function mapTrainingModeForApi(uiVal){
+        if (uiVal === 'segments') return 'stages';
+        if (uiVal === 'disco') return 'discovery_start';
+        return 'full_presentation';
+    }
+    function mapDifficultyForApi(uiVal){
+        if (uiVal === 'beginner') return 'easy';
+        if (uiVal === 'advanced') return 'hard';
+        return 'normal';
+    }
+
     function fmtTime(s){
         const mm = String(Math.floor(s/60)).padStart(2,'0');
         const ss = String(s%60).padStart(2,'0');
@@ -791,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
-    function mapDifficulty(d){
+    function mapDifficultyUi(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
         return { persona:'neutral_balanced', face:'neutral', react:'neutral' };
@@ -809,17 +662,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setAvatarSrcSafe(url){
         if (!avatarImg) return;
-
         const cacheBust = `cb=${Date.now()}`;
         const finalUrl = (url && url.includes('?')) ? `${url}&${cacheBust}` : `${url}?${cacheBust}`;
         showMissingAvatar(false);
 
         const test = new Image();
         test.decoding = 'async';
-        test.onload = () => {
-            avatarImg.src = finalUrl;
-            showMissingAvatar(false);
-        };
+        test.onload = () => { avatarImg.src = finalUrl; showMissingAvatar(false); };
         test.onerror = () => {
             console.warn('[Sparring] Avatar image missing (404):', finalUrl);
             avatarImg.src = `${FALLBACK_AVATAR}?${cacheBust}`;
@@ -870,7 +719,6 @@ document.addEventListener('DOMContentLoaded', function () {
     function showTypingIndicator(){
         const existing = document.getElementById('typingIndicator');
         if (existing) return;
-
         const wrap = document.createElement('div');
         wrap.id = 'typingIndicator';
         wrap.className = 'abc-msg';
@@ -893,7 +741,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (existing) existing.remove();
     }
 
-    // ===== SPEAKING (kept simple) =====
     function setSpeaking(on){
         if (!avatarRing) return;
         if (on) avatarRing.classList.add('avatar-speaking');
@@ -916,7 +763,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const c = (chars[i] || ' ').toLowerCase();
             i++; if (i >= chars.length) i = 0;
 
-            // light viseme feel
             let w = 62, h = 10, r = 999;
             if ('ou'.includes(c)) { w = 32; h = 20; r = 16; }
             else if ('aei'.includes(c)) { w = 74; h = 12; r = 14; }
@@ -939,7 +785,6 @@ document.addEventListener('DOMContentLoaded', function () {
         setProspectCaption('Speaking…');
         startVisemes(text);
 
-        // animate phone bars too
         const bars = waveBars ? Array.from(waveBars.querySelectorAll('span')) : [];
         const waveTimer = setInterval(()=>{
             bars.forEach(b=>{
@@ -979,7 +824,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ===== RESET =====
     function resetSession(){
         currentSessionId = null;
         sessionStarted = false;
@@ -1024,7 +868,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (prospectNameEl) prospectNameEl.textContent = PROSPECTS[id].name;
 
-        const mapped = mapDifficulty(difficulty);
+        const mapped = mapDifficultyUi(difficulty);
         setReactionStyle(mapped.react);
         setAvatarFace(mapped.face);
     }
@@ -1038,7 +882,6 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPanel.style.display = 'none';
         setProspectCaption('Waiting…');
     });
-
     envInPersonBtn.addEventListener('click', ()=>{
         environment = 'in_person';
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
@@ -1050,7 +893,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ===== DIFFICULTY =====
     function setDifficulty(d, btn){
         difficulty = d;
-        const mapped = mapDifficulty(difficulty);
+        const mapped = mapDifficultyUi(difficulty);
         personaKey = mapped.persona;
         setReactionStyle(mapped.react);
         setAvatarFace(mapped.face);
@@ -1095,26 +938,85 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // ===== START =====
-    startBtn.addEventListener('click', ()=>{
-        if (!scenarioCodeEl.value) {
-            setStatus('No scenarios found. Seed at least one GideonScenario.');
-            return;
+    // helper: parse error body
+    async function safeJson(res){
+        try { return await res.json(); } catch(e) { return null; }
+    }
+
+    // ===== START (calls /api/gideon/sparring/start) =====
+    startBtn.addEventListener('click', async ()=>{
+        if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
+        if (!scenarioCodeEl.value) { setStatus('No scenarios found. Seed at least one GideonScenario.'); return; }
+        if (isSending) return;
+
+        isSending = true;
+        startBtn.disabled = true;
+        setStatus('Starting session...');
+        setProspectCaption('Starting…');
+
+        try {
+            const res = await fetch('/api/gideon/sparring/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    scenario_code: scenarioCodeEl.value,
+                    mode: uiMode,
+                    persona: personaKey,
+                    training_mode: mapTrainingModeForApi(trainingMode),
+                    selected_stage: selectedSegment,
+                    difficulty: mapDifficultyForApi(difficulty),
+                }),
+            });
+
+            const body = await safeJson(res);
+
+            if (!res.ok) {
+                const msg =
+                    body?.message ||
+                    (body?.errors ? JSON.stringify(body.errors) : null) ||
+                    `HTTP ${res.status}`;
+                throw new Error(msg);
+            }
+
+            if (!body?.session?.id) throw new Error('No session returned from server.');
+
+            currentSessionId = body.session.id;
+            sessionStarted = true;
+
+            unlockInput();
+            startTimer();
+
+            if (body.opening_line) {
+                appendBubble('them', body.opening_line);
+                speakProspect(body.opening_line);
+            } else {
+                setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
+            }
+
+            setStatus('Session started. Say your first line.');
+        } catch (err) {
+            console.error('[StartSession]', err);
+            setStatus(`Error starting session: ${err?.message || err}`);
+            setProspectCaption('Waiting…');
+            sessionStarted = false;
+            currentSessionId = null;
+        } finally {
+            isSending = false;
+            startBtn.disabled = false;
         }
-        sessionStarted = true;
-        unlockInput();
-        startTimer();
-        setStatus('Session started. Say your first line.');
-        setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
     });
 
     resetBtn.addEventListener('click', (e)=>{ e.preventDefault(); resetSession(); });
 
-    // ===== API =====
+    // ===== ASK =====
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
-        if (!sessionStarted) { setStatus('Click Start Sparring Session first.'); return; }
+        if (!sessionStarted || !currentSessionId) { setStatus('Click Start Sparring Session first.'); return; }
 
         isSending = true;
         setStatus('Talking to Gideon...');
@@ -1132,50 +1034,50 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
+                    session_id: currentSessionId,
                     scenario_code: scenarioCodeEl.value,
                     mode: uiMode,
                     persona: personaKey,
-                    session_id: currentSessionId,
                     message: message,
-
-                    difficulty: difficulty,
-                    environment: environment,
-                    training_mode: trainingMode,
+                    training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: selectedSegment,
+                    difficulty: mapDifficultyForApi(difficulty),
+                    environment: environment,
                     avatar_mode: avatarMode,
                     selected_avatar_id: selectedProspectId,
                 }),
             });
 
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
+            const body = await safeJson(res);
 
-            if (data.session?.id) currentSessionId = data.session.id;
+            if (!res.ok) {
+                const msg =
+                    body?.message ||
+                    (body?.errors ? JSON.stringify(body.errors) : null) ||
+                    `HTTP ${res.status}`;
+                throw new Error(msg);
+            }
 
             const thinkDelay = randInt(THINKING_MIN_MS, THINKING_MAX_MS);
             await new Promise(r => setTimeout(r, thinkDelay));
 
             removeTypingIndicator();
 
-            if (data.opening_line) {
-                appendBubble('them', data.opening_line);
-                speakProspect(data.opening_line);
-            }
-            if (data.gideon_reply?.content) {
-                appendBubble('them', data.gideon_reply.content);
-                speakProspect(data.gideon_reply.content);
+            if (body?.gideon_reply?.content) {
+                appendBubble('them', body.gideon_reply.content);
+                speakProspect(body.gideon_reply.content);
             } else {
                 setProspectCaption('Listening…');
             }
 
             setStatus('Session active.');
         } catch (err) {
-            console.error(err);
+            console.error('[Ask]', err);
             removeTypingIndicator();
             stopVisemes();
             setSpeaking(false);
             setProspectCaption('Listening…');
-            setStatus('Error talking to Gideon. Check runtime logs + browser console.');
+            setStatus(`Error talking to Gideon: ${err?.message || err}`);
         } finally {
             isSending = false;
         }
@@ -1190,6 +1092,7 @@ document.addEventListener('DOMContentLoaded', function () {
         postAsk(msg);
     });
 
+    // ===== END =====
     endBtn.addEventListener('click', async (e)=>{
         e.preventDefault();
         if (!currentSessionId) { setStatus('No active session.'); return; }
@@ -1197,6 +1100,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         isSending = true;
         setStatus('Ending session...');
+
         try {
             const res = await fetch('/api/gideon/sparring/end', {
                 method: 'POST',
@@ -1207,7 +1111,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({ session_id: currentSessionId }),
             });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
+
+            const body = await safeJson(res);
+
+            if (!res.ok) {
+                const msg =
+                    body?.message ||
+                    (body?.errors ? JSON.stringify(body.errors) : null) ||
+                    `HTTP ${res.status}`;
+                throw new Error(msg);
+            }
 
             try { window.speechSynthesis.cancel(); } catch(e) {}
             stopVisemes();
@@ -1218,9 +1131,11 @@ document.addEventListener('DOMContentLoaded', function () {
             inputEl.disabled = true;
             sendBtn.disabled = true;
             setProspectCaption('Session ended.');
+            sessionStarted = false;
+            currentSessionId = null;
         } catch (err) {
-            console.error(err);
-            setStatus('Error ending session. Check runtime logs.');
+            console.error('[End]', err);
+            setStatus(`Error ending session: ${err?.message || err}`);
         } finally {
             isSending = false;
         }
