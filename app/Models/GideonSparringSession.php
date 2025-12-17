@@ -37,7 +37,7 @@ class GideonSparringSession extends Model
     ];
 
     protected $casts = [
-        // ✅ keep safe casts (avoid enum mismatches causing crashes)
+        // ✅ IMPORTANT: keep these as strings (enum casting can 500 if values mismatch)
         'training_mode' => 'string',
         'selected_stage'=> 'string',
         'difficulty'    => 'string',
@@ -77,34 +77,25 @@ class GideonSparringSession extends Model
         return $this->belongsTo(Agency::class);
     }
 
-    /**
-     * Convenience helper for policies / guards.
-     */
     public function isOwnedBy(User $user): bool
     {
         return (int)$this->user_id === (int)$user->id
             && (int)$this->agency_id === (int)$user->agency_id;
     }
 
-    /**
-     * Small helper: only set "first failed stage" once.
-     * ✅ Writes into state['training']... to match SparringService.
-     */
     public function setFirstFailureOnce(string $stageKey, string $reason): void
     {
-        $state = is_array($this->state) ? $this->state : [];
+        $state = $this->state ?? [];
+        $training = $state['training'] ?? [];
 
-        if (!isset($state['training']) || !is_array($state['training'])) {
-            $state['training'] = [];
+        if (!empty($training['first_failed_stage'])) {
+            return;
         }
 
-        if (!empty($state['training']['first_failed_stage'])) {
-            return; // already set; do not overwrite
-        }
+        $training['first_failed_stage'] = $stageKey;
+        $training['first_failed_reason'] = $reason;
 
-        $state['training']['first_failed_stage'] = $stageKey;
-        $state['training']['first_failed_reason'] = $reason;
-
+        $state['training'] = $training;
         $this->state = $state;
     }
 }
