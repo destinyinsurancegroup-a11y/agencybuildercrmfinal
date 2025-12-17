@@ -680,22 +680,60 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ Outgoing call sound (loops while “dialing”)
-    // Your screenshot shows: public/audio/phone/phone-outgoing-call-72202.wav
+    // ✅ Correct ring path from your screenshot:
+    // public/audio/phone/phone-outgoing-call-72202.wav
     const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone/phone-outgoing-call-72202.wav";
-    const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
+    const outgoingCallAudio = new Audio();
+    outgoingCallAudio.src = OUTGOING_CALL_SRC;
     outgoingCallAudio.preload = "auto";
     outgoingCallAudio.loop = true;
     outgoingCallAudio.volume = 0.9;
 
+    // Audio unlock helper (helps Safari / strict autoplay)
+    let audioUnlocked = false;
+    let audioCtx = null;
+
+    async function unlockAudioOnce(){
+        if (audioUnlocked) return true;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) {
+                audioCtx = audioCtx || new AC();
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+            }
+            // tiny play/pause to “unlock”
+            outgoingCallAudio.muted = true;
+            const p = outgoingCallAudio.play();
+            if (p && typeof p.then === 'function') await p;
+            outgoingCallAudio.pause();
+            outgoingCallAudio.currentTime = 0;
+            outgoingCallAudio.muted = false;
+
+            audioUnlocked = true;
+            return true;
+        } catch(e) {
+            // Not fatal; we’ll still attempt play() on Start click (gesture)
+            return false;
+        }
+    }
+
     function startOutgoingCallSound(){
         if (environment !== 'phone') return;
+
         try {
             outgoingCallAudio.currentTime = 0;
             const p = outgoingCallAudio.play();
-            if (p && typeof p.catch === 'function') p.catch(()=>{});
-        } catch(e) {}
+            if (p && typeof p.catch === 'function') {
+                p.catch((err)=>{
+                    console.warn('[Ring] play() blocked or failed:', err);
+                    setStatus('Sound blocked. Click anywhere once, then click Start again.');
+                });
+            }
+        } catch(e) {
+            console.warn('[Ring] play() threw:', e);
+        }
     }
+
     function stopOutgoingCallSound(){
         try {
             outgoingCallAudio.pause();
@@ -769,7 +807,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const uiMode = 'prospect_simulation';
 
     let difficulty = 'intermediate';
-    // ✅ must match SparringService personas
     let personaKey = 'adaptive';
     let environment = 'phone';
 
@@ -818,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
-    // ✅ beginner/intermediate/advanced -> backend personas
+    // ✅ difficulty -> persona + face
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
@@ -1123,6 +1160,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Click anywhere once to unlock audio (helps Safari)
+    document.addEventListener('click', () => { unlockAudioOnce(); }, { once: true });
+
     // START (creates server session)
     startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
@@ -1133,7 +1173,8 @@ document.addEventListener('DOMContentLoaded', function () {
         setStatus('Starting session...');
         setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
 
-        // ✅ start dialing sound (phone only)
+        // best-effort unlock + start ring (still inside the click gesture)
+        await unlockAudioOnce();
         startOutgoingCallSound();
 
         try {
@@ -1168,22 +1209,34 @@ document.addEventListener('DOMContentLoaded', function () {
             unlockInput();
             startTimer();
 
-            // ✅ IMPORTANT CHANGE:
-            // Do NOT auto-insert the scenario opening line.
-            // You want the AGENT (user) to open first.
-            // Keep a short “connect” moment, then stop ringing.
+            // ✅ THIS IS THE FLOW YOU ASKED FOR:
+            // ring first -> prospect answers based on difficulty (backend opening_line)
             if (environment === 'phone') {
                 setProspectCaption('Ringing…');
+
+                // Let it ring for a moment, then connect + prospect speaks
                 setTimeout(() => {
                     stopOutgoingCallSound();
-                    setProspectCaption('Connected — you go first.');
-                }, 1400);
+                    setProspectCaption('Connected…');
+
+                    if (data.opening_line) {
+                        appendBubble('them', data.opening_line);
+                        speakProspect(data.opening_line);
+                    } else {
+                        setProspectCaption('Connected — your turn.');
+                    }
+                }, 2200);
             } else {
                 stopOutgoingCallSound();
-                setProspectCaption('Ready — you go first.');
+                if (data.opening_line) {
+                    appendBubble('them', data.opening_line);
+                    speakProspect(data.opening_line);
+                } else {
+                    setProspectCaption('Ready — your turn.');
+                }
             }
 
-            setStatus('Session started. Say your opening line.');
+            setStatus('Session started.');
         } catch (err) {
             console.error('[StartSession] Error:', err);
             stopOutgoingCallSound();
@@ -1204,7 +1257,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
         if (!sessionStarted || !currentSessionId) { setStatus('Click Start Sparring Session first.'); return; }
 
-        stopOutgoingCallSound(); // if anything is still playing
+        stopOutgoingCallSound();
 
         isSending = true;
         setStatus('Talking to Gideon...');
@@ -1227,7 +1280,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     mode: uiMode,
                     persona: personaKey,
                     message: message,
-
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
