@@ -67,6 +67,7 @@ class SparringService
      * - Store them in BOTH: columns (if exist/fillable) + config JSON.
      * - Seed training state immediately so the first agent message behaves correctly.
      * - ✅ NEW: accept $environment ('phone' | 'in_person') and use a phone-style opener (difficulty-based).
+     * - ✅ FIX: If environment is not provided, default to 'phone' so you don't fall back to scenario opening lines.
      *
      * @return array{session: GideonSparringSession, first_message: GideonSparringMessage|null}
      */
@@ -79,7 +80,7 @@ class SparringService
         ?string $trainingMode = null,
         ?string $selectedStage = null,
         ?string $difficulty = null,
-        ?string $environment = null // ✅ NEW (last arg for backwards compatibility)
+        ?string $environment = null // ✅ last arg for backwards compatibility
     ): array {
         $scenario = GideonScenario::where('code', $scenarioCode)->first();
 
@@ -96,7 +97,7 @@ class SparringService
         $difficulty    = $difficulty !== null ? $this->normalizeDifficulty($difficulty) : null;
         $selectedStage = $selectedStage !== null ? $this->normalizeStage($selectedStage) : null;
 
-        // ✅ NEW: normalize environment
+        // ✅ NEW: normalize environment, default to phone if missing
         $environment = $this->normalizeEnvironment($environment);
 
         return DB::transaction(function () use (
@@ -118,7 +119,7 @@ class SparringService
                 'persona'       => $personaKey,
             ];
 
-            // ✅ NEW: Store environment for traceability (phone vs in_person)
+            // ✅ Store environment (phone vs in_person)
             if ($environment !== null) {
                 $config['environment'] = $environment;
             }
@@ -171,8 +172,8 @@ class SparringService
 
             /**
              * Only inject an opening line when system is the PROSPECT (prospect_simulation).
-             * ✅ NEW behavior:
-             * - environment=phone: use difficulty-based phone “answer” line
+             * ✅ Phone behavior:
+             * - environment=phone: ALWAYS use difficulty-based phone “answer” line (not scenario script).
              * - otherwise: use scenario opening line
              */
             if ($uiMode === self::UI_MODE_PROSPECT_SIM) {
@@ -222,17 +223,20 @@ class SparringService
     }
 
     /**
-     * ✅ NEW: difficulty-based phone prospect answer line.
+     * ✅ FIX: your requested salutations.
+     * beginner (easy)       = "Hello"
+     * intermediate (normal) = "Yeah"
+     * advanced (hard)       = "Who is it?"
      */
     protected function phoneAnswerOpeningLine(string $difficulty): string
     {
         $difficulty = $this->normalizeDifficulty($difficulty);
 
         return match ($difficulty) {
-            self::DIFF_EASY   => 'Hi! This is Mary — how can I help?',
-            self::DIFF_NORMAL => 'Hello?',
-            self::DIFF_HARD   => 'Yeah—who is this?',
-            default           => 'Hello?',
+            self::DIFF_EASY   => 'Hello',
+            self::DIFF_NORMAL => 'Yeah',
+            self::DIFF_HARD   => 'Who is it?',
+            default           => 'Yeah',
         };
     }
 
@@ -523,14 +527,17 @@ class SparringService
     }
 
     /**
-     * ✅ NEW: Normalize environment
+     * ✅ Normalize environment.
+     * ✅ IMPORTANT: default to 'phone' when not provided so you don't fall back to scenario script.
      */
     protected function normalizeEnvironment(?string $environment): ?string
     {
-        if ($environment === null) return null;
-        $environment = (string) $environment;
+        if ($environment === null) {
+            return 'phone';
+        }
 
-        return in_array($environment, ['phone', 'in_person'], true) ? $environment : null;
+        $environment = (string) $environment;
+        return in_array($environment, ['phone', 'in_person'], true) ? $environment : 'phone';
     }
 
     protected function ensureTrainingState(GideonSparringSession $session, array $state): array
