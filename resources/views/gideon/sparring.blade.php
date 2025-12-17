@@ -439,7 +439,6 @@
         justify-content:flex-start;
         gap: 14px;
     }
-
     .abc-avatar-mode-row{
         width: min(740px, 100%);
         border:1px solid rgba(255,215,100,.10);
@@ -680,8 +679,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ Correct ring path from your screenshot:
-    // public/audio/phone/phone-outgoing-call-72202.wav
+    // ✅ Correct ring file location (matches your GitHub screenshot)
     const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone/phone-outgoing-call-72202.wav";
     const outgoingCallAudio = new Audio();
     outgoingCallAudio.src = OUTGOING_CALL_SRC;
@@ -689,48 +687,18 @@ document.addEventListener('DOMContentLoaded', function () {
     outgoingCallAudio.loop = true;
     outgoingCallAudio.volume = 0.9;
 
-    // Audio unlock helper (helps Safari / strict autoplay)
-    let audioUnlocked = false;
-    let audioCtx = null;
-
-    async function unlockAudioOnce(){
-        if (audioUnlocked) return true;
-        try {
-            const AC = window.AudioContext || window.webkitAudioContext;
-            if (AC) {
-                audioCtx = audioCtx || new AC();
-                if (audioCtx.state === 'suspended') await audioCtx.resume();
-            }
-            // tiny play/pause to “unlock”
-            outgoingCallAudio.muted = true;
-            const p = outgoingCallAudio.play();
-            if (p && typeof p.then === 'function') await p;
-            outgoingCallAudio.pause();
-            outgoingCallAudio.currentTime = 0;
-            outgoingCallAudio.muted = false;
-
-            audioUnlocked = true;
-            return true;
-        } catch(e) {
-            // Not fatal; we’ll still attempt play() on Start click (gesture)
-            return false;
-        }
-    }
-
     function startOutgoingCallSound(){
         if (environment !== 'phone') return;
-
         try {
             outgoingCallAudio.currentTime = 0;
             const p = outgoingCallAudio.play();
             if (p && typeof p.catch === 'function') {
-                p.catch((err)=>{
-                    console.warn('[Ring] play() blocked or failed:', err);
-                    setStatus('Sound blocked. Click anywhere once, then click Start again.');
+                p.catch((e)=> {
+                    console.warn('[Sparring] Ring play blocked/failed:', e);
                 });
             }
         } catch(e) {
-            console.warn('[Ring] play() threw:', e);
+            console.warn('[Sparring] Ring play exception:', e);
         }
     }
 
@@ -740,6 +708,26 @@ document.addEventListener('DOMContentLoaded', function () {
             outgoingCallAudio.currentTime = 0;
         } catch(e) {}
     }
+
+    // Use backend opening_line only if it looks like an actual greeting
+    function looksLikeGreeting(text){
+        if (!text) return false;
+        return /^(hi|hello|hey|good\s*(morning|afternoon|evening)|yeah\??\s*hello\??|hello\??)\b/i.test(String(text).trim());
+    }
+
+    // Difficulty-based “answer” (prospect picks up)
+    function answerLineForDifficulty(diff){
+        if (diff === 'beginner') {
+            return "Hello? This is " + (currentProspect()?.name || "the office") + ". How can I help?";
+        }
+        if (diff === 'advanced') {
+            return "Yeah—hello? I’ve only got a minute. What’s this about?";
+        }
+        // intermediate default
+        return "Hello? Who’s calling?";
+    }
+
+    async function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
@@ -855,7 +843,6 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
-    // ✅ difficulty -> persona + face
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
@@ -1160,9 +1147,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Click anywhere once to unlock audio (helps Safari)
-    document.addEventListener('click', () => { unlockAudioOnce(); }, { once: true });
-
     // START (creates server session)
     startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
@@ -1173,8 +1157,11 @@ document.addEventListener('DOMContentLoaded', function () {
         setStatus('Starting session...');
         setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
 
-        // best-effort unlock + start ring (still inside the click gesture)
-        await unlockAudioOnce();
+        // lock input until the prospect “answers”
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+
+        // ✅ start ringing immediately (user gesture safe)
         startOutgoingCallSound();
 
         try {
@@ -1206,37 +1193,30 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSessionId = data.session.id;
             sessionStarted = true;
 
-            unlockInput();
             startTimer();
 
-            // ✅ THIS IS THE FLOW YOU ASKED FOR:
-            // ring first -> prospect answers based on difficulty (backend opening_line)
+            // ✅ ring for a moment before “answering”
             if (environment === 'phone') {
-                setProspectCaption('Ringing…');
-
-                // Let it ring for a moment, then connect + prospect speaks
-                setTimeout(() => {
-                    stopOutgoingCallSound();
-                    setProspectCaption('Connected…');
-
-                    if (data.opening_line) {
-                        appendBubble('them', data.opening_line);
-                        speakProspect(data.opening_line);
-                    } else {
-                        setProspectCaption('Connected — your turn.');
-                    }
-                }, 2200);
-            } else {
-                stopOutgoingCallSound();
-                if (data.opening_line) {
-                    appendBubble('them', data.opening_line);
-                    speakProspect(data.opening_line);
-                } else {
-                    setProspectCaption('Ready — your turn.');
-                }
+                const ringMs = randInt(1400, 2600);
+                await sleep(ringMs);
             }
 
-            setStatus('Session started.');
+            stopOutgoingCallSound();
+
+            // Choose a proper first line
+            const backendOpening = data.opening_line || null;
+            const firstLine = looksLikeGreeting(backendOpening)
+                ? backendOpening
+                : answerLineForDifficulty(difficulty);
+
+            appendBubble('them', firstLine);
+            speakProspect(firstLine);
+
+            // now user can speak
+            unlockInput();
+
+            setProspectCaption('Listening…');
+            setStatus('Session started. Say your first line.');
         } catch (err) {
             console.error('[StartSession] Error:', err);
             stopOutgoingCallSound();
@@ -1256,8 +1236,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
         if (!sessionStarted || !currentSessionId) { setStatus('Click Start Sparring Session first.'); return; }
-
-        stopOutgoingCallSound();
 
         isSending = true;
         setStatus('Talking to Gideon...');
