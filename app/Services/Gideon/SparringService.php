@@ -66,6 +66,7 @@ class SparringService
      * - Accept training_mode / selected_stage / difficulty at session creation time (optional).
      * - Store them in BOTH: columns (if exist/fillable) + config JSON.
      * - Seed training state immediately so the first agent message behaves correctly.
+     * - ✅ NEW: accept $environment ('phone' | 'in_person') and use a phone-style opener (difficulty-based).
      *
      * @return array{session: GideonSparringSession, first_message: GideonSparringMessage|null}
      */
@@ -77,7 +78,8 @@ class SparringService
         string $personaKey = 'adaptive',
         ?string $trainingMode = null,
         ?string $selectedStage = null,
-        ?string $difficulty = null
+        ?string $difficulty = null,
+        ?string $environment = null // ✅ NEW (last arg for backwards compatibility)
     ): array {
         $scenario = GideonScenario::where('code', $scenarioCode)->first();
 
@@ -94,6 +96,9 @@ class SparringService
         $difficulty    = $difficulty !== null ? $this->normalizeDifficulty($difficulty) : null;
         $selectedStage = $selectedStage !== null ? $this->normalizeStage($selectedStage) : null;
 
+        // ✅ NEW: normalize environment
+        $environment = $this->normalizeEnvironment($environment);
+
         return DB::transaction(function () use (
             $agencyId,
             $userId,
@@ -102,7 +107,8 @@ class SparringService
             $personaKey,
             $trainingMode,
             $selectedStage,
-            $difficulty
+            $difficulty,
+            $environment
         ) {
             $config = [
                 'scenario_code' => $scenario->code,
@@ -111,6 +117,11 @@ class SparringService
                 'ui_mode'       => $uiMode,
                 'persona'       => $personaKey,
             ];
+
+            // ✅ NEW: Store environment for traceability (phone vs in_person)
+            if ($environment !== null) {
+                $config['environment'] = $environment;
+            }
 
             // Persist training selections into config for traceability
             if ($trainingMode !== null)  $config['training_mode']  = $trainingMode;
@@ -125,7 +136,6 @@ class SparringService
                 : null;
 
             // If your sessions table has these columns, we set them.
-            // If not, Eloquent will ignore them if not fillable (or you can remove).
             $create = [
                 'agency_id'   => $agencyId,
                 'user_id'     => $userId,
@@ -151,8 +161,9 @@ class SparringService
             $state = $this->ensureTrainingState($session, is_array($state) ? $state : []);
             $session->update(['state' => $state]);
 
+            // Original scenario opening line (kept for in_person)
             $scriptEngine = $scenario->script_engine ?? [];
-            $openingLine  = is_array($scriptEngine)
+            $openingLineFromScenario = is_array($scriptEngine)
                 ? Arr::get($scriptEngine, 'opening_line')
                 : null;
 
@@ -160,27 +171,47 @@ class SparringService
 
             /**
              * Only inject an opening line when system is the PROSPECT (prospect_simulation).
+             * ✅ NEW behavior:
+             * - environment=phone: use difficulty-based phone “answer” line
+             * - otherwise: use scenario opening line
              */
-            if ($uiMode === self::UI_MODE_PROSPECT_SIM && $openingLine) {
-                $firstMessage = GideonSparringMessage::create([
-                    'session_id' => $session->id,
-                    'agency_id'  => $agencyId,
-                    'user_id'    => $userId,
-                    'role'       => 'prospect',
-                    'content'    => $openingLine,
-                    'meta'       => [
-                        'source'        => 'scenario_opening_line',
-                        'scenario_code' => $scenario->code,
-                        'ui_mode'       => $uiMode,
-                        'training_mode' => $state['training']['mode'] ?? null,
-                        'stage'         => $state['training']['current_stage'] ?? null,
-                        'difficulty'    => $state['training']['difficulty'] ?? null,
-                    ],
-                ]);
+            if ($uiMode === self::UI_MODE_PROSPECT_SIM) {
+                $diff = $this->normalizeDifficulty($state['training']['difficulty'] ?? self::DIFF_NORMAL);
 
-                $state = $session->state ?? [];
-                $state['last_system_line'] = $openingLine;
-                $session->update(['state' => $state]);
+                $openingLine = null;
+                $source = null;
+
+                if ($environment === 'phone') {
+                    $openingLine = $this->phoneAnswerOpeningLine($diff);
+                    $source = 'phone_answer_opening';
+                } else {
+                    $openingLine = $openingLineFromScenario;
+                    $source = 'scenario_opening_line';
+                }
+
+                if ($openingLine) {
+                    $firstMessage = GideonSparringMessage::create([
+                        'session_id' => $session->id,
+                        'agency_id'  => $agencyId,
+                        'user_id'    => $userId,
+                        'role'       => 'prospect',
+                        'content'    => $openingLine,
+                        'meta'       => [
+                            'source'        => $source,
+                            'scenario_code' => $scenario->code,
+                            'ui_mode'       => $uiMode,
+                            'environment'   => $environment,
+                            'training_mode' => $state['training']['mode'] ?? null,
+                            'stage'         => $state['training']['current_stage'] ?? null,
+                            'difficulty'    => $diff,
+                        ],
+                    ]);
+
+                    $state = $session->state ?? [];
+                    $state = is_array($state) ? $state : [];
+                    $state['last_system_line'] = $openingLine;
+                    $session->update(['state' => $state]);
+                }
             }
 
             return [
@@ -188,6 +219,21 @@ class SparringService
                 'first_message' => $firstMessage,
             ];
         });
+    }
+
+    /**
+     * ✅ NEW: difficulty-based phone prospect answer line.
+     */
+    protected function phoneAnswerOpeningLine(string $difficulty): string
+    {
+        $difficulty = $this->normalizeDifficulty($difficulty);
+
+        return match ($difficulty) {
+            self::DIFF_EASY   => 'Hi! This is Mary — how can I help?',
+            self::DIFF_NORMAL => 'Hello?',
+            self::DIFF_HARD   => 'Yeah—who is this?',
+            default           => 'Hello?',
+        };
     }
 
     /**
@@ -474,6 +520,17 @@ class SparringService
     {
         $mode = (string) $mode;
         return ($mode === self::UI_MODE_AGENT_SIM) ? self::UI_MODE_AGENT_SIM : self::UI_MODE_PROSPECT_SIM;
+    }
+
+    /**
+     * ✅ NEW: Normalize environment
+     */
+    protected function normalizeEnvironment(?string $environment): ?string
+    {
+        if ($environment === null) return null;
+        $environment = (string) $environment;
+
+        return in_array($environment, ['phone', 'in_person'], true) ? $environment : null;
     }
 
     protected function ensureTrainingState(GideonSparringSession $session, array $state): array
