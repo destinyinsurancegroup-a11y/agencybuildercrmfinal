@@ -679,30 +679,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ Ring length before prospect answers
-    const RING_BEFORE_ANSWER_MS = 4000;
+    // ✅ Phone ring must play at least this long before prospect "answers"
+    const MIN_RING_MS = 4000;
 
-    // ✅ Outgoing call sound (loops until prospect answers)
-    // Prefer WAV (what you uploaded), fall back to MP3 if you add it later.
-    const OUTGOING_CALL_WAV = APP_BASE + "/audio/phone-outgoing-call-72202.wav";
-    const OUTGOING_CALL_MP3 = APP_BASE + "/audio/phone-outgoing-call-72202.mp3";
-
-    const outgoingCallAudio = new Audio();
+    // ✅ Correct path + extension based on your repo screenshot
+    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.wav";
+    const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
     outgoingCallAudio.preload = "auto";
     outgoingCallAudio.loop = true;
     outgoingCallAudio.volume = 0.9;
 
-    function pickOutgoingSrc(){
-        // Most browsers can play wav, but if not, try mp3.
-        const canWav = !!outgoingCallAudio.canPlayType && outgoingCallAudio.canPlayType('audio/wav; codecs="1"');
-        const canMp3 = !!outgoingCallAudio.canPlayType && outgoingCallAudio.canPlayType('audio/mpeg');
-        if (canWav && canWav !== 'no') return OUTGOING_CALL_WAV;
-        if (canMp3 && canMp3 !== 'no') return OUTGOING_CALL_MP3;
-        // default to wav path
-        return OUTGOING_CALL_WAV;
-    }
-
-    outgoingCallAudio.src = pickOutgoingSrc();
+    function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
     function startOutgoingCallSound(){
         if (environment !== 'phone') return;
@@ -783,13 +770,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let isSending = false;
     let sessionStarted = false;
 
-    // Used to cancel delayed “answer after ring” if user resets / ends / starts again quickly
-    let startSeq = 0;
-
     const uiMode = 'prospect_simulation';
 
     let difficulty = 'intermediate';
-    // ✅ must match SparringService buildInitialState personas
     let personaKey = 'adaptive';
     let environment = 'phone';
 
@@ -838,18 +821,11 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
-    // ✅ temperament mapping: beginner/intermediate/advanced -> backend personas
+    // ✅ difficulty -> backend persona (salutation comes from backend opening_line)
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
         return { persona:'adaptive', face:'neutral', react:'neutral' }; // intermediate
-    }
-
-    // ✅ fallback salutations if backend doesn't send opening_line (still difficulty-aware)
-    function fallbackSalutation(){
-        if (difficulty === 'beginner') return "Hi—this is a good time. What’s up?";
-        if (difficulty === 'advanced') return "Yeah?";
-        return "Hello?";
     }
 
     function currentProspect(){
@@ -1029,7 +1005,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetSession(){
-        startSeq++; // cancel any pending delayed answer
         stopOutgoingCallSound();
 
         currentSessionId = null;
@@ -1090,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     envInPersonBtn.addEventListener('click', ()=>{
         environment = 'in_person';
-        stopOutgoingCallSound(); // if they switch mid-dial
+        stopOutgoingCallSound();
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
@@ -1100,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
-        personaKey = mapped.persona;
+        personaKey = mapped.persona; // ✅ sent to backend -> correct salutation
         setReactionStyle(mapped.react);
         setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
@@ -1151,21 +1126,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
-
     // START (creates server session)
     startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenarios found. Seed at least one GideonScenario.'); return; }
         if (isSending) return;
 
-        const mySeq = ++startSeq;
+        // ✅ optional: prevent starting again if already active
+        if (sessionStarted && currentSessionId) {
+            setStatus('Session already active. End or Reset first.');
+            return;
+        }
 
         isSending = true;
         setStatus('Starting session...');
         setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
 
-        // ✅ start dialing sound (phone only)
+        const ringStartedAt = Date.now();
+
+        // ✅ start ringing immediately (phone only)
         startOutgoingCallSound();
 
         try {
@@ -1179,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify({
                     scenario_code: scenarioCodeEl.value,
                     mode: uiMode,
-                    persona: personaKey,
+                    persona: personaKey, // ✅ key driver for correct salutation
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
@@ -1194,39 +1173,33 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
             if (!data.session?.id) throw new Error('No session returned');
 
+            // ✅ Force ring to be heard for at least 4 seconds before prospect "answers"
+            if (environment === 'phone') {
+                const elapsed = Date.now() - ringStartedAt;
+                const remaining = Math.max(0, MIN_RING_MS - elapsed);
+                if (remaining > 0) await sleep(remaining);
+            }
+
             currentSessionId = data.session.id;
             sessionStarted = true;
 
             unlockInput();
             startTimer();
 
-            // ✅ ring for 4 seconds before the prospect “answers”
-            if (environment === 'phone') {
-                setProspectCaption('Ringing…');
-                await sleep(RING_BEFORE_ANSWER_MS);
-                // cancelled / reset / new start
-                if (mySeq !== startSeq || !sessionStarted || !currentSessionId) {
-                    stopOutgoingCallSound();
-                    return;
-                }
-            }
-
-            // ✅ prospect answered, stop outgoing call sound
+            // ✅ stop ring only after the forced delay
             stopOutgoingCallSound();
 
-            const opening = (data.opening_line && String(data.opening_line).trim())
-                ? String(data.opening_line).trim()
-                : fallbackSalutation();
-
-            appendBubble('them', opening);
-            speakProspect(opening);
+            if (data.opening_line) {
+                appendBubble('them', data.opening_line);
+                speakProspect(data.opening_line);
+            } else {
+                setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
+            }
 
             setStatus('Session started. Say your first line.');
         } catch (err) {
             console.error('[StartSession] Error:', err);
-
             stopOutgoingCallSound();
-
             setStatus(`Error starting session: ${err?.message || 'unknown error'}`);
             setProspectCaption('Waiting…');
             sessionStarted = false;
@@ -1264,8 +1237,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     mode: uiMode,
                     persona: personaKey,
                     message: message,
-
-                    // keep these aligned with controller validation if you have them enabled there
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
@@ -1280,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
 
             const thinkDelay = randInt(THINKING_MIN_MS, THINKING_MAX_MS);
-            await new Promise(r => setTimeout(r, thinkDelay));
+            await sleep(thinkDelay);
 
             removeTypingIndicator();
 
@@ -1318,7 +1289,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!currentSessionId) { setStatus('No active session.'); return; }
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
 
-        startSeq++; // cancel any pending delayed answer
         isSending = true;
         setStatus('Ending session...');
         try {
