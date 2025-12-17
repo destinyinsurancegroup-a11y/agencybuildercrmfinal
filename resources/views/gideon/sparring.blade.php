@@ -679,55 +679,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ Correct ring file location (matches your GitHub screenshot)
-    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone/phone-outgoing-call-72202.wav";
-    const outgoingCallAudio = new Audio();
-    outgoingCallAudio.src = OUTGOING_CALL_SRC;
+    // ✅ MUST match your public path exactly:
+    // public/audio/phone-outgoing-call-72202.wav  ->  /audio/phone-outgoing-call-72202.wav
+    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.wav";
+    const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
     outgoingCallAudio.preload = "auto";
     outgoingCallAudio.loop = true;
-    outgoingCallAudio.volume = 0.9;
+    outgoingCallAudio.volume = 0.95;
 
     function startOutgoingCallSound(){
         if (environment !== 'phone') return;
         try {
             outgoingCallAudio.currentTime = 0;
             const p = outgoingCallAudio.play();
-            if (p && typeof p.catch === 'function') {
-                p.catch((e)=> {
-                    console.warn('[Sparring] Ring play blocked/failed:', e);
-                });
-            }
-        } catch(e) {
-            console.warn('[Sparring] Ring play exception:', e);
-        }
+            if (p && typeof p.catch === 'function') p.catch(()=>{});
+        } catch(e) {}
     }
-
     function stopOutgoingCallSound(){
         try {
             outgoingCallAudio.pause();
             outgoingCallAudio.currentTime = 0;
         } catch(e) {}
     }
-
-    // Use backend opening_line only if it looks like an actual greeting
-    function looksLikeGreeting(text){
-        if (!text) return false;
-        return /^(hi|hello|hey|good\s*(morning|afternoon|evening)|yeah\??\s*hello\??|hello\??)\b/i.test(String(text).trim());
-    }
-
-    // Difficulty-based “answer” (prospect picks up)
-    function answerLineForDifficulty(diff){
-        if (diff === 'beginner') {
-            return "Hello? This is " + (currentProspect()?.name || "the office") + ". How can I help?";
-        }
-        if (diff === 'advanced') {
-            return "Yeah—hello? I’ve only got a minute. What’s this about?";
-        }
-        // intermediate default
-        return "Hello? Who’s calling?";
-    }
-
-    async function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
@@ -843,10 +816,18 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
+    // difficulty -> backend personas
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
         return { persona:'adaptive', face:'neutral', react:'neutral' };
+    }
+
+    function ringAnswerDelayMs(){
+        // You can tune these:
+        if (difficulty === 'beginner') return randInt(1200, 1800);
+        if (difficulty === 'advanced') return randInt(1600, 2400);
+        return randInt(1400, 2100); // intermediate
     }
 
     function currentProspect(){
@@ -1155,13 +1136,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         isSending = true;
         setStatus('Starting session...');
-        setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
+        setProspectCaption(environment === 'phone' ? 'Ringing…' : 'Starting…');
 
-        // lock input until the prospect “answers”
-        inputEl.disabled = true;
-        sendBtn.disabled = true;
-
-        // ✅ start ringing immediately (user gesture safe)
+        // start ring immediately on click (allowed by browser)
         startOutgoingCallSound();
 
         try {
@@ -1193,34 +1170,28 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSessionId = data.session.id;
             sessionStarted = true;
 
+            unlockInput();
             startTimer();
 
-            // ✅ ring for a moment before “answering”
-            if (environment === 'phone') {
-                const ringMs = randInt(1400, 2600);
-                await sleep(ringMs);
-            }
+            // keep ringing for a moment, then "answer"
+            const answerDelay = (environment === 'phone') ? ringAnswerDelayMs() : 0;
 
-            stopOutgoingCallSound();
+            setTimeout(() => {
+                stopOutgoingCallSound();
 
-            // Choose a proper first line
-            const backendOpening = data.opening_line || null;
-            const firstLine = looksLikeGreeting(backendOpening)
-                ? backendOpening
-                : answerLineForDifficulty(difficulty);
+                if (data.opening_line) {
+                    appendBubble('them', data.opening_line);
+                    speakProspect(data.opening_line);
+                } else {
+                    setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
+                }
 
-            appendBubble('them', firstLine);
-            speakProspect(firstLine);
+                setStatus('Session started. Say your first line.');
+            }, answerDelay);
 
-            // now user can speak
-            unlockInput();
-
-            setProspectCaption('Listening…');
-            setStatus('Session started. Say your first line.');
         } catch (err) {
             console.error('[StartSession] Error:', err);
             stopOutgoingCallSound();
-
             setStatus(`Error starting session: ${err?.message || 'unknown error'}`);
             setProspectCaption('Waiting…');
             sessionStarted = false;
