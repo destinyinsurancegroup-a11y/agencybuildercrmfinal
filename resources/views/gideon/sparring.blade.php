@@ -679,6 +679,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
+    // ✅ Option A: outgoing call sound (loops until prospect answers)
+    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.mp3";
+    const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
+    outgoingCallAudio.preload = "auto";
+    outgoingCallAudio.loop = true;
+    outgoingCallAudio.volume = 0.9;
+
+    function startOutgoingCallSound(){
+        if (environment !== 'phone') return;
+        try {
+            outgoingCallAudio.currentTime = 0;
+            const p = outgoingCallAudio.play();
+            if (p && typeof p.catch === 'function') p.catch(()=>{});
+        } catch(e) {}
+    }
+
+    function stopOutgoingCallSound(){
+        try {
+            outgoingCallAudio.pause();
+            outgoingCallAudio.currentTime = 0;
+        } catch(e) {}
+    }
+
     const transcriptEl = document.getElementById('sparringTranscript');
     const inputEl = document.getElementById('sparringInput');
     const formEl = document.getElementById('sparringForm');
@@ -745,7 +768,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const uiMode = 'prospect_simulation';
 
     let difficulty = 'intermediate';
-    let personaKey = 'neutral_balanced';
+    // ✅ must match SparringService buildInitialState personas
+    let personaKey = 'adaptive';
     let environment = 'phone';
 
     let trainingMode = 'full';
@@ -793,10 +817,11 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
+    // ✅ temperament mapping: beginner/intermediate/advanced -> backend personas
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
-        return { persona:'neutral_balanced', face:'neutral', react:'neutral' };
+        return { persona:'adaptive', face:'neutral', react:'neutral' }; // intermediate
     }
 
     function currentProspect(){
@@ -976,6 +1001,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetSession(){
+        stopOutgoingCallSound();
+
         currentSessionId = null;
         sessionStarted = false;
         isSending = false;
@@ -1034,6 +1061,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     envInPersonBtn.addEventListener('click', ()=>{
         environment = 'in_person';
+        stopOutgoingCallSound(); // if they switch mid-dial
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
@@ -1102,7 +1130,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         isSending = true;
         setStatus('Starting session...');
-        setProspectCaption('Starting…');
+        setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
+
+        // ✅ start dialing sound (phone only)
+        startOutgoingCallSound();
 
         try {
             const res = await fetch('/api/gideon/sparring/start', {
@@ -1136,6 +1167,9 @@ document.addEventListener('DOMContentLoaded', function () {
             unlockInput();
             startTimer();
 
+            // ✅ prospect answered, stop outgoing call sound
+            stopOutgoingCallSound();
+
             if (data.opening_line) {
                 appendBubble('them', data.opening_line);
                 speakProspect(data.opening_line);
@@ -1146,6 +1180,9 @@ document.addEventListener('DOMContentLoaded', function () {
             setStatus('Session started. Say your first line.');
         } catch (err) {
             console.error('[StartSession] Error:', err);
+
+            stopOutgoingCallSound();
+
             setStatus(`Error starting session: ${err?.message || 'unknown error'}`);
             setProspectCaption('Waiting…');
             sessionStarted = false;
@@ -1255,6 +1292,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error(msg);
             }
 
+            stopOutgoingCallSound();
+
             try { window.speechSynthesis.cancel(); } catch(e) {}
             stopVisemes();
             setSpeaking(false);
@@ -1268,6 +1307,7 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSessionId = null;
         } catch (err) {
             console.error(err);
+            stopOutgoingCallSound();
             setStatus(`Error ending session: ${err?.message || 'unknown error'}`);
         } finally {
             isSending = false;
