@@ -37,10 +37,8 @@ class GideonSparringSession extends Model
     ];
 
     protected $casts = [
-        // ✅ IMPORTANT: do NOT enum-cast until your enum values exactly match DB strings
+        // ✅ IMPORTANT: do NOT enum-cast this unless enum values EXACTLY match DB strings
         'training_mode' => 'string',
-        'selected_stage' => 'string',
-        'difficulty' => 'string',
 
         'config'     => 'array',
         'state'      => 'array',
@@ -83,6 +81,10 @@ class GideonSparringSession extends Model
             && (int) $this->agency_id === (int) $user->agency_id;
     }
 
+    /**
+     * Small helper: only set "first failed stage" once.
+     * (If you want this stored under state['training'], move it there.)
+     */
     public function setFirstFailureOnce(string $stageKey, string $reason): void
     {
         $state = $this->state ?? [];
