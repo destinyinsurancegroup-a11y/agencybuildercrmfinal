@@ -29,7 +29,6 @@
         {{-- LEFT --}}
         <div class="abc-card abc-right">
 
-            {{-- Difficulty (TOP / CENTERED) --}}
             <div class="abc-difficulty-top">
                 <div class="abc-control abc-control-center">
                     <div class="abc-label">Difficulty</div>
@@ -41,7 +40,6 @@
                 </div>
             </div>
 
-            {{-- Stage --}}
             <div class="abc-avatar-panel" id="stagePanel">
 
                 <div class="abc-stage-hud">
@@ -94,7 +92,6 @@
                         <div class="abc-help">Photo uses the prospect library. Live2D/3D are placeholders for now.</div>
                     </div>
 
-                    {{-- PHOTO --}}
                     <div id="avatarPhotoWrap" class="abc-avatar-photo">
                         <div class="abc-avatar-ring avatar-react-neutral" id="avatarRing">
                             <div class="abc-avatar-head" id="avatarHead">
@@ -125,7 +122,6 @@
                         <div class="abc-avatar-caption" id="avatarCaption">Listening…</div>
                     </div>
 
-                    {{-- LIVE2D --}}
                     <div id="avatarLive2dWrap" class="abc-avatar-live2d" style="display:none;">
                         <div class="abc-live2d-canvas-wrap" id="live2dWrap">
                             <canvas id="live2dCanvas" width="420" height="420"></canvas>
@@ -134,7 +130,6 @@
                         <div class="abc-avatar-caption" id="live2dCaption">Listening…</div>
                     </div>
 
-                    {{-- 3D --}}
                     <div id="avatar3dWrap" class="abc-avatar-3d" style="display:none;">
                         <div class="abc-rpm-frame-wrap" id="rpmFrameWrap">
                             <div class="abc-rpm-overlay" id="rpmOverlay">3D placeholder (wiring later)</div>
@@ -184,16 +179,19 @@
                 <button class="abc-btn abc-btn-ghost" id="resetSessionBtn" type="button">Reset</button>
             </div>
 
-            {{-- ✅ Scenario prompt (optional) --}}
+            {{-- ✅ Scenario (optional) --}}
             <div class="abc-scenario-box">
                 <div class="abc-scenario-label">Scenario (optional)</div>
                 <textarea
-                    id="scenarioPrompt"
+                    id="scenarioText"
                     class="abc-textarea"
                     rows="3"
-                    placeholder="Example: “62 year old woman wanting coverage for her daughter”"
+                    placeholder='Example: "62 year old woman wanting coverage for her daughter"'
                 ></textarea>
-                <div class="abc-help">If you leave this blank, the default scenario is used.</div>
+                <div class="abc-scenario-row">
+                    <div class="abc-help" style="margin:0;">Leave blank to use the default scenario.</div>
+                    <button type="button" class="abc-btn" id="applyScenarioBtn">Apply</button>
+                </div>
             </div>
 
             <div id="sparringTranscript" class="abc-transcript">
@@ -255,7 +253,7 @@
 
     .abc-scenario-box{
         margin-top:10px;
-        padding:10px;
+        padding:12px 10px;
         border-radius:14px;
         border:1px dashed rgba(255,215,100,.18);
         background:rgba(0,0,0,.18);
@@ -276,9 +274,14 @@
         padding:10px 12px;
         outline:none;
         resize:vertical;
-        min-height:72px;
     }
-    .abc-textarea:focus{ border-color:rgba(214,162,74,.45); }
+    .abc-scenario-row{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        margin-top:10px;
+    }
 
     .abc-transcript{
         padding:12px 10px;
@@ -478,217 +481,6 @@
         justify-content:flex-start;
         gap: 14px;
     }
-    .abc-avatar-mode-row{
-        width: min(740px, 100%);
-        border:1px solid rgba(255,215,100,.10);
-        background: rgba(0,0,0,.18);
-        border-radius: 16px;
-        padding: 12px 12px;
-        margin-top: 2px;
-    }
-    .abc-avatar-mode-label{ font-size: 12px; color: rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
-
-    .abc-avatar-photo{ display:flex; flex-direction:column; align-items:center; gap: 10px; }
-    .abc-avatar-caption{ font-size:12px; color: rgba(255,255,255,.60); }
-
-    .abc-avatar-ring{
-        width: 340px;
-        height: 340px;
-        border-radius: 999px;
-        border: 2px solid rgba(214,162,74,.55);
-        padding: 10px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        background: radial-gradient(circle at 30% 20%, rgba(214,162,74,.12), rgba(0,0,0,.10));
-        position: relative;
-        overflow:hidden;
-        transform: translateZ(0);
-        transition: box-shadow 220ms ease, border-color 220ms ease, filter 220ms ease;
-    }
-
-    .abc-avatar-head{
-        width:100%;
-        height:100%;
-        border-radius:999px;
-        overflow:hidden;
-        position:relative;
-        transform-origin: 50% 60%;
-        animation: abcHeadIdle 4.4s ease-in-out infinite;
-        will-change: transform;
-    }
-    @keyframes abcHeadIdle{
-        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-        30%{ transform: translateY(-2px) scale(1.01) rotate(-0.35deg); }
-        60%{ transform: translateY(-1px) scale(1.012) rotate(0.25deg); }
-        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-    }
-
-    .abc-avatar-img{
-        width: 100%;
-        height: 100%;
-        border-radius: 999px;
-        object-fit: cover;
-        border: 1px solid rgba(255,255,255,.08);
-        filter: saturate(1.06) contrast(1.06);
-        display:block;
-        transform: translateZ(0);
-    }
-
-    .abc-blink{
-        position:absolute;
-        inset:0;
-        opacity:0;
-        pointer-events:none;
-        background: linear-gradient(180deg, rgba(0,0,0,.70) 0%, rgba(0,0,0,.10) 45%, rgba(0,0,0,.70) 100%);
-        transform: scaleY(0.08);
-        transform-origin: 50% 50%;
-    }
-    .blink-now .abc-blink{
-        opacity:1;
-        animation: abcBlink 140ms ease-in-out 1;
-    }
-    @keyframes abcBlink{
-        0%   { transform: scaleY(0.08); opacity:0; }
-        35%  { transform: scaleY(1); opacity:1; }
-        100% { transform: scaleY(0.08); opacity:0; }
-    }
-
-    .abc-mouth{
-        position:absolute;
-        bottom: 78px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 62px;
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(0,0,0,.40);
-        border: 1px solid rgba(255,255,255,.10);
-        opacity: 0.0;
-        z-index: 5;
-        transition: opacity 120ms ease;
-        will-change: width, height, border-radius, transform;
-    }
-
-    .avatar-speaking{
-        box-shadow: 0 0 45px rgba(214,162,74,.22);
-        border-color: rgba(214,162,74,.92);
-        filter: saturate(1.02);
-    }
-    .avatar-speaking .abc-avatar-head{
-        animation: abcHeadSpeak 520ms ease-in-out infinite;
-    }
-    @keyframes abcHeadSpeak{
-        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-        50%{ transform: translateY(-1px) scale(1.012) rotate(0.20deg); }
-        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-    }
-    .avatar-speaking .abc-mouth{
-        opacity: 0.95;
-        background: rgba(214,162,74,.55);
-        border-color: rgba(214,162,74,.75);
-    }
-
-    .avatar-react-friendly{ border-color: rgba(214,162,74,.92); box-shadow: 0 0 55px rgba(214,162,74,.22); }
-    .avatar-react-neutral{ border-color: rgba(214,162,74,.55); box-shadow: 0 0 28px rgba(214,162,74,.10); }
-    .avatar-react-skeptical{
-        border-color: rgba(255,255,255,.18);
-        box-shadow: 0 0 22px rgba(255,255,255,.06);
-        filter: contrast(1.03) saturate(0.98);
-    }
-
-    .abc-avatar-missing{
-        position:absolute;
-        inset: 10px;
-        border-radius: 999px;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        padding: 18px;
-        color: rgba(255,255,255,.80);
-        background: rgba(0,0,0,.62);
-        border: 1px dashed rgba(255,215,100,.30);
-        font-size: 12px;
-        line-height: 1.35;
-        z-index: 10;
-    }
-
-    .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
-
-    .abc-training-bottom{
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid rgba(255,215,100,.08);
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-    }
-
-    .abc-avatar-live2d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .abc-live2d-canvas-wrap{
-        width: min(520px, 100%);
-        aspect-ratio: 1 / 1;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow: hidden;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-    }
-    #live2dCanvas{ width: 100%; height: 100%; display:block; }
-    .abc-live2d-overlay{
-        position:absolute;
-        inset: 0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size: 13px;
-        color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none;
-        text-align:center;
-        padding: 14px;
-    }
-
-    .abc-avatar-3d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .abc-rpm-frame-wrap{
-        width: min(720px, 100%);
-        height: 420px;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow:hidden;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-    }
-    .abc-rpm-overlay{
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        padding: 18px;
-        color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        font-size: 13px;
-        width:100%;
-        height:100%;
-    }
-
-    .abc-select{
-        width:100%;
-        background:rgba(0,0,0,.35);
-        border:1px solid rgba(255,215,100,.14);
-        color:rgba(255,255,255,.88);
-        border-radius:12px;
-        padding:10px 12px;
-        outline:none;
-    }
 
     @media (max-width:1100px){
         .abc-sp-grid{ grid-template-columns:1fr; }
@@ -697,7 +489,6 @@
         .abc-seg-row{ flex-wrap:wrap; }
         .abc-stage-hud{ flex-direction:column; align-items:center; }
         .abc-stage-group, .abc-stage-group-right{ align-items:center; min-width: unset; width:100%; }
-        .abc-rpm-frame-wrap{ height: 360px; }
     }
 </style>
 
@@ -706,59 +497,54 @@ document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     const APP_BASE = "{{ rtrim(url('/'), '/') }}";
 
-    const FALLBACK_AVATAR = APP_BASE + "/images/gideon/prospect_default.jpg";
-
-    const PROSPECTS = {
-        p1: { name: 'Prospect 1', images: { neutral: APP_BASE + "/images/gideon/avatar_01.jpg", friendly: APP_BASE + "/images/gideon/avatar_01.jpg", skeptical: APP_BASE + "/images/gideon/avatar_01.jpg" }},
-        p2: { name: 'Prospect 2', images: { neutral: APP_BASE + "/images/gideon/avatar_02.jpg", friendly: APP_BASE + "/images/gideon/avatar_02.jpg", skeptical: APP_BASE + "/images/gideon/avatar_02.jpg" }},
-        p3: { name: 'Prospect 3', images: { neutral: APP_BASE + "/images/gideon/avatar_03.jpg", friendly: APP_BASE + "/images/gideon/avatar_03.jpg", skeptical: APP_BASE + "/images/gideon/avatar_03.jpg" }},
-        p4: { name: 'Prospect 4', images: { neutral: APP_BASE + "/images/gideon/avatar_04.jpg", friendly: APP_BASE + "/images/gideon/avatar_04.jpg", skeptical: APP_BASE + "/images/gideon/avatar_04.jpg" }},
-    };
-
-    const THINKING_MIN_MS = 350;
-    const THINKING_MAX_MS = 900;
-
-    // ✅ Outgoing call sound (plays fully once)
-    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone/phone-outgoing-call-72202.wav";
+    // ✅ Outgoing call WAV (must exist at public/audio/)
+    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.wav";
     const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
     outgoingCallAudio.preload = "auto";
     outgoingCallAudio.loop = false;
     outgoingCallAudio.volume = 0.9;
 
-    function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
-
-    async function playOutgoingCallOnceAndWait(){
-        if (environment !== 'phone') return;
-        try {
-            outgoingCallAudio.currentTime = 0;
-
-            // duration may be NaN until metadata loads; handle both
-            let durationMs = 0;
-            const dur = outgoingCallAudio.duration;
-            if (Number.isFinite(dur) && dur > 0) durationMs = Math.ceil(dur * 1000);
-
-            const p = outgoingCallAudio.play();
-            if (p && typeof p.catch === 'function') {
-                await p.catch(()=>{});
-            }
-
-            // If we don't know duration yet, wait for ended
-            if (!durationMs) {
-                await new Promise(resolve => {
-                    const onEnd = () => { outgoingCallAudio.removeEventListener('ended', onEnd); resolve(); };
-                    outgoingCallAudio.addEventListener('ended', onEnd);
-                });
-            } else {
-                await wait(durationMs);
-            }
-        } catch(e) {}
+    function stopOutgoingCallSound(){
+        try { outgoingCallAudio.pause(); outgoingCallAudio.currentTime = 0; } catch(e) {}
     }
 
-    function stopOutgoingCallSound(){
+    async function playOutgoingCallAndWaitFull(){
+        // Only for phone environment
+        if (environment !== 'phone') return;
+
+        stopOutgoingCallSound();
+
+        let ended = false;
+
+        const endedPromise = new Promise((resolve) => {
+            const onEnd = () => {
+                outgoingCallAudio.removeEventListener('ended', onEnd);
+                outgoingCallAudio.removeEventListener('error', onEnd);
+                ended = true;
+                resolve();
+            };
+            outgoingCallAudio.addEventListener('ended', onEnd, { once: true });
+            outgoingCallAudio.addEventListener('error', onEnd, { once: true });
+        });
+
         try {
-            outgoingCallAudio.pause();
             outgoingCallAudio.currentTime = 0;
+            const p = outgoingCallAudio.play();
+            if (p && typeof p.catch === 'function') {
+                await p.catch(() => {}); // autoplay might block; fall back below
+            }
         } catch(e) {}
+
+        // ✅ Fallback: never hang forever if browser blocks audio
+        const hardTimeoutMs = 9000;
+        await Promise.race([
+            endedPromise,
+            new Promise(r => setTimeout(r, hardTimeoutMs))
+        ]);
+
+        if (!ended) {
+            stopOutgoingCallSound();
+        }
     }
 
     const transcriptEl = document.getElementById('sparringTranscript');
@@ -771,8 +557,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const endBtn = document.getElementById('endSessionBtn');
     const startBtn = document.getElementById('startSessionBtn');
 
-    const scenarioCodeEl = document.getElementById('scenarioCode');     // ✅ always the real scenario_code
-    const scenarioPromptEl = document.getElementById('scenarioPrompt'); // ✅ optional user text prompt
+    const scenarioCodeEl = document.getElementById('scenarioCode');
+
+    // ✅ Optional scenario UI
+    const scenarioTextEl = document.getElementById('scenarioText');
+    const applyScenarioBtn = document.getElementById('applyScenarioBtn');
+    let customScenarioText = null;
 
     const envPhoneBtn = document.getElementById('envPhoneBtn');
     const envInPersonBtn = document.getElementById('envInPersonBtn');
@@ -795,32 +585,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const timerPill = document.getElementById('timerPill');
     const ttsToggleBtn = document.getElementById('ttsToggleBtn');
 
-    const avatarModePhotoBtn = document.getElementById('avatarModePhotoBtn');
-    const avatarModeLive2dBtn = document.getElementById('avatarModeLive2dBtn');
-    const avatarMode3dBtn = document.getElementById('avatarMode3dBtn');
-
-    const avatarPhotoWrap = document.getElementById('avatarPhotoWrap');
-    const avatarLive2dWrap = document.getElementById('avatarLive2dWrap');
-    const avatar3dWrap = document.getElementById('avatar3dWrap');
-    const live2dCaption = document.getElementById('live2dCaption');
-    const rpmCaption = document.getElementById('rpmCaption');
-
-    const avatarRing = document.getElementById('avatarRing');
-    const avatarImg = document.getElementById('avatarImg');
-    const avatarCaption = document.getElementById('avatarCaption');
-    const avatarMouth = document.getElementById('avatarMouth');
-
-    const avatarMissing = document.getElementById('avatarMissing');
-    const avatarMissingUrl = document.getElementById('avatarMissingUrl');
-
-    const prospectNameEl = document.getElementById('prospectName');
-    const prospectBtns = [
-        document.getElementById('prospectP1Btn'),
-        document.getElementById('prospectP2Btn'),
-        document.getElementById('prospectP3Btn'),
-        document.getElementById('prospectP4Btn'),
-    ].filter(Boolean);
-
     let currentSessionId = null;
     let isSending = false;
     let sessionStarted = false;
@@ -833,9 +597,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let trainingMode = 'full';
     let selectedSegment = segmentSelect?.value || 'discovery';
-
-    let avatarMode = 'photo';
-    let selectedProspectId = 'p1';
 
     let timerInt = null;
     let seconds = 0;
@@ -877,55 +638,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function mapDifficulty(d){
-        if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
-        if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
-        return { persona:'adaptive', face:'neutral', react:'neutral' };
-    }
-
-    function currentProspect(){
-        return PROSPECTS[selectedProspectId] || PROSPECTS.p1;
-    }
-
-    function showMissingAvatar(show, triedUrl){
-        if (!avatarMissing) return;
-        avatarMissing.style.display = show ? 'flex' : 'none';
-        if (avatarMissingUrl && triedUrl) avatarMissingUrl.textContent = triedUrl;
-    }
-
-    function setAvatarSrcSafe(url){
-        if (!avatarImg) return;
-
-        const cacheBust = `cb=${Date.now()}`;
-        const finalUrl = (url && url.includes('?')) ? `${url}&${cacheBust}` : `${url}?${cacheBust}`;
-        showMissingAvatar(false);
-
-        const test = new Image();
-        test.decoding = 'async';
-        test.onload = () => { avatarImg.src = finalUrl; showMissingAvatar(false); };
-        test.onerror = () => {
-            console.warn('[Sparring] Avatar image missing (404):', finalUrl);
-            avatarImg.src = `${FALLBACK_AVATAR}?${cacheBust}`;
-            showMissingAvatar(true, finalUrl);
-        };
-        test.src = finalUrl;
-    }
-
-    function setAvatarFace(faceKey){
-        const p = currentProspect();
-        const src = p?.images?.[faceKey] || p?.images?.neutral || FALLBACK_AVATAR;
-        setAvatarSrcSafe(src);
-    }
-
-    function setReactionStyle(react){
-        if (!avatarRing) return;
-        avatarRing.classList.remove('avatar-react-friendly','avatar-react-neutral','avatar-react-skeptical');
-        avatarRing.classList.add(`avatar-react-${react || 'neutral'}`);
+        if (d === 'beginner') return { persona:'soft_conflict_avoidant' };
+        if (d === 'advanced') return { persona:'skeptical_guarded' };
+        return { persona:'adaptive' };
     }
 
     function setProspectCaption(text){
-        if (avatarCaption) avatarCaption.textContent = text;
-        if (live2dCaption) live2dCaption.textContent = text;
-        if (rpmCaption) rpmCaption.textContent = text;
         if (waveHint) waveHint.textContent = text;
     }
 
@@ -975,89 +693,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (existing) existing.remove();
     }
 
-    function setSpeaking(on){
-        if (!avatarRing) return;
-        if (on) avatarRing.classList.add('avatar-speaking');
-        else avatarRing.classList.remove('avatar-speaking');
-    }
-    function setMouthShapeClosed(){
-        if (!avatarMouth) return;
-        avatarMouth.style.width = '62px';
-        avatarMouth.style.height = '10px';
-        avatarMouth.style.borderRadius = '999px';
-    }
-    function startVisemes(text){
-        stopVisemes();
-        if (!text || !avatarMouth) return;
-
-        const chars = String(text).split('');
-        let i = 0;
-
-        visemeTimer = setInterval(()=>{
-            const c = (chars[i] || ' ').toLowerCase();
-            i++; if (i >= chars.length) i = 0;
-
-            let w = 62, h = 10, r = 999;
-            if ('ou'.includes(c)) { w = 32; h = 20; r = 16; }
-            else if ('aei'.includes(c)) { w = 74; h = 12; r = 14; }
-            else if ('bmp'.includes(c) || c === ' ') { w = 56; h = 8; r = 999; }
-            else { w = 60; h = 18; r = 16; }
-
-            avatarMouth.style.width = `${w}px`;
-            avatarMouth.style.height = `${h}px`;
-            avatarMouth.style.borderRadius = `${r}px`;
-        }, 90);
-    }
-    function stopVisemes(){
-        if (visemeTimer) clearInterval(visemeTimer);
-        visemeTimer = null;
-        setMouthShapeClosed();
-    }
-
-    function speakProspect(text){
-        setSpeaking(true);
-        setProspectCaption('Speaking…');
-        startVisemes(text);
-
-        const bars = waveBars ? Array.from(waveBars.querySelectorAll('span')) : [];
-        const waveTimer = setInterval(()=>{
-            bars.forEach(b=>{
-                const v = 0.6 + Math.random() * 3.2;
-                b.style.transform = `scaleY(${v})`;
-                b.style.opacity = 0.6 + Math.random()*0.4;
-            });
-        }, 95);
-
-        function endSpeaking(){
-            clearInterval(waveTimer);
-            if (bars.length){
-                bars.forEach(b=>{ b.style.transform = 'scaleY(.8)'; b.style.opacity = '.55'; });
-            }
-            stopVisemes();
-            setSpeaking(false);
-            setProspectCaption('Listening…');
-        }
-
-        if (ttsEnabled && ('speechSynthesis' in window) && typeof SpeechSynthesisUtterance !== 'undefined'){
-            try { window.speechSynthesis.cancel(); } catch(e) {}
-            const u = new SpeechSynthesisUtterance(text);
-            u.rate = 1.02; u.pitch = 0.95; u.volume = 1;
-
-            const voices = window.speechSynthesis.getVoices?.() || [];
-            const preferred = voices.find(v => /en/i.test(v.lang)) || voices[0];
-            if (preferred) u.voice = preferred;
-
-            u.onend = endSpeaking;
-            u.onerror = endSpeaking;
-
-            window.speechSynthesis.speak(u);
-        } else {
-            const ms = Math.min(5200, 650 + String(text).length * 24);
-            if (speakingTimer) clearTimeout(speakingTimer);
-            speakingTimer = setTimeout(endSpeaking, ms);
-        }
-    }
-
     function resetSession(){
         stopOutgoingCallSound();
 
@@ -1081,10 +716,8 @@ document.addEventListener('DOMContentLoaded', function () {
         sendBtn.disabled = true;
         setStatus('');
 
-        stopVisemes();
-        setSpeaking(false);
-        setProspectCaption('Waiting…');
         removeTypingIndicator();
+        setProspectCaption('Waiting…');
     }
 
     function unlockInput(){
@@ -1092,22 +725,6 @@ document.addEventListener('DOMContentLoaded', function () {
         sendBtn.disabled = false;
         inputEl.focus();
     }
-
-    function setProspect(id){
-        if (!PROSPECTS[id]) return;
-        selectedProspectId = id;
-
-        prospectBtns.forEach(b=>b.classList.remove('is-active'));
-        const activeBtn = prospectBtns.find(b => b.dataset.prospect === id);
-        if (activeBtn) activeBtn.classList.add('is-active');
-
-        if (prospectNameEl) prospectNameEl.textContent = PROSPECTS[id].name;
-
-        const mapped = mapDifficulty(difficulty);
-        setReactionStyle(mapped.react);
-        setAvatarFace(mapped.face);
-    }
-    prospectBtns.forEach(btn => btn.addEventListener('click', ()=> setProspect(btn.dataset.prospect)));
 
     envPhoneBtn.addEventListener('click', ()=>{
         environment = 'phone';
@@ -1123,15 +740,12 @@ document.addEventListener('DOMContentLoaded', function () {
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
-        setProspectCaption('Listening…');
     });
 
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
         personaKey = mapped.persona;
-        setReactionStyle(mapped.react);
-        setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
     }
     diffBeginnerBtn.addEventListener('click', ()=>setDifficulty('beginner', diffBeginnerBtn));
@@ -1148,25 +762,25 @@ document.addEventListener('DOMContentLoaded', function () {
     trainSegmentsBtn.addEventListener('click', ()=>setTraining('segments', trainSegmentsBtn));
     segmentSelect?.addEventListener('change', (e)=>{ selectedSegment = e.target.value; });
 
-    function setAvatarMode(mode, btn){
-        avatarMode = mode;
-        setActive(btn, [avatarModePhotoBtn, avatarModeLive2dBtn, avatarMode3dBtn]);
-        avatarPhotoWrap.style.display = (avatarMode === 'photo') ? 'flex' : 'none';
-        avatarLive2dWrap.style.display = (avatarMode === 'live2d') ? 'flex' : 'none';
-        avatar3dWrap.style.display = (avatarMode === '3d') ? 'flex' : 'none';
+    // ✅ Apply scenario button (and Ctrl+Enter)
+    function applyScenario(){
+        const val = (scenarioTextEl?.value || '').trim();
+        customScenarioText = val ? val : null;
+        setStatus(customScenarioText ? 'Scenario applied.' : 'Using default scenario.');
     }
-    avatarModePhotoBtn.addEventListener('click', ()=>setAvatarMode('photo', avatarModePhotoBtn));
-    avatarModeLive2dBtn.addEventListener('click', ()=>setAvatarMode('live2d', avatarModeLive2dBtn));
-    avatarMode3dBtn.addEventListener('click', ()=>setAvatarMode('3d', avatarMode3dBtn));
+    applyScenarioBtn?.addEventListener('click', applyScenario);
+    scenarioTextEl?.addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            applyScenario();
+        }
+    });
 
     ttsToggleBtn.addEventListener('click', ()=>{
         ttsEnabled = !ttsEnabled;
         ttsToggleBtn.textContent = ttsEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
         if (!ttsEnabled) {
             try { window.speechSynthesis.cancel(); } catch(e) {}
-            stopVisemes();
-            setSpeaking(false);
-            setProspectCaption('Listening…');
         }
     });
 
@@ -1180,23 +794,32 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // START (creates server session)
+    // START
     startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
+
+        // ✅ ALWAYS send scenario_code (prevents 422)
         const scenarioCode = (scenarioCodeEl?.value || '').trim();
-        if (!scenarioCode) { setStatus('No scenarios found. Seed at least one GideonScenario.'); return; }
+        if (!scenarioCode) {
+            setStatus('No scenarios found. Seed at least one GideonScenario.');
+            return;
+        }
+
         if (isSending) return;
 
+        // If user typed scenario but didn’t hit Apply, still use it
+        const rawScenario = (scenarioTextEl?.value || '').trim();
+        customScenarioText = rawScenario ? rawScenario : null;
+
         isSending = true;
+        startBtn.disabled = true;
+
         setStatus('Starting session...');
         setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
 
         try {
-            // ✅ Play the entire ring tone first (phone only)
-            await playOutgoingCallOnceAndWait();
-
-            // ✅ Then call the API
-            const res = await fetch('/api/gideon/sparring/start', {
+            // Fire request immediately (so button works), but don’t show prospect text until ring finishes
+            const startReq = fetch('/api/gideon/sparring/start', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1204,17 +827,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
-                    scenario_code: scenarioCode, // ✅ always send this
-                    scenario_prompt: (scenarioPromptEl?.value || '').trim() || null, // ✅ optional
-                    environment: environment, // ✅ critical for phone salutations
-
+                    scenario_code: scenarioCode,              // ✅ always present
                     mode: uiMode,
                     persona: personaKey,
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
+                    environment: environment,                 // ✅ important for phone salutation
+                    custom_scenario: customScenarioText        // ✅ optional
                 }),
             });
+
+            // While server works, play full ring (phone only)
+            if (environment === 'phone') {
+                await playOutgoingCallAndWaitFull();
+            }
+
+            const res = await startReq;
 
             if (!res.ok) {
                 const msg = await readErrorMessage(res);
@@ -1230,15 +859,12 @@ document.addEventListener('DOMContentLoaded', function () {
             unlockInput();
             startTimer();
 
-            // ✅ Opening line (phone salutation comes from backend)
-            const opening = data.opening_line || data.first_message?.content || null;
-            if (opening) {
-                appendBubble('them', opening);
-                speakProspect(opening);
-            } else {
-                setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
+            // ✅ Opening line is now the phone salutation from backend (Hello/Yeah/Who is it?)
+            if (data.opening_line) {
+                appendBubble('them', data.opening_line);
             }
 
+            setProspectCaption(environment === 'phone' ? 'Listening…' : 'Listening…');
             setStatus('Session started. Say your first line.');
         } catch (err) {
             console.error('[StartSession] Error:', err);
@@ -1249,6 +875,7 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSessionId = null;
         } finally {
             isSending = false;
+            startBtn.disabled = false;
         }
     });
 
@@ -1277,17 +904,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     session_id: currentSessionId,
-                    scenario_code: scenarioCode,
-                    scenario_prompt: (scenarioPromptEl?.value || '').trim() || null,
-                    environment: environment,
-
+                    scenario_code: scenarioCode,              // ✅ always present
                     mode: uiMode,
                     persona: personaKey,
                     message: message,
-
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
+                    environment: environment,
+                    custom_scenario: customScenarioText
                 }),
             });
 
@@ -1298,24 +923,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const data = await res.json();
 
-            const thinkDelay = randInt(THINKING_MIN_MS, THINKING_MAX_MS);
+            const thinkDelay = randInt(350, 900);
             await new Promise(r => setTimeout(r, thinkDelay));
 
             removeTypingIndicator();
 
             if (data.gideon_reply?.content) {
                 appendBubble('them', data.gideon_reply.content);
-                speakProspect(data.gideon_reply.content);
-            } else {
-                setProspectCaption('Listening…');
             }
 
+            setProspectCaption('Listening…');
             setStatus('Session active.');
         } catch (err) {
             console.error(err);
             removeTypingIndicator();
-            stopVisemes();
-            setSpeaking(false);
             setProspectCaption('Listening…');
             setStatus(`Error talking to Gideon: ${err?.message || 'unknown error'}`);
         } finally {
@@ -1357,10 +978,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             stopOutgoingCallSound();
 
-            try { window.speechSynthesis.cancel(); } catch(e) {}
-            stopVisemes();
-            setSpeaking(false);
-
             stopTimer();
             setStatus('Session ended.');
             inputEl.disabled = true;
@@ -1370,7 +987,6 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSessionId = null;
         } catch (err) {
             console.error(err);
-            stopOutgoingCallSound();
             setStatus(`Error ending session: ${err?.message || 'unknown error'}`);
         } finally {
             isSending = false;
@@ -1379,15 +995,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // INIT
     resetSession();
-    setProspect('p1');
     setDifficulty('intermediate', diffIntermediateBtn);
     setTraining('full', trainFullBtn);
-    setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
-
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = () => {};
-    }
 });
 </script>
 @endsection
