@@ -23,7 +23,7 @@ class GideonSparringSession extends Model
         // legacy (keep for compatibility; stop using going forward)
         'mode',
 
-        // canonical fields (now in DB)
+        // canonical fields
         'training_mode',
         'selected_stage',
         'difficulty',
@@ -37,8 +37,7 @@ class GideonSparringSession extends Model
     ];
 
     protected $casts = [
-        // ✅ IMPORTANT: DO NOT enum-cast here unless you're 100% sure values match.
-        // Your controller/service store strings like: full_presentation, discovery_start, stages
+        // ✅ IMPORTANT: do NOT enum-cast until your enum values exactly match DB strings
         'training_mode' => 'string',
         'selected_stage' => 'string',
         'difficulty' => 'string',
@@ -55,7 +54,7 @@ class GideonSparringSession extends Model
     public function scopeOwnedBy(Builder $query, User $user): Builder
     {
         return $query->where('agency_id', $user->agency_id)
-                     ->where('user_id', $user->id);
+            ->where('user_id', $user->id);
     }
 
     public function messages(): HasMany
@@ -78,18 +77,12 @@ class GideonSparringSession extends Model
         return $this->belongsTo(Agency::class);
     }
 
-    /**
-     * Convenience helper for policies / guards.
-     */
     public function isOwnedBy(User $user): bool
     {
         return (int) $this->user_id === (int) $user->id
             && (int) $this->agency_id === (int) $user->agency_id;
     }
 
-    /**
-     * Small helper: only set "first failed stage" once (supports latent failure).
-     */
     public function setFirstFailureOnce(string $stageKey, string $reason): void
     {
         $state = $this->state ?? [];
