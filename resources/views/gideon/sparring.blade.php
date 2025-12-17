@@ -679,32 +679,98 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ Phone ring must play at least this long before prospect "answers"
-    const MIN_RING_MS = 4000;
-
-    // ✅ Correct path + extension based on your repo screenshot
+    // ✅ Play ENTIRE wav before salutation
+    // File must exist at: public/audio/phone-outgoing-call-72202.wav
     const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.wav";
     const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
     outgoingCallAudio.preload = "auto";
-    outgoingCallAudio.loop = true;
+    outgoingCallAudio.loop = false; // IMPORTANT: we want to play once, fully
     outgoingCallAudio.volume = 0.9;
-
-    function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
-
-    function startOutgoingCallSound(){
-        if (environment !== 'phone') return;
-        try {
-            outgoingCallAudio.currentTime = 0;
-            const p = outgoingCallAudio.play();
-            if (p && typeof p.catch === 'function') p.catch(()=>{});
-        } catch(e) {}
-    }
 
     function stopOutgoingCallSound(){
         try {
             outgoingCallAudio.pause();
             outgoingCallAudio.currentTime = 0;
         } catch(e) {}
+    }
+
+    // Plays the full wav once, resolves when finished (or after safety timeout)
+    async function playOutgoingCallFullOnce(){
+        if (environment !== 'phone') return;
+
+        stopOutgoingCallSound();
+
+        // Ensure metadata is available so duration is reliable
+        const durationMs = await new Promise((resolve) => {
+            const fallback = 4500; // safety fallback if duration can't be read
+            let done = false;
+
+            const finish = (ms) => {
+                if (done) return;
+                done = true;
+                cleanup();
+                resolve(ms);
+            };
+
+            const cleanup = () => {
+                outgoingCallAudio.removeEventListener('loadedmetadata', onMeta);
+                outgoingCallAudio.removeEventListener('error', onErr);
+            };
+
+            const onMeta = () => {
+                const d = Number(outgoingCallAudio.duration);
+                if (isFinite(d) && d > 0) finish(Math.ceil(d * 1000));
+                else finish(fallback);
+            };
+
+            const onErr = () => finish(fallback);
+
+            outgoingCallAudio.addEventListener('loadedmetadata', onMeta, { once: true });
+            outgoingCallAudio.addEventListener('error', onErr, { once: true });
+
+            // If metadata already loaded
+            if (outgoingCallAudio.readyState >= 1) onMeta();
+
+            // Hard cap to avoid hangs
+            setTimeout(() => finish(fallback), 6000);
+        });
+
+        // Now play and wait for end (or duration-based timeout)
+        await new Promise(async (resolve) => {
+            let resolved = false;
+
+            const cleanup = () => {
+                outgoingCallAudio.removeEventListener('ended', onEnded);
+                outgoingCallAudio.removeEventListener('error', onErr);
+            };
+
+            const done = () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
+                resolve();
+            };
+
+            const onEnded = () => done();
+            const onErr = () => done();
+
+            outgoingCallAudio.addEventListener('ended', onEnded);
+            outgoingCallAudio.addEventListener('error', onErr);
+
+            try {
+                outgoingCallAudio.currentTime = 0;
+                const p = outgoingCallAudio.play();
+                if (p && typeof p.catch === 'function') p.catch(()=>done());
+            } catch(e) {
+                done();
+                return;
+            }
+
+            // Safety timeout: duration + small buffer
+            setTimeout(() => done(), Math.min(12000, durationMs + 250));
+        });
+
+        stopOutgoingCallSound();
     }
 
     const transcriptEl = document.getElementById('sparringTranscript');
@@ -773,7 +839,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const uiMode = 'prospect_simulation';
 
     let difficulty = 'intermediate';
-    let personaKey = 'adaptive';
+    let personaKey = 'adaptive'; // intermediate default
     let environment = 'phone';
 
     let trainingMode = 'full';
@@ -821,7 +887,7 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
-    // ✅ difficulty -> backend persona (salutation comes from backend opening_line)
+    // ✅ temperament mapping: beginner/intermediate/advanced -> backend personas
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
@@ -1075,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
-        personaKey = mapped.persona; // ✅ sent to backend -> correct salutation
+        personaKey = mapped.persona; // ✅ this controls backend salutation/persona
         setReactionStyle(mapped.react);
         setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
@@ -1126,29 +1192,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // START (creates server session)
+    // START (creates server session) — but UI waits to show salutation until wav finishes
     startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenarios found. Seed at least one GideonScenario.'); return; }
         if (isSending) return;
 
-        // ✅ optional: prevent starting again if already active
-        if (sessionStarted && currentSessionId) {
-            setStatus('Session already active. End or Reset first.');
-            return;
-        }
+        // prevent stacking openings if user clicks start repeatedly
+        if (sessionStarted || currentSessionId) resetSession();
 
         isSending = true;
         setStatus('Starting session...');
         setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
 
-        const ringStartedAt = Date.now();
-
-        // ✅ start ringing immediately (phone only)
-        startOutgoingCallSound();
-
         try {
-            const res = await fetch('/api/gideon/sparring/start', {
+            // Kick off BOTH:
+            // 1) backend session creation (fast)
+            // 2) full wav playback (phone only)
+            const startReq = fetch('/api/gideon/sparring/start', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1158,36 +1219,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify({
                     scenario_code: scenarioCodeEl.value,
                     mode: uiMode,
-                    persona: personaKey, // ✅ key driver for correct salutation
+                    persona: personaKey, // ✅ difficulty-controlled
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
                 }),
             });
 
+            const ringReq = playOutgoingCallFullOnce(); // resolves immediately if not phone
+
+            const res = await startReq;
             if (!res.ok) {
                 const msg = await readErrorMessage(res);
                 throw new Error(msg);
             }
-
             const data = await res.json();
             if (!data.session?.id) throw new Error('No session returned');
 
-            // ✅ Force ring to be heard for at least 4 seconds before prospect "answers"
-            if (environment === 'phone') {
-                const elapsed = Date.now() - ringStartedAt;
-                const remaining = Math.max(0, MIN_RING_MS - elapsed);
-                if (remaining > 0) await sleep(remaining);
-            }
+            // ✅ Wait until WAV finishes before showing the prospect “answer”
+            await ringReq;
 
             currentSessionId = data.session.id;
             sessionStarted = true;
 
             unlockInput();
             startTimer();
-
-            // ✅ stop ring only after the forced delay
-            stopOutgoingCallSound();
 
             if (data.opening_line) {
                 appendBubble('them', data.opening_line);
@@ -1251,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
 
             const thinkDelay = randInt(THINKING_MIN_MS, THINKING_MAX_MS);
-            await sleep(thinkDelay);
+            await new Promise(r => setTimeout(r, thinkDelay));
 
             removeTypingIndicator();
 
