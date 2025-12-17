@@ -9,26 +9,8 @@ use App\Http\Controllers\Gideon\GideonOpportunitiesController;
 use App\Http\Controllers\Gideon\GideonSparringController;
 use App\Services\Gideon\SparringService;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| These routes are loaded by the RouteServiceProvider and assigned to
-| the "api" middleware group.
-|
-| We additionally apply the "web" + "auth" middlewares so that
-| the logged-in CRM user (session-based) is available to API
-| endpoints via Auth::user().
-|
-*/
-
 Route::middleware(['web', 'auth'])->group(function () {
-    /*
-    |--------------------------------------------------------------------------
-    | Current logged-in user (requires auth)
-    |--------------------------------------------------------------------------
-    */
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
@@ -37,18 +19,14 @@ Route::middleware(['web', 'auth'])->group(function () {
     |--------------------------------------------------------------------------
     | GIDEON SPARRING PARTNER ENDPOINTS
     |--------------------------------------------------------------------------
-    | - POST /api/gideon/sparring/start : create session (+ optional opening line)
-    | - POST /api/gideon/sparring/ask   : send a message, get Gideon's reply
-    | - POST /api/gideon/sparring/end   : end session + get assessment
-    |--------------------------------------------------------------------------
     */
-    Route::post('/gideon/sparring/start', [GideonSparringController::class, 'start']);
+    Route::post('/gideon/sparring/start', [GideonSparringController::class, 'start']); // ✅ ADD
     Route::post('/gideon/sparring/ask',   [GideonSparringController::class, 'ask']);
     Route::post('/gideon/sparring/end',   [GideonSparringController::class, 'end']);
 
     /*
     |--------------------------------------------------------------------------
-    | GIDEON GENERAL CHAT (SECOND BRAIN, ETC.)
+    | GIDEON GENERAL CHAT
     |--------------------------------------------------------------------------
     */
     Route::post('/gideon/ask', [GideonChatController::class, 'ask']);
@@ -57,14 +35,10 @@ Route::middleware(['web', 'auth'])->group(function () {
     |--------------------------------------------------------------------------
     | SIMPLE BROWSER TEST ENDPOINT (GET)
     |--------------------------------------------------------------------------
-    | Lets you test Gideon sparring while logged in.
-    | Visit: /api/gideon/test  (while authenticated in the CRM)
-    |--------------------------------------------------------------------------
     */
     Route::get('/gideon/test', function (Request $request, SparringService $sparring) {
         $user = $request->user();
 
-        // hard-code one scenario for now
         $sessionData = $sparring->startSession(
             $user->agency_id,
             $user->id,
