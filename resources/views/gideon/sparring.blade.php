@@ -439,6 +439,7 @@
         justify-content:flex-start;
         gap: 14px;
     }
+
     .abc-avatar-mode-row{
         width: min(740px, 100%);
         border:1px solid rgba(255,215,100,.10);
@@ -679,8 +680,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ Option A: outgoing call sound (loops until prospect answers)
-    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.mp3";
+    // ✅ Outgoing call sound (loops while “dialing”)
+    // Your screenshot shows: public/audio/phone/phone-outgoing-call-72202.wav
+    const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone/phone-outgoing-call-72202.wav";
     const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
     outgoingCallAudio.preload = "auto";
     outgoingCallAudio.loop = true;
@@ -694,7 +696,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (p && typeof p.catch === 'function') p.catch(()=>{});
         } catch(e) {}
     }
-
     function stopOutgoingCallSound(){
         try {
             outgoingCallAudio.pause();
@@ -768,7 +769,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const uiMode = 'prospect_simulation';
 
     let difficulty = 'intermediate';
-    // ✅ must match SparringService buildInitialState personas
+    // ✅ must match SparringService personas
     let personaKey = 'adaptive';
     let environment = 'phone';
 
@@ -817,11 +818,11 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
-    // ✅ temperament mapping: beginner/intermediate/advanced -> backend personas
+    // ✅ beginner/intermediate/advanced -> backend personas
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
-        return { persona:'adaptive', face:'neutral', react:'neutral' }; // intermediate
+        return { persona:'adaptive', face:'neutral', react:'neutral' };
     }
 
     function currentProspect(){
@@ -1061,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     envInPersonBtn.addEventListener('click', ()=>{
         environment = 'in_person';
-        stopOutgoingCallSound(); // if they switch mid-dial
+        stopOutgoingCallSound();
         setActive(envInPersonBtn, [envPhoneBtn, envInPersonBtn]);
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
@@ -1167,20 +1168,24 @@ document.addEventListener('DOMContentLoaded', function () {
             unlockInput();
             startTimer();
 
-            // ✅ prospect answered, stop outgoing call sound
-            stopOutgoingCallSound();
-
-            if (data.opening_line) {
-                appendBubble('them', data.opening_line);
-                speakProspect(data.opening_line);
+            // ✅ IMPORTANT CHANGE:
+            // Do NOT auto-insert the scenario opening line.
+            // You want the AGENT (user) to open first.
+            // Keep a short “connect” moment, then stop ringing.
+            if (environment === 'phone') {
+                setProspectCaption('Ringing…');
+                setTimeout(() => {
+                    stopOutgoingCallSound();
+                    setProspectCaption('Connected — you go first.');
+                }, 1400);
             } else {
-                setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
+                stopOutgoingCallSound();
+                setProspectCaption('Ready — you go first.');
             }
 
-            setStatus('Session started. Say your first line.');
+            setStatus('Session started. Say your opening line.');
         } catch (err) {
             console.error('[StartSession] Error:', err);
-
             stopOutgoingCallSound();
 
             setStatus(`Error starting session: ${err?.message || 'unknown error'}`);
@@ -1198,6 +1203,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
         if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
         if (!sessionStarted || !currentSessionId) { setStatus('Click Start Sparring Session first.'); return; }
+
+        stopOutgoingCallSound(); // if anything is still playing
 
         isSending = true;
         setStatus('Talking to Gideon...');
@@ -1221,7 +1228,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     persona: personaKey,
                     message: message,
 
-                    // keep these aligned with controller validation if you have them enabled there
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
