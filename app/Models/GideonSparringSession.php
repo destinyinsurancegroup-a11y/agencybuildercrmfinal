@@ -23,7 +23,7 @@ class GideonSparringSession extends Model
         // legacy (keep for compatibility; stop using going forward)
         'mode',
 
-        // canonical fields
+        // canonical fields (now in DB)
         'training_mode',
         'selected_stage',
         'difficulty',
@@ -37,10 +37,11 @@ class GideonSparringSession extends Model
     ];
 
     protected $casts = [
-        // ✅ IMPORTANT: keep these as strings (enum casting can 500 if values mismatch)
+        // ✅ IMPORTANT: DO NOT enum-cast here unless you're 100% sure values match.
+        // Your controller/service store strings like: full_presentation, discovery_start, stages
         'training_mode' => 'string',
-        'selected_stage'=> 'string',
-        'difficulty'    => 'string',
+        'selected_stage' => 'string',
+        'difficulty' => 'string',
 
         'config'     => 'array',
         'state'      => 'array',
@@ -77,25 +78,29 @@ class GideonSparringSession extends Model
         return $this->belongsTo(Agency::class);
     }
 
+    /**
+     * Convenience helper for policies / guards.
+     */
     public function isOwnedBy(User $user): bool
     {
-        return (int)$this->user_id === (int)$user->id
-            && (int)$this->agency_id === (int)$user->agency_id;
+        return (int) $this->user_id === (int) $user->id
+            && (int) $this->agency_id === (int) $user->agency_id;
     }
 
+    /**
+     * Small helper: only set "first failed stage" once (supports latent failure).
+     */
     public function setFirstFailureOnce(string $stageKey, string $reason): void
     {
         $state = $this->state ?? [];
-        $training = $state['training'] ?? [];
 
-        if (!empty($training['first_failed_stage'])) {
+        if (!empty($state['first_failed_stage'])) {
             return;
         }
 
-        $training['first_failed_stage'] = $stageKey;
-        $training['first_failed_reason'] = $reason;
+        $state['first_failed_stage'] = $stageKey;
+        $state['first_failed_reason'] = $reason;
 
-        $state['training'] = $training;
         $this->state = $state;
     }
 }
