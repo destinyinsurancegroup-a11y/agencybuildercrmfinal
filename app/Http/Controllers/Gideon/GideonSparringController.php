@@ -47,6 +47,9 @@ class GideonSparringController extends Controller
                 'mode'           => ['nullable', 'string', 'in:prospect_simulation,agent_simulation'],
                 'persona'        => ['nullable', 'string'],
 
+                // ✅ NEW: environment selector
+                'environment'    => ['nullable', 'string', 'in:phone,in_person'],
+
                 // training controls
                 'training_mode'  => ['nullable', 'string', 'in:stages,discovery_start,full_presentation'],
                 'selected_stage' => ['nullable', 'string', 'in:intro,discovery,education,qualify,quote,close'],
@@ -57,6 +60,9 @@ class GideonSparringController extends Controller
             $personaKey    = $data['persona'] ?? 'adaptive';
             $scenarioCode  = $data['scenario_code'];
 
+            // ✅ NEW: environment (phone vs in_person)
+            $environment  = $data['environment'] ?? null;
+
             $trainingMode  = $data['training_mode'] ?? null;
             $selectedStage = $data['selected_stage'] ?? null;
             $difficulty    = $data['difficulty'] ?? null;
@@ -66,7 +72,11 @@ class GideonSparringController extends Controller
                 (int) $user->id,
                 $scenarioCode,
                 $mode,
-                $personaKey
+                $personaKey,
+                $trainingMode,
+                $selectedStage,
+                $difficulty,
+                $environment // ✅ NEW (requires SparringService signature update)
             );
 
             $session = $sessionPayload['session'];
@@ -83,6 +93,11 @@ class GideonSparringController extends Controller
                 $config['training_mode']  = $trainingMode ?? ($config['training_mode'] ?? null);
                 $config['selected_stage'] = $selectedStage ?? ($config['selected_stage'] ?? null);
                 $config['difficulty']     = $difficulty ?? ($config['difficulty'] ?? null);
+
+                // Optional: keep environment in config too (safe even if null)
+                if ($environment !== null) {
+                    $config['environment'] = $environment;
+                }
 
                 $updates['config'] = $config;
 
