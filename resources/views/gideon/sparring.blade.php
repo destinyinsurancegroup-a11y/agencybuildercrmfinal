@@ -184,6 +184,18 @@
                 <button class="abc-btn abc-btn-ghost" id="resetSessionBtn" type="button">Reset</button>
             </div>
 
+            {{-- ✅ NEW: Scenario input --}}
+            <div class="abc-scenario-wrap">
+                <div class="abc-label">Scenario (optional)</div>
+                <textarea
+                    id="scenarioText"
+                    class="abc-textarea"
+                    rows="3"
+                    placeholder="Type a scenario here (optional). If blank, the sparring partner uses the default scenario."
+                ></textarea>
+                <div class="abc-help">Example: “Medicare lead, busy homeowner, slightly skeptical, short answers.”</div>
+            </div>
+
             <div id="sparringTranscript" class="abc-transcript">
                 <div class="abc-muted">
                     Click <strong>Start Sparring Session</strong>, then type your first line.
@@ -300,7 +312,7 @@
     }
     .abc-btn-lg{ padding:12px 18px; border-radius:999px; min-width:260px; }
 
-    .abc-control .abc-label{ font-size:12px; color:rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
+    .abc-control .abc-label, .abc-label{ font-size:12px; color:rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
     .abc-help{ font-size:12px; color:rgba(255,255,255,.45); margin-top:8px; }
 
     .abc-seg{ display:flex; gap:10px; flex-wrap:wrap; }
@@ -362,36 +374,17 @@
         background:rgba(0,0,0,.40);
         border:1px solid rgba(255,215,100,.14);
     }
-    .abc-stage-group{
-        display:flex;
-        flex-direction:column;
-        gap:8px;
-        min-width: 260px;
-    }
-    .abc-stage-group-right{
-        align-items:flex-end;
-        min-width: 260px;
-    }
+    .abc-stage-group{ display:flex; flex-direction:column; gap:8px; min-width: 260px; }
+    .abc-stage-group-right{ align-items:flex-end; min-width: 260px; }
     .abc-stage-label{
         font-size:11px;
         letter-spacing:.12em;
         color:rgba(255,215,100,.88);
         text-transform:uppercase;
     }
-    .abc-stage-prospect-name{
-        font-size:12px;
-        color:rgba(255,255,255,.70);
-        line-height:1;
-        margin-top:2px;
-    }
+    .abc-stage-prospect-name{ font-size:12px; color:rgba(255,255,255,.70); line-height:1; margin-top:2px; }
 
-    .abc-phone-panel{
-        width:100%;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        flex:1;
-    }
+    .abc-phone-panel{ width:100%; display:flex; justify-content:center; align-items:center; flex:1; }
 
     .abc-wave-wrap{
         width:min(520px,100%);
@@ -430,218 +423,12 @@
         transform: scaleY(.8);
     }
 
-    .abc-avatar-wrap{
-        width:100%;
-        display:flex;
-        flex:1;
-        flex-direction:column;
-        align-items:center;
-        justify-content:flex-start;
-        gap: 14px;
+    /* ✅ NEW Scenario styles */
+    .abc-scenario-wrap{
+        padding:10px 10px 0;
+        margin-top:8px;
     }
-    .abc-avatar-mode-row{
-        width: min(740px, 100%);
-        border:1px solid rgba(255,215,100,.10);
-        background: rgba(0,0,0,.18);
-        border-radius: 16px;
-        padding: 12px 12px;
-        margin-top: 2px;
-    }
-    .abc-avatar-mode-label{ font-size: 12px; color: rgba(255,215,100,.85); letter-spacing:.10em; margin-bottom:8px; }
-
-    .abc-avatar-photo{ display:flex; flex-direction:column; align-items:center; gap: 10px; }
-    .abc-avatar-caption{ font-size:12px; color: rgba(255,255,255,.60); }
-
-    .abc-avatar-ring{
-        width: 340px;
-        height: 340px;
-        border-radius: 999px;
-        border: 2px solid rgba(214,162,74,.55);
-        padding: 10px;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        background: radial-gradient(circle at 30% 20%, rgba(214,162,74,.12), rgba(0,0,0,.10));
-        position: relative;
-        overflow:hidden;
-        transform: translateZ(0);
-        transition: box-shadow 220ms ease, border-color 220ms ease, filter 220ms ease;
-    }
-
-    .abc-avatar-head{
-        width:100%;
-        height:100%;
-        border-radius:999px;
-        overflow:hidden;
-        position:relative;
-        transform-origin: 50% 60%;
-        animation: abcHeadIdle 4.4s ease-in-out infinite;
-        will-change: transform;
-    }
-    @keyframes abcHeadIdle{
-        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-        30%{ transform: translateY(-2px) scale(1.01) rotate(-0.35deg); }
-        60%{ transform: translateY(-1px) scale(1.012) rotate(0.25deg); }
-        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-    }
-
-    .abc-avatar-img{
-        width: 100%;
-        height: 100%;
-        border-radius: 999px;
-        object-fit: cover;
-        border: 1px solid rgba(255,255,255,.08);
-        filter: saturate(1.06) contrast(1.06);
-        display:block;
-        transform: translateZ(0);
-    }
-
-    .abc-blink{
-        position:absolute;
-        inset:0;
-        opacity:0;
-        pointer-events:none;
-        background: linear-gradient(180deg, rgba(0,0,0,.70) 0%, rgba(0,0,0,.10) 45%, rgba(0,0,0,.70) 100%);
-        transform: scaleY(0.08);
-        transform-origin: 50% 50%;
-    }
-    .blink-now .abc-blink{
-        opacity:1;
-        animation: abcBlink 140ms ease-in-out 1;
-    }
-    @keyframes abcBlink{
-        0%   { transform: scaleY(0.08); opacity:0; }
-        35%  { transform: scaleY(1); opacity:1; }
-        100% { transform: scaleY(0.08); opacity:0; }
-    }
-
-    .abc-mouth{
-        position:absolute;
-        bottom: 78px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 62px;
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(0,0,0,.40);
-        border: 1px solid rgba(255,255,255,.10);
-        opacity: 0.0;
-        z-index: 5;
-        transition: opacity 120ms ease;
-        will-change: width, height, border-radius, transform;
-    }
-
-    .avatar-speaking{
-        box-shadow: 0 0 45px rgba(214,162,74,.22);
-        border-color: rgba(214,162,74,.92);
-        filter: saturate(1.02);
-    }
-    .avatar-speaking .abc-avatar-head{
-        animation: abcHeadSpeak 520ms ease-in-out infinite;
-    }
-    @keyframes abcHeadSpeak{
-        0%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-        50%{ transform: translateY(-1px) scale(1.012) rotate(0.20deg); }
-        100%{ transform: translateY(0px) scale(1.00) rotate(0deg); }
-    }
-    .avatar-speaking .abc-mouth{
-        opacity: 0.95;
-        background: rgba(214,162,74,.55);
-        border-color: rgba(214,162,74,.75);
-    }
-
-    .avatar-react-friendly{ border-color: rgba(214,162,74,.92); box-shadow: 0 0 55px rgba(214,162,74,.22); }
-    .avatar-react-neutral{ border-color: rgba(214,162,74,.55); box-shadow: 0 0 28px rgba(214,162,74,.10); }
-    .avatar-react-skeptical{
-        border-color: rgba(255,255,255,.18);
-        box-shadow: 0 0 22px rgba(255,255,255,.06);
-        filter: contrast(1.03) saturate(0.98);
-    }
-
-    .abc-avatar-missing{
-        position:absolute;
-        inset: 10px;
-        border-radius: 999px;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        padding: 18px;
-        color: rgba(255,255,255,.80);
-        background: rgba(0,0,0,.62);
-        border: 1px dashed rgba(255,215,100,.30);
-        font-size: 12px;
-        line-height: 1.35;
-        z-index: 10;
-    }
-
-    .abc-center-actions{ display:flex; justify-content:center; margin-top:14px; }
-
-    .abc-training-bottom{
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid rgba(255,215,100,.08);
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-    }
-
-    .abc-avatar-live2d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .abc-live2d-canvas-wrap{
-        width: min(520px, 100%);
-        aspect-ratio: 1 / 1;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow: hidden;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-    }
-    #live2dCanvas{ width: 100%; height: 100%; display:block; }
-    .abc-live2d-overlay{
-        position:absolute;
-        inset: 0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size: 13px;
-        color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        pointer-events:none;
-        text-align:center;
-        padding: 14px;
-    }
-
-    .abc-avatar-3d{ width: min(740px, 100%); display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .abc-rpm-frame-wrap{
-        width: min(720px, 100%);
-        height: 420px;
-        border-radius: 18px;
-        border: 1px solid rgba(255,215,100,.12);
-        background: rgba(0,0,0,.26);
-        position: relative;
-        overflow:hidden;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-    }
-    .abc-rpm-overlay{
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        padding: 18px;
-        color: rgba(255,255,255,.65);
-        background: radial-gradient(600px 300px at 20% 10%, rgba(214,162,74,.12), transparent 60%);
-        font-size: 13px;
-        width:100%;
-        height:100%;
-    }
-
-    .abc-select{
+    .abc-textarea{
         width:100%;
         background:rgba(0,0,0,.35);
         border:1px solid rgba(255,215,100,.14);
@@ -649,7 +436,10 @@
         border-radius:12px;
         padding:10px 12px;
         outline:none;
+        resize:vertical;
+        min-height:68px;
     }
+    .abc-textarea:focus{ border-color:rgba(214,162,74,.45); }
 
     @media (max-width:1100px){
         .abc-sp-grid{ grid-template-columns:1fr; }
@@ -658,7 +448,6 @@
         .abc-seg-row{ flex-wrap:wrap; }
         .abc-stage-hud{ flex-direction:column; align-items:center; }
         .abc-stage-group, .abc-stage-group-right{ align-items:center; min-width: unset; width:100%; }
-        .abc-rpm-frame-wrap{ height: 360px; }
     }
 </style>
 
@@ -679,98 +468,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const THINKING_MIN_MS = 350;
     const THINKING_MAX_MS = 900;
 
-    // ✅ Play ENTIRE wav before salutation
-    // File must exist at: public/audio/phone-outgoing-call-72202.wav
+    // ✅ outgoing call sound (plays fully before salutation)
     const OUTGOING_CALL_SRC = APP_BASE + "/audio/phone-outgoing-call-72202.wav";
     const outgoingCallAudio = new Audio(OUTGOING_CALL_SRC);
     outgoingCallAudio.preload = "auto";
-    outgoingCallAudio.loop = false; // IMPORTANT: we want to play once, fully
+    outgoingCallAudio.loop = false;
     outgoingCallAudio.volume = 0.9;
 
-    function stopOutgoingCallSound(){
-        try {
-            outgoingCallAudio.pause();
+    async function playOutgoingCallOnce(){
+        if (environment !== 'phone') return;
+        try{
             outgoingCallAudio.currentTime = 0;
+            const p = outgoingCallAudio.play();
+            if (p && typeof p.catch === 'function') await p.catch(()=>{});
+            // wait until file ends (or fallback estimate)
+            await new Promise(resolve => {
+                const done = ()=>{ cleanup(); resolve(); };
+                const cleanup = ()=>{
+                    outgoingCallAudio.removeEventListener('ended', done);
+                    outgoingCallAudio.removeEventListener('error', done);
+                };
+                outgoingCallAudio.addEventListener('ended', done, { once:true });
+                outgoingCallAudio.addEventListener('error', done, { once:true });
+
+                // hard fallback in case browser never fires ended
+                setTimeout(done, 6000);
+            });
         } catch(e) {}
     }
 
-    // Plays the full wav once, resolves when finished (or after safety timeout)
-    async function playOutgoingCallFullOnce(){
-        if (environment !== 'phone') return;
-
-        stopOutgoingCallSound();
-
-        // Ensure metadata is available so duration is reliable
-        const durationMs = await new Promise((resolve) => {
-            const fallback = 4500; // safety fallback if duration can't be read
-            let done = false;
-
-            const finish = (ms) => {
-                if (done) return;
-                done = true;
-                cleanup();
-                resolve(ms);
-            };
-
-            const cleanup = () => {
-                outgoingCallAudio.removeEventListener('loadedmetadata', onMeta);
-                outgoingCallAudio.removeEventListener('error', onErr);
-            };
-
-            const onMeta = () => {
-                const d = Number(outgoingCallAudio.duration);
-                if (isFinite(d) && d > 0) finish(Math.ceil(d * 1000));
-                else finish(fallback);
-            };
-
-            const onErr = () => finish(fallback);
-
-            outgoingCallAudio.addEventListener('loadedmetadata', onMeta, { once: true });
-            outgoingCallAudio.addEventListener('error', onErr, { once: true });
-
-            // If metadata already loaded
-            if (outgoingCallAudio.readyState >= 1) onMeta();
-
-            // Hard cap to avoid hangs
-            setTimeout(() => finish(fallback), 6000);
-        });
-
-        // Now play and wait for end (or duration-based timeout)
-        await new Promise(async (resolve) => {
-            let resolved = false;
-
-            const cleanup = () => {
-                outgoingCallAudio.removeEventListener('ended', onEnded);
-                outgoingCallAudio.removeEventListener('error', onErr);
-            };
-
-            const done = () => {
-                if (resolved) return;
-                resolved = true;
-                cleanup();
-                resolve();
-            };
-
-            const onEnded = () => done();
-            const onErr = () => done();
-
-            outgoingCallAudio.addEventListener('ended', onEnded);
-            outgoingCallAudio.addEventListener('error', onErr);
-
-            try {
-                outgoingCallAudio.currentTime = 0;
-                const p = outgoingCallAudio.play();
-                if (p && typeof p.catch === 'function') p.catch(()=>done());
-            } catch(e) {
-                done();
-                return;
-            }
-
-            // Safety timeout: duration + small buffer
-            setTimeout(() => done(), Math.min(12000, durationMs + 250));
-        });
-
-        stopOutgoingCallSound();
+    function stopOutgoingCallSound(){
+        try{
+            outgoingCallAudio.pause();
+            outgoingCallAudio.currentTime = 0;
+        } catch(e) {}
     }
 
     const transcriptEl = document.getElementById('sparringTranscript');
@@ -784,6 +515,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const startBtn = document.getElementById('startSessionBtn');
 
     const scenarioCodeEl = document.getElementById('scenarioCode');
+    const scenarioTextEl = document.getElementById('scenarioText'); // ✅ NEW
 
     const envPhoneBtn = document.getElementById('envPhoneBtn');
     const envInPersonBtn = document.getElementById('envInPersonBtn');
@@ -839,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const uiMode = 'prospect_simulation';
 
     let difficulty = 'intermediate';
-    let personaKey = 'adaptive'; // intermediate default
+    let personaKey = 'adaptive';
     let environment = 'phone';
 
     let trainingMode = 'full';
@@ -887,11 +619,10 @@ document.addEventListener('DOMContentLoaded', function () {
         timerInt = null;
     }
 
-    // ✅ temperament mapping: beginner/intermediate/advanced -> backend personas
     function mapDifficulty(d){
         if (d === 'beginner') return { persona:'soft_conflict_avoidant', face:'friendly', react:'friendly' };
         if (d === 'advanced') return { persona:'skeptical_guarded', face:'skeptical', react:'skeptical' };
-        return { persona:'adaptive', face:'neutral', react:'neutral' }; // intermediate
+        return { persona:'adaptive', face:'neutral', react:'neutral' };
     }
 
     function currentProspect(){
@@ -1141,7 +872,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function setDifficulty(d, btn){
         difficulty = d;
         const mapped = mapDifficulty(difficulty);
-        personaKey = mapped.persona; // ✅ this controls backend salutation/persona
+        personaKey = mapped.persona;
         setReactionStyle(mapped.react);
         setAvatarFace(mapped.face);
         setActive(btn, [diffBeginnerBtn, diffIntermediateBtn, diffAdvancedBtn]);
@@ -1192,24 +923,30 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // START (creates server session) — but UI waits to show salutation until wav finishes
+    // START
     startBtn.addEventListener('click', async ()=>{
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
-        if (!scenarioCodeEl.value) { setStatus('No scenarios found. Seed at least one GideonScenario.'); return; }
-        if (isSending) return;
 
-        // prevent stacking openings if user clicks start repeatedly
-        if (sessionStarted || currentSessionId) resetSession();
+        // default scenario must exist if no custom scenario is typed
+        const scenarioText = (scenarioTextEl?.value || '').trim();
+        if (!scenarioText && !scenarioCodeEl.value) {
+            setStatus('No default scenario found, and no custom scenario typed.');
+            return;
+        }
+
+        if (isSending) return;
 
         isSending = true;
         setStatus('Starting session...');
         setProspectCaption(environment === 'phone' ? 'Dialing…' : 'Starting…');
 
         try {
-            // Kick off BOTH:
-            // 1) backend session creation (fast)
-            // 2) full wav playback (phone only)
-            const startReq = fetch('/api/gideon/sparring/start', {
+            // ✅ Phone rings first (full WAV), THEN we call backend
+            if (environment === 'phone') {
+                await playOutgoingCallOnce();
+            }
+
+            const res = await fetch('/api/gideon/sparring/start', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1217,27 +954,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
-                    scenario_code: scenarioCodeEl.value,
+                    scenario_code: scenarioText ? null : scenarioCodeEl.value,
+                    scenario_text: scenarioText ? scenarioText : null, // ✅ NEW
                     mode: uiMode,
-                    persona: personaKey, // ✅ difficulty-controlled
+                    persona: personaKey,
                     training_mode: mapTrainingModeForApi(trainingMode),
                     selected_stage: (trainingMode === 'segments') ? selectedSegment : null,
                     difficulty: mapDifficultyForApi(difficulty),
                 }),
             });
 
-            const ringReq = playOutgoingCallFullOnce(); // resolves immediately if not phone
-
-            const res = await startReq;
             if (!res.ok) {
                 const msg = await readErrorMessage(res);
                 throw new Error(msg);
             }
+
             const data = await res.json();
             if (!data.session?.id) throw new Error('No session returned');
-
-            // ✅ Wait until WAV finishes before showing the prospect “answer”
-            await ringReq;
 
             currentSessionId = data.session.id;
             sessionStarted = true;
@@ -1269,7 +1002,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function postAsk(message){
         if (!csrfToken) { setStatus('Missing CSRF token.'); return; }
-        if (!scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
+
+        const scenarioText = (scenarioTextEl?.value || '').trim();
+        if (!scenarioText && !scenarioCodeEl.value) { setStatus('No scenario available.'); return; }
+
         if (!sessionStarted || !currentSessionId) { setStatus('Click Start Sparring Session first.'); return; }
 
         isSending = true;
@@ -1289,7 +1025,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     session_id: currentSessionId,
-                    scenario_code: scenarioCodeEl.value,
+                    scenario_code: scenarioText ? null : scenarioCodeEl.value,
+                    scenario_text: scenarioText ? scenarioText : null, // ✅ keep aligned if backend wants it
                     mode: uiMode,
                     persona: personaKey,
                     message: message,
