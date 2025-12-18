@@ -98,6 +98,19 @@
                     <div id="avatarPhotoWrap" class="abc-avatar-photo">
                         <div class="abc-avatar-ring avatar-react-neutral" id="avatarRing">
                             <div class="abc-avatar-head" id="avatarHead">
+
+                                {{-- ✅ ADDED: VIDEO LOOP AVATAR (PixVerse) --}}
+                                <video
+                                    id="avatarVideo"
+                                    class="abc-avatar-video"
+                                    autoplay
+                                    muted
+                                    loop
+                                    playsinline
+                                    preload="auto"
+                                    style="display:none;"
+                                ></video>
+
                                 <img
                                     src="{{ url('/images/gideon/prospect_default.jpg') }}"
                                     alt="Prospect avatar"
@@ -538,6 +551,16 @@
         transform: translateZ(0);
     }
 
+    /* ✅ ADDED: video element style */
+    .abc-avatar-video{
+        width:100%;
+        height:100%;
+        border-radius:999px;
+        object-fit:cover;
+        display:block;
+        transform: translateZ(0);
+    }
+
     .abc-blink{
         position:absolute;
         inset:0;
@@ -862,6 +885,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const avatarMissing = document.getElementById('avatarMissing');
     const avatarMissingUrl = document.getElementById('avatarMissingUrl');
 
+    const avatarBlink = document.getElementById('avatarBlink');
+
+    /* ✅ ADDED: video element ref */
+    const avatarVideo = document.getElementById('avatarVideo');
+
     const prospectNameEl = document.getElementById('prospectName');
     const prospectBtns = [
         document.getElementById('prospectP1Btn'),
@@ -982,6 +1010,52 @@ document.addEventListener('DOMContentLoaded', function () {
         if (waveHint) waveHint.textContent = text;
     }
 
+    /* =======================
+       ✅ ADDED: In-Person Video Avatar Controller
+       Runs ONLY for environment=in_person AND avatarMode=photo
+       ======================= */
+    const INPERSON_AVATAR_ID = 'mature_female_01';
+    const INPERSON_AVATAR_BASE = APP_BASE + '/avatars/inperson/' + INPERSON_AVATAR_ID;
+    let inPersonVideoEnabled = false;
+    let inPersonVideoState = 'idle';
+
+    function inPersonVideoUrl(state){
+        return `${INPERSON_AVATAR_BASE}/${state}.mp4`;
+    }
+
+    function syncInPersonAvatarMode(){
+        inPersonVideoEnabled = (environment === 'in_person' && avatarMode === 'photo' && !!avatarVideo);
+
+        if (!avatarVideo) return;
+
+        if (inPersonVideoEnabled){
+            // show video, hide photo + overlays that fight the video
+            avatarVideo.style.display = 'block';
+            if (avatarImg) avatarImg.style.display = 'none';
+            if (avatarMouth) avatarMouth.style.display = 'none';
+            if (avatarBlink) avatarBlink.style.display = 'none';
+
+            setInPersonVideoState('idle');
+        } else {
+            // restore classic photo mode (for phone, or if you later use photo without video)
+            avatarVideo.style.display = 'none';
+            if (avatarImg) avatarImg.style.display = '';
+            if (avatarMouth) avatarMouth.style.display = '';
+            if (avatarBlink) avatarBlink.style.display = '';
+        }
+    }
+
+    function setInPersonVideoState(state){
+        if (!inPersonVideoEnabled || !avatarVideo) return;
+
+        const next = state || 'idle';
+        if (next === inPersonVideoState && avatarVideo.src) return;
+
+        inPersonVideoState = next;
+        avatarVideo.src = inPersonVideoUrl(next);
+        avatarVideo.play().catch(()=>{});
+    }
+
     function appendBubble(who, text){
         if (!text) return;
         const msg = document.createElement('div');
@@ -1073,6 +1147,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setSpeaking(true);
         setProspectCaption('Speaking…');
+
+        // ✅ ADDED: video talking loop only in-person
+        setInPersonVideoState('talking');
+
+        // keep existing visemes for photo mode; they’re hidden when video is enabled
         startVisemes(text);
 
         const bars = waveBars ? Array.from(waveBars.querySelectorAll('span')) : [];
@@ -1092,6 +1171,9 @@ document.addEventListener('DOMContentLoaded', function () {
             stopVisemes();
             setSpeaking(false);
             setProspectCaption('Listening…');
+
+            // ✅ ADDED: back to idle after speaking ends
+            setInPersonVideoState('idle');
         }
 
         if (ttsEnabled && ('speechSynthesis' in window) && typeof SpeechSynthesisUtterance !== 'undefined'){
@@ -1143,6 +1225,9 @@ document.addEventListener('DOMContentLoaded', function () {
         setSpeaking(false);
         setProspectCaption('Waiting…');
         removeTypingIndicator();
+
+        // ✅ ADDED: in-person avatar back to idle (if enabled)
+        setInPersonVideoState('idle');
     }
 
     function unlockInput(){
@@ -1173,6 +1258,9 @@ document.addEventListener('DOMContentLoaded', function () {
         phonePanel.style.display = 'flex';
         avatarPanel.style.display = 'none';
         setProspectCaption('Waiting…');
+
+        // ✅ ADDED: ensure video is off in phone mode
+        syncInPersonAvatarMode();
     });
 
     envInPersonBtn.addEventListener('click', ()=>{
@@ -1183,6 +1271,10 @@ document.addEventListener('DOMContentLoaded', function () {
         phonePanel.style.display = 'none';
         avatarPanel.style.display = 'flex';
         setProspectCaption('Listening…');
+
+        // ✅ ADDED: enable video avatar if in-person + photo mode
+        syncInPersonAvatarMode();
+        setInPersonVideoState('idle');
     });
 
     function setDifficulty(d, btn){
@@ -1213,6 +1305,9 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarPhotoWrap.style.display = (avatarMode === 'photo') ? 'flex' : 'none';
         avatarLive2dWrap.style.display = (avatarMode === 'live2d') ? 'flex' : 'none';
         avatar3dWrap.style.display = (avatarMode === '3d') ? 'flex' : 'none';
+
+        // ✅ ADDED: re-sync video avatar when mode changes
+        syncInPersonAvatarMode();
     }
     avatarModePhotoBtn.addEventListener('click', ()=>setAvatarMode('photo', avatarModePhotoBtn));
     avatarModeLive2dBtn.addEventListener('click', ()=>setAvatarMode('live2d', avatarModeLive2dBtn));
@@ -1226,6 +1321,9 @@ document.addEventListener('DOMContentLoaded', function () {
             stopVisemes();
             setSpeaking(false);
             setProspectCaption('Listening…');
+
+            // ✅ ADDED: if voice off, keep idle loop in-person
+            setInPersonVideoState('idle');
         }
     });
 
@@ -1327,6 +1425,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 speakProspect(openingLineBuffered);
             } else {
                 setProspectCaption(environment === 'phone' ? 'Waiting…' : 'Listening…');
+                setInPersonVideoState('idle');
             }
 
             setStatus('Session started. Say your first line.');
@@ -1355,6 +1454,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         showTypingIndicator();
         setProspectCaption('Thinking…');
+
+        // ✅ ADDED: slight skeptical while thinking (in-person only), then idle
+        if (environment === 'in_person') {
+            setInPersonVideoState('skeptical');
+            setTimeout(()=> setInPersonVideoState('idle'), 650);
+        }
 
         try {
             const res = await fetch('/api/gideon/sparring/ask', {
@@ -1402,6 +1507,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 speakProspect(data.gideon_reply.content);
             } else {
                 setProspectCaption('Listening…');
+                setInPersonVideoState('idle');
             }
 
             setStatus('Session active.');
@@ -1411,6 +1517,7 @@ document.addEventListener('DOMContentLoaded', function () {
             stopVisemes();
             setSpeaking(false);
             setProspectCaption('Listening…');
+            setInPersonVideoState('idle');
             setStatus(`Error talking to Gideon: ${err?.message || 'unknown error'}`);
         } finally {
             isSending = false;
@@ -1463,6 +1570,8 @@ document.addEventListener('DOMContentLoaded', function () {
             setProspectCaption('Session ended.');
             sessionStarted = false;
             currentSessionId = null;
+
+            setInPersonVideoState('idle');
         } catch (err) {
             console.error(err);
             stopOutgoingCallSound();
@@ -1480,6 +1589,9 @@ document.addEventListener('DOMContentLoaded', function () {
     setTraining('full', trainFullBtn);
     setAvatarMode('photo', avatarModePhotoBtn);
     envPhoneBtn.click();
+
+    // ensure video mode is correct on load
+    syncInPersonAvatarMode();
 
     if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = () => {};
