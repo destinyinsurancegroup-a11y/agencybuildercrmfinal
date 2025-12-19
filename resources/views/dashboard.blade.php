@@ -23,12 +23,12 @@
         --text-faint: #9ca3af;
         --money-green: #059669;
 
-        /* Goal card (sidebar-like black) */
+        /* Sidebar-like black */
         --abc-black: #0b1220;
         --abc-black-2: #0f172a;
-        --abc-black-3: #111827;
 
         --danger-red: #ef4444;
+        --ring-track: rgba(255,255,255,0.14);
     }
 
     .dashboard-page {
@@ -38,48 +38,122 @@
         font-family: 'Inter', sans-serif;
     }
 
-    .dashboard-header { margin-bottom: 32px; }
-    .dashboard-title { font-size: 32px; font-weight: 700; color: var(--text-main); }
+    /* ===== Header Layout (Search top-right + alert + agent) ===== */
+    .dashboard-header { margin-bottom: 22px; }
+
+    .dashboard-header-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+    }
+
+    .dashboard-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 10px;
+    }
 
     .dashboard-subtitle {
         font-size: 22px;
         font-weight: 600;
         color: var(--text-subtle);
-        margin-bottom: 4px;
+        margin-bottom: 6px;
     }
 
     .dashboard-datetime {
-        font-size: 18px;
-        font-weight: 500;
+        font-size: 16px;
+        font-weight: 600;
         color: var(--text-faint);
     }
 
-    .dashboard-search-row { margin-top: 24px; margin-bottom: 28px; }
-    .dashboard-search-wrapper {
-        max-width: 480px;
+    .dashboard-right-tools {
         display: flex;
+        align-items: center;
         gap: 10px;
+        padding-top: 6px;
     }
 
-    .dashboard-search-input {
-        flex: 1;
-        padding: 10px 12px;
-        border-radius: 10px;
+    .top-search {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 999px;
+        padding: 10px 14px;
+        min-width: 420px;
+        box-shadow: 0 10px 20px -16px rgba(0,0,0,0.25);
+    }
+
+    .top-search input {
+        border: none;
+        outline: none;
+        width: 100%;
+        font-size: 14px;
+        color: var(--text-main);
+    }
+
+    .top-search .icon {
+        color: #6b7280;
+        font-size: 14px;
+        width: 16px;
+        text-align: center;
+    }
+
+    .top-icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
         border: 1px solid #d1d5db;
         background: #fff;
-        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 10px 20px -16px rgba(0,0,0,0.25);
+        position: relative;
     }
 
-    .dashboard-search-button {
-        padding: 10px 16px;
-        border-radius: 10px;
-        border: none;
-        background: var(--gold);
-        color: #111827;
-        font-size: 14px;
-        font-weight: 600;
+    .top-icon-btn .dot {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #ef4444;
+        border: 2px solid #fff;
+    }
+
+    .top-agent-btn {
+        height: 40px;
+        border-radius: 12px;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        padding: 0 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        box-shadow: 0 10px 20px -16px rgba(0,0,0,0.25);
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text-main);
+    }
+
+    .top-agent-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        background: var(--abc-black-2);
+        color: var(--gold);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 13px;
     }
 
     /* ==== GRID ==== */
@@ -87,6 +161,7 @@
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 20px;
+        margin-top: 18px;
     }
 
     .dashboard-card {
@@ -186,17 +261,22 @@
     .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
 
     /* =========================================================
-       GOAL CARD (OUTSIDE GRID) — EXACT LAYOUT LIKE IMAGE
-       - Half width horizontally
-       - Black like sidebar
-       - AP is white
-       - Remove needed/mo
-       - Other cards appear UNDER it because grid starts after it
+       GOAL CARD (matches your mockup)
+       Updates requested:
+       - 25% shorter vertically
+       - Text ~50% smaller
+       - Width 75% across dashboard
+       - $50,000 gold; AP white
+       - Premium needed number white
+       - Remove "needed /mo"
+       - Days bar fades toward circle and sits under ring
+       - Buttons much smaller
        ========================================================= */
 
     .goal-card-wrap {
-        width: 50%;
-        margin-bottom: 20px; /* spacing before grid starts */
+        width: 75%;
+        margin-top: 6px;
+        margin-bottom: 18px;
     }
 
     .goal-card {
@@ -211,7 +291,6 @@
         color: #fff;
     }
 
-    /* subtle circles like your mockup */
     .goal-card::before {
         content: "";
         position: absolute;
@@ -235,31 +314,33 @@
         pointer-events: none;
     }
 
+    /* 25% smaller vertically: reduce paddings */
     .goal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        padding: 16px 18px;
+        gap: 10px;
+        padding: 10px 12px; /* reduced */
         border-bottom: 1px solid rgba(255,255,255,0.08);
         background: rgba(0,0,0,0.10);
         position: relative;
         z-index: 1;
     }
 
+    /* ~50% smaller text */
     .goal-header-left {
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 26px;
+        gap: 8px;
+        font-size: 16px;     /* reduced */
         font-weight: 800;
         letter-spacing: 0.2px;
     }
 
     .goal-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -267,34 +348,35 @@
         border: 1px solid rgba(255,255,255,0.12);
         color: var(--gold);
         font-weight: 900;
+        font-size: 12px;
     }
 
     .goal-input-wrap {
         display: flex;
         align-items: stretch;
-        border-radius: 12px;
+        border-radius: 10px;
         overflow: hidden;
         border: 1px solid rgba(255,255,255,0.16);
         background: rgba(0,0,0,0.25);
     }
 
     .goal-input {
-        width: 140px;
-        padding: 10px 12px;
+        width: 110px;
+        padding: 7px 9px;
         border: none;
         outline: none;
         background: transparent;
         color: var(--gold);
-        font-size: 18px;
+        font-size: 13px;
         font-weight: 900;
     }
 
     .goal-save {
-        padding: 10px 14px;
+        padding: 7px 10px;
         border: none;
         background: var(--gold);
         color: #111827;
-        font-size: 14px;
+        font-size: 12px;
         font-weight: 900;
         cursor: not-allowed;
         opacity: 0.95;
@@ -303,60 +385,66 @@
     .goal-body {
         display: grid;
         grid-template-columns: 1.25fr 0.75fr;
-        gap: 18px;
+        gap: 12px;
         align-items: center;
-        padding: 18px 18px 8px;
+        padding: 12px 12px 6px; /* reduced */
         position: relative;
         z-index: 1;
     }
 
-    /* AP SHOULD BE WHITE */
     .goal-main {
-        font-size: 44px;
+        font-size: 28px; /* reduced */
         font-weight: 900;
-        color: #ffffff;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
+        line-height: 1.1;
     }
 
+    .goal-main .amt { color: var(--gold); }
+    .goal-main .ap { color: #ffffff; }
+
     .goal-label {
-        font-size: 20px;
+        font-size: 13px; /* reduced */
         font-weight: 800;
         color: var(--gold);
-        margin-bottom: 6px;
+        margin-bottom: 4px;
     }
 
     .goal-needed-row {
         display: flex;
         align-items: baseline;
-        gap: 12px;
+        gap: 10px;
     }
 
+    /* Premium needed should be WHITE */
     .goal-needed {
-        font-size: 40px;
+        font-size: 24px; /* reduced */
         font-weight: 900;
-        color: var(--gold);
+        color: #ffffff;
     }
 
-    /* REMOVE "needed/mo" */
+    /* Remove "needed /mo" */
     .goal-needed-suffix { display: none; }
 
-    /* Progress ring */
+    /* Progress ring, smaller to reduce overall card height */
     .goal-ring {
-        width: 170px;
-        height: 170px;
+        width: 118px;
+        height: 118px;
         border-radius: 999px;
         background:
-            conic-gradient(var(--danger-red) calc(var(--progress) * 1%), rgba(255,255,255,0.14) 0);
+            conic-gradient(var(--danger-red) calc(var(--progress) * 1%), var(--ring-track) 0);
         display: grid;
         place-items: center;
         margin-left: auto;
         position: relative;
+
+        /* sit above the days strip */
+        z-index: 3;
     }
 
     .goal-ring::before {
         content: "";
-        width: 136px;
-        height: 136px;
+        width: 92px;
+        height: 92px;
         border-radius: 999px;
         background: rgba(0,0,0,0.35);
         border: 1px solid rgba(255,255,255,0.10);
@@ -370,59 +458,82 @@
     }
 
     .goal-percent {
-        font-size: 54px;
+        font-size: 28px; /* reduced */
         font-weight: 900;
         color: var(--danger-red);
         line-height: 1;
     }
 
     .goal-complete {
-        margin-top: 6px;
-        font-size: 18px;
-        font-weight: 600;
+        margin-top: 4px;
+        font-size: 11px; /* reduced */
+        font-weight: 700;
         color: rgba(255,255,255,0.75);
     }
 
-    /* Grey strip */
-    .goal-strip {
-        margin: 10px 18px 0;
-        background: rgba(255,255,255,0.85);
-        color: #111827;
-        border-radius: 10px;
-        padding: 12px 14px;
-        font-size: 22px;
-        font-weight: 700;
+    /* Days-left bar: fades as it approaches the ring + ring overlaps it */
+    .goal-strip-wrap {
         position: relative;
+        padding: 0 12px 10px; /* reduced */
         z-index: 1;
+    }
+
+    .goal-strip {
+        height: 34px; /* reduced */
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        border-radius: 10px;
+        color: #111827;
+        font-size: 14px; /* reduced */
+        font-weight: 800;
+
+        /* gradient fade toward right (toward ring) */
+        background: linear-gradient(
+            90deg,
+            rgba(255,255,255,0.90) 0%,
+            rgba(255,255,255,0.75) 55%,
+            rgba(255,255,255,0.35) 78%,
+            rgba(255,255,255,0.00) 100%
+        );
     }
 
     .goal-strip span { font-weight: 900; }
 
-    /* Bottom buttons row */
+    /* Place the ring on top of the strip area visually */
+    .goal-strip-ring-anchor {
+        position: absolute;
+        right: 12px;
+        top: -54px; /* pulls ring downward over the strip */
+        z-index: 4;
+    }
+
+    /* Buttons "200% smaller": significantly reduced */
     .goal-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        padding: 16px 18px 18px;
+        gap: 10px;
+        padding: 8px 12px 12px; /* reduced */
         position: relative;
         z-index: 1;
     }
 
     .goal-btn {
-        border-radius: 12px;
-        padding: 14px 14px;
+        border-radius: 10px;
+        padding: 8px 10px; /* reduced */
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
         border: 1px solid rgba(255,255,255,0.12);
         cursor: not-allowed;
+        min-height: 44px; /* compact */
     }
 
     .goal-btn-primary {
         background: var(--gold);
         color: #111827;
-        box-shadow: 0 10px 18px -12px rgba(0,0,0,0.55);
+        box-shadow: 0 10px 18px -14px rgba(0,0,0,0.55);
     }
 
     .goal-btn-secondary {
@@ -434,26 +545,33 @@
     .goal-btn-left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
     }
 
     .goal-btn-title {
-        font-size: 22px;
+        font-size: 13px; /* reduced */
         font-weight: 900;
         line-height: 1.05;
     }
 
     .goal-btn-sub {
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 10px; /* reduced */
+        font-weight: 700;
         opacity: 0.85;
     }
 
-    /* Responsive: full width on smaller screens */
+    /* Responsive */
     @media (max-width: 1100px) {
         .goal-card-wrap { width: 100%; }
+        .top-search { min-width: 240px; }
+    }
+
+    @media (max-width: 860px) {
+        .dashboard-header-top { flex-direction: column; align-items: stretch; }
+        .dashboard-right-tools { justify-content: flex-start; }
+        .top-search { min-width: 0; width: 100%; }
         .goal-body { grid-template-columns: 1fr; }
-        .goal-ring { margin-left: 0; }
+        .goal-strip-ring-anchor { right: 12px; top: -46px; }
         .goal-actions { grid-template-columns: 1fr; }
     }
 </style>
@@ -461,25 +579,40 @@
 <div class="dashboard-page">
 
     <div class="dashboard-header">
-        <div class="dashboard-title">Dashboard</div>
+        <div class="dashboard-header-top">
+            <div>
+                <div class="dashboard-title">Dashboard</div>
 
-        <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
+                {{-- must remain where it is --}}
+                <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
 
-        <div class="dashboard-datetime local-time" data-server-time="{{ $serverTime }}">
-            Loading time…
-        </div>
+                {{-- Correct day/date/time beneath greeting --}}
+                <div class="dashboard-datetime local-time" data-server-time="{{ $serverTime }}">
+                    Loading time…
+                </div>
+            </div>
 
-        <div class="dashboard-search-row">
-            <div class="dashboard-search-wrapper">
-                <input type="text" class="dashboard-search-input"
-                    placeholder="Search contacts, leads, or clients...">
+            {{-- Search upper-right + alert + agent (like pic 2) --}}
+            <div class="dashboard-right-tools">
+                <div class="top-search">
+                    <span class="icon">🔍</span>
+                    <input type="text" placeholder="Search contacts, leads, or clients...">
+                </div>
 
-                <button class="dashboard-search-button">🔍 Search</button>
+                <button class="top-icon-btn" type="button" aria-label="Alerts">
+                    🔔
+                    <span class="dot" aria-hidden="true"></span>
+                </button>
+
+                <button class="top-agent-btn" type="button" aria-label="Agent menu">
+                    <span class="top-agent-avatar">A</span>
+                    Agent
+                </button>
             </div>
         </div>
     </div>
 
-    {{-- GOAL CARD (half width horizontally; black; AP white; no needed/mo) --}}
+    {{-- GOAL CARD (75% wide, shorter, smaller text, gradient strip + ring overlap) --}}
     <div class="goal-card-wrap">
         <div class="goal-card" style="--progress: {{ $placeholderPercent }};">
             <div class="goal-header">
@@ -496,26 +629,35 @@
 
             <div class="goal-body">
                 <div>
-                    <div class="goal-main">${{ number_format($placeholderGoal, 0) }} AP</div>
+                    <div class="goal-main">
+                        <span class="amt">${{ number_format($placeholderGoal, 0) }}</span>
+                        <span class="ap"> AP</span>
+                    </div>
 
                     <div class="goal-label">Collected Premium Needed:</div>
-
                     <div class="goal-needed-row">
                         <div class="goal-needed">${{ number_format($placeholderNeededMonthly, 0) }}</div>
                         <div class="goal-needed-suffix">needed /mo</div>
                     </div>
                 </div>
 
-                <div class="goal-ring" aria-label="Goal progress ring">
-                    <div class="goal-ring-center">
-                        <div class="goal-percent">{{ $placeholderPercent }}%</div>
-                        <div class="goal-complete">Complete</div>
-                    </div>
-                </div>
+                {{-- keep ring here for layout sizing, but also overlay it on strip via anchor below --}}
+                <div style="visibility:hidden; height:0;"></div>
             </div>
 
-            <div class="goal-strip">
-                <span>{{ $daysLeft }} days left</span> to reach goal
+            <div class="goal-strip-wrap">
+                <div class="goal-strip">
+                    <span>{{ $daysLeft }} days left</span>&nbsp;to reach goal
+                </div>
+
+                <div class="goal-strip-ring-anchor">
+                    <div class="goal-ring" aria-label="Goal progress ring">
+                        <div class="goal-ring-center">
+                            <div class="goal-percent">{{ $placeholderPercent }}%</div>
+                            <div class="goal-complete">Complete</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="goal-actions">
@@ -524,7 +666,7 @@
                         <div class="goal-btn-title">⚡ Log Production</div>
                         <div class="goal-btn-sub">Log Calls, Stops, Premium Collected</div>
                     </div>
-                    <div style="font-size:24px; font-weight:900;">›</div>
+                    <div style="font-size:18px; font-weight:900;">›</div>
                 </button>
 
                 <button class="goal-btn goal-btn-secondary" type="button" disabled title="Placeholder (not wired yet)">
@@ -532,13 +674,13 @@
                         <div class="goal-btn-title">▦ Production Breakdown</div>
                         <div class="goal-btn-sub">Weekly / Monthly / Quarterly / Annual</div>
                     </div>
-                    <div style="font-size:24px; font-weight:900;">›</div>
+                    <div style="font-size:18px; font-weight:900;">›</div>
                 </button>
             </div>
         </div>
     </div>
 
-    {{-- GRID START (all cards below the goal card) --}}
+    {{-- GRID START (all cards below goal card) --}}
     <div class="dashboard-grid">
         {{-- CURRENT PRODUCTION CARD --}}
         <div class="dashboard-card">
@@ -564,15 +706,8 @@
                         <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
                         <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
                         <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-
-                        <tr>
-                            <td class="production-label">Premium Collected</td>
-                            <td class="production-value money">$--</td>
-                        </tr>
-                        <tr>
-                            <td class="production-label">AP</td>
-                            <td class="production-value money">$--</td>
-                        </tr>
+                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
 
@@ -674,7 +809,6 @@
                     <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
                 </ul>
 
-                {{-- Birthdays --}}
                 @if($birthdays->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -692,7 +826,6 @@
                     </ul>
                 @endif
 
-                {{-- Anniversaries --}}
                 @if($anniversaries->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -763,25 +896,38 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING -->
+<!-- LOCAL TIME + GREETING (formatted day/date/time) -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
     const serverTime = timeEl.getAttribute("data-server-time");
 
+    // Convert server time -> local display
     const localDate = new Date(serverTime + " UTC");
-    timeEl.innerText = localDate.toLocaleString();
 
     const hour = localDate.getHours();
     let greeting = "Good ";
-
     if (hour < 12) greeting += "morning";
     else if (hour < 17) greeting += "afternoon";
     else greeting += "evening";
 
-    greetEl.innerText = greeting + " — here’s your daily overview.";
+    greetEl.innerText = greeting + ", Agent";
+
+    // Format like: Friday, December 19, 2025 • 3:24 PM
+    const datePart = localDate.toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+    });
+
+    const timePart = localDate.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit"
+    });
+
+    timeEl.innerText = `${datePart} • ${timePart}`;
 });
 </script>
 
@@ -804,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 );
             });
 
-            refreshProductionCard(); // reload numbers when switching tabs
+            refreshProductionCard();
         });
     });
 });
@@ -829,7 +975,6 @@ window.refreshProductionCard = function() {
                 rows[3].innerText = data.presentations;
                 rows[4].innerText = data.apps_written;
 
-                // MONEY VALUES — add $ + green styling
                 rows[5].innerText = "$" + data.premium_collected;
                 rows[6].innerText = "$" + data.ap;
             }
