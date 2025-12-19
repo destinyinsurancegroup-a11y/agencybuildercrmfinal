@@ -3,12 +3,12 @@
 @php
     $serverTime = now()->toDateTimeString();
 
-    // --- Goal Card placeholders (NOT wired) ---
-    $goalMonthName = now()->format('F'); // "December"
-    $daysLeft = now()->startOfDay()->diffInDays(now()->endOfMonth()->startOfDay()) + 1; // inclusive count
-    $placeholderGoal = 50000; // placeholder goal
-    $placeholderPercent = 24; // placeholder percent
-    $placeholderNeededMonthly = number_format(($placeholderGoal / 12), 0); // placeholder /12
+    // Placeholder values (not wired)
+    $goalMonthName = now()->format('F');                 // e.g. December
+    $placeholderGoal = 50000;                            // $50,000
+    $placeholderPercent = 24;                            // 24%
+    $placeholderNeededMonthly = (int) round($placeholderGoal / 12); // 4167
+    $daysLeft = now()->startOfDay()->diffInDays(now()->endOfMonth()->startOfDay()) + 1; // inclusive
 @endphp
 
 <style>
@@ -21,7 +21,14 @@
         --text-main: #111827;
         --text-subtle: #4b5563;
         --text-faint: #9ca3af;
-        --money-green: #059669; /* ✅ NEW — green color for money */
+        --money-green: #059669;
+
+        /* ABC Navy tones (matches sidebar vibe) */
+        --navy-900: #0b1c35;
+        --navy-850: #0f2447;
+        --navy-800: #122a52;
+
+        --danger-red: #ef4444;
     }
 
     .dashboard-page {
@@ -31,7 +38,7 @@
         font-family: 'Inter', sans-serif;
     }
 
-    .dashboard-header { offer-bottom: 32px; margin-bottom: 32px; }
+    .dashboard-header { margin-bottom: 32px; }
     .dashboard-title { font-size: 32px; font-weight: 700; color: var(--text-main); }
 
     .dashboard-subtitle {
@@ -92,34 +99,7 @@
             0 8px 16px -8px rgba(0,0,0,0.18);
     }
 
-    /* CARD TITLES */
-    .dashboard-card-title-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 12px;
-    }
-
-    .dashboard-card-title {
-        font-size: 20px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-main);
-    }
-
-    .dashboard-card-icon {
-        background: var(--gold-soft);
-        padding: 6px;
-        border-radius: 50%;
-        font-size: 14px;
-    }
-
-    .dashboard-list { list-style: none; padding: 0; margin: 0; }
-    .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
-
     /* ===== PRODUCTION CARD ===== */
-
     .production-title {
         text-align: center;
         font-size: 20px;
@@ -159,7 +139,6 @@
     .production-range { display: none; }
     .production-range-active { display: block; }
 
-    /* ===== RIGHT-JUSTIFIED VALUES (NEW) ===== */
     .production-label {
         font-size: 18px;
         color: #4b5563;
@@ -170,72 +149,85 @@
     .production-value {
         font-size: 24px;
         font-weight: 700;
-        text-align: right !important; /* ✅ NEW — hard right alignment */
+        text-align: right !important;
         padding: 6px 0;
         white-space: nowrap;
     }
 
-    /* ===== MONEY STYLING (NEW) ===== */
     .money {
         color: var(--money-green) !important;
         font-weight: 800 !important;
     }
 
-    /* =========================================================
-       NEW: GOAL CARD (placeholder only, matches ABC scheme)
-       ========================================================= */
-    .goal-card {
-        grid-column: 1 / -1; /* full width row, minimal disruption */
-        background: radial-gradient(1200px 600px at 85% 15%, rgba(255,255,255,0.10), rgba(255,255,255,0.00) 55%),
-                    #0f2447;
-        border: 1px solid rgba(255,255,255,0.10);
-        color: #fff;
-        padding: 22px 22px 22px;
-        overflow: hidden;
-        position: relative;
-    }
-
-    .goal-card::before {
-        content: "";
-        position: absolute;
-        right: -120px;
-        top: -120px;
-        width: 320px;
-        height: 320px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.06);
-    }
-
-    .goal-card::after {
-        content: "";
-        position: absolute;
-        right: -40px;
-        top: 110px;
-        width: 360px;
-        height: 360px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.03);
-    }
-
-    .goal-top {
-        position: relative;
+    /* CARD TITLES */
+    .dashboard-card-title-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        gap: 14px;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
     }
 
-    .goal-top-left {
+    .dashboard-card-title {
+        font-size: 20px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-main);
+    }
+
+    .dashboard-card-icon {
+        background: var(--gold-soft);
+        padding: 6px;
+        border-radius: 50%;
+        font-size: 14px;
+    }
+
+    .dashboard-list { list-style: none; padding: 0; margin: 0; }
+    .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
+
+    /* =========================================================
+       GOAL CARD — EXACT LAYOUT LIKE YOUR IMAGE
+       Half-width: spans 2 of 4 columns
+       ========================================================= */
+    .goal-card {
+        grid-column: span 2; /* half width */
+        background: linear-gradient(180deg, var(--navy-850) 0%, var(--navy-900) 100%);
+        border-radius: 18px;
+        padding: 0;
+        border: 1px solid rgba(255,255,255,0.10);
+        box-shadow:
+            0 18px 30px -12px rgba(0,0,0,0.45),
+            0 8px 16px -8px rgba(0,0,0,0.22);
+        overflow: hidden;
+        position: relative;
+        color: #fff;
+    }
+
+    .goal-inner {
+        padding: 18px 18px 16px;
+        position: relative;
+    }
+
+    .goal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 18px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(0,0,0,0.12);
+    }
+
+    .goal-header-left {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-weight: 700;
         font-size: 26px;
+        font-weight: 800;
         letter-spacing: 0.2px;
     }
 
-    .goal-dot {
+    .goal-icon {
         width: 34px;
         height: 34px;
         border-radius: 10px;
@@ -254,9 +246,7 @@
         border-radius: 12px;
         overflow: hidden;
         border: 1px solid rgba(255,255,255,0.16);
-        background: rgba(0,0,0,0.22);
-        position: relative;
-        z-index: 1;
+        background: rgba(0,0,0,0.25);
     }
 
     .goal-input {
@@ -267,7 +257,7 @@
         background: transparent;
         color: var(--gold);
         font-size: 18px;
-        font-weight: 800;
+        font-weight: 900;
     }
 
     .goal-save {
@@ -276,155 +266,163 @@
         background: var(--gold);
         color: #111827;
         font-size: 14px;
-        font-weight: 800;
-        cursor: not-allowed; /* placeholder */
-        opacity: 0.85;
+        font-weight: 900;
+        cursor: not-allowed;
+        opacity: 0.95;
     }
 
     .goal-body {
-        position: relative;
         display: grid;
-        grid-template-columns: 1.2fr 0.8fr;
+        grid-template-columns: 1.25fr 0.75fr;
         gap: 18px;
         align-items: center;
-        z-index: 1;
+        padding: 18px 18px 8px;
     }
 
-    .goal-main-value {
+    .goal-main {
         font-size: 44px;
         font-weight: 900;
         color: var(--gold);
-        margin-top: 4px;
-        letter-spacing: 0.2px;
+        margin-bottom: 12px;
     }
 
-    .goal-sub-label {
-        font-size: 18px;
+    .goal-label {
+        font-size: 20px;
         font-weight: 800;
         color: var(--gold);
-        margin-top: 10px;
+        margin-bottom: 6px;
     }
 
     .goal-needed-row {
         display: flex;
         align-items: baseline;
-        gap: 10px;
-        margin-top: 6px;
+        gap: 12px;
     }
 
-    .goal-needed-value {
-        font-size: 42px;
+    .goal-needed {
+        font-size: 40px;
         font-weight: 900;
         color: var(--gold);
     }
 
     .goal-needed-suffix {
-        font-size: 16px;
         color: rgba(255,255,255,0.70);
-        font-weight: 600;
+        font-weight: 700;
+        font-size: 18px;
     }
 
-    /* Progress ring (placeholder) */
+    /* Progress ring */
     .goal-ring {
         width: 170px;
         height: 170px;
         border-radius: 999px;
-        position: relative;
+        background:
+            conic-gradient(var(--danger-red) calc(var(--progress) * 1%), rgba(255,255,255,0.14) 0);
         display: grid;
         place-items: center;
         margin-left: auto;
-        background:
-            conic-gradient(var(--ring-color) calc(var(--progress) * 1%), rgba(255,255,255,0.15) 0);
+        position: relative;
     }
 
     .goal-ring::before {
         content: "";
-        width: 135px;
-        height: 135px;
+        width: 136px;
+        height: 136px;
         border-radius: 999px;
         background: rgba(0,0,0,0.30);
-        border: 1px solid rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.10);
         position: absolute;
     }
 
     .goal-ring-center {
         position: relative;
-        text-align: center;
         z-index: 2;
+        text-align: center;
     }
 
     .goal-percent {
-        font-size: 52px;
+        font-size: 54px;
         font-weight: 900;
-        color: var(--ring-color);
+        color: var(--danger-red);
         line-height: 1;
     }
 
     .goal-complete {
-        font-size: 14px;
-        color: rgba(255,255,255,0.70);
-        font-weight: 700;
         margin-top: 6px;
-    }
-
-    .goal-strip {
-        position: relative;
-        z-index: 1;
-        margin-top: 14px;
-        background: rgba(255,255,255,0.85);
-        border-radius: 14px;
-        padding: 12px 14px;
-        color: #111827;
         font-size: 18px;
         font-weight: 600;
+        color: rgba(255,255,255,0.75);
     }
 
+    /* Grey strip */
+    .goal-strip {
+        margin: 10px 18px 0;
+        background: rgba(255,255,255,0.85);
+        color: #111827;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 22px;
+        font-weight: 700;
+    }
+
+    .goal-strip span {
+        font-weight: 900;
+    }
+
+    /* Bottom buttons row */
     .goal-actions {
-        position: relative;
-        z-index: 1;
-        margin-top: 14px;
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 12px;
+        padding: 16px 18px 18px;
     }
 
     .goal-btn {
-        border-radius: 14px;
-        padding: 14px 16px;
-        font-size: 16px;
-        font-weight: 900;
-        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 12px;
+        padding: 14px 14px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        cursor: not-allowed; /* placeholder */
+        border: 1px solid rgba(255,255,255,0.12);
+        cursor: not-allowed;
     }
 
     .goal-btn-primary {
         background: var(--gold);
         color: #111827;
-        box-shadow: 0 10px 18px -10px rgba(0,0,0,0.45);
+        box-shadow: 0 10px 18px -12px rgba(0,0,0,0.55);
     }
 
     .goal-btn-secondary {
-        background: rgba(0,0,0,0.22);
+        background: rgba(0,0,0,0.18);
+        border: 1px solid rgba(255,255,255,0.14);
         color: #fff;
-        border: 1px solid rgba(255,255,255,0.16);
+    }
+
+    .goal-btn-left {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .goal-btn-title {
+        font-size: 22px;
+        font-weight: 900;
+        line-height: 1.05;
     }
 
     .goal-btn-sub {
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 16px;
+        font-weight: 600;
         opacity: 0.85;
-        margin-top: 4px;
     }
 
+    /* Responsive: on small screens, make it full width */
     @media (max-width: 1100px) {
-        .goal-body {
-            grid-template-columns: 1fr;
-        }
-        .goal-ring { margin: 0; }
+        .goal-card { grid-column: 1 / -1; }
+        .goal-body { grid-template-columns: 1fr; }
+        .goal-ring { margin-left: 0; }
         .goal-actions { grid-template-columns: 1fr; }
     }
 </style>
@@ -443,8 +441,7 @@
         <div class="dashboard-search-row">
             <div class="dashboard-search-wrapper">
                 <input type="text" class="dashboard-search-input"
-                    placeholder="Search contacts, leads, or clients...">
-
+                       placeholder="Search contacts, leads, or clients...">
                 <button class="dashboard-search-button">🔍 Search</button>
             </div>
         </div>
@@ -453,16 +450,14 @@
     {{-- GRID START --}}
     <div class="dashboard-grid">
 
-        {{-- NEW: MONTHLY GOAL CARD (PLACEHOLDER) --}}
-        <div class="dashboard-card goal-card"
-             style="--progress: {{ $placeholderPercent }}; --ring-color: #EF4444;">
-            <div class="goal-top">
-                <div class="goal-top-left">
-                    <span class="goal-dot">●</span>
+        {{-- NEW GOAL CARD (matches your image layout + half width) --}}
+        <div class="goal-card" style="--progress: {{ $placeholderPercent }};">
+            <div class="goal-header">
+                <div class="goal-header-left">
+                    <span class="goal-icon">●</span>
                     {{ $goalMonthName }} Goal
                 </div>
 
-                {{-- Placeholder input (not wired) --}}
                 <div class="goal-input-wrap" title="Placeholder (not wired yet)">
                     <input class="goal-input" type="text" value="${{ number_format($placeholderGoal, 0) }}" disabled>
                     <button class="goal-save" type="button" disabled>Save →</button>
@@ -471,12 +466,13 @@
 
             <div class="goal-body">
                 <div>
-                    <div class="goal-main-value">${{ number_format($placeholderGoal, 0) }} AP</div>
+                    <div class="goal-main">${{ number_format($placeholderGoal, 0) }} AP</div>
 
-                    <div class="goal-sub-label">Collected Premium Needed:</div>
+                    <div class="goal-label">Collected Premium Needed:</div>
+
                     <div class="goal-needed-row">
-                        <div class="goal-needed-value">${{ $placeholderNeededMonthly }}</div>
-                        <div class="goal-needed-suffix">needed / mo</div>
+                        <div class="goal-needed">${{ number_format($placeholderNeededMonthly, 0) }}</div>
+                        <div class="goal-needed-suffix">needed /mo</div>
                     </div>
                 </div>
 
@@ -489,24 +485,24 @@
             </div>
 
             <div class="goal-strip">
-                <strong>{{ $daysLeft }} days left</strong> to reach goal
+                <span>{{ $daysLeft }} days left</span> to reach goal
             </div>
 
             <div class="goal-actions">
                 <button class="goal-btn goal-btn-primary" type="button" disabled title="Placeholder (not wired yet)">
-                    <div>
-                        <div>⚡ Log Production</div>
+                    <div class="goal-btn-left">
+                        <div class="goal-btn-title">⚡ Log Production</div>
                         <div class="goal-btn-sub">Log Calls, Stops, Premium Collected</div>
                     </div>
-                    <div>›</div>
+                    <div style="font-size:24px; font-weight:900;">›</div>
                 </button>
 
                 <button class="goal-btn goal-btn-secondary" type="button" disabled title="Placeholder (not wired yet)">
-                    <div>
-                        <div>▦ Production Breakdown</div>
+                    <div class="goal-btn-left">
+                        <div class="goal-btn-title">▦ Production Breakdown</div>
                         <div class="goal-btn-sub">Weekly / Monthly / Quarterly / Annual</div>
                     </div>
-                    <div>›</div>
+                    <div style="font-size:24px; font-weight:900;">›</div>
                 </button>
             </div>
         </div>
@@ -535,16 +531,8 @@
                         <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
                         <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
                         <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-
-                        {{-- MONEY VALUES (bold green + $ sign) --}}
-                        <tr>
-                            <td class="production-label">Premium Collected</td>
-                            <td class="production-value money">$--</td>
-                        </tr>
-                        <tr>
-                            <td class="production-label">AP</td>
-                            <td class="production-value money">$--</td>
-                        </tr>
+                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
 
@@ -646,7 +634,6 @@
                     <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
                 </ul>
 
-                {{-- Birthdays --}}
                 @if($birthdays->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -664,7 +651,6 @@
                     </ul>
                 @endif
 
-                {{-- Anniversaries --}}
                 @if($anniversaries->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -684,7 +670,7 @@
             </div>
         </div>
 
-        {{-- GIDEON OPPORTUNITIES (repurposed "Recently Added" card) --}}
+        {{-- GIDEON OPPORTUNITIES --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
@@ -738,7 +724,6 @@
 <!-- LOCAL TIME + GREETING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
     const serverTime = timeEl.getAttribute("data-server-time");
@@ -776,7 +761,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 );
             });
 
-            refreshProductionCard(); // reload numbers when switching tabs
+            refreshProductionCard();
         });
     });
 });
@@ -801,7 +786,6 @@ window.refreshProductionCard = function() {
                 rows[3].innerText = data.presentations;
                 rows[4].innerText = data.apps_written;
 
-                // MONEY VALUES — add $ + green styling
                 rows[5].innerText = "$" + data.premium_collected;
                 rows[6].innerText = "$" + data.ap;
             }
