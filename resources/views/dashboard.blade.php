@@ -261,20 +261,18 @@
     .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
 
     /* =========================================================
-       GOAL CARD (matches your mockup)
-       Updates requested:
-       - 25% shorter vertically
-       - Text ~50% smaller
-       - Width 75% across dashboard
-       - $50,000 gold; AP white
-       - Premium needed number white
-       - Remove "needed /mo"
-       - Days bar fades toward circle and sits under ring
-       - Buttons much smaller
+       GOAL CARD
+       Requested changes:
+       - Keep vertical height same (normal spacing)
+       - Width 50% across dashboard
+       - December Goal text +200% (2x)
+       - Progress ring +200% (2x)
+       - Buttons -50%
+       - $50,000 gold and AP white
        ========================================================= */
 
     .goal-card-wrap {
-        width: 75%;
+        width: 50%;
         margin-top: 6px;
         margin-bottom: 18px;
     }
@@ -314,33 +312,33 @@
         pointer-events: none;
     }
 
-    /* 25% smaller vertically: reduce paddings */
     .goal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
-        padding: 10px 12px; /* reduced */
+        gap: 12px;
+        padding: 16px 18px; /* normal height (unchanged) */
         border-bottom: 1px solid rgba(255,255,255,0.08);
         background: rgba(0,0,0,0.10);
         position: relative;
         z-index: 1;
     }
 
-    /* ~50% smaller text */
+    /* December Goal +200% */
     .goal-header-left {
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 16px;     /* reduced */
+        gap: 10px;
+        font-size: 52px; /* 2x */
         font-weight: 800;
         letter-spacing: 0.2px;
+        line-height: 1.05;
     }
 
     .goal-icon {
-        width: 24px;
-        height: 24px;
-        border-radius: 8px;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -348,35 +346,37 @@
         border: 1px solid rgba(255,255,255,0.12);
         color: var(--gold);
         font-weight: 900;
-        font-size: 12px;
+        font-size: 14px;
+        flex: 0 0 auto;
     }
 
     .goal-input-wrap {
         display: flex;
         align-items: stretch;
-        border-radius: 10px;
+        border-radius: 12px;
         overflow: hidden;
         border: 1px solid rgba(255,255,255,0.16);
         background: rgba(0,0,0,0.25);
+        flex: 0 0 auto;
     }
 
     .goal-input {
-        width: 110px;
-        padding: 7px 9px;
+        width: 140px;
+        padding: 10px 12px;
         border: none;
         outline: none;
         background: transparent;
         color: var(--gold);
-        font-size: 13px;
+        font-size: 18px;
         font-weight: 900;
     }
 
     .goal-save {
-        padding: 7px 10px;
+        padding: 10px 14px;
         border: none;
         background: var(--gold);
         color: #111827;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 900;
         cursor: not-allowed;
         opacity: 0.95;
@@ -384,51 +384,50 @@
 
     .goal-body {
         display: grid;
-        grid-template-columns: 1.25fr 0.75fr;
-        gap: 12px;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 18px;
         align-items: center;
-        padding: 12px 12px 6px; /* reduced */
+        padding: 18px 18px 8px;
         position: relative;
         z-index: 1;
     }
 
     .goal-main {
-        font-size: 28px; /* reduced */
+        font-size: 44px;
         font-weight: 900;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
         line-height: 1.1;
     }
 
+    /* $50,000 gold; AP white */
     .goal-main .amt { color: var(--gold); }
     .goal-main .ap { color: #ffffff; }
 
     .goal-label {
-        font-size: 13px; /* reduced */
+        font-size: 20px;
         font-weight: 800;
         color: var(--gold);
-        margin-bottom: 4px;
+        margin-bottom: 6px;
     }
 
     .goal-needed-row {
         display: flex;
         align-items: baseline;
-        gap: 10px;
+        gap: 12px;
     }
 
-    /* Premium needed should be WHITE */
     .goal-needed {
-        font-size: 24px; /* reduced */
+        font-size: 40px;
         font-weight: 900;
         color: #ffffff;
     }
 
-    /* Remove "needed /mo" */
     .goal-needed-suffix { display: none; }
 
-    /* Progress ring, smaller to reduce overall card height */
+    /* Progress ring +200% (2x diameter) */
     .goal-ring {
-        width: 118px;
-        height: 118px;
+        width: 340px;   /* 170 -> 340 */
+        height: 340px;  /* 170 -> 340 */
         border-radius: 999px;
         background:
             conic-gradient(var(--danger-red) calc(var(--progress) * 1%), var(--ring-track) 0);
@@ -436,15 +435,13 @@
         place-items: center;
         margin-left: auto;
         position: relative;
-
-        /* sit above the days strip */
-        z-index: 3;
+        z-index: 3; /* will sit above strip */
     }
 
     .goal-ring::before {
         content: "";
-        width: 92px;
-        height: 92px;
+        width: 272px;  /* 136 -> 272 */
+        height: 272px; /* 136 -> 272 */
         border-radius: 999px;
         background: rgba(0,0,0,0.35);
         border: 1px solid rgba(255,255,255,0.10);
@@ -458,82 +455,81 @@
     }
 
     .goal-percent {
-        font-size: 28px; /* reduced */
+        font-size: 108px; /* 54 -> 108 */
         font-weight: 900;
         color: var(--danger-red);
         line-height: 1;
     }
 
     .goal-complete {
-        margin-top: 4px;
-        font-size: 11px; /* reduced */
-        font-weight: 700;
+        margin-top: 10px;
+        font-size: 36px; /* 18 -> 36 */
+        font-weight: 600;
         color: rgba(255,255,255,0.75);
     }
 
-    /* Days-left bar: fades as it approaches the ring + ring overlaps it */
+    /* Strip under ring */
     .goal-strip-wrap {
         position: relative;
-        padding: 0 12px 10px; /* reduced */
+        padding: 0 18px 16px;
         z-index: 1;
     }
 
+    /* Fade toward the ring side */
     .goal-strip {
-        height: 34px; /* reduced */
+        height: 46px;
         display: flex;
         align-items: center;
-        padding: 0 10px;
+        padding: 0 14px;
         border-radius: 10px;
         color: #111827;
-        font-size: 14px; /* reduced */
+        font-size: 22px;
         font-weight: 800;
-
-        /* gradient fade toward right (toward ring) */
         background: linear-gradient(
             90deg,
-            rgba(255,255,255,0.90) 0%,
-            rgba(255,255,255,0.75) 55%,
-            rgba(255,255,255,0.35) 78%,
+            rgba(255,255,255,0.92) 0%,
+            rgba(255,255,255,0.78) 55%,
+            rgba(255,255,255,0.35) 80%,
             rgba(255,255,255,0.00) 100%
         );
     }
 
     .goal-strip span { font-weight: 900; }
 
-    /* Place the ring on top of the strip area visually */
+    /* Anchor ring on top of strip (like your ref) */
     .goal-strip-ring-anchor {
         position: absolute;
-        right: 12px;
-        top: -54px; /* pulls ring downward over the strip */
+        right: 18px;
+        top: -210px; /* tuned for 340px ring to overlap strip */
         z-index: 4;
     }
 
-    /* Buttons "200% smaller": significantly reduced */
+    /* Buttons -50% */
     .goal-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        padding: 8px 12px 12px; /* reduced */
+        gap: 12px;
+        padding: 12px 18px 18px;
         position: relative;
         z-index: 1;
     }
 
     .goal-btn {
-        border-radius: 10px;
-        padding: 8px 10px; /* reduced */
+        border-radius: 12px;
+        padding: 7px 7px; /* ~50% of 14px */
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
         border: 1px solid rgba(255,255,255,0.12);
         cursor: not-allowed;
-        min-height: 44px; /* compact */
+        min-height: 48px;
     }
 
     .goal-btn-primary {
         background: var(--gold);
         color: #111827;
-        box-shadow: 0 10px 18px -14px rgba(0,0,0,0.55);
+        box-shadow: 0 10px 18px -12px rgba(0,0,0,0.55);
     }
 
     .goal-btn-secondary {
@@ -549,18 +545,27 @@
     }
 
     .goal-btn-title {
-        font-size: 13px; /* reduced */
+        font-size: 11px; /* ~50% of 22px */
         font-weight: 900;
         line-height: 1.05;
     }
 
     .goal-btn-sub {
-        font-size: 10px; /* reduced */
+        font-size: 8px; /* ~50% of 16px */
         font-weight: 700;
         opacity: 0.85;
     }
 
-    /* Responsive */
+    /* Responsive safety: the giant ring must shrink on smaller screens */
+    @media (max-width: 1400px) {
+        .goal-header-left { font-size: 40px; }
+        .goal-ring { width: 260px; height: 260px; }
+        .goal-ring::before { width: 210px; height: 210px; }
+        .goal-percent { font-size: 84px; }
+        .goal-complete { font-size: 28px; }
+        .goal-strip-ring-anchor { top: -160px; }
+    }
+
     @media (max-width: 1100px) {
         .goal-card-wrap { width: 100%; }
         .top-search { min-width: 240px; }
@@ -570,9 +575,15 @@
         .dashboard-header-top { flex-direction: column; align-items: stretch; }
         .dashboard-right-tools { justify-content: flex-start; }
         .top-search { min-width: 0; width: 100%; }
+
         .goal-body { grid-template-columns: 1fr; }
-        .goal-strip-ring-anchor { right: 12px; top: -46px; }
+        .goal-strip-ring-anchor { right: 18px; top: -120px; }
         .goal-actions { grid-template-columns: 1fr; }
+        .goal-header-left { font-size: 34px; }
+        .goal-ring { width: 220px; height: 220px; }
+        .goal-ring::before { width: 180px; height: 180px; }
+        .goal-percent { font-size: 72px; }
+        .goal-complete { font-size: 24px; }
     }
 </style>
 
@@ -583,16 +594,13 @@
             <div>
                 <div class="dashboard-title">Dashboard</div>
 
-                {{-- must remain where it is --}}
                 <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
 
-                {{-- Correct day/date/time beneath greeting --}}
                 <div class="dashboard-datetime local-time" data-server-time="{{ $serverTime }}">
                     Loading time…
                 </div>
             </div>
 
-            {{-- Search upper-right + alert + agent (like pic 2) --}}
             <div class="dashboard-right-tools">
                 <div class="top-search">
                     <span class="icon">🔍</span>
@@ -612,7 +620,7 @@
         </div>
     </div>
 
-    {{-- GOAL CARD (75% wide, shorter, smaller text, gradient strip + ring overlap) --}}
+    {{-- GOAL CARD (50% wide) --}}
     <div class="goal-card-wrap">
         <div class="goal-card" style="--progress: {{ $placeholderPercent }};">
             <div class="goal-header">
@@ -637,12 +645,12 @@
                     <div class="goal-label">Collected Premium Needed:</div>
                     <div class="goal-needed-row">
                         <div class="goal-needed">${{ number_format($placeholderNeededMonthly, 0) }}</div>
-                        <div class="goal-needed-suffix">needed /mo</div>
                     </div>
                 </div>
 
-                {{-- keep ring here for layout sizing, but also overlay it on strip via anchor below --}}
-                <div style="visibility:hidden; height:0;"></div>
+                <div style="position:relative;">
+                    {{-- this empty space preserves layout; ring is positioned over strip below --}}
+                </div>
             </div>
 
             <div class="goal-strip-wrap">
@@ -661,26 +669,26 @@
             </div>
 
             <div class="goal-actions">
-                <button class="goal-btn goal-btn-primary" type="button" disabled title="Placeholder (not wired yet)">
+                <button class="goal-btn goal-btn-primary" type="button" disabled>
                     <div class="goal-btn-left">
                         <div class="goal-btn-title">⚡ Log Production</div>
                         <div class="goal-btn-sub">Log Calls, Stops, Premium Collected</div>
                     </div>
-                    <div style="font-size:18px; font-weight:900;">›</div>
+                    <div style="font-size:14px; font-weight:900;">›</div>
                 </button>
 
-                <button class="goal-btn goal-btn-secondary" type="button" disabled title="Placeholder (not wired yet)">
+                <button class="goal-btn goal-btn-secondary" type="button" disabled>
                     <div class="goal-btn-left">
                         <div class="goal-btn-title">▦ Production Breakdown</div>
                         <div class="goal-btn-sub">Weekly / Monthly / Quarterly / Annual</div>
                     </div>
-                    <div style="font-size:18px; font-weight:900;">›</div>
+                    <div style="font-size:14px; font-weight:900;">›</div>
                 </button>
             </div>
         </div>
     </div>
 
-    {{-- GRID START (all cards below goal card) --}}
+    {{-- GRID START --}}
     <div class="dashboard-grid">
         {{-- CURRENT PRODUCTION CARD --}}
         <div class="dashboard-card">
@@ -698,7 +706,6 @@
 
             <div class="dashboard-card-body production-stats">
 
-                {{-- DAY --}}
                 <div class="production-range production-range-active" data-production-range="day">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -711,7 +718,6 @@
                     </table>
                 </div>
 
-                {{-- WEEK --}}
                 <div class="production-range" data-production-range="week">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -724,7 +730,6 @@
                     </table>
                 </div>
 
-                {{-- MONTH --}}
                 <div class="production-range" data-production-range="month">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -737,7 +742,6 @@
                     </table>
                 </div>
 
-                {{-- QUARTER --}}
                 <div class="production-range" data-production-range="quarter">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -750,7 +754,6 @@
                     </table>
                 </div>
 
-                {{-- YEAR --}}
                 <div class="production-range" data-production-range="year">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -896,14 +899,13 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING (formatted day/date/time) -->
+<!-- LOCAL TIME + GREETING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
     const serverTime = timeEl.getAttribute("data-server-time");
 
-    // Convert server time -> local display
     const localDate = new Date(serverTime + " UTC");
 
     const hour = localDate.getHours();
@@ -914,7 +916,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     greetEl.innerText = greeting + ", Agent";
 
-    // Format like: Friday, December 19, 2025 • 3:24 PM
     const datePart = localDate.toLocaleDateString(undefined, {
         weekday: "long",
         year: "numeric",
