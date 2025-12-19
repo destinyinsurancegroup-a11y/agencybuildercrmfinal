@@ -3,7 +3,7 @@
 @php
     $serverTime = now()->toDateTimeString();
 
-    // Placeholder values (not wired)
+    // PLACEHOLDER VALUES (not wired yet)
     $goalMonthName = now()->format('F');                 // e.g. December
     $placeholderGoal = 50000;                            // $50,000
     $placeholderPercent = 24;                            // 24%
@@ -23,10 +23,10 @@
         --text-faint: #9ca3af;
         --money-green: #059669;
 
-        /* ABC Navy tones (matches sidebar vibe) */
-        --navy-900: #0b1c35;
-        --navy-850: #0f2447;
-        --navy-800: #122a52;
+        /* Goal card (sidebar-like black) */
+        --abc-black: #0b1220;
+        --abc-black-2: #0f172a;
+        --abc-black-3: #111827;
 
         --danger-red: #ef4444;
     }
@@ -186,14 +186,22 @@
     .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
 
     /* =========================================================
-       GOAL CARD — EXACT LAYOUT LIKE YOUR IMAGE
-       Half-width: spans 2 of 4 columns
+       GOAL CARD (OUTSIDE GRID) — EXACT LAYOUT LIKE IMAGE
+       - Half width horizontally
+       - Black like sidebar
+       - AP is white
+       - Remove needed/mo
+       - Other cards appear UNDER it because grid starts after it
        ========================================================= */
+
+    .goal-card-wrap {
+        width: 50%;
+        margin-bottom: 20px; /* spacing before grid starts */
+    }
+
     .goal-card {
-        grid-column: span 2; /* half width */
-        background: linear-gradient(180deg, var(--navy-850) 0%, var(--navy-900) 100%);
+        background: linear-gradient(180deg, var(--abc-black-2) 0%, var(--abc-black) 100%);
         border-radius: 18px;
-        padding: 0;
         border: 1px solid rgba(255,255,255,0.10);
         box-shadow:
             0 18px 30px -12px rgba(0,0,0,0.45),
@@ -203,9 +211,28 @@
         color: #fff;
     }
 
-    .goal-inner {
-        padding: 18px 18px 16px;
-        position: relative;
+    /* subtle circles like your mockup */
+    .goal-card::before {
+        content: "";
+        position: absolute;
+        right: -140px;
+        top: -140px;
+        width: 360px;
+        height: 360px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.05);
+        pointer-events: none;
+    }
+    .goal-card::after {
+        content: "";
+        position: absolute;
+        right: -40px;
+        top: 120px;
+        width: 360px;
+        height: 360px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.025);
+        pointer-events: none;
     }
 
     .goal-header {
@@ -215,7 +242,9 @@
         gap: 12px;
         padding: 16px 18px;
         border-bottom: 1px solid rgba(255,255,255,0.08);
-        background: rgba(0,0,0,0.12);
+        background: rgba(0,0,0,0.10);
+        position: relative;
+        z-index: 1;
     }
 
     .goal-header-left {
@@ -277,12 +306,15 @@
         gap: 18px;
         align-items: center;
         padding: 18px 18px 8px;
+        position: relative;
+        z-index: 1;
     }
 
+    /* AP SHOULD BE WHITE */
     .goal-main {
         font-size: 44px;
         font-weight: 900;
-        color: var(--gold);
+        color: #ffffff;
         margin-bottom: 12px;
     }
 
@@ -305,11 +337,8 @@
         color: var(--gold);
     }
 
-    .goal-needed-suffix {
-        color: rgba(255,255,255,0.70);
-        font-weight: 700;
-        font-size: 18px;
-    }
+    /* REMOVE "needed/mo" */
+    .goal-needed-suffix { display: none; }
 
     /* Progress ring */
     .goal-ring {
@@ -329,7 +358,7 @@
         width: 136px;
         height: 136px;
         border-radius: 999px;
-        background: rgba(0,0,0,0.30);
+        background: rgba(0,0,0,0.35);
         border: 1px solid rgba(255,255,255,0.10);
         position: absolute;
     }
@@ -363,11 +392,11 @@
         padding: 12px 14px;
         font-size: 22px;
         font-weight: 700;
+        position: relative;
+        z-index: 1;
     }
 
-    .goal-strip span {
-        font-weight: 900;
-    }
+    .goal-strip span { font-weight: 900; }
 
     /* Bottom buttons row */
     .goal-actions {
@@ -375,6 +404,8 @@
         grid-template-columns: 1fr 1fr;
         gap: 12px;
         padding: 16px 18px 18px;
+        position: relative;
+        z-index: 1;
     }
 
     .goal-btn {
@@ -418,9 +449,9 @@
         opacity: 0.85;
     }
 
-    /* Responsive: on small screens, make it full width */
+    /* Responsive: full width on smaller screens */
     @media (max-width: 1100px) {
-        .goal-card { grid-column: 1 / -1; }
+        .goal-card-wrap { width: 100%; }
         .goal-body { grid-template-columns: 1fr; }
         .goal-ring { margin-left: 0; }
         .goal-actions { grid-template-columns: 1fr; }
@@ -441,16 +472,15 @@
         <div class="dashboard-search-row">
             <div class="dashboard-search-wrapper">
                 <input type="text" class="dashboard-search-input"
-                       placeholder="Search contacts, leads, or clients...">
+                    placeholder="Search contacts, leads, or clients...">
+
                 <button class="dashboard-search-button">🔍 Search</button>
             </div>
         </div>
     </div>
 
-    {{-- GRID START --}}
-    <div class="dashboard-grid">
-
-        {{-- NEW GOAL CARD (matches your image layout + half width) --}}
+    {{-- GOAL CARD (half width horizontally; black; AP white; no needed/mo) --}}
+    <div class="goal-card-wrap">
         <div class="goal-card" style="--progress: {{ $placeholderPercent }};">
             <div class="goal-header">
                 <div class="goal-header-left">
@@ -506,7 +536,10 @@
                 </button>
             </div>
         </div>
+    </div>
 
+    {{-- GRID START (all cards below the goal card) --}}
+    <div class="dashboard-grid">
         {{-- CURRENT PRODUCTION CARD --}}
         <div class="dashboard-card">
             <div class="production-title">Current Production</div>
@@ -531,8 +564,15 @@
                         <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
                         <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
                         <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
+
+                        <tr>
+                            <td class="production-label">Premium Collected</td>
+                            <td class="production-value money">$--</td>
+                        </tr>
+                        <tr>
+                            <td class="production-label">AP</td>
+                            <td class="production-value money">$--</td>
+                        </tr>
                     </table>
                 </div>
 
@@ -634,6 +674,7 @@
                     <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
                 </ul>
 
+                {{-- Birthdays --}}
                 @if($birthdays->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -651,6 +692,7 @@
                     </ul>
                 @endif
 
+                {{-- Anniversaries --}}
                 @if($anniversaries->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -724,6 +766,7 @@
 <!-- LOCAL TIME + GREETING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
     const serverTime = timeEl.getAttribute("data-server-time");
@@ -761,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 );
             });
 
-            refreshProductionCard();
+            refreshProductionCard(); // reload numbers when switching tabs
         });
     });
 });
@@ -786,6 +829,7 @@ window.refreshProductionCard = function() {
                 rows[3].innerText = data.presentations;
                 rows[4].innerText = data.apps_written;
 
+                // MONEY VALUES — add $ + green styling
                 rows[5].innerText = "$" + data.premium_collected;
                 rows[6].innerText = "$" + data.ap;
             }
