@@ -262,14 +262,9 @@
 
     /* =========================================================
        GOAL CARD
-       Current requirements:
        - Width 50% across dashboard
-       - Keep vertical height same
-       - Reduce the CIRCLE around 24% by 50% (ring diameter 340 -> 170)
-       - Button fonts already increased (22px/16px)
-       - Submit button text
-       - $50,000 gold; AP white; premium needed white
-       - Days bar fades toward ring; ring sits over bar
+       - Increase circle around 24% by 25% (170 -> ~213)
+       - Center 24% inside circle
        ========================================================= */
 
     .goal-card-wrap {
@@ -421,12 +416,11 @@
         color: #ffffff;
     }
 
-    .goal-needed-suffix { display: none; }
-
-    /* ✅ EDIT: circle around 24% reduced by 50% (340 -> 170) */
+    /* ===== Progress Ring (circle) =====
+       Previous: 170px. Increase by 25% => 212.5px. Use 213px. */
     .goal-ring {
-        width: 170px;
-        height: 170px;
+        width: 213px;
+        height: 213px;
         border-radius: 999px;
         background:
             conic-gradient(var(--danger-red) calc(var(--progress) * 1%), var(--ring-track) 0);
@@ -437,37 +431,48 @@
         z-index: 3;
     }
 
+    /* Inner disc scaled with ring (136px * 1.25 = 170px) */
     .goal-ring::before {
         content: "";
-        width: 136px;
-        height: 136px;
+        width: 170px;
+        height: 170px;
         border-radius: 999px;
         background: rgba(0,0,0,0.35);
         border: 1px solid rgba(255,255,255,0.10);
         position: absolute;
     }
 
+    /* ✅ Ensure text is perfectly centered */
     .goal-ring-center {
         position: relative;
         z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         text-align: center;
+        width: 100%;
+        height: 100%;
+        gap: 6px;
     }
 
-    /* percent text stays as last requested (smaller than earlier) */
     .goal-percent {
         font-size: 54px;
         font-weight: 900;
         color: var(--danger-red);
         line-height: 1;
+        margin: 0;
     }
 
     .goal-complete {
-        margin-top: 10px;
         font-size: 18px;
         font-weight: 600;
         color: rgba(255,255,255,0.75);
+        line-height: 1.1;
+        margin: 0;
     }
 
+    /* Strip under ring */
     .goal-strip-wrap {
         position: relative;
         padding: 0 18px 16px;
@@ -494,11 +499,12 @@
 
     .goal-strip span { font-weight: 900; }
 
-    /* ✅ EDIT: adjust overlap position for smaller ring */
+    /* Position ring over strip (previous -105 for 170px ring).
+       Increase ring by 25% => offset * 1.25 => ~ -131px. */
     .goal-strip-ring-anchor {
         position: absolute;
         right: 18px;
-        top: -105px; /* was -210 for 340px ring; half-sized ring uses half offset */
+        top: -131px;
         z-index: 4;
     }
 
@@ -556,11 +562,13 @@
     /* Responsive */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
-        .goal-ring { width: 150px; height: 150px; }
-        .goal-ring::before { width: 120px; height: 120px; }
-        .goal-percent { font-size: 44px; }
-        .goal-complete { font-size: 14px; }
-        .goal-strip-ring-anchor { top: -92px; }
+
+        .goal-ring { width: 190px; height: 190px; }
+        .goal-ring::before { width: 152px; height: 152px; }
+        .goal-percent { font-size: 46px; }
+        .goal-complete { font-size: 15px; }
+
+        .goal-strip-ring-anchor { top: -118px; }
     }
 
     @media (max-width: 1100px) {
@@ -577,11 +585,12 @@
         .goal-actions { grid-template-columns: 1fr; }
         .goal-header-left { font-size: 34px; }
 
-        .goal-ring { width: 140px; height: 140px; }
-        .goal-ring::before { width: 112px; height: 112px; }
-        .goal-percent { font-size: 40px; }
-        .goal-complete { font-size: 12px; }
-        .goal-strip-ring-anchor { right: 18px; top: -85px; }
+        .goal-ring { width: 176px; height: 176px; }
+        .goal-ring::before { width: 140px; height: 140px; }
+        .goal-percent { font-size: 42px; }
+        .goal-complete { font-size: 13px; }
+
+        .goal-strip-ring-anchor { right: 18px; top: -110px; }
     }
 </style>
 
