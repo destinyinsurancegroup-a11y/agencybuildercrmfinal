@@ -2,17 +2,17 @@
 @section('content')
 @php
     /**
-     * ✅ FIX (robust + cross-browser):
-     * Do NOT pass a formatted date string to JS and hope the browser parses it.
-     * Pass an epoch timestamp (milliseconds) and build the Date from that.
+     * ✅ Robust time source for JS: epoch milliseconds (UTC)
      */
     $serverTimeMs = now()->utc()->timestamp * 1000;
 
     // PLACEHOLDER VALUES (not wired yet)
-    $goalMonthName = now()->format('F');                 // e.g. December
+    $goalMonthName = now()->format('F');                 // fallback until JS sets it
     $placeholderGoal = 50000;                            // $50,000
     $placeholderPercent = 24;                            // 24%
     $placeholderNeededMonthly = (int) round($placeholderGoal / 12); // 4167
+
+    // Server-side placeholder (will be overridden by JS to match user's local month/day)
     $daysLeft = now()->startOfDay()->diffInDays(now()->endOfMonth()->startOfDay()) + 1; // inclusive
 @endphp
 
@@ -267,9 +267,6 @@
 
     /* =========================================================
        GOAL CARD
-       - Width 50% across dashboard
-       - Increase circle around 24% by 25% (170 -> ~213)
-       - Center 24% inside circle
        ========================================================= */
 
     .goal-card-wrap {
@@ -421,8 +418,6 @@
         color: #ffffff;
     }
 
-    /* ===== Progress Ring (circle) =====
-       Previous: 170px. Increase by 25% => 212.5px. Use 213px. */
     .goal-ring {
         width: 213px;
         height: 213px;
@@ -436,7 +431,6 @@
         z-index: 3;
     }
 
-    /* Inner disc scaled with ring (136px * 1.25 = 170px) */
     .goal-ring::before {
         content: "";
         width: 170px;
@@ -447,7 +441,6 @@
         position: absolute;
     }
 
-    /* ✅ Ensure text is perfectly centered */
     .goal-ring-center {
         position: relative;
         z-index: 2;
@@ -477,7 +470,6 @@
         margin: 0;
     }
 
-    /* Strip under ring */
     .goal-strip-wrap {
         position: relative;
         padding: 0 18px 16px;
@@ -504,8 +496,6 @@
 
     .goal-strip span { font-weight: 900; }
 
-    /* Position ring over strip (previous -105 for 170px ring).
-       Increase ring by 25% => offset * 1.25 => ~ -131px. */
     .goal-strip-ring-anchor {
         position: absolute;
         right: 18px;
@@ -564,7 +554,6 @@
         opacity: 0.85;
     }
 
-    /* Responsive */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
 
@@ -608,7 +597,6 @@
 
                 <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
 
-                {{-- ✅ FIX: use ms epoch timestamp --}}
                 <div class="dashboard-datetime local-time" data-server-time-ms="{{ $serverTimeMs }}">
                     Loading time…
                 </div>
@@ -639,7 +627,6 @@
             <div class="goal-header">
                 <div class="goal-header-left">
                     <span class="goal-icon">●</span>
-                    {{-- ✅ Month synced to greeting month via JS --}}
                     <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                 </div>
 
@@ -669,7 +656,8 @@
 
             <div class="goal-strip-wrap">
                 <div class="goal-strip">
-                    <span>{{ $daysLeft }} days left</span>&nbsp;to reach goal
+                    {{-- ✅ Days-left number now syncs to *days left in the current month* (client-local) --}}
+                    <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
                 </div>
 
                 <div class="goal-strip-ring-anchor">
@@ -913,7 +901,7 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING -->
+<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
@@ -924,7 +912,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const localDate = new Date(ms);
 
     if (isNaN(localDate.getTime())) {
-        // Defensive fallback (should never happen now)
         greetEl.innerText = "Good day, Agent";
         timeEl.innerText = "—";
         return;
@@ -945,19 +932,35 @@ document.addEventListener("DOMContentLoaded", function () {
         day: "numeric"
     });
 
-    // ✅ Keep Goal card month synced to the same month used here
-    const goalMonthEl = document.getElementById("abc-goal-month");
-    if (goalMonthEl) {
-        const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
-        goalMonthEl.innerText = monthName;
-    }
-
     const timePart = localDate.toLocaleTimeString(undefined, {
         hour: "numeric",
         minute: "2-digit"
     });
 
     timeEl.innerText = `${datePart} • ${timePart}`;
+
+    // ✅ Month sync for goal card (written out month)
+    const goalMonthEl = document.getElementById("abc-goal-month");
+    if (goalMonthEl) {
+        const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
+        goalMonthEl.innerText = monthName;
+    }
+
+    // ✅ Days-left sync for goal card: days left in the current month (inclusive)
+    const daysLeftEl = document.getElementById("abc-days-left");
+    if (daysLeftEl) {
+        const y = localDate.getFullYear();
+        const m = localDate.getMonth();
+        const d = localDate.getDate();
+
+        const startOfToday = new Date(y, m, d);         // local midnight today
+        const endOfMonth = new Date(y, m + 1, 0);       // last day of month (local)
+        const startOfEnd = new Date(y, m, endOfMonth.getDate()); // local midnight of last day
+
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const diffDays = Math.round((startOfEnd - startOfToday) / msPerDay) + 1; // inclusive
+        daysLeftEl.innerText = Math.max(diffDays, 0);
+    }
 });
 </script>
 
