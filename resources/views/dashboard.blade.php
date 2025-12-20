@@ -6,16 +6,14 @@
      */
     $serverTimeMs = now()->utc()->timestamp * 1000;
 
-    // PLACEHOLDER VALUES (not wired yet)
+    // ✅ Reset goal to 0 (until backend persistence is wired)
     $goalMonthName = now()->format('F');                 // fallback until JS sets it
-    $placeholderGoal = 50000;                            // $50,000
-    $placeholderPercent = 24;                            // 24%
-    $placeholderNeededMonthly = (int) round($placeholderGoal / 12); // 4167
+    $placeholderGoal = 0;                               // $0
+    $placeholderPercent = 0;                            // 0%
+    $placeholderNeededMonthly = 0;                      // $0
 
     /**
      * ✅ Days-left (server fallback) should be "days left AFTER today"
-     * i.e., count from tomorrow through end-of-month (inclusive), else 0.
-     * JS will compute the authoritative value in the user's local timezone.
      */
     $tomorrowStart = now()->addDay()->startOfDay();
     $endOfMonthStart = now()->endOfMonth()->startOfDay();
@@ -638,22 +636,30 @@
                     <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                 </div>
 
-                <div class="goal-input-wrap" title="Placeholder (not wired yet)">
-                    <input class="goal-input" type="text" value="${{ number_format($placeholderGoal, 0) }}" disabled>
-                    <button class="goal-save" type="button" disabled>Submit →</button>
+                {{-- ✅ Now wired: input + submit updates "Collected Premium Needed" (goal / 12) --}}
+                <div class="goal-input-wrap">
+                    <input
+                        id="abc-goal-input"
+                        class="goal-input"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        value="${{ number_format($placeholderGoal, 0) }}"
+                    >
+                    <button id="abc-goal-submit" class="goal-save" type="button">Submit →</button>
                 </div>
             </div>
 
             <div class="goal-body">
                 <div>
                     <div class="goal-main">
-                        <span class="amt">${{ number_format($placeholderGoal, 0) }}</span>
+                        <span class="amt" id="abc-goal-amount-display">${{ number_format($placeholderGoal, 0) }}</span>
                         <span class="ap"> AP</span>
                     </div>
 
                     <div class="goal-label">Collected Premium Needed:</div>
                     <div class="goal-needed-row">
-                        <div class="goal-needed">${{ number_format($placeholderNeededMonthly, 0) }}</div>
+                        <div class="goal-needed" id="abc-goal-needed-display">${{ number_format($placeholderNeededMonthly, 0) }}</div>
                     </div>
                 </div>
 
@@ -909,7 +915,7 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) -->
+<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
@@ -954,8 +960,7 @@ document.addEventListener("DOMContentLoaded", function () {
         goalMonthEl.innerText = monthName;
     }
 
-    // ✅ Days-left sync for goal card: days left in month AFTER today
-    // Example Dec 19 => 12 (Dec 20..31)
+    // ✅ Days-left sync for goal card: days left in month AFTER today (Dec 19 => 12)
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
         const y = localDate.getFullYear();
@@ -968,14 +973,87 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const msPerDay = 24 * 60 * 60 * 1000;
 
-        // If tomorrow is beyond the last day (only possible at month end), show 0
         if (startOfTomorrow > startOfEnd) {
             daysLeftEl.innerText = 0;
         } else {
-            // inclusive count from tomorrow through end-of-month
             const diffDays = Math.round((startOfEnd - startOfTomorrow) / msPerDay) + 1;
             daysLeftEl.innerText = Math.max(diffDays, 0);
         }
+    }
+
+    // =========================================================
+    // ✅ Goal Amount Submit Wiring (front-end)
+    // - Input goal AP
+    // - Premium needed = goal / 12
+    // - Persist locally for now (until backend is wired)
+    // =========================================================
+    const goalInput = document.getElementById("abc-goal-input");
+    const goalSubmit = document.getElementById("abc-goal-submit");
+    const goalAmtDisplay = document.getElementById("abc-goal-amount-display");
+    const neededDisplay = document.getElementById("abc-goal-needed-display");
+
+    function parseMoneyToNumber(str) {
+        if (!str) return 0;
+        const cleaned = String(str).replace(/[^0-9.]/g, "");
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function formatMoney0(n) {
+        const v = Math.round(Number(n) || 0);
+        return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+
+    function updateGoalUI(goalApNumber) {
+        const goalAp = Math.max(0, Math.round(goalApNumber || 0));
+        const needed = Math.round(goalAp / 12);
+
+        // main display
+        if (goalAmtDisplay) goalAmtDisplay.innerText = formatMoney0(goalAp);
+
+        // premium needed display
+        if (neededDisplay) neededDisplay.innerText = formatMoney0(needed);
+
+        // input value formatted
+        if (goalInput) goalInput.value = formatMoney0(goalAp);
+    }
+
+    // Load from localStorage (until backend persistence exists)
+    const saved = localStorage.getItem("abc_monthly_goal_ap");
+    if (saved !== null) {
+        updateGoalUI(parseMoneyToNumber(saved));
+    } else {
+        updateGoalUI(0);
+    }
+
+    // Let user type freely; compute live (but do not force formatting while typing)
+    if (goalInput) {
+        goalInput.addEventListener("input", () => {
+            const raw = parseMoneyToNumber(goalInput.value);
+            const needed = Math.round((Math.max(0, raw)) / 12);
+            if (neededDisplay) neededDisplay.innerText = formatMoney0(needed);
+            if (goalAmtDisplay) goalAmtDisplay.innerText = formatMoney0(raw);
+        });
+
+        // On blur, snap input back to formatted currency
+        goalInput.addEventListener("blur", () => {
+            const raw = parseMoneyToNumber(goalInput.value);
+            updateGoalUI(raw);
+        });
+    }
+
+    // Submit saves and snaps everything to formatted values
+    if (goalSubmit) {
+        goalSubmit.addEventListener("click", () => {
+            const raw = goalInput ? parseMoneyToNumber(goalInput.value) : 0;
+            const goalAp = Math.max(0, Math.round(raw));
+
+            // local persistence for now
+            localStorage.setItem("abc_monthly_goal_ap", String(goalAp));
+
+            // update UI (goal + needed)
+            updateGoalUI(goalAp);
+        });
     }
 });
 </script>
