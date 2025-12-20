@@ -12,8 +12,15 @@
     $placeholderPercent = 24;                            // 24%
     $placeholderNeededMonthly = (int) round($placeholderGoal / 12); // 4167
 
-    // Server-side placeholder (will be overridden by JS to match user's local month/day)
-    $daysLeft = now()->startOfDay()->diffInDays(now()->endOfMonth()->startOfDay()) + 1; // inclusive
+    /**
+     * ✅ Days-left (server fallback) should be "days left AFTER today"
+     * i.e., count from tomorrow through end-of-month (inclusive), else 0.
+     * JS will compute the authoritative value in the user's local timezone.
+     */
+    $tomorrowStart = now()->addDay()->startOfDay();
+    $endOfMonthStart = now()->endOfMonth()->startOfDay();
+    $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
+    $daysLeft = max($daysLeftRaw, 0);
 @endphp
 
 <style>
@@ -554,6 +561,7 @@
         opacity: 0.85;
     }
 
+    /* Responsive */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
 
@@ -656,7 +664,7 @@
 
             <div class="goal-strip-wrap">
                 <div class="goal-strip">
-                    {{-- ✅ Days-left number now syncs to *days left in the current month* (client-local) --}}
+                    {{-- ✅ Days-left number synced to "days left AFTER today" --}}
                     <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
                 </div>
 
@@ -901,7 +909,7 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC -->
+<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
@@ -946,20 +954,28 @@ document.addEventListener("DOMContentLoaded", function () {
         goalMonthEl.innerText = monthName;
     }
 
-    // ✅ Days-left sync for goal card: days left in the current month (inclusive)
+    // ✅ Days-left sync for goal card: days left in month AFTER today
+    // Example Dec 19 => 12 (Dec 20..31)
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
         const y = localDate.getFullYear();
         const m = localDate.getMonth();
         const d = localDate.getDate();
 
-        const startOfToday = new Date(y, m, d);         // local midnight today
-        const endOfMonth = new Date(y, m + 1, 0);       // last day of month (local)
-        const startOfEnd = new Date(y, m, endOfMonth.getDate()); // local midnight of last day
+        const startOfTomorrow = new Date(y, m, d + 1);      // local midnight tomorrow
+        const endOfMonth = new Date(y, m + 1, 0);           // last day of month (local)
+        const startOfEnd = new Date(y, m, endOfMonth.getDate()); // local midnight last day
 
         const msPerDay = 24 * 60 * 60 * 1000;
-        const diffDays = Math.round((startOfEnd - startOfToday) / msPerDay) + 1; // inclusive
-        daysLeftEl.innerText = Math.max(diffDays, 0);
+
+        // If tomorrow is beyond the last day (only possible at month end), show 0
+        if (startOfTomorrow > startOfEnd) {
+            daysLeftEl.innerText = 0;
+        } else {
+            // inclusive count from tomorrow through end-of-month
+            const diffDays = Math.round((startOfEnd - startOfTomorrow) / msPerDay) + 1;
+            daysLeftEl.innerText = Math.max(diffDays, 0);
+        }
     }
 });
 </script>
