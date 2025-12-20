@@ -6,26 +6,53 @@ use App\Helpers\Tenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
+use Illuminate\Support\Facades\Schema;
 
 /**
- * Global tenant scope using tenant_id.
+ * Backward-compatible tenant scope:
+ * - Prefer tenant_id if column exists
+ * - Else fallback to agency_id if column exists
  *
- * IMPORTANT:
- * - This must match your DB schema. Your activities migration uses tenant_id.
- * - Tenant::id() must return the current tenant's ID.
+ * This prevents 500 errors while the codebase is transitioning.
  */
 class TenantScope implements Scope
 {
     /**
-     * Apply the tenant constraint to all queries.
+     * Cache table->tenantColumn to avoid Schema::hasColumn calls on every query.
+     * @var array<string, string|null>
      */
+    protected static array $tenantColumnCache = [];
+
+    public static function tenantColumnFor(Model $model): ?string
+    {
+        $table = $model->getTable();
+
+        if (array_key_exists($table, self::$tenantColumnCache)) {
+            return self::$tenantColumnCache[$table];
+        }
+
+        // Prefer tenant_id
+        if (Schema::hasColumn($table, 'tenant_id')) {
+            return self::$tenantColumnCache[$table] = 'tenant_id';
+        }
+
+        // Backward compatibility fallback
+        if (Schema::hasColumn($table, 'agency_id')) {
+            return self::$tenantColumnCache[$table] = 'agency_id';
+        }
+
+        return self::$tenantColumnCache[$table] = null;
+    }
+
     public function apply(Builder $builder, Model $model): void
     {
         $tenantId = Tenant::id();
+        if (! $tenantId) return;
 
-        if ($tenantId) {
-            $builder->where($model->getTable() . '.tenant_id', $tenantId);
-        }
+        $col = self::tenantColumnFor($model);
+        if (! $col) return;
+
+        $builder->where($model->getTable() . '.' . $col, $tenantId);
     }
 }
 
@@ -33,16 +60,17 @@ trait TenantScoped
 {
     public static function bootTenantScoped(): void
     {
-        // Add global tenant scope to every query on this model
         static::addGlobalScope(new TenantScope);
 
-        // Auto-set tenant_id on creation
         static::creating(function (Model $model) {
-            if (
-                empty($model->tenant_id) &&
-                ($tenantId = Tenant::id())
-            ) {
-                $model->tenant_id = $tenantId;
+            $tenantId = Tenant::id();
+            if (! $tenantId) return;
+
+            $col = TenantScope::tenantColumnFor($model);
+            if (! $col) return;
+
+            if (empty($model->{$col})) {
+                $model->{$col} = $tenantId;
             }
         });
     }
