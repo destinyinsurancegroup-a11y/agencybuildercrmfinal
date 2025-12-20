@@ -530,6 +530,9 @@
         min-height: 48px;
     }
 
+    /* ✅ Make only Log Production clickable without changing the rest */
+    #abc-log-production { cursor: pointer; }
+
     .goal-btn-primary {
         background: var(--gold);
         color: #111827;
@@ -637,7 +640,7 @@
                     <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                 </div>
 
-                {{-- ✅ Now wired: input + submit updates "Collected Premium Needed" (goal / 12) --}}
+                {{-- ✅ Goal input wiring stays the same --}}
                 <div class="goal-input-wrap">
                     <input
                         id="abc-goal-input"
@@ -685,10 +688,11 @@
             </div>
 
             <div class="goal-actions">
-                <button class="goal-btn goal-btn-primary" type="button" disabled>
+                {{-- ✅ 1) Remove lightning + subtext, only "Log Production" --}}
+                {{-- ✅ 2) Click triggers the same thing as the Activity tab (Track Daily Activity modal) --}}
+                <button id="abc-log-production" class="goal-btn goal-btn-primary" type="button">
                     <div class="goal-btn-left">
-                        <div class="goal-btn-title">⚡ Log Production</div>
-                        <div class="goal-btn-sub">Log Calls, Stops, Premium Collected</div>
+                        <div class="goal-btn-title">Log Production</div>
                     </div>
                     <div style="font-size:14px; font-weight:900;">›</div>
                 </button>
@@ -915,7 +919,7 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING -->
+<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING + LOG PRODUCTION WIRING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
@@ -983,9 +987,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // =========================================================
     // ✅ Goal Amount Submit Wiring (front-end)
-    // - Input goal AP
-    // - Premium needed = goal / 12
-    // - Persist locally for now (until backend is wired)
     // =========================================================
     const goalInput = document.getElementById("abc-goal-input");
     const goalSubmit = document.getElementById("abc-goal-submit");
@@ -1037,6 +1038,41 @@ document.addEventListener("DOMContentLoaded", function () {
             const goalAp = Math.max(0, Math.round(raw));
             localStorage.setItem("abc_monthly_goal_ap", String(goalAp));
             updateGoalUI(goalAp);
+        });
+    }
+
+    // =========================================================
+    // ✅ Log Production wiring:
+    // When clicked, trigger the same action as the existing
+    // "Track Daily Activity" flow uses.
+    // =========================================================
+    const logBtn = document.getElementById("abc-log-production");
+    if (logBtn) {
+        logBtn.addEventListener("click", () => {
+            // Try common selectors for the existing activity trigger button/link
+            const candidates = [
+                document.querySelector('[data-open-activity]'),
+                document.querySelector('#track-activity-btn'),
+                document.querySelector('#trackActivityBtn'),
+                document.querySelector('#track-activity'),
+                document.querySelector('#trackActivity'),
+                document.querySelector('.track-activity-btn'),
+                document.querySelector('.open-activity-modal'),
+                document.querySelector('[data-bs-target="#activityModal"]'),
+                document.querySelector('[data-bs-target="#trackActivityModal"]'),
+                document.querySelector('[data-modal="activity"]'),
+            ].filter(Boolean);
+
+            if (candidates.length > 0) {
+                candidates[0].click();
+                return;
+            }
+
+            // Fallback: dispatch an event in case your existing modal listens for it
+            document.dispatchEvent(new CustomEvent("openActivityModal"));
+
+            // Silent fail (no alert), but helpful for debugging
+            console.warn("Log Production: could not find existing activity trigger button. Add a selector to candidates[] in dashboard.blade.php.");
         });
     }
 });
