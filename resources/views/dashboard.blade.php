@@ -262,13 +262,14 @@
 
     /* =========================================================
        GOAL CARD
-       Requested changes:
-       - Keep vertical height same (normal spacing)
-       - Width 50% across dashboard
-       - December Goal text +200% (2x)
-       - Progress ring +200% (2x)
-       - Buttons -50%
-       - $50,000 gold and AP white
+       Current requirements:
+       - Width 50% across dashboard (keep)
+       - Keep vertical height same
+       - Reduce "24%" text to half its current size
+       - Increase button fonts to 2x current size
+       - Save button text -> Submit
+       - $50,000 gold; AP white; premium needed white
+       - Days bar fades toward ring; ring sits over bar
        ========================================================= */
 
     .goal-card-wrap {
@@ -317,19 +318,19 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 16px 18px; /* normal height (unchanged) */
+        padding: 16px 18px;
         border-bottom: 1px solid rgba(255,255,255,0.08);
         background: rgba(0,0,0,0.10);
         position: relative;
         z-index: 1;
     }
 
-    /* December Goal +200% */
+    /* (kept from your previous iteration) */
     .goal-header-left {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 52px; /* 2x */
+        font-size: 52px;
         font-weight: 800;
         letter-spacing: 0.2px;
         line-height: 1.05;
@@ -424,10 +425,10 @@
 
     .goal-needed-suffix { display: none; }
 
-    /* Progress ring +200% (2x diameter) */
+    /* Ring (kept 2x diameter from prior change) */
     .goal-ring {
-        width: 340px;   /* 170 -> 340 */
-        height: 340px;  /* 170 -> 340 */
+        width: 340px;
+        height: 340px;
         border-radius: 999px;
         background:
             conic-gradient(var(--danger-red) calc(var(--progress) * 1%), var(--ring-track) 0);
@@ -435,13 +436,13 @@
         place-items: center;
         margin-left: auto;
         position: relative;
-        z-index: 3; /* will sit above strip */
+        z-index: 3;
     }
 
     .goal-ring::before {
         content: "";
-        width: 272px;  /* 136 -> 272 */
-        height: 272px; /* 136 -> 272 */
+        width: 272px;
+        height: 272px;
         border-radius: 999px;
         background: rgba(0,0,0,0.35);
         border: 1px solid rgba(255,255,255,0.10);
@@ -454,16 +455,18 @@
         text-align: center;
     }
 
+    /* ✅ EDIT: reduce "24%" size to half (was 108px) */
     .goal-percent {
-        font-size: 108px; /* 54 -> 108 */
+        font-size: 54px;
         font-weight: 900;
         color: var(--danger-red);
         line-height: 1;
     }
 
+    /* ✅ EDIT: reduce "Complete" proportionally (was 36px) */
     .goal-complete {
         margin-top: 10px;
-        font-size: 36px; /* 18 -> 36 */
+        font-size: 18px;
         font-weight: 600;
         color: rgba(255,255,255,0.75);
     }
@@ -496,15 +499,16 @@
 
     .goal-strip span { font-weight: 900; }
 
-    /* Anchor ring on top of strip (like your ref) */
+    /* Anchor ring on top of strip */
     .goal-strip-ring-anchor {
         position: absolute;
         right: 18px;
-        top: -210px; /* tuned for 340px ring to overlap strip */
+        top: -210px;
         z-index: 4;
     }
 
-    /* Buttons -50% */
+    /* Buttons currently reduced by ~50% padding; keep that,
+       but increase fonts (2x current) */
     .goal-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -516,7 +520,7 @@
 
     .goal-btn {
         border-radius: 12px;
-        padding: 7px 7px; /* ~50% of 14px */
+        padding: 7px 7px; /* kept smaller */
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -544,25 +548,26 @@
         gap: 2px;
     }
 
+    /* ✅ EDIT: increase fonts to 2x current (was 11px/8px) */
     .goal-btn-title {
-        font-size: 11px; /* ~50% of 22px */
+        font-size: 22px;
         font-weight: 900;
         line-height: 1.05;
     }
 
     .goal-btn-sub {
-        font-size: 8px; /* ~50% of 16px */
+        font-size: 16px;
         font-weight: 700;
         opacity: 0.85;
     }
 
-    /* Responsive safety: the giant ring must shrink on smaller screens */
+    /* Responsive safety (kept from prior code, but updated for new percent sizes) */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
         .goal-ring { width: 260px; height: 260px; }
         .goal-ring::before { width: 210px; height: 210px; }
-        .goal-percent { font-size: 84px; }
-        .goal-complete { font-size: 28px; }
+        .goal-percent { font-size: 42px; }
+        .goal-complete { font-size: 14px; }
         .goal-strip-ring-anchor { top: -160px; }
     }
 
@@ -582,8 +587,8 @@
         .goal-header-left { font-size: 34px; }
         .goal-ring { width: 220px; height: 220px; }
         .goal-ring::before { width: 180px; height: 180px; }
-        .goal-percent { font-size: 72px; }
-        .goal-complete { font-size: 24px; }
+        .goal-percent { font-size: 36px; }
+        .goal-complete { font-size: 12px; }
     }
 </style>
 
@@ -631,7 +636,8 @@
 
                 <div class="goal-input-wrap" title="Placeholder (not wired yet)">
                     <input class="goal-input" type="text" value="${{ number_format($placeholderGoal, 0) }}" disabled>
-                    <button class="goal-save" type="button" disabled>Save →</button>
+                    {{-- ✅ EDIT: Save -> Submit --}}
+                    <button class="goal-save" type="button" disabled>Submit →</button>
                 </div>
             </div>
 
@@ -649,7 +655,7 @@
                 </div>
 
                 <div style="position:relative;">
-                    {{-- this empty space preserves layout; ring is positioned over strip below --}}
+                    {{-- reserved space; ring is positioned over strip below --}}
                 </div>
             </div>
 
