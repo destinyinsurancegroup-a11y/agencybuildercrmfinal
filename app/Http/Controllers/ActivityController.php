@@ -28,20 +28,21 @@ class ActivityController extends Controller
     /**
      * Store a new activity entry.
      *
-     * CRITICAL FIX:
-     * - Auth is NULL on DigitalOcean Apps unless logged in.
-     * - We use safe defaults to avoid 500 errors.
+     * IMPORTANT:
+     * - Multi-tenant scoping is standardized on agency_id across the CRM.
+     * - TenantScoped will auto-apply agency_id on queries and auto-set agency_id on create,
+     *   but we also set it explicitly here for clarity and safety.
      */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'leads_worked'      => 'nullable|integer',
-            'calls'             => 'nullable|integer',
-            'stops'             => 'nullable|integer',
-            'presentations'     => 'nullable|integer',
-            'apps_written'      => 'nullable|integer',
-            'premium_collected' => 'nullable|numeric',
-            'ap'                => 'nullable|numeric',
+            'leads_worked'      => 'nullable|integer|min:0',
+            'calls'             => 'nullable|integer|min:0',
+            'stops'             => 'nullable|integer|min:0',
+            'presentations'     => 'nullable|integer|min:0',
+            'apps_written'      => 'nullable|integer|min:0',
+            'premium_collected' => 'nullable|numeric|min:0',
+            'ap'                => 'nullable|numeric|min:0',
         ]);
 
         // Default empty to 0
@@ -53,9 +54,16 @@ class ActivityController extends Controller
         $data['premium_collected'] = $data['premium_collected'] ?? 0;
         $data['ap']                = $data['ap']                ?? 0;
 
-        // SAFETY FIX — Auth::user() is NULL on DigitalOcean unless logged in
-        $data['tenant_id'] = Auth::user()->tenant_id ?? 1;
+        /**
+         * ✅ Auth safety:
+         * Your routes are behind auth middleware, so Auth::id() should exist.
+         * We keep safe fallbacks to prevent a hard 500 in misconfigured environments,
+         * but agency_id is now the canonical tenant field.
+         */
+        $user = Auth::user();
+
         $data['user_id']   = Auth::id() ?? 1;
+        $data['agency_id'] = $user->agency_id ?? 1;
 
         Activity::create($data);
 
@@ -68,16 +76,18 @@ class ActivityController extends Controller
     public function totals($range)
     {
         // SAFETY FIX — prevent null crash
-        $userId   = Auth::id() ?? 1;
-        $tenantId = Auth::user()->tenant_id ?? 1;
+        $userId = Auth::id() ?? 1;
 
-        $query = Activity::where('user_id', $userId)
-                         ->where('tenant_id', $tenantId);
+        /**
+         * ✅ IMPORTANT:
+         * We DO NOT filter by tenant_id anymore.
+         * Multi-tenancy is enforced by the Activity model's TenantScoped global scope (agency_id).
+         */
+        $query = Activity::where('user_id', $userId);
 
         $now = Carbon::now();
 
         switch ($range) {
-
             case 'day':
                 $query->whereBetween('created_at', [
                     $now->copy()->startOfDay(),
