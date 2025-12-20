@@ -380,7 +380,7 @@
         color: #111827;
         font-size: 14px;
         font-weight: 900;
-        cursor: not-allowed;
+        cursor: pointer;
         opacity: 0.95;
     }
 
@@ -501,10 +501,11 @@
 
     .goal-strip span { font-weight: 900; }
 
+    /* ✅ MOVE GAUGE UP: place ring between days-bar and submit/header area */
     .goal-strip-ring-anchor {
         position: absolute;
         right: 18px;
-        top: -131px;
+        top: -205px;  /* was -131px */
         z-index: 4;
     }
 
@@ -568,7 +569,7 @@
         .goal-percent { font-size: 46px; }
         .goal-complete { font-size: 15px; }
 
-        .goal-strip-ring-anchor { top: -118px; }
+        .goal-strip-ring-anchor { top: -185px; } /* was -118px */
     }
 
     @media (max-width: 1100px) {
@@ -590,7 +591,7 @@
         .goal-percent { font-size: 42px; }
         .goal-complete { font-size: 13px; }
 
-        .goal-strip-ring-anchor { right: 18px; top: -110px; }
+        .goal-strip-ring-anchor { right: 18px; top: -170px; } /* was -110px */
     }
 </style>
 
@@ -670,7 +671,6 @@
 
             <div class="goal-strip-wrap">
                 <div class="goal-strip">
-                    {{-- ✅ Days-left number synced to "days left AFTER today" --}}
                     <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
                 </div>
 
@@ -1008,25 +1008,15 @@ document.addEventListener("DOMContentLoaded", function () {
         const goalAp = Math.max(0, Math.round(goalApNumber || 0));
         const needed = Math.round(goalAp / 12);
 
-        // main display
         if (goalAmtDisplay) goalAmtDisplay.innerText = formatMoney0(goalAp);
-
-        // premium needed display
         if (neededDisplay) neededDisplay.innerText = formatMoney0(needed);
-
-        // input value formatted
         if (goalInput) goalInput.value = formatMoney0(goalAp);
     }
 
-    // Load from localStorage (until backend persistence exists)
     const saved = localStorage.getItem("abc_monthly_goal_ap");
-    if (saved !== null) {
-        updateGoalUI(parseMoneyToNumber(saved));
-    } else {
-        updateGoalUI(0);
-    }
+    if (saved !== null) updateGoalUI(parseMoneyToNumber(saved));
+    else updateGoalUI(0);
 
-    // Let user type freely; compute live (but do not force formatting while typing)
     if (goalInput) {
         goalInput.addEventListener("input", () => {
             const raw = parseMoneyToNumber(goalInput.value);
@@ -1035,23 +1025,17 @@ document.addEventListener("DOMContentLoaded", function () {
             if (goalAmtDisplay) goalAmtDisplay.innerText = formatMoney0(raw);
         });
 
-        // On blur, snap input back to formatted currency
         goalInput.addEventListener("blur", () => {
             const raw = parseMoneyToNumber(goalInput.value);
             updateGoalUI(raw);
         });
     }
 
-    // Submit saves and snaps everything to formatted values
     if (goalSubmit) {
         goalSubmit.addEventListener("click", () => {
             const raw = goalInput ? parseMoneyToNumber(goalInput.value) : 0;
             const goalAp = Math.max(0, Math.round(raw));
-
-            // local persistence for now
             localStorage.setItem("abc_monthly_goal_ap", String(goalAp));
-
-            // update UI (goal + needed)
             updateGoalUI(goalAp);
         });
     }
