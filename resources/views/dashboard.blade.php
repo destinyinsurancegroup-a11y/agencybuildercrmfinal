@@ -1,11 +1,15 @@
 @extends('layouts.app')
 @section('content')
 @php
-    // ✅ FIX: provide an ISO-8601 UTC timestamp so JS parses reliably in all browsers
-    $serverTime = now()->utc()->toIso8601String();
+    /**
+     * ✅ FIX (robust + cross-browser):
+     * Do NOT pass a formatted date string to JS and hope the browser parses it.
+     * Pass an epoch timestamp (milliseconds) and build the Date from that.
+     */
+    $serverTimeMs = now()->utc()->timestamp * 1000;
 
     // PLACEHOLDER VALUES (not wired yet)
-    $goalMonthName = now()->format('F');                 // fallback until JS sets it
+    $goalMonthName = now()->format('F');                 // e.g. December
     $placeholderGoal = 50000;                            // $50,000
     $placeholderPercent = 24;                            // 24%
     $placeholderNeededMonthly = (int) round($placeholderGoal / 12); // 4167
@@ -604,7 +608,8 @@
 
                 <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
 
-                <div class="dashboard-datetime local-time" data-server-time="{{ $serverTime }}">
+                {{-- ✅ FIX: use ms epoch timestamp --}}
+                <div class="dashboard-datetime local-time" data-server-time-ms="{{ $serverTimeMs }}">
                     Loading time…
                 </div>
             </div>
@@ -634,7 +639,7 @@
             <div class="goal-header">
                 <div class="goal-header-left">
                     <span class="goal-icon">●</span>
-                    {{-- ✅ Month text is now JS-synced to the greeting month --}}
+                    {{-- ✅ Month synced to greeting month via JS --}}
                     <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                 </div>
 
@@ -913,10 +918,17 @@
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
-    const serverTime = timeEl.getAttribute("data-server-time");
+    const serverTimeMsStr = timeEl.getAttribute("data-server-time-ms");
 
-    // ✅ FIX: parse ISO-8601 directly (no " UTC" string hack)
-    const localDate = new Date(serverTime);
+    const ms = parseInt(serverTimeMsStr, 10);
+    const localDate = new Date(ms);
+
+    if (isNaN(localDate.getTime())) {
+        // Defensive fallback (should never happen now)
+        greetEl.innerText = "Good day, Agent";
+        timeEl.innerText = "—";
+        return;
+    }
 
     const hour = localDate.getHours();
     let greeting = "Good ";
@@ -933,7 +945,7 @@ document.addEventListener("DOMContentLoaded", function () {
         day: "numeric"
     });
 
-    // ✅ Wire goal month to the same month shown by the greeting/date line
+    // ✅ Keep Goal card month synced to the same month used here
     const goalMonthEl = document.getElementById("abc-goal-month");
     if (goalMonthEl) {
         const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
