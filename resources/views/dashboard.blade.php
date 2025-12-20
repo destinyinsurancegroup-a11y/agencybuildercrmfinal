@@ -530,8 +530,8 @@
         min-height: 48px;
     }
 
-    /* ✅ Make only Log Production clickable without changing the rest */
-    #abc-log-production { cursor: pointer; }
+    /* ✅ Make these clickable */
+    #abc-log-production, #abc-production-breakdown { cursor: pointer; }
 
     .goal-btn-primary {
         background: var(--gold);
@@ -562,6 +562,71 @@
         font-weight: 700;
         opacity: 0.85;
     }
+
+    /* =========================================================
+       ✅ BUTTON TEXT CENTERING (NO LAYOUT CHANGES OUTSIDE BUTTON)
+       ========================================================= */
+    #abc-log-production,
+    #abc-production-breakdown {
+        justify-content: center;     /* centers the content block */
+        text-align: center;
+        cursor: pointer;
+    }
+    #abc-log-production .goal-btn-left,
+    #abc-production-breakdown .goal-btn-left {
+        width: 100%;
+        align-items: center;         /* centers "Log Production" / "Production Breakdown" */
+    }
+
+    /* =========================================================
+       ✅ PRODUCTION BREAKDOWN MODAL (simple, self-contained)
+       ========================================================= */
+    .abc-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 24px;
+    }
+    .abc-modal-overlay.abc-modal-open { display: flex; }
+
+    .abc-modal {
+        width: min(860px, 96vw);
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.30);
+        overflow: hidden;
+    }
+
+    .abc-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #fff;
+    }
+
+    .abc-modal-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+
+    .abc-modal-close {
+        border: none;
+        background: transparent;
+        font-size: 22px;
+        cursor: pointer;
+        color: #6b7280;
+        line-height: 1;
+    }
+
+    .abc-modal-body { padding: 16px; }
 
     /* Responsive */
     @media (max-width: 1400px) {
@@ -640,7 +705,6 @@
                     <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                 </div>
 
-                {{-- ✅ Goal input wiring stays the same --}}
                 <div class="goal-input-wrap">
                     <input
                         id="abc-goal-input"
@@ -688,21 +752,20 @@
             </div>
 
             <div class="goal-actions">
-                {{-- ✅ 1) Remove lightning + subtext, only "Log Production" --}}
-                {{-- ✅ 2) Click triggers the same thing as the Activity tab (Track Daily Activity modal) --}}
+                {{-- 1) Center Log Production --}}
+                {{-- 3) Wire Log Production to open the exact Activity modal flow --}}
                 <button id="abc-log-production" class="goal-btn goal-btn-primary" type="button">
                     <div class="goal-btn-left">
                         <div class="goal-btn-title">Log Production</div>
                     </div>
-                    <div style="font-size:14px; font-weight:900;">›</div>
                 </button>
 
-                <button class="goal-btn goal-btn-secondary" type="button" disabled>
+                {{-- 2) Remove Weekly/Monthly/Quarterly/Annual text + remove checkered box --}}
+                {{-- 4) Wire Production Breakdown to pop up identical to Current Production card --}}
+                <button id="abc-production-breakdown" class="goal-btn goal-btn-secondary" type="button">
                     <div class="goal-btn-left">
-                        <div class="goal-btn-title">▦ Production Breakdown</div>
-                        <div class="goal-btn-sub">Weekly / Monthly / Quarterly / Annual</div>
+                        <div class="goal-btn-title">Production Breakdown</div>
                     </div>
-                    <div style="font-size:14px; font-weight:900;">›</div>
                 </button>
             </div>
         </div>
@@ -919,7 +982,52 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING + LOG PRODUCTION WIRING -->
+{{-- ✅ Production Breakdown Modal (identical structure to Current Production card) --}}
+<div id="abc-production-modal" class="abc-modal-overlay" aria-hidden="true">
+    <div class="abc-modal" role="dialog" aria-modal="true" aria-label="Production Breakdown">
+        <div class="abc-modal-header">
+            <div class="abc-modal-title">Production Breakdown</div>
+            <button id="abc-production-modal-close" class="abc-modal-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="abc-modal-body">
+            <div class="dashboard-card" style="box-shadow:none; margin:0; border:none; padding:0;">
+                <div class="production-title">Current Production</div>
+
+                <div class="production-tabs-wrapper">
+                    <div class="production-tabs" id="abc-production-tabs">
+                        <button class="production-tab production-tab-active" data-modal-production-tab="day" type="button">Day</button>
+                        <button class="production-tab" data-modal-production-tab="week" type="button">Week</button>
+                        <button class="production-tab" data-modal-production-tab="month" type="button">Month</button>
+                        <button class="production-tab" data-modal-production-tab="quarter" type="button">Quarter</button>
+                        <button class="production-tab" data-modal-production-tab="year" type="button">Year</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card-body production-stats" id="abc-production-modal-stats">
+                    @php
+                        $ranges = ['day','week','month','quarter','year'];
+                    @endphp
+
+                    @foreach($ranges as $idx => $r)
+                        <div class="production-range {{ $idx === 0 ? 'production-range-active' : '' }}" data-modal-production-range="{{ $r }}">
+                            <table style="width:100%;">
+                                <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                                <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                                <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                                <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                                <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                                <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                                <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
+                            </table>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING + BUTTON WIRING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
@@ -964,16 +1072,16 @@ document.addEventListener("DOMContentLoaded", function () {
         goalMonthEl.innerText = monthName;
     }
 
-    // ✅ Days-left sync for goal card: days left in month AFTER today (Dec 19 => 12)
+    // ✅ Days-left sync for goal card: days left in month AFTER today
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
         const y = localDate.getFullYear();
         const m = localDate.getMonth();
         const d = localDate.getDate();
 
-        const startOfTomorrow = new Date(y, m, d + 1);      // local midnight tomorrow
-        const endOfMonth = new Date(y, m + 1, 0);           // last day of month (local)
-        const startOfEnd = new Date(y, m, endOfMonth.getDate()); // local midnight last day
+        const startOfTomorrow = new Date(y, m, d + 1);
+        const endOfMonth = new Date(y, m + 1, 0);
+        const startOfEnd = new Date(y, m, endOfMonth.getDate());
 
         const msPerDay = 24 * 60 * 60 * 1000;
 
@@ -1042,38 +1150,142 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================
-    // ✅ Log Production wiring:
-    // When clicked, trigger the same action as the existing
-    // "Track Daily Activity" flow uses.
+    // ✅ 3) Log Production wiring:
+    // Make it trigger the SAME modal the Activity tab triggers.
+    // Strategy:
+    //  - Click the Activity sidebar link (most reliable)
+    //  - Then try common modal triggers as fallback
     // =========================================================
+    function clickActivityTabOrTrigger() {
+        // First: click sidebar "Activity" link by href
+        const hrefCandidates = [
+            document.querySelector('a[href="/activity"]'),
+            document.querySelector('a[href^="/activity"]'),
+            document.querySelector('a[href*="activity"]'),
+        ].filter(Boolean);
+
+        if (hrefCandidates.length > 0) {
+            hrefCandidates[0].click();
+            return true;
+        }
+
+        // Second: click sidebar "Activity" link by text
+        const allLinks = Array.from(document.querySelectorAll('a'));
+        const activityTextLink = allLinks.find(a => (a.textContent || '').trim().toLowerCase() === 'activity');
+        if (activityTextLink) {
+            activityTextLink.click();
+            return true;
+        }
+
+        // Third: try modal trigger selectors (if your app uses them)
+        const modalTriggerCandidates = [
+            document.querySelector('[data-open-activity]'),
+            document.querySelector('#track-activity-btn'),
+            document.querySelector('#trackActivityBtn'),
+            document.querySelector('#track-activity'),
+            document.querySelector('#trackActivity'),
+            document.querySelector('.track-activity-btn'),
+            document.querySelector('.open-activity-modal'),
+            document.querySelector('[data-bs-target="#activityModal"]'),
+            document.querySelector('[data-bs-target="#trackActivityModal"]'),
+            document.querySelector('[data-modal="activity"]'),
+        ].filter(Boolean);
+
+        if (modalTriggerCandidates.length > 0) {
+            modalTriggerCandidates[0].click();
+            return true;
+        }
+
+        // Final fallback: dispatch event if the modal listens
+        document.dispatchEvent(new CustomEvent("openActivityModal"));
+        return false;
+    }
+
     const logBtn = document.getElementById("abc-log-production");
     if (logBtn) {
         logBtn.addEventListener("click", () => {
-            // Try common selectors for the existing activity trigger button/link
-            const candidates = [
-                document.querySelector('[data-open-activity]'),
-                document.querySelector('#track-activity-btn'),
-                document.querySelector('#trackActivityBtn'),
-                document.querySelector('#track-activity'),
-                document.querySelector('#trackActivity'),
-                document.querySelector('.track-activity-btn'),
-                document.querySelector('.open-activity-modal'),
-                document.querySelector('[data-bs-target="#activityModal"]'),
-                document.querySelector('[data-bs-target="#trackActivityModal"]'),
-                document.querySelector('[data-modal="activity"]'),
-            ].filter(Boolean);
-
-            if (candidates.length > 0) {
-                candidates[0].click();
-                return;
-            }
-
-            // Fallback: dispatch an event in case your existing modal listens for it
-            document.dispatchEvent(new CustomEvent("openActivityModal"));
-
-            // Silent fail (no alert), but helpful for debugging
-            console.warn("Log Production: could not find existing activity trigger button. Add a selector to candidates[] in dashboard.blade.php.");
+            const ok = clickActivityTabOrTrigger();
+            if (!ok) console.warn("Log Production: could not find Activity tab or trigger. Add your selector in dashboard.blade.php.");
         });
+    }
+
+    // =========================================================
+    // ✅ 4) Production Breakdown modal wiring
+    // =========================================================
+    const modalOverlay = document.getElementById('abc-production-modal');
+    const modalClose = document.getElementById('abc-production-modal-close');
+    const breakdownBtn = document.getElementById('abc-production-breakdown');
+
+    function openProductionModal() {
+        if (!modalOverlay) return;
+        modalOverlay.classList.add('abc-modal-open');
+        modalOverlay.setAttribute('aria-hidden', 'false');
+
+        // refresh modal stats for active tab
+        refreshProductionModalCard();
+    }
+
+    function closeProductionModal() {
+        if (!modalOverlay) return;
+        modalOverlay.classList.remove('abc-modal-open');
+        modalOverlay.setAttribute('aria-hidden', 'true');
+    }
+
+    if (breakdownBtn) breakdownBtn.addEventListener('click', openProductionModal);
+    if (modalClose) modalClose.addEventListener('click', closeProductionModal);
+
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeProductionModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modalOverlay.classList.contains('abc-modal-open')) closeProductionModal();
+        });
+    }
+
+    // Modal tab logic (identical to main card but scoped)
+    const modalTabs = document.querySelectorAll('[data-modal-production-tab]');
+    const modalRanges = document.querySelectorAll('[data-modal-production-range]');
+
+    modalTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const range = tab.dataset.modalProductionTab;
+
+            modalTabs.forEach(t => t.classList.remove('production-tab-active'));
+            tab.classList.add('production-tab-active');
+
+            modalRanges.forEach(r => {
+                r.classList.toggle('production-range-active',
+                    r.dataset.modalProductionRange === range
+                );
+            });
+
+            refreshProductionModalCard();
+        });
+    });
+
+    window.refreshProductionModalCard = function() {
+        const activeTab = document.querySelector('[data-modal-production-tab].production-tab-active');
+        const active = activeTab ? activeTab.dataset.modalProductionTab : 'day';
+
+        fetch(`/activity/totals/${active}`)
+            .then(r => r.json())
+            .then(data => {
+                const rows = document.querySelectorAll(
+                    `[data-modal-production-range="${active}"] .production-value`
+                );
+
+                if (rows.length === 7) {
+                    rows[0].innerText = data.leads_worked;
+                    rows[1].innerText = data.calls;
+                    rows[2].innerText = data.stops;
+                    rows[3].innerText = data.presentations;
+                    rows[4].innerText = data.apps_written;
+
+                    rows[5].innerText = "$" + data.premium_collected;
+                    rows[6].innerText = "$" + data.ap;
+                }
+            });
     }
 });
 </script>
@@ -1081,8 +1293,8 @@ document.addEventListener("DOMContentLoaded", function () {
 <!-- TAB LOGIC -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const tabs = document.querySelectorAll('.production-tab');
-    const ranges = document.querySelectorAll('.production-range');
+    const tabs = document.querySelectorAll('.production-tab[data-production-tab]');
+    const ranges = document.querySelectorAll('.production-range[data-production-range]');
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -1106,7 +1318,7 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- UPDATE STATS -->
 <script>
 window.refreshProductionCard = function() {
-    const active = document.querySelector(".production-tab-active").dataset.productionTab;
+    const active = document.querySelector(".production-tab-active[data-production-tab]").dataset.productionTab;
 
     fetch(`/activity/totals/${active}`)
         .then(r => r.json())
@@ -1133,6 +1345,12 @@ window.refreshProductionCard = function() {
 <script>
 document.addEventListener("activitySaved", function () {
     refreshProductionCard();
+
+    // If modal is open, refresh it too
+    const overlay = document.getElementById('abc-production-modal');
+    if (overlay && overlay.classList.contains('abc-modal-open') && window.refreshProductionModalCard) {
+        window.refreshProductionModalCard();
+    }
 });
 </script>
 
