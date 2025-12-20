@@ -1,10 +1,11 @@
 @extends('layouts.app')
 @section('content')
 @php
-    $serverTime = now()->toDateTimeString();
+    // ✅ FIX: provide an ISO-8601 UTC timestamp so JS parses reliably in all browsers
+    $serverTime = now()->utc()->toIso8601String();
 
     // PLACEHOLDER VALUES (not wired yet)
-    $goalMonthName = now()->format('F');                 // e.g. December
+    $goalMonthName = now()->format('F');                 // fallback until JS sets it
     $placeholderGoal = 50000;                            // $50,000
     $placeholderPercent = 24;                            // 24%
     $placeholderNeededMonthly = (int) round($placeholderGoal / 12); // 4167
@@ -633,7 +634,8 @@
             <div class="goal-header">
                 <div class="goal-header-left">
                     <span class="goal-icon">●</span>
-                    {{ $goalMonthName }} Goal
+                    {{-- ✅ Month text is now JS-synced to the greeting month --}}
+                    <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                 </div>
 
                 <div class="goal-input-wrap" title="Placeholder (not wired yet)">
@@ -913,7 +915,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const greetEl = document.querySelector(".local-greeting");
     const serverTime = timeEl.getAttribute("data-server-time");
 
-    const localDate = new Date(serverTime + " UTC");
+    // ✅ FIX: parse ISO-8601 directly (no " UTC" string hack)
+    const localDate = new Date(serverTime);
 
     const hour = localDate.getHours();
     let greeting = "Good ";
@@ -929,6 +932,13 @@ document.addEventListener("DOMContentLoaded", function () {
         month: "long",
         day: "numeric"
     });
+
+    // ✅ Wire goal month to the same month shown by the greeting/date line
+    const goalMonthEl = document.getElementById("abc-goal-month");
+    if (goalMonthEl) {
+        const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
+        goalMonthEl.innerText = monthName;
+    }
 
     const timePart = localDate.toLocaleTimeString(undefined, {
         hour: "numeric",
