@@ -6,11 +6,11 @@
      */
     $serverTimeMs = now()->utc()->timestamp * 1000;
 
-    // ✅ Goal input starts at 0 until user enters it (front-end localStorage)
+    // ✅ Reset goal to 0 (until backend persistence is wired)
     $goalMonthName = now()->format('F');                 // fallback until JS sets it
-    $placeholderGoal = 0;                               // $0 goal input default
-    $placeholderPercent = 0;                            // 0% (computed in JS)
-    $placeholderNeededMonthly = 0;                      // $0 (computed in JS)
+    $placeholderGoal = 0;                               // $0
+    $placeholderPercent = 0;                            // 0%
+    $placeholderNeededMonthly = 0;                      // $0
 
     /**
      * ✅ Days-left (server fallback) should be "days left AFTER today"
@@ -213,6 +213,7 @@
         cursor: pointer;
         font-weight: 600;
         color: #6b7280;
+        border: none;
     }
 
     .production-tab-active {
@@ -423,12 +424,13 @@
         color: #ffffff;
     }
 
+    /* ✅ Gauge uses --gauge-color and --progress */
     .goal-ring {
         width: 213px;
         height: 213px;
         border-radius: 999px;
         background:
-            conic-gradient(var(--danger-red) calc(var(--progress) * 1%), var(--ring-track) 0);
+            conic-gradient(var(--gauge-color, var(--danger-red)) calc(var(--progress) * 1%), var(--ring-track) 0);
         display: grid;
         place-items: center;
         margin-left: auto;
@@ -462,7 +464,7 @@
     .goal-percent {
         font-size: 54px;
         font-weight: 900;
-        color: var(--danger-red);
+        color: var(--gauge-color, var(--danger-red));
         line-height: 1;
         margin: 0;
     }
@@ -501,7 +503,7 @@
 
     .goal-strip span { font-weight: 900; }
 
-    /* ✅ MOVE GAUGE UP */
+    /* ✅ Gauge position (already moved up) */
     .goal-strip-ring-anchor {
         position: absolute;
         right: 18px;
@@ -526,9 +528,18 @@
         justify-content: space-between;
         gap: 10px;
         border: 1px solid rgba(255,255,255,0.12);
-        cursor: pointer;
         min-height: 48px;
     }
+
+    /* ✅ Log Production centered */
+    #abc-log-production {
+        cursor: pointer;
+        justify-content: center !important;
+    }
+    #abc-log-production .goal-btn-left { align-items: center; }
+
+    /* ✅ Production Breakdown clickable */
+    #abc-production-breakdown { cursor: pointer; }
 
     .goal-btn-primary {
         background: var(--gold);
@@ -542,20 +553,44 @@
         color: #fff;
     }
 
-    /* ✅ Center "Log Production" */
-    #abc-log-production {
-        justify-content: center !important;
-        text-align: center;
+    .goal-btn-left {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
     }
-    #abc-log-production .goal-btn-left { align-items: center; }
+
+    .goal-btn-title {
+        font-size: 22px;
+        font-weight: 900;
+        line-height: 1.05;
+    }
+
+    /* ===== Production Breakdown Modal (Bootstrap) ===== */
+    .abc-modal-wide .modal-dialog {
+        max-width: 920px;
+    }
+
+    .abc-breakdown-wrap {
+        padding: 6px 8px 16px;
+    }
+
+    .abc-breakdown-title {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 900;
+        margin: 10px 0 12px;
+        color: #111827;
+    }
 
     /* Responsive */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
+
         .goal-ring { width: 190px; height: 190px; }
         .goal-ring::before { width: 152px; height: 152px; }
         .goal-percent { font-size: 46px; }
         .goal-complete { font-size: 15px; }
+
         .goal-strip-ring-anchor { top: -185px; }
     }
 
@@ -617,8 +652,7 @@
 
     {{-- GOAL CARD (50% wide) --}}
     <div class="goal-card-wrap">
-        {{-- progress is computed by JS (starts 0) --}}
-        <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }};">
+        <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }}; --gauge-color: var(--danger-red);">
             <div class="goal-header">
                 <div class="goal-header-left">
                     <span class="goal-icon">●</span>
@@ -640,15 +674,14 @@
 
             <div class="goal-body">
                 <div>
-                    {{-- ✅ This is now "earned AP" from logged activity (starts 0) --}}
                     <div class="goal-main">
-                        <span class="amt" id="abc-earned-ap-display">$0</span>
+                        {{-- ✅ This is ACTUAL AP earned from logged activity (starts at $0 until logged) --}}
+                        <span class="amt" id="abc-goal-ap-earned">$0</span>
                         <span class="ap"> AP</span>
                     </div>
 
                     <div class="goal-label">Collected Premium Needed:</div>
                     <div class="goal-needed-row">
-                        {{-- ✅ This becomes (goal/12 - premium_collected_so_far) --}}
                         <div class="goal-needed" id="abc-goal-needed-display">${{ number_format($placeholderNeededMonthly, 0) }}</div>
                     </div>
                 </div>
@@ -666,7 +699,7 @@
                 <div class="goal-strip-ring-anchor">
                     <div id="abc-goal-ring" class="goal-ring" aria-label="Goal progress ring">
                         <div class="goal-ring-center">
-                            <div class="goal-percent" id="abc-goal-percent">0%</div>
+                            <div id="abc-goal-percent-text" class="goal-percent">{{ $placeholderPercent }}%</div>
                             <div class="goal-complete">Complete</div>
                         </div>
                     </div>
@@ -698,15 +731,16 @@
 
             <div class="production-tabs-wrapper">
                 <div class="production-tabs">
-                    <button class="production-tab production-tab-active" data-production-tab="day">Day</button>
-                    <button class="production-tab" data-production-tab="week">Week</button>
-                    <button class="production-tab" data-production-tab="month">Month</button>
-                    <button class="production-tab" data-production-tab="quarter">Quarter</button>
-                    <button class="production-tab" data-production-tab="year">Year</button>
+                    <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
+                    <button class="production-tab" data-production-tab="week" type="button">Week</button>
+                    <button class="production-tab" data-production-tab="month" type="button">Month</button>
+                    <button class="production-tab" data-production-tab="quarter" type="button">Quarter</button>
+                    <button class="production-tab" data-production-tab="year" type="button">Year</button>
                 </div>
             </div>
 
             <div class="dashboard-card-body production-stats">
+
                 <div class="production-range production-range-active" data-production-range="day">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -766,6 +800,7 @@
                         <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
+
             </div>
         </div>
 
@@ -899,7 +934,98 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT + GOAL + ACTIVITY->GOAL WIRING -->
+{{-- ✅ Production Breakdown Modal --}}
+<div class="modal fade" id="productionBreakdownModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered abc-modal-wide">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="font-weight:900;">Production Breakdown</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body abc-breakdown-wrap">
+                <div class="abc-breakdown-title">Current Production</div>
+
+                <div class="production-tabs-wrapper">
+                    <div class="production-tabs" id="abc-breakdown-tabs">
+                        <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
+                        <button class="production-tab" data-production-tab="week" type="button">Week</button>
+                        <button class="production-tab" data-production-tab="month" type="button">Month</button>
+                        <button class="production-tab" data-production-tab="quarter" type="button">Quarter</button>
+                        <button class="production-tab" data-production-tab="year" type="button">Year</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card-body production-stats" id="abc-breakdown-stats">
+
+                    <div class="production-range production-range-active" data-production-range="day">
+                        <table style="width:100%;">
+                            <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                            <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="production-range" data-production-range="week">
+                        <table style="width:100%;">
+                            <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                            <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="production-range" data-production-range="month">
+                        <table style="width:100%;">
+                            <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                            <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="production-range" data-production-range="quarter">
+                        <table style="width:100%;">
+                            <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                            <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="production-range" data-production-range="year">
+                        <table style="width:100%;">
+                            <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
+                            <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
+                            <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING + BUTTON WIRING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
@@ -915,12 +1041,12 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-    // Greeting + time
     const hour = localDate.getHours();
     let greeting = "Good ";
     if (hour < 12) greeting += "morning";
     else if (hour < 17) greeting += "afternoon";
     else greeting += "evening";
+
     greetEl.innerText = greeting + ", Agent";
 
     const datePart = localDate.toLocaleDateString(undefined, {
@@ -937,14 +1063,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     timeEl.innerText = `${datePart} • ${timePart}`;
 
-    // Month name on goal header
+    // ✅ Month sync for goal card
     const goalMonthEl = document.getElementById("abc-goal-month");
     if (goalMonthEl) {
         const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
         goalMonthEl.innerText = monthName;
     }
 
-    // Days-left in month AFTER today
+    // ✅ Days-left sync for goal card: days left in month AFTER today (Dec 19 => 12)
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
         const y = localDate.getFullYear();
@@ -966,24 +1092,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================
-    // ✅ Goal logic:
-    // - User types GOAL AP into input (saved to localStorage)
-    // - "Collected Premium Needed" shows (GOAL/12 - premium_collected_to_date)
-    // - Earned AP shows SUM(ap) to date (starts 0)
-    // - % complete shows premium_collected_to_date / (goal/12)
+    // ✅ Goal Amount Submit Wiring (front-end)
     // =========================================================
-    const goalCard = document.getElementById("abc-goal-card");
-    const goalRing = document.getElementById("abc-goal-ring");
-    const percentEl = document.getElementById("abc-goal-percent");
-
     const goalInput = document.getElementById("abc-goal-input");
     const goalSubmit = document.getElementById("abc-goal-submit");
-    const neededDisplay = document.getElementById("abc-goal-needed-display");
-    const earnedApDisplay = document.getElementById("abc-earned-ap-display");
-
-    // cache latest totals we fetched from server
-    let latestPremiumCollected = 0;
-    let latestEarnedAp = 0;
 
     function parseMoneyToNumber(str) {
         if (!str) return 0;
@@ -997,121 +1109,49 @@ document.addEventListener("DOMContentLoaded", function () {
         return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
 
-    function formatMoney2(n) {
-        const v = Number(n) || 0;
-        return "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function getGoalAp() {
-        const saved = localStorage.getItem("abc_monthly_goal_ap");
-        if (saved === null) return 0;
-        return Math.max(0, Math.round(parseMoneyToNumber(saved)));
-    }
-
-    function setGoalAp(n) {
-        const goalAp = Math.max(0, Math.round(Number(n) || 0));
-        localStorage.setItem("abc_monthly_goal_ap", String(goalAp));
-        return goalAp;
-    }
-
-    function applyGoalUI() {
-        const goalAp = getGoalAp();
-        const monthlyNeeded = goalAp / 12;
-
-        const remaining = Math.max(0, monthlyNeeded - (Number(latestPremiumCollected) || 0));
-        if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
-
-        // Earned AP from activity (starts at 0 until something is logged)
-        if (earnedApDisplay) earnedApDisplay.innerText = formatMoney0(latestEarnedAp);
-
-        // Percent complete based on premium progress vs monthly needed
-        let pct = 0;
-        if (monthlyNeeded > 0) {
-            pct = Math.min(100, Math.max(0, (latestPremiumCollected / monthlyNeeded) * 100));
-        }
-
-        const pctInt = Math.round(pct);
-        if (percentEl) percentEl.innerText = `${pctInt}%`;
-        if (goalCard) goalCard.style.setProperty("--progress", String(pctInt));
-        if (goalRing) goalRing.style.setProperty("--progress", String(pctInt));
-    }
-
-    // Init goal input from localStorage
-    (function initGoalInput() {
-        const saved = localStorage.getItem("abc_monthly_goal_ap");
-        const goalAp = saved !== null ? Math.max(0, Math.round(parseMoneyToNumber(saved))) : 0;
+    function setGoalInput(goalApNumber) {
+        const goalAp = Math.max(0, Math.round(goalApNumber || 0));
         if (goalInput) goalInput.value = formatMoney0(goalAp);
-    })();
+    }
 
-    // Typing: update preview of "remaining" using latestPremiumCollected
+    // Save only the GOAL AP (not earned AP)
+    const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
+    setGoalInput(savedGoal !== null ? parseMoneyToNumber(savedGoal) : 0);
+
     if (goalInput) {
-        goalInput.addEventListener("input", () => {
-            const rawGoal = Math.max(0, parseMoneyToNumber(goalInput.value));
-            const monthlyNeeded = rawGoal / 12;
-            const remaining = Math.max(0, monthlyNeeded - (Number(latestPremiumCollected) || 0));
-            if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
-        });
-
         goalInput.addEventListener("blur", () => {
-            const raw = Math.max(0, parseMoneyToNumber(goalInput.value));
-            goalInput.value = formatMoney0(raw);
+            const raw = parseMoneyToNumber(goalInput.value);
+            setGoalInput(raw);
         });
     }
 
-    // Submit: save goal + recalc UI
     if (goalSubmit) {
         goalSubmit.addEventListener("click", () => {
             const raw = goalInput ? parseMoneyToNumber(goalInput.value) : 0;
-            setGoalAp(raw);
-            if (goalInput) goalInput.value = formatMoney0(raw);
-            applyGoalUI();
+            const goalAp = Math.max(0, Math.round(raw));
+            localStorage.setItem("abc_monthly_goal_ap", String(goalAp));
+            setGoalInput(goalAp);
+
+            // Refresh goal card immediately (since goal affects "needed")
+            if (window.refreshGoalCard) window.refreshGoalCard();
         });
     }
 
-    async function refreshGoalFromServer() {
-        // Use MONTH totals to power goal progress
-        try {
-            const res = await fetch(`/activity/totals/month`, { headers: { "Accept": "application/json" } });
-            const data = await res.json();
-
-            latestPremiumCollected = parseFloat(data.premium_collected) || 0;
-            latestEarnedAp = parseFloat(data.ap) || 0;
-
-            // Ensure earned AP is shown as 0 until activity exists (this already happens naturally)
-            if (earnedApDisplay) earnedApDisplay.innerText = formatMoney0(latestEarnedAp);
-
-            applyGoalUI();
-        } catch (e) {
-            console.warn("Goal refresh failed:", e);
-            // Still apply UI based on cached values
-            applyGoalUI();
-        }
-    }
-
-    // initial goal render
-    applyGoalUI();
-    // pull latest month totals right away
-    refreshGoalFromServer();
-
-    // When activity saves, refresh goal card + production card
-    document.addEventListener("activitySaved", function () {
-        refreshGoalFromServer();
-    });
-
     // =========================================================
-    // ✅ Log Production wiring:
-    // click the existing bootstrap trigger if present, else fetch popup
+    // ✅ Log Production wiring (trigger existing Activity modal)
     // =========================================================
     const logBtn = document.getElementById("abc-log-production");
     if (logBtn) {
-        logBtn.addEventListener("click", async () => {
-            // If some other element already opens #activityModal, click it.
+        logBtn.addEventListener("click", () => {
             const candidates = [
                 document.querySelector('[data-bs-target="#activityModal"]'),
                 document.querySelector('#track-activity-btn'),
                 document.querySelector('#trackActivityBtn'),
+                document.querySelector('#track-activity'),
+                document.querySelector('#trackActivity'),
                 document.querySelector('.track-activity-btn'),
                 document.querySelector('.open-activity-modal'),
+                document.querySelector('[data-open-activity]'),
             ].filter(Boolean);
 
             if (candidates.length > 0) {
@@ -1119,62 +1159,35 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
-            // Otherwise load the popup content and show the modal
-            try {
-                const r = await fetch(`/activity/popup`);
-                const html = await r.text();
-
-                let holder = document.getElementById("abc-activity-popup-holder");
-                if (!holder) {
-                    holder = document.createElement("div");
-                    holder.id = "abc-activity-popup-holder";
-                    document.body.appendChild(holder);
-                }
-                holder.innerHTML = html;
-
-                const modalEl = document.getElementById("activityModal");
-                if (modalEl && window.bootstrap && bootstrap.Modal) {
-                    const modal = new bootstrap.Modal(modalEl);
-                    modal.show();
-                }
-            } catch (e) {
-                console.error(e);
-            }
+            document.dispatchEvent(new CustomEvent("openActivityModal"));
+            console.warn("Log Production: could not find activity trigger. Add selector to candidates[] in dashboard.blade.php.");
         });
     }
 
     // =========================================================
-    // ✅ Production Breakdown wiring (opens your breakdown modal)
-    // (Assumes you already have it wired elsewhere; keep button id)
+    // ✅ Production Breakdown button opens modal
     // =========================================================
     const breakdownBtn = document.getElementById("abc-production-breakdown");
     if (breakdownBtn) {
         breakdownBtn.addEventListener("click", () => {
-            // Try to click an existing breakdown trigger if present
-            const candidates = [
-                document.querySelector('[data-open-production-breakdown]'),
-                document.querySelector('[data-bs-target="#productionBreakdownModal"]'),
-                document.querySelector('#productionBreakdownBtn'),
-                document.querySelector('#openProductionBreakdown'),
-            ].filter(Boolean);
+            const modalEl = document.getElementById("productionBreakdownModal");
+            if (!modalEl || typeof bootstrap === "undefined") return;
 
-            if (candidates.length > 0) {
-                candidates[0].click();
-                return;
-            }
+            const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+            instance.show();
 
-            // If your breakdown modal is created in dashboard already, you can dispatch an event:
-            document.dispatchEvent(new CustomEvent("openProductionBreakdown"));
+            // Ensure modal stats are up to date immediately
+            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal();
         });
     }
 });
 </script>
 
-<!-- TAB LOGIC -->
+<!-- TAB LOGIC (Dashboard Card) -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const tabs = document.querySelectorAll('.production-tab');
-    const ranges = document.querySelectorAll('.production-range');
+    const tabs = document.querySelectorAll('#abc-current-production-card .production-tab');
+    const ranges = document.querySelectorAll('#abc-current-production-card .production-range');
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -1184,9 +1197,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tab.classList.add('production-tab-active');
 
             ranges.forEach(r => {
-                r.classList.toggle('production-range-active',
-                    r.dataset.productionRange === range
-                );
+                r.classList.toggle('production-range-active', r.dataset.productionRange === range);
             });
 
             refreshProductionCard();
@@ -1195,15 +1206,80 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<!-- UPDATE STATS -->
+<!-- TAB LOGIC (Production Breakdown Modal) -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tabWrap = document.getElementById('abc-breakdown-tabs');
+    const statsWrap = document.getElementById('abc-breakdown-stats');
+    if (!tabWrap || !statsWrap) return;
+
+    const tabs = tabWrap.querySelectorAll('.production-tab');
+    const ranges = statsWrap.querySelectorAll('.production-range');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const range = tab.dataset.productionTab;
+
+            tabs.forEach(t => t.classList.remove('production-tab-active'));
+            tab.classList.add('production-tab-active');
+
+            ranges.forEach(r => {
+                r.classList.toggle('production-range-active', r.dataset.productionRange === range);
+            });
+
+            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal();
+        });
+    });
+});
+</script>
+
+<!-- UPDATE STATS (Dashboard Card) -->
 <script>
 window.refreshProductionCard = function() {
-    const active = document.querySelector(".production-tab-active").dataset.productionTab;
+    const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
+    if (!activeTab) return;
+
+    const active = activeTab.dataset.productionTab;
 
     fetch(`/activity/totals/${active}`)
         .then(r => r.json())
         .then(data => {
             const rows = document.querySelectorAll(
+                `#abc-current-production-card .production-range[data-production-range="${active}"] .production-value`
+            );
+
+            if (rows.length === 7) {
+                rows[0].innerText = data.leads_worked;
+                rows[1].innerText = data.calls;
+                rows[2].innerText = data.stops;
+                rows[3].innerText = data.presentations;
+                rows[4].innerText = data.apps_written;
+
+                rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
+                rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
+            }
+        })
+        .catch(() => {});
+};
+</script>
+
+<!-- UPDATE STATS (Production Breakdown Modal) -->
+<script>
+window.refreshProductionBreakdownModal = function() {
+    const modalEl = document.getElementById('productionBreakdownModal');
+    const statsWrap = document.getElementById('abc-breakdown-stats');
+    const tabsWrap = document.getElementById('abc-breakdown-tabs');
+    if (!modalEl || !statsWrap || !tabsWrap) return;
+
+    const activeTab = tabsWrap.querySelector('.production-tab-active');
+    if (!activeTab) return;
+
+    const active = activeTab.dataset.productionTab;
+
+    fetch(`/activity/totals/${active}`)
+        .then(r => r.json())
+        .then(data => {
+            const rows = statsWrap.querySelectorAll(
                 `.production-range[data-production-range="${active}"] .production-value`
             );
 
@@ -1217,34 +1293,95 @@ window.refreshProductionCard = function() {
                 rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
                 rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
             }
-        });
+        })
+        .catch(() => {});
 };
 </script>
 
-<!-- AUTO-REFRESH AFTER SAVE -->
+<!-- GOAL CARD REFRESH (instant update after Save Activity) -->
 <script>
-document.addEventListener("activitySaved", function () {
-    refreshProductionCard();
-});
+window.refreshGoalCard = function() {
+    const goalCard = document.getElementById('abc-goal-card');
+    const ring = document.getElementById('abc-goal-ring');
+    const percentText = document.getElementById('abc-goal-percent-text');
+    const neededDisplay = document.getElementById('abc-goal-needed-display');
+    const apEarnedEl = document.getElementById('abc-goal-ap-earned');
+
+    function parseMoneyToNumber(str) {
+        if (!str) return 0;
+        const cleaned = String(str).replace(/[^0-9.]/g, "");
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function formatMoney0(n) {
+        const v = Math.round(Number(n) || 0);
+        return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+
+    function gaugeColorForPercent(pct) {
+        const p = Number(pct) || 0;
+        if (p <= 24) return '#ef4444';   // red
+        if (p <= 75) return '#c9a227';   // yellow/gold
+        return '#059669';                // green
+    }
+
+    // Goal AP comes from localStorage (what user types)
+    const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
+    const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
+
+    // Monthly premium needed (goal / 12)
+    const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
+
+    // Pull MONTH totals from server (premium + ap)
+    fetch(`/activity/totals/month`)
+        .then(r => r.json())
+        .then(data => {
+            const premiumCollected = Number(data.premium_collected || 0);
+            const apEarned = Number(data.ap || 0);
+
+            // Remaining premium needed = monthlyNeeded - premiumCollected (min 0)
+            const remaining = Math.max(0, Math.round(monthlyNeeded - premiumCollected));
+
+            // Percent complete = premiumCollected / monthlyNeeded
+            let pct = 0;
+            if (monthlyNeeded > 0) {
+                pct = Math.round(Math.min(100, (premiumCollected / monthlyNeeded) * 100));
+            }
+
+            const color = gaugeColorForPercent(pct);
+
+            if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
+            if (apEarnedEl) apEarnedEl.innerText = formatMoney0(apEarned);
+
+            if (goalCard) {
+                goalCard.style.setProperty('--progress', String(pct));
+                goalCard.style.setProperty('--gauge-color', color);
+            }
+            if (ring) {
+                ring.style.setProperty('--progress', String(pct));
+                ring.style.setProperty('--gauge-color', color);
+            }
+            if (percentText) percentText.innerText = `${pct}%`;
+        })
+        .catch(() => {});
+};
 </script>
 
-<!-- AP AUTO CALC (in case activity popup is injected on this page) -->
+<!-- AUTO-REFRESH AFTER SAVE (✅ now updates GOAL + both production views instantly) -->
 <script>
-document.addEventListener("input", function (e) {
-    if (e.target && e.target.name === "premium_collected") {
-        let premium = parseFloat(e.target.value) || 0;
-        let apField = document.querySelector('input[name="ap"]');
-        if (apField) {
-            apField.value = (premium * 12).toFixed(2);
-        }
-    }
+document.addEventListener("activitySaved", function () {
+    if (window.refreshProductionCard) window.refreshProductionCard();
+    if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal();
+    if (window.refreshGoalCard) window.refreshGoalCard(); // ✅ instant goal update
 });
 </script>
 
 <!-- INITIAL LOAD -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    refreshProductionCard();
+    if (window.refreshProductionCard) window.refreshProductionCard();
+    if (window.refreshGoalCard) window.refreshGoalCard(); // ✅ ensure correct on first paint
 });
 </script>
 
