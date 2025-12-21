@@ -15,32 +15,32 @@
 
                     <div class="mb-3">
                         <label>Leads Worked:</label>
-                        <input type="number" class="form-control" name="leads_worked" placeholder="0">
+                        <input type="number" class="form-control" name="leads_worked" placeholder="0" min="0">
                     </div>
 
                     <div class="mb-3">
                         <label>Calls:</label>
-                        <input type="number" class="form-control" name="calls" placeholder="0">
+                        <input type="number" class="form-control" name="calls" placeholder="0" min="0">
                     </div>
 
                     <div class="mb-3">
                         <label>Stops:</label>
-                        <input type="number" class="form-control" name="stops" placeholder="0">
+                        <input type="number" class="form-control" name="stops" placeholder="0" min="0">
                     </div>
 
                     <div class="mb-3">
                         <label>Presentations:</label>
-                        <input type="number" class="form-control" name="presentations" placeholder="0">
+                        <input type="number" class="form-control" name="presentations" placeholder="0" min="0">
                     </div>
 
                     <div class="mb-3">
                         <label>Apps Written:</label>
-                        <input type="number" class="form-control" name="apps_written" placeholder="0">
+                        <input type="number" class="form-control" name="apps_written" placeholder="0" min="0">
                     </div>
 
                     <div class="mb-3">
                         <label>Premium Collected ($):</label>
-                        <input id="premiumInput" type="number" step="0.01" class="form-control" name="premium_collected" placeholder="0.00">
+                        <input id="premiumInput" type="number" step="0.01" class="form-control" name="premium_collected" placeholder="0.00" min="0">
                     </div>
 
                     <div class="mb-3">
@@ -82,17 +82,32 @@
 })();
 </script>
 
-<!-- AJAX HANDLER (✅ dispatch month totals so dashboard updates INSTANTLY) -->
+<!-- AJAX HANDLER (✅ SAVE THEN HARD RELOAD PAGE FOR GUARANTEED INSTANT UI UPDATE) -->
 <script>
 (function () {
+
+    let saving = false;
 
     document.addEventListener("click", async function (e) {
 
         if (!e.target || e.target.id !== "saveActivityBtn") return;
         e.preventDefault();
 
+        if (saving) return;
+        saving = true;
+
+        const btn = e.target;
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+
         const form = document.getElementById("activityForm");
-        if (!form) return;
+        if (!form) {
+            saving = false;
+            btn.disabled = false;
+            btn.innerText = originalText;
+            return;
+        }
 
         const formData = new FormData(form);
 
@@ -110,34 +125,24 @@
 
             const data = await res.json().catch(() => null);
 
-            if (!data || !data.success) {
+            if (!res.ok || !data || !data.success) {
                 console.error("Store response:", data);
                 alert("Error saving activity.");
+                saving = false;
+                btn.disabled = false;
+                btn.innerText = originalText;
                 return;
             }
 
-            // ✅ Fire event WITH month totals (this is the key fix)
-            document.dispatchEvent(new CustomEvent("activitySaved", {
-                detail: {
-                    savedAt: Date.now(),
-                    month_totals: data.month_totals || null,
-                    activity: data.activity || null
-                }
-            }));
-
-            // Close modal
-            const modalEl = document.querySelector(".modal.show");
-            if (modalEl && typeof bootstrap !== "undefined") {
-                const instance = bootstrap.Modal.getInstance(modalEl);
-                if (instance) instance.hide();
-            }
-
-            // Reset after close
-            form.reset();
+            // ✅ Most reliable approach: reload the page so the dashboard/goal card recalculates from fresh totals
+            window.location.reload();
 
         } catch (err) {
             console.error(err);
             alert("Request failed.");
+            saving = false;
+            btn.disabled = false;
+            btn.innerText = originalText;
         }
     });
 
