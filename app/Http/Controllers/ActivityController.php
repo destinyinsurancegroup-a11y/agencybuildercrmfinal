@@ -9,29 +9,16 @@ use Illuminate\Support\Facades\Auth;
 
 class ActivityController extends Controller
 {
-    /**
-     * Show the full Activity page (normal web page).
-     */
     public function index()
     {
         return view('activity.index');
     }
 
-    /**
-     * Load the Activity POPUP modal content.
-     */
     public function popup()
     {
         return view('activity.popup');
     }
 
-    /**
-     * Store a new activity entry.
-     *
-     * FIX:
-     * - AP must ALWAYS be calculated as premium_collected * 12 (server-side).
-     * - Never trust AP coming from the browser.
-     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -41,7 +28,8 @@ class ActivityController extends Controller
             'presentations'     => 'nullable|integer|min:0',
             'apps_written'      => 'nullable|integer|min:0',
             'premium_collected' => 'nullable|numeric|min:0',
-            // NOTE: we do NOT validate 'ap' anymore because we compute it server-side
+            // IMPORTANT: we accept it but we do NOT trust it
+            'ap'                => 'nullable|numeric|min:0',
         ]);
 
         // Default empty to 0
@@ -52,92 +40,74 @@ class ActivityController extends Controller
         $data['apps_written']      = $data['apps_written']      ?? 0;
         $data['premium_collected'] = $data['premium_collected'] ?? 0;
 
-        // ✅ ALWAYS compute AP from premium (Premium * 12)
+        // ✅ Canonical AP rule: premium * 12 (server authoritative)
         $data['ap'] = round(((float) $data['premium_collected']) * 12, 2);
 
-        // Auth + tenant
         $user = Auth::user();
+
         $data['user_id']   = Auth::id() ?? 1;
         $data['agency_id'] = $user->agency_id ?? 1;
 
         Activity::create($data);
 
-        // Optional: return computed values (useful for debugging/UI)
+        // ✅ Return fresh MONTH totals immediately so the UI can update instantly
+        $monthTotals = $this->computeTotals('month');
+
         return response()->json([
             'success' => true,
-            'saved' => [
-                'premium_collected' => (float) $data['premium_collected'],
-                'ap' => (float) $data['ap'],
-            ]
+            'monthTotals' => $monthTotals,
         ]);
     }
 
-    /**
-     * Dashboard production totals.
-     *
-     * FIX:
-     * - AP totals should be SUM(premium_collected) * 12
-     *   so old/wrong stored ap values do NOT pollute totals.
-     */
     public function totals($range)
     {
-        $userId = Auth::id() ?? 1;
+        $totals = $this->computeTotals($range);
 
+        if ($totals === null) {
+            return response()->json(['error' => 'Invalid range'], 400);
+        }
+
+        return response()->json($totals);
+    }
+
+    /**
+     * Compute totals for a range for the authenticated user.
+     */
+    private function computeTotals(string $range): ?object
+    {
+        $userId = Auth::id() ?? 1;
         $query = Activity::where('user_id', $userId);
 
         $now = Carbon::now();
 
         switch ($range) {
             case 'day':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfDay(),
-                    $now->copy()->endOfDay(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfDay(), $now->copy()->endOfDay()]);
                 break;
-
             case 'week':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfWeek(),
-                    $now->copy()->endOfWeek(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()]);
                 break;
-
             case 'month':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfMonth(),
-                    $now->copy()->endOfMonth(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
                 break;
-
             case 'quarter':
-                $query->whereBetween('created_at', [
-                    $now->copy()->firstOfQuarter(),
-                    $now->copy()->lastOfQuarter(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->firstOfQuarter(), $now->copy()->lastOfQuarter()]);
                 break;
-
             case 'year':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfYear(),
-                    $now->copy()->endOfYear(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfYear(), $now->copy()->endOfYear()]);
                 break;
-
             default:
-                return response()->json(['error' => 'Invalid range'], 400);
+                return null;
         }
 
-        // ✅ AP is derived from premium, not stored ap
-        $totals = $query->selectRaw("
+        return $query->selectRaw("
             COALESCE(SUM(leads_worked), 0) AS leads_worked,
             COALESCE(SUM(calls), 0) AS calls,
             COALESCE(SUM(stops), 0) AS stops,
             COALESCE(SUM(presentations), 0) AS presentations,
             COALESCE(SUM(apps_written), 0) AS apps_written,
             COALESCE(SUM(premium_collected), 0) AS premium_collected,
-            COALESCE(SUM(premium_collected) * 12, 0) AS ap
+            COALESCE(SUM(ap), 0) AS ap
         ")->first();
-
-        return response()->json($totals);
     }
 }
