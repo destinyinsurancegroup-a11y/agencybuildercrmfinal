@@ -53,80 +53,102 @@
             </div>
 
             <div class="modal-footer">
-                <button class="btn btn-warning" id="saveActivityBtn">Save Activity</button>
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-warning" id="saveActivityBtn" type="button">Save Activity</button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
             </div>
 
         </div>
     </div>
 </div>
 
-<!-- AUTO-CALCULATE AP -->
+<!-- AUTO-CALCULATE AP (premium * 12) -->
 <script>
-document.addEventListener("input", function (e) {
-    // ✅ Only react when Premium input changes (prevents unnecessary runs)
-    if (!e.target || e.target.id !== "premiumInput") return;
+(function () {
+    function safeFloat(v) {
+        const n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+    }
 
-    const premiumEl = document.getElementById("premiumInput");
-    const apEl = document.getElementById("apInput");
-    if (!premiumEl || !apEl) return;
+    document.addEventListener("input", function (e) {
+        if (!e.target || e.target.id !== "premiumInput") return;
 
-    let premium = parseFloat(premiumEl.value) || 0;
-    let ap = (premium * 12).toFixed(2);
-    apEl.value = ap;
-});
+        const premiumEl = document.getElementById("premiumInput");
+        const apEl = document.getElementById("apInput");
+        if (!premiumEl || !apEl) return;
+
+        const premium = safeFloat(premiumEl.value);
+        apEl.value = (premium * 12).toFixed(2);
+    });
+})();
 </script>
 
-<!-- AJAX HANDLER -->
+<!-- AJAX HANDLER (✅ instant dashboard + goal refresh, cache-busted) -->
 <script>
-document.addEventListener("click", async function (e) {
+(function () {
 
-    if (!e.target || e.target.id !== "saveActivityBtn") return;
-    e.preventDefault();
-
-    const form = document.getElementById("activityForm");
-    if (!form) return;
-
-    const formData = new FormData(form);
-
-    try {
-        const res = await fetch("{{ route('activity.store') }}", {
-            method: "POST",
-            body: formData,
-            headers: {
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
-            },
-            cache: "no-store" // ✅ prevents any weird caching behavior
-        });
-
-        const data = await res.json().catch(() => null);
-
-        if (!data || !data.success) {
-            alert("Error saving activity.");
-            return;
-        }
-
-        // ✅ Fire event FIRST so dashboard refresh happens instantly
-        // Include a timestamp so listeners can bust cache if desired
-        document.dispatchEvent(new CustomEvent("activitySaved", {
-            detail: { savedAt: Date.now() }
-        }));
-
-        // Close modal
-        const modalEl = document.querySelector(".modal.show");
-        if (modalEl && typeof bootstrap !== "undefined") {
-            const instance = bootstrap.Modal.getInstance(modalEl);
-            if (instance) instance.hide();
-        }
-
-        // Reset form after close
-        form.reset();
-
-    } catch (err) {
-        console.error(err);
-        alert("Request failed.");
+    function hardRefreshDashboardNow() {
+        // ✅ These are defined in dashboard.blade.php
+        try { if (typeof window.refreshProductionCard === "function") window.refreshProductionCard(true); } catch(e) {}
+        try { if (typeof window.refreshProductionBreakdownModal === "function") window.refreshProductionBreakdownModal(true); } catch(e) {}
+        try { if (typeof window.refreshGoalCard === "function") window.refreshGoalCard(true); } catch(e) {}
     }
-});
+
+    document.addEventListener("click", async function (e) {
+
+        if (!e.target || e.target.id !== "saveActivityBtn") return;
+        e.preventDefault();
+
+        const form = document.getElementById("activityForm");
+        if (!form) return;
+
+        const formData = new FormData(form);
+
+        try {
+            const res = await fetch("{{ route('activity.store') }}", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                    "Accept": "application/json",
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                cache: "no-store"
+            });
+
+            const data = await res.json().catch(() => null);
+
+            if (!data || !data.success) {
+                console.error("Store response:", data);
+                alert("Error saving activity.");
+                return;
+            }
+
+            // ✅ 1) Fire the event (in case your dashboard listens for it)
+            document.dispatchEvent(new CustomEvent("activitySaved", {
+                detail: { savedAt: Date.now() }
+            }));
+
+            // ✅ 2) Force-refresh immediately (no page reload)
+            // Use a tiny timeout so DB commit is done before totals are fetched
+            setTimeout(() => {
+                hardRefreshDashboardNow();
+            }, 50);
+
+            // Close modal
+            const modalEl = document.querySelector(".modal.show");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                const instance = bootstrap.Modal.getInstance(modalEl);
+                if (instance) instance.hide();
+            }
+
+            // Reset after close
+            form.reset();
+
+        } catch (err) {
+            console.error(err);
+            alert("Request failed.");
+        }
+    });
+
+})();
 </script>
