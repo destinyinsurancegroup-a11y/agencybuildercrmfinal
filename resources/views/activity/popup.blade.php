@@ -63,10 +63,17 @@
 
 <!-- AUTO-CALCULATE AP -->
 <script>
-document.addEventListener("input", function () {
-    let premium = parseFloat(document.getElementById("premiumInput").value) || 0;
+document.addEventListener("input", function (e) {
+    // ✅ Only react when Premium input changes (prevents unnecessary runs)
+    if (!e.target || e.target.id !== "premiumInput") return;
+
+    const premiumEl = document.getElementById("premiumInput");
+    const apEl = document.getElementById("apInput");
+    if (!premiumEl || !apEl) return;
+
+    let premium = parseFloat(premiumEl.value) || 0;
     let ap = (premium * 12).toFixed(2);
-    document.getElementById("apInput").value = ap;
+    apEl.value = ap;
 });
 </script>
 
@@ -74,42 +81,48 @@ document.addEventListener("input", function () {
 <script>
 document.addEventListener("click", async function (e) {
 
-    if (e.target.id !== "saveActivityBtn") return;
+    if (!e.target || e.target.id !== "saveActivityBtn") return;
     e.preventDefault();
 
-    let form = document.getElementById("activityForm");
-    let formData = new FormData(form);
+    const form = document.getElementById("activityForm");
+    if (!form) return;
+
+    const formData = new FormData(form);
 
     try {
-        let res = await fetch("{{ route('activity.store') }}", {
+        const res = await fetch("{{ route('activity.store') }}", {
             method: "POST",
             body: formData,
             headers: {
                 "X-CSRF-TOKEN": "{{ csrf_token() }}",
                 "Accept": "application/json",
                 "X-Requested-With": "XMLHttpRequest"
-            }
+            },
+            cache: "no-store" // ✅ prevents any weird caching behavior
         });
 
-        let data = await res.json().catch(() => null);
+        const data = await res.json().catch(() => null);
 
         if (!data || !data.success) {
             alert("Error saving activity.");
             return;
         }
 
+        // ✅ Fire event FIRST so dashboard refresh happens instantly
+        // Include a timestamp so listeners can bust cache if desired
+        document.dispatchEvent(new CustomEvent("activitySaved", {
+            detail: { savedAt: Date.now() }
+        }));
+
         // Close modal
-        let modalEl = document.querySelector(".modal.show");
-        if (modalEl) {
-            let instance = bootstrap.Modal.getInstance(modalEl);
-            instance.hide();
+        const modalEl = document.querySelector(".modal.show");
+        if (modalEl && typeof bootstrap !== "undefined") {
+            const instance = bootstrap.Modal.getInstance(modalEl);
+            if (instance) instance.hide();
         }
 
-        // Reset
+        // Reset form after close
         form.reset();
-
-        // Refresh dashboard
-        document.dispatchEvent(new CustomEvent("activitySaved"));
 
     } catch (err) {
         console.error(err);
