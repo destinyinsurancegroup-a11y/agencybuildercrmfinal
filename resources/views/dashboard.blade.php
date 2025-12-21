@@ -1070,7 +1070,7 @@ document.addEventListener("DOMContentLoaded", function () {
         goalMonthEl.innerText = monthName;
     }
 
-    // ✅ Days-left sync for goal card: days left in month AFTER today (Dec 19 => 12)
+    // ✅ Days-left sync for goal card: days left in month AFTER today
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
         const y = localDate.getFullYear();
@@ -1114,7 +1114,6 @@ document.addEventListener("DOMContentLoaded", function () {
         if (goalInput) goalInput.value = formatMoney0(goalAp);
     }
 
-    // Save only the GOAL AP (not earned AP)
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     setGoalInput(savedGoal !== null ? parseMoneyToNumber(savedGoal) : 0);
 
@@ -1132,24 +1131,19 @@ document.addEventListener("DOMContentLoaded", function () {
             localStorage.setItem("abc_monthly_goal_ap", String(goalAp));
             setGoalInput(goalAp);
 
-            // Refresh goal card immediately (since goal affects "needed")
-            if (window.refreshGoalCard) window.refreshGoalCard();
+            if (window.refreshGoalCard) window.refreshGoalCard(true);
         });
     }
 
     // =========================================================
     // ✅ Log Production wiring (ALWAYS opens the Track Daily Activity modal)
-    // - If #activityModal exists, open it
-    // - If it doesn't exist, fetch /activity/popup, inject HTML, then open it
     // =========================================================
     async function openActivityModal() {
-        // Bootstrap must exist to show the modal
         if (typeof bootstrap === "undefined") {
             console.warn("Bootstrap is not available on this page, cannot open activity modal.");
             return;
         }
 
-        // If modal already exists, show it
         let modalEl = document.getElementById("activityModal");
         if (modalEl) {
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -1157,7 +1151,6 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Avoid injecting twice
         const existingWrap = document.getElementById("activity-modal-injected");
         if (existingWrap) {
             modalEl = document.getElementById("activityModal");
@@ -1168,10 +1161,10 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Fetch popup HTML and inject into DOM
         try {
-            const res = await fetch("/activity/popup", {
-                headers: { "X-Requested-With": "XMLHttpRequest" }
+            const res = await fetch("/activity/popup?_=" + Date.now(), {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                cache: "no-store"
             });
 
             const html = await res.text();
@@ -1213,8 +1206,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
             instance.show();
 
-            // Ensure modal stats are up to date immediately
-            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal();
+            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     }
 });
@@ -1237,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 r.classList.toggle('production-range-active', r.dataset.productionRange === range);
             });
 
-            refreshProductionCard();
+            if (window.refreshProductionCard) window.refreshProductionCard(true);
         });
     });
 });
@@ -1264,7 +1256,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 r.classList.toggle('production-range-active', r.dataset.productionRange === range);
             });
 
-            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal();
+            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     });
 });
@@ -1272,13 +1264,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <!-- UPDATE STATS (Dashboard Card) -->
 <script>
-window.refreshProductionCard = function() {
+window.refreshProductionCard = function(force = false) {
     const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
     if (!activeTab) return;
 
     const active = activeTab.dataset.productionTab;
+    const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    fetch(`/activity/totals/${active}`)
+    fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = document.querySelectorAll(
@@ -1302,7 +1295,7 @@ window.refreshProductionCard = function() {
 
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
-window.refreshProductionBreakdownModal = function() {
+window.refreshProductionBreakdownModal = function(force = false) {
     const modalEl = document.getElementById('productionBreakdownModal');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
@@ -1312,8 +1305,9 @@ window.refreshProductionBreakdownModal = function() {
     if (!activeTab) return;
 
     const active = activeTab.dataset.productionTab;
+    const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    fetch(`/activity/totals/${active}`)
+    fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = statsWrap.querySelectorAll(
@@ -1337,7 +1331,7 @@ window.refreshProductionBreakdownModal = function() {
 
 <!-- GOAL CARD REFRESH (instant update after Save Activity) -->
 <script>
-window.refreshGoalCard = function() {
+window.refreshGoalCard = function(force = false) {
     const goalCard = document.getElementById('abc-goal-card');
     const ring = document.getElementById('abc-goal-ring');
     const percentText = document.getElementById('abc-goal-percent-text');
@@ -1363,24 +1357,20 @@ window.refreshGoalCard = function() {
         return '#059669';                // green
     }
 
-    // Goal AP comes from localStorage (what user types)
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
-
-    // Monthly premium needed (goal / 12)
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
 
-    // Pull MONTH totals from server (premium + ap)
-    fetch(`/activity/totals/month`)
+    const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
+
+    fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const premiumCollected = Number(data.premium_collected || 0);
             const apEarned = Number(data.ap || 0);
 
-            // Remaining premium needed = monthlyNeeded - premiumCollected (min 0)
             const remaining = Math.max(0, Math.round(monthlyNeeded - premiumCollected));
 
-            // Percent complete = premiumCollected / monthlyNeeded
             let pct = 0;
             if (monthlyNeeded > 0) {
                 pct = Math.round(Math.min(100, (premiumCollected / monthlyNeeded) * 100));
@@ -1405,20 +1395,20 @@ window.refreshGoalCard = function() {
 };
 </script>
 
-<!-- AUTO-REFRESH AFTER SAVE (✅ now updates GOAL + both production views instantly) -->
+<!-- AUTO-REFRESH AFTER SAVE -->
 <script>
 document.addEventListener("activitySaved", function () {
-    if (window.refreshProductionCard) window.refreshProductionCard();
-    if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal();
-    if (window.refreshGoalCard) window.refreshGoalCard(); // ✅ instant goal update
+    if (window.refreshProductionCard) window.refreshProductionCard(true);
+    if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
+    if (window.refreshGoalCard) window.refreshGoalCard(true);
 });
 </script>
 
 <!-- INITIAL LOAD -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    if (window.refreshProductionCard) window.refreshProductionCard();
-    if (window.refreshGoalCard) window.refreshGoalCard(); // ✅ ensure correct on first paint
+    if (window.refreshProductionCard) window.refreshProductionCard(true);
+    if (window.refreshGoalCard) window.refreshGoalCard(true);
 });
 </script>
 
