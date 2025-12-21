@@ -1329,6 +1329,65 @@ window.refreshProductionBreakdownModal = function(force = false) {
 };
 </script>
 
+<!-- ✅ NEW: APPLY GOAL CARD FROM TOTALS (NO FETCH, INSTANT UI UPDATE) -->
+<script>
+window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
+    const goalCard = document.getElementById('abc-goal-card');
+    const ring = document.getElementById('abc-goal-ring');
+    const percentText = document.getElementById('abc-goal-percent-text');
+    const neededDisplay = document.getElementById('abc-goal-needed-display');
+    const apEarnedEl = document.getElementById('abc-goal-ap-earned');
+
+    function parseMoneyToNumber(str) {
+        if (!str) return 0;
+        const cleaned = String(str).replace(/[^0-9.]/g, "");
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function formatMoney0(n) {
+        const v = Math.round(Number(n) || 0);
+        return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+
+    function gaugeColorForPercent(pct) {
+        const p = Number(pct) || 0;
+        if (p <= 24) return '#ef4444';   // red
+        if (p <= 75) return '#c9a227';   // yellow/gold
+        return '#059669';                // green
+    }
+
+    const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
+    const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
+    const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
+
+    const prem = Number(premiumCollected || 0);
+    const ap = Number(apEarned || 0);
+
+    const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
+
+    let pct = 0;
+    if (monthlyNeeded > 0) {
+        pct = Math.round(Math.min(100, (prem / monthlyNeeded) * 100));
+    }
+
+    const color = gaugeColorForPercent(pct);
+
+    if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
+    if (apEarnedEl) apEarnedEl.innerText = formatMoney0(ap);
+
+    if (goalCard) {
+        goalCard.style.setProperty('--progress', String(pct));
+        goalCard.style.setProperty('--gauge-color', color);
+    }
+    if (ring) {
+        ring.style.setProperty('--progress', String(pct));
+        ring.style.setProperty('--gauge-color', color);
+    }
+    if (percentText) percentText.innerText = `${pct}%`;
+};
+</script>
+
 <!-- GOAL CARD REFRESH (instant update after Save Activity) -->
 <script>
 window.refreshGoalCard = function(force = false) {
@@ -1395,11 +1454,23 @@ window.refreshGoalCard = function(force = false) {
 };
 </script>
 
-<!-- AUTO-REFRESH AFTER SAVE -->
+<!-- ✅ EDITED: AUTO-REFRESH AFTER SAVE (USE EVENT TOTALS FOR INSTANT GOAL UPDATE) -->
 <script>
-document.addEventListener("activitySaved", function () {
+document.addEventListener("activitySaved", function (e) {
     if (window.refreshProductionCard) window.refreshProductionCard(true);
     if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
+
+    // ✅ INSTANT goal update if month totals were provided by the save response
+    const monthTotals = e && e.detail ? e.detail.month_totals : null;
+    if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
+        window.applyGoalCardFromTotals(
+            monthTotals.premium_collected || 0,
+            monthTotals.ap || 0
+        );
+        return;
+    }
+
+    // Fallback: fetch totals if event didn't include them
     if (window.refreshGoalCard) window.refreshGoalCard(true);
 });
 </script>
