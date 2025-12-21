@@ -82,16 +82,9 @@
 })();
 </script>
 
-<!-- AJAX HANDLER (✅ instant dashboard + goal refresh, cache-busted) -->
+<!-- AJAX HANDLER (✅ dispatch month totals so dashboard updates INSTANTLY) -->
 <script>
 (function () {
-
-    function hardRefreshDashboardNow() {
-        // ✅ These are defined in dashboard.blade.php
-        try { if (typeof window.refreshProductionCard === "function") window.refreshProductionCard(true); } catch(e) {}
-        try { if (typeof window.refreshProductionBreakdownModal === "function") window.refreshProductionBreakdownModal(true); } catch(e) {}
-        try { if (typeof window.refreshGoalCard === "function") window.refreshGoalCard(true); } catch(e) {}
-    }
 
     document.addEventListener("click", async function (e) {
 
@@ -123,16 +116,14 @@
                 return;
             }
 
-            // ✅ 1) Fire the event (in case your dashboard listens for it)
+            // ✅ Fire event WITH month totals (this is the key fix)
             document.dispatchEvent(new CustomEvent("activitySaved", {
-                detail: { savedAt: Date.now() }
+                detail: {
+                    savedAt: Date.now(),
+                    month_totals: data.month_totals || null,
+                    activity: data.activity || null
+                }
             }));
-
-            // ✅ 2) Force-refresh immediately (no page reload)
-            // Use a tiny timeout so DB commit is done before totals are fetched
-            setTimeout(() => {
-                hardRefreshDashboardNow();
-            }, 50);
 
             // Close modal
             const modalEl = document.querySelector(".modal.show");
