@@ -1138,29 +1138,66 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================
-    // ✅ Log Production wiring (trigger existing Activity modal)
+    // ✅ Log Production wiring (ALWAYS opens the Track Daily Activity modal)
+    // - If #activityModal exists, open it
+    // - If it doesn't exist, fetch /activity/popup, inject HTML, then open it
     // =========================================================
-    const logBtn = document.getElementById("abc-log-production");
-    if (logBtn) {
-        logBtn.addEventListener("click", () => {
-            const candidates = [
-                document.querySelector('[data-bs-target="#activityModal"]'),
-                document.querySelector('#track-activity-btn'),
-                document.querySelector('#trackActivityBtn'),
-                document.querySelector('#track-activity'),
-                document.querySelector('#trackActivity'),
-                document.querySelector('.track-activity-btn'),
-                document.querySelector('.open-activity-modal'),
-                document.querySelector('[data-open-activity]'),
-            ].filter(Boolean);
+    async function openActivityModal() {
+        // Bootstrap must exist to show the modal
+        if (typeof bootstrap === "undefined") {
+            console.warn("Bootstrap is not available on this page, cannot open activity modal.");
+            return;
+        }
 
-            if (candidates.length > 0) {
-                candidates[0].click();
+        // If modal already exists, show it
+        let modalEl = document.getElementById("activityModal");
+        if (modalEl) {
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+            return;
+        }
+
+        // Avoid injecting twice
+        const existingWrap = document.getElementById("activity-modal-injected");
+        if (existingWrap) {
+            modalEl = document.getElementById("activityModal");
+            if (modalEl) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
+            return;
+        }
+
+        // Fetch popup HTML and inject into DOM
+        try {
+            const res = await fetch("/activity/popup", {
+                headers: { "X-Requested-With": "XMLHttpRequest" }
+            });
+
+            const html = await res.text();
+
+            const wrap = document.createElement("div");
+            wrap.id = "activity-modal-injected";
+            wrap.innerHTML = html;
+            document.body.appendChild(wrap);
+
+            modalEl = document.getElementById("activityModal");
+            if (!modalEl) {
+                console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
                 return;
             }
 
-            document.dispatchEvent(new CustomEvent("openActivityModal"));
-            console.warn("Log Production: could not find activity trigger. Add selector to candidates[] in dashboard.blade.php.");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        } catch (err) {
+            console.error("Failed to load /activity/popup", err);
+        }
+    }
+
+    const logBtn = document.getElementById("abc-log-production");
+    if (logBtn) {
+        logBtn.addEventListener("click", () => {
+            openActivityModal();
         });
     }
 
