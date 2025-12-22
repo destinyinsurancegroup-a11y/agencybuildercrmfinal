@@ -675,7 +675,7 @@
             <div class="goal-body">
                 <div>
                     <div class="goal-main">
-                        {{-- ✅ This is ACTUAL AP earned from logged activity (starts at $0 until logged) --}}
+                        {{-- ✅ This is ACTUAL AP earned from logged activity --}}
                         <span class="amt" id="abc-goal-ap-earned">$0</span>
                         <span class="ap"> AP</span>
                     </div>
@@ -1274,32 +1274,34 @@ window.refreshProductionCard = function(force = false) {
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
-            const rows = document.querySelectorAll(
-                `#abc-current-production-card .production-range[data-production-range="${active}"] .production-value`
-            );
-
-            if (rows.length === 7) {
-                rows[0].innerText = data.leads_worked;
-                rows[1].innerText = data.calls;
-                rows[2].innerText = data.stops;
-                rows[3].innerText = data.presentations;
-                rows[4].innerText = data.apps_written;
-
-                rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
-                rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
-            }
+            window.applyProductionCardFromTotals(active, data);
         })
         .catch(() => {});
+};
+
+window.applyProductionCardFromTotals = function(range, data) {
+    const rows = document.querySelectorAll(
+        `#abc-current-production-card .production-range[data-production-range="${range}"] .production-value`
+    );
+
+    if (rows.length === 7) {
+        rows[0].innerText = data.leads_worked;
+        rows[1].innerText = data.calls;
+        rows[2].innerText = data.stops;
+        rows[3].innerText = data.presentations;
+        rows[4].innerText = data.apps_written;
+        rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
+        rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
+    }
 };
 </script>
 
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
 window.refreshProductionBreakdownModal = function(force = false) {
-    const modalEl = document.getElementById('productionBreakdownModal');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
-    if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
+    if (!statsWrap || !tabsWrap) return Promise.resolve();
 
     const activeTab = tabsWrap.querySelector('.production-tab-active');
     if (!activeTab) return Promise.resolve();
@@ -1310,22 +1312,28 @@ window.refreshProductionBreakdownModal = function(force = false) {
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
-            const rows = statsWrap.querySelectorAll(
-                `.production-range[data-production-range="${active}"] .production-value`
-            );
-
-            if (rows.length === 7) {
-                rows[0].innerText = data.leads_worked;
-                rows[1].innerText = data.calls;
-                rows[2].innerText = data.stops;
-                rows[3].innerText = data.presentations;
-                rows[4].innerText = data.apps_written;
-
-                rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
-                rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
-            }
+            window.applyBreakdownFromTotals(active, data);
         })
         .catch(() => {});
+};
+
+window.applyBreakdownFromTotals = function(range, data) {
+    const statsWrap = document.getElementById('abc-breakdown-stats');
+    if (!statsWrap) return;
+
+    const rows = statsWrap.querySelectorAll(
+        `.production-range[data-production-range="${range}"] .production-value`
+    );
+
+    if (rows.length === 7) {
+        rows[0].innerText = data.leads_worked;
+        rows[1].innerText = data.calls;
+        rows[2].innerText = data.stops;
+        rows[3].innerText = data.presentations;
+        rows[4].innerText = data.apps_written;
+        rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
+        rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
+    }
 };
 </script>
 
@@ -1352,9 +1360,9 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 
     function gaugeColorForPercent(pct) {
         const p = Number(pct) || 0;
-        if (p <= 24) return '#ef4444';   // red
-        if (p <= 75) return '#c9a227';   // yellow/gold
-        return '#059669';                // green
+        if (p <= 24) return '#ef4444';
+        if (p <= 75) return '#c9a227';
+        return '#059669';
     }
 
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
@@ -1391,180 +1399,60 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 <!-- GOAL CARD REFRESH (fallback fetch) -->
 <script>
 window.refreshGoalCard = function(force = false) {
-    function parseMoneyToNumber(str) {
-        if (!str) return 0;
-        const cleaned = String(str).replace(/[^0-9.]/g, "");
-        const n = parseFloat(cleaned);
-        return isNaN(n) ? 0 : n;
-    }
-
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
-    const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
-    const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
-
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
 
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
-            const premiumCollected = Number(data.premium_collected || 0);
-            const apEarned = Number(data.ap || 0);
-
-            // Reuse apply function for consistent UI
-            if (typeof window.applyGoalCardFromTotals === "function") {
-                window.applyGoalCardFromTotals(premiumCollected, apEarned);
-            }
+            window.applyGoalCardFromTotals(
+                data.premium_collected || 0,
+                data.ap || 0
+            );
         })
         .catch(() => {});
 };
 </script>
 
-<!-- ✅ SINGLE CONTRACT FUNCTION (modal/event calls this if present) -->
+<!-- ✅ OPTION A: INSTANT DASHBOARD UPDATE FROM SAVE RESPONSE -->
 <script>
-window.dashboardAfterActivitySave = function(detail) {
-    const monthTotals = detail && detail.month_totals ? detail.month_totals : null;
+window.dashboardAfterActivitySave = function(payload) {
+    // payload structure from ActivityController@store:
+    // { success:true, month_totals:{...}, totals_by_range:{day:{...},week:{...},...} }
 
-    const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
-    const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
+    const totalsByRange = payload && payload.totals_by_range ? payload.totals_by_range : null;
+    const monthTotals = payload && payload.month_totals ? payload.month_totals : null;
 
+    // 1) Goal card: use month totals from save response (instant)
     if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-        window.applyGoalCardFromTotals(
-            monthTotals.premium_collected || 0,
-            monthTotals.ap || 0
-        );
-        window.__activitySaveDashboardHandled = true;
-        return Promise.allSettled([p1, p2]).then(() => {});
+        window.applyGoalCardFromTotals(monthTotals.premium_collected || 0, monthTotals.ap || 0);
     }
 
-    const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
-    window.__activitySaveDashboardHandled = true;
-    return Promise.allSettled([p1, p2, p3]).then(() => {});
-};
-</script>
-
-<!-- ✅ EVENT LISTENER (optional fallback) -->
-<script>
-document.addEventListener("activitySaved", function (e) {
-    if (typeof window.dashboardAfterActivitySave === "function") {
-        window.dashboardAfterActivitySave(e && e.detail ? e.detail : null);
-        return;
-    }
-});
-</script>
-
-<!-- ✅ CRITICAL INSERT: SAVE ACTIVITY HANDLER THAT WORKS WITH INJECTED MODAL -->
-<script>
-/**
- * Why this is needed:
- * - Your modal HTML is injected via innerHTML.
- * - Scripts inside injected HTML do NOT run reliably.
- * - Inline onclick DOES run.
- * So the modal button calls this global function.
- */
-(function () {
-    function n(v) {
-        const x = parseFloat(v);
-        return Number.isFinite(x) ? x : 0;
+    // 2) Current Production card: update the currently active tab from totals_by_range (instant)
+    const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
+    const activeRange = activeTab ? activeTab.dataset.productionTab : null;
+    if (totalsByRange && activeRange && totalsByRange[activeRange] && typeof window.applyProductionCardFromTotals === "function") {
+        window.applyProductionCardFromTotals(activeRange, totalsByRange[activeRange]);
     }
 
-    function showSaveError(msg) {
-        const box = document.getElementById('activitySaveError');
-        if (!box) { alert(msg); return; }
-        box.style.display = 'block';
-        box.style.background = 'rgba(239,68,68,.10)';
-        box.style.border = '1px solid rgba(239,68,68,.35)';
-        box.style.padding = '10px 12px';
-        box.style.borderRadius = '12px';
-        box.style.color = '#fecaca';
-        box.style.fontWeight = '800';
-        box.innerText = msg;
-    }
+    // 3) Breakdown modal: if open, update its active tab too (instant)
+    const modalEl = document.getElementById("productionBreakdownModal");
+    const modalIsShown = modalEl && modalEl.classList.contains("show");
+    if (modalIsShown) {
+        const tabsWrap = document.getElementById("abc-breakdown-tabs");
+        const activeModalTab = tabsWrap ? tabsWrap.querySelector(".production-tab-active") : null;
+        const modalRange = activeModalTab ? activeModalTab.dataset.productionTab : null;
 
-    function clearSaveError() {
-        const box = document.getElementById('activitySaveError');
-        if (!box) return;
-        box.style.display = 'none';
-        box.innerText = '';
-    }
-
-    // Live AP calc for injected modal (event delegation)
-    document.addEventListener('input', function (e) {
-        if (!e.target || e.target.id !== 'premiumInput') return;
-        const premium = n(e.target.value);
-        const apEl = document.getElementById('apInput');
-        if (apEl) apEl.value = (premium * 12).toFixed(2);
-    });
-
-    window.ABC_activitySaveClick = async function (event) {
-        if (event && event.preventDefault) event.preventDefault();
-
-        clearSaveError();
-
-        const form = document.getElementById('activityForm');
-        const btn  = document.getElementById('saveActivityBtn');
-
-        if (!form) { showSaveError('Activity form not found.'); return; }
-        if (!btn)  { showSaveError('Save button not found.'); return; }
-
-        const tokenEl = form.querySelector('[name=_token]');
-        if (!tokenEl) { showSaveError('Security token missing. Refresh the page.'); return; }
-
-        const originalText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
-
-        try {
-            // Force AP field value client-side (server still enforces)
-            const premEl = document.getElementById('premiumInput');
-            const apEl   = document.getElementById('apInput');
-            if (premEl && apEl) apEl.value = (n(premEl.value) * 12).toFixed(2);
-
-            const res = await fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': tokenEl.value,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                body: new FormData(form),
-                credentials: 'same-origin',
-                cache: 'no-store'
-            });
-
-            let saveJson = null;
-            try { saveJson = await res.json(); } catch (e) {}
-
-            if (!res.ok || !saveJson || saveJson.success !== true) {
-                const msg = (saveJson && (saveJson.message || saveJson.error)) ? (saveJson.message || saveJson.error) : 'Save failed.';
-                showSaveError(msg);
-                return;
-            }
-
-            // ✅ OPTION A: immediately fetch fresh month totals, then apply instantly
-            const totalsRes = await fetch('/activity/totals/month?_=' + Date.now(), { cache: 'no-store' });
-            const monthTotals = await totalsRes.json();
-
-            if (typeof window.dashboardAfterActivitySave === 'function') {
-                await window.dashboardAfterActivitySave({ month_totals: monthTotals });
-            } else if (typeof window.applyGoalCardFromTotals === 'function') {
-                window.applyGoalCardFromTotals(monthTotals.premium_collected || 0, monthTotals.ap || 0);
-            }
-
-            // Close modal
-            const modalEl = document.getElementById('activityModal');
-            if (modalEl && typeof bootstrap !== 'undefined') {
-                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-            }
-
-        } catch (err) {
-            console.error(err);
-            showSaveError('Request failed.');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = originalText;
+        if (totalsByRange && modalRange && totalsByRange[modalRange] && typeof window.applyBreakdownFromTotals === "function") {
+            window.applyBreakdownFromTotals(modalRange, totalsByRange[modalRange]);
         }
-    };
-})();
+    }
+
+    // Optional: background reconciliation fetch (safe but not required for "instant")
+    // window.refreshProductionCard && window.refreshProductionCard(true);
+    // window.refreshProductionBreakdownModal && window.refreshProductionBreakdownModal(true);
+    // window.refreshGoalCard && window.refreshGoalCard(true);
+};
 </script>
 
 <!-- INITIAL LOAD -->
