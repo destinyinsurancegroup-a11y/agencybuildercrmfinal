@@ -51,6 +51,7 @@
                             <input type="number" class="form-control" name="apps_written" min="0" value="0"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
+
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Premium Collected ($)</label>
                             <input id="premiumInput" type="number" step="0.01" class="form-control" name="premium_collected" min="0" value="0"
@@ -66,11 +67,15 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="mt-3" style="display:none;" id="activitySaveError"
+                         aria-live="polite"></div>
                 </form>
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                <button class="btn" id="saveActivityBtn" style="background:#c9a227; color:#111827; font-weight:900; border-radius: 12px;">
+                <button class="btn" id="saveActivityBtn" type="button"
+                        style="background:#c9a227; color:#111827; font-weight:900; border-radius: 12px;">
                     Save Activity
                 </button>
                 <button class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 12px;">
@@ -80,116 +85,3 @@
         </div>
     </div>
 </div>
-
-<script>
-(function () {
-    const form = document.getElementById('activityForm');
-    const saveBtn = document.getElementById('saveActivityBtn');
-    const premiumInput = document.getElementById('premiumInput');
-    const apInput = document.getElementById('apInput');
-
-    function csrfToken() {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        return meta ? meta.getAttribute('content') : '';
-    }
-
-    function toNumber(val) {
-        const n = parseFloat(val);
-        return Number.isFinite(n) ? n : 0;
-    }
-
-    function calcAP() {
-        const premium = toNumber(premiumInput.value);
-        const ap = premium * 12;
-        apInput.value = ap.toFixed(2);
-        return ap;
-    }
-
-    // Always keep AP synced to Premium * 12
-    premiumInput.addEventListener('input', calcAP);
-    calcAP();
-
-    async function safeJson(resp) {
-        try { return await resp.json(); } catch (e) { return null; }
-    }
-
-    saveBtn.addEventListener('click', async function (e) {
-        e.preventDefault();
-
-        // Prevent double submit
-        saveBtn.disabled = true;
-        const originalText = saveBtn.textContent;
-        saveBtn.textContent = 'Saving...';
-
-        try {
-            // Force AP calc right before submit (non-negotiable)
-            calcAP();
-
-            const fd = new FormData(form);
-
-            const resp = await fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken(),
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: fd,
-                credentials: 'same-origin',
-                cache: 'no-store'
-            });
-
-            const data = await safeJson(resp);
-
-            if (!resp.ok || !data || data.success !== true) {
-                const msg = (data && (data.message || data.error)) ? (data.message || data.error) : 'Save failed.';
-                alert(msg);
-                return;
-            }
-
-            // Close the modal first (clean UX)
-            const modalEl = document.getElementById('activityModal');
-            if (typeof bootstrap !== 'undefined' && modalEl) {
-                const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
-                instance.hide();
-            }
-
-            // Tell dashboard to update instantly.
-            // We pass month_totals if the backend returns it.
-            const detail = {
-                saved: true,
-                month_totals: data.month_totals || null,
-                raw: data
-            };
-
-            // Flag used by fallback reload logic
-            window.__activitySaveDashboardHandled = false;
-
-            // Preferred: call a dashboard function if present
-            if (typeof window.dashboardAfterActivitySave === 'function') {
-                try {
-                    await window.dashboardAfterActivitySave(detail);
-                } catch (err) {}
-            }
-
-            // Secondary: dispatch global event (your dashboard already listens)
-            document.dispatchEvent(new CustomEvent('activitySaved', { detail }));
-
-            // Reliable fallback: if dashboard didn’t confirm handling, hard reload.
-            // (This solves your “reload didn’t happen reliably” problem.)
-            setTimeout(function () {
-                if (!window.__activitySaveDashboardHandled) {
-                    window.location.reload();
-                }
-            }, 900);
-
-        } catch (err) {
-            console.error(err);
-            alert('Request failed.');
-        } finally {
-            saveBtn.disabled = false;
-            saveBtn.textContent = originalText;
-        }
-    });
-})();
-</script>
