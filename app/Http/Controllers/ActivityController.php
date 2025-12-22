@@ -28,21 +28,24 @@ class ActivityController extends Controller
     /**
      * Store a new activity entry.
      *
-     * FIX:
-     * - AP must ALWAYS be calculated as premium_collected * 12 (server-side).
-     * - Never trust AP coming from the browser.
-     * - Return month_totals so the Goal Card can update instantly after save.
+     * OPTION A (INSTANT UI):
+     * - Save activity
+     * - Compute fresh totals server-side (month + all ranges)
+     * - Return totals in the SAME response so dashboard updates instantly (no waiting on /activity/totals)
+     *
+     * AP rules:
+     * - AP must ALWAYS be premium_collected * 12 (server-side)
      */
     public function store(Request $request)
     {
         $data = $request->validate([
+            'activity_date'     => 'nullable|date',
             'leads_worked'      => 'nullable|integer|min:0',
             'calls'             => 'nullable|integer|min:0',
             'stops'             => 'nullable|integer|min:0',
             'presentations'     => 'nullable|integer|min:0',
             'apps_written'      => 'nullable|integer|min:0',
             'premium_collected' => 'nullable|numeric|min:0',
-            // NOTE: we do NOT validate 'ap' because we compute it server-side
         ]);
 
         // Default empty to 0
@@ -56,61 +59,79 @@ class ActivityController extends Controller
         // ✅ ALWAYS compute AP from premium (Premium * 12)
         $data['ap'] = round(((float) $data['premium_collected']) * 12, 2);
 
-        // Auth + tenant (keep original behavior so nothing breaks)
+        // Auth + tenant
         $user = Auth::user();
         $data['user_id']   = Auth::id() ?? 1;
         $data['agency_id'] = $user->agency_id ?? 1;
 
-        // Create record (same approach as your working controller)
-        $activity = Activity::create($data);
+        // If user picked a date, set created_at to that date (so totals align with the selected day/week/month)
+        $activityDate = $data['activity_date'] ?? null;
+        unset($data['activity_date']);
 
-        // ✅ Compute month totals immediately for instant goal-card update
-        $monthTotals = $this->computeTotalsForRange('month', $data['user_id']);
+        $activity = new Activity($data);
+
+        if ($activityDate) {
+            // Use the provided date, keep current time-of-day in app timezone
+            $nowTz = Carbon::now();
+            $dt = Carbon::parse($activityDate, $nowTz->getTimezone())
+                ->setTime($nowTz->hour, $nowTz->minute, $nowTz->second);
+
+            $activity->created_at = $dt;
+            $activity->updated_at = $dt;
+        }
+
+        $activity->save();
+
+        // ✅ Compute fresh totals RIGHT NOW (this is what makes the dashboard instant)
+        $userId = $data['user_id'];
+
+        $ranges = ['day', 'week', 'month', 'quarter', 'year'];
+        $totalsByRange = [];
+        foreach ($ranges as $range) {
+            $totalsByRange[$range] = $this->computeTotalsForRange($userId, $range);
+        }
 
         return response()->json([
             'success' => true,
             'saved' => [
-                'id' => $activity->id ?? null,
-                'premium_collected' => (float) $data['premium_collected'],
-                'ap' => (float) $data['ap'],
+                'leads_worked'      => (int) $activity->leads_worked,
+                'calls'             => (int) $activity->calls,
+                'stops'             => (int) $activity->stops,
+                'presentations'     => (int) $activity->presentations,
+                'apps_written'      => (int) $activity->apps_written,
+                'premium_collected' => (float) $activity->premium_collected,
+                'ap'                => (float) round(((float) $activity->premium_collected) * 12, 2),
+                'created_at'        => optional($activity->created_at)->toIso8601String(),
             ],
-            'month_totals' => [
-                'leads_worked' => (int) ($monthTotals->leads_worked ?? 0),
-                'calls' => (int) ($monthTotals->calls ?? 0),
-                'stops' => (int) ($monthTotals->stops ?? 0),
-                'presentations' => (int) ($monthTotals->presentations ?? 0),
-                'apps_written' => (int) ($monthTotals->apps_written ?? 0),
-                'premium_collected' => (float) ($monthTotals->premium_collected ?? 0),
-                'ap' => (float) ($monthTotals->ap ?? 0),
-            ],
+            // This is the payload the dashboard uses to update instantly:
+            'month_totals'    => $totalsByRange['month'],
+            'totals_by_range' => $totalsByRange,
         ]);
     }
 
     /**
      * Dashboard production totals.
      *
-     * FIX:
-     * - AP totals should be SUM(premium_collected) * 12
-     *   so old/wrong stored ap values do NOT pollute totals.
+     * AP totals should be SUM(premium_collected) * 12
+     * (so old/wrong stored ap values do NOT pollute totals)
      */
     public function totals($range)
     {
         $userId = Auth::id() ?? 1;
+        $totals = $this->computeTotalsForRange($userId, $range);
 
-        $range = strtolower((string) $range);
-        if (!in_array($range, ['day', 'week', 'month', 'quarter', 'year'], true)) {
+        if ($totals === null) {
             return response()->json(['error' => 'Invalid range'], 400);
         }
-
-        $totals = $this->computeTotalsForRange($range, $userId);
 
         return response()->json($totals);
     }
 
     /**
-     * Internal helper: compute totals for a given range scoped to user_id.
+     * Compute totals for a user + range.
+     * Returns associative array matching dashboard expectations.
      */
-    private function computeTotalsForRange(string $range, int $userId)
+    private function computeTotalsForRange(int $userId, string $range): ?array
     {
         $query = Activity::where('user_id', $userId);
 
@@ -151,9 +172,12 @@ class ActivityController extends Controller
                     $now->copy()->endOfYear(),
                 ]);
                 break;
+
+            default:
+                return null;
         }
 
-        return $query->selectRaw("
+        $row = $query->selectRaw("
             COALESCE(SUM(leads_worked), 0) AS leads_worked,
             COALESCE(SUM(calls), 0) AS calls,
             COALESCE(SUM(stops), 0) AS stops,
@@ -162,5 +186,15 @@ class ActivityController extends Controller
             COALESCE(SUM(premium_collected), 0) AS premium_collected,
             COALESCE(SUM(premium_collected) * 12, 0) AS ap
         ")->first();
+
+        return [
+            'leads_worked'      => (int) ($row->leads_worked ?? 0),
+            'calls'             => (int) ($row->calls ?? 0),
+            'stops'             => (int) ($row->stops ?? 0),
+            'presentations'     => (int) ($row->presentations ?? 0),
+            'apps_written'      => (int) ($row->apps_written ?? 0),
+            'premium_collected' => (float) ($row->premium_collected ?? 0),
+            'ap'                => (float) ($row->ap ?? 0),
+        ];
     }
 }
