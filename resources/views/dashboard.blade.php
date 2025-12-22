@@ -675,7 +675,6 @@
             <div class="goal-body">
                 <div>
                     <div class="goal-main">
-                        {{-- ✅ This is ACTUAL AP earned from logged activity --}}
                         <span class="amt" id="abc-goal-ap-earned">$0</span>
                         <span class="ap"> AP</span>
                     </div>
@@ -1274,34 +1273,32 @@ window.refreshProductionCard = function(force = false) {
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
-            window.applyProductionCardFromTotals(active, data);
+            const rows = document.querySelectorAll(
+                `#abc-current-production-card .production-range[data-production-range="${active}"] .production-value`
+            );
+
+            if (rows.length === 7) {
+                rows[0].innerText = data.leads_worked;
+                rows[1].innerText = data.calls;
+                rows[2].innerText = data.stops;
+                rows[3].innerText = data.presentations;
+                rows[4].innerText = data.apps_written;
+
+                rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
+                rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
+            }
         })
         .catch(() => {});
-};
-
-window.applyProductionCardFromTotals = function(range, data) {
-    const rows = document.querySelectorAll(
-        `#abc-current-production-card .production-range[data-production-range="${range}"] .production-value`
-    );
-
-    if (rows.length === 7) {
-        rows[0].innerText = data.leads_worked;
-        rows[1].innerText = data.calls;
-        rows[2].innerText = data.stops;
-        rows[3].innerText = data.presentations;
-        rows[4].innerText = data.apps_written;
-        rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
-        rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
-    }
 };
 </script>
 
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
 window.refreshProductionBreakdownModal = function(force = false) {
+    const modalEl = document.getElementById('productionBreakdownModal');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
-    if (!statsWrap || !tabsWrap) return Promise.resolve();
+    if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
 
     const activeTab = tabsWrap.querySelector('.production-tab-active');
     if (!activeTab) return Promise.resolve();
@@ -1312,32 +1309,26 @@ window.refreshProductionBreakdownModal = function(force = false) {
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
-            window.applyBreakdownFromTotals(active, data);
+            const rows = statsWrap.querySelectorAll(
+                `.production-range[data-production-range="${active}"] .production-value`
+            );
+
+            if (rows.length === 7) {
+                rows[0].innerText = data.leads_worked;
+                rows[1].innerText = data.calls;
+                rows[2].innerText = data.stops;
+                rows[3].innerText = data.presentations;
+                rows[4].innerText = data.apps_written;
+
+                rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
+                rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
+            }
         })
         .catch(() => {});
 };
-
-window.applyBreakdownFromTotals = function(range, data) {
-    const statsWrap = document.getElementById('abc-breakdown-stats');
-    if (!statsWrap) return;
-
-    const rows = statsWrap.querySelectorAll(
-        `.production-range[data-production-range="${range}"] .production-value`
-    );
-
-    if (rows.length === 7) {
-        rows[0].innerText = data.leads_worked;
-        rows[1].innerText = data.calls;
-        rows[2].innerText = data.stops;
-        rows[3].innerText = data.presentations;
-        rows[4].innerText = data.apps_written;
-        rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
-        rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
-    }
-};
 </script>
 
-<!-- ✅ APPLY GOAL CARD FROM TOTALS (NO FETCH, INSTANT UI UPDATE) -->
+<!-- APPLY GOAL CARD FROM TOTALS -->
 <script>
 window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     const goalCard = document.getElementById('abc-goal-card');
@@ -1396,63 +1387,147 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 };
 </script>
 
-<!-- GOAL CARD REFRESH (fallback fetch) -->
+<!-- GOAL CARD REFRESH (fetch month totals) -->
 <script>
 window.refreshGoalCard = function(force = false) {
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
+
+    function parseMoneyToNumber(str) {
+        if (!str) return 0;
+        const cleaned = String(str).replace(/[^0-9.]/g, "");
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+    }
+
+    const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
+    const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
+
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
 
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
-            window.applyGoalCardFromTotals(
-                data.premium_collected || 0,
-                data.ap || 0
-            );
+            const premiumCollected = Number(data.premium_collected || 0);
+            const apEarned = Number(data.ap || 0);
+
+            // reuse the instant applier
+            if (typeof window.applyGoalCardFromTotals === "function") {
+                window.applyGoalCardFromTotals(premiumCollected, apEarned);
+            }
         })
         .catch(() => {});
 };
 </script>
 
-<!-- ✅ OPTION A: INSTANT DASHBOARD UPDATE FROM SAVE RESPONSE -->
+<!-- ✅ OPTION A: GLOBAL SAVE HANDLER (THIS IS THE FIX) -->
 <script>
-window.dashboardAfterActivitySave = function(payload) {
-    // payload structure from ActivityController@store:
-    // { success:true, month_totals:{...}, totals_by_range:{day:{...},week:{...},...} }
-
-    const totalsByRange = payload && payload.totals_by_range ? payload.totals_by_range : null;
-    const monthTotals = payload && payload.month_totals ? payload.month_totals : null;
-
-    // 1) Goal card: use month totals from save response (instant)
-    if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-        window.applyGoalCardFromTotals(monthTotals.premium_collected || 0, monthTotals.ap || 0);
+(function(){
+    function getCsrfTokenFromForm(formEl) {
+        const tokenInput = formEl ? formEl.querySelector('input[name="_token"]') : null;
+        return tokenInput ? tokenInput.value : null;
     }
 
-    // 2) Current Production card: update the currently active tab from totals_by_range (instant)
-    const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
-    const activeRange = activeTab ? activeTab.dataset.productionTab : null;
-    if (totalsByRange && activeRange && totalsByRange[activeRange] && typeof window.applyProductionCardFromTotals === "function") {
-        window.applyProductionCardFromTotals(activeRange, totalsByRange[activeRange]);
+    function showSaveError(msg) {
+        const err = document.getElementById('activitySaveError');
+        if (!err) return;
+        err.style.display = 'block';
+        err.style.color = '#fecaca';
+        err.style.fontWeight = '800';
+        err.innerText = msg || 'Save failed. Please try again.';
     }
 
-    // 3) Breakdown modal: if open, update its active tab too (instant)
-    const modalEl = document.getElementById("productionBreakdownModal");
-    const modalIsShown = modalEl && modalEl.classList.contains("show");
-    if (modalIsShown) {
-        const tabsWrap = document.getElementById("abc-breakdown-tabs");
-        const activeModalTab = tabsWrap ? tabsWrap.querySelector(".production-tab-active") : null;
-        const modalRange = activeModalTab ? activeModalTab.dataset.productionTab : null;
+    function hideSaveError() {
+        const err = document.getElementById('activitySaveError');
+        if (!err) return;
+        err.style.display = 'none';
+        err.innerText = '';
+    }
 
-        if (totalsByRange && modalRange && totalsByRange[modalRange] && typeof window.applyBreakdownFromTotals === "function") {
-            window.applyBreakdownFromTotals(modalRange, totalsByRange[modalRange]);
+    function setSaving(isSaving) {
+        const btn = document.getElementById('saveActivityBtn');
+        if (!btn) return;
+        btn.disabled = !!isSaving;
+        btn.innerText = isSaving ? 'Saving…' : 'Save Activity';
+        btn.style.opacity = isSaving ? '0.8' : '1';
+        btn.style.cursor = isSaving ? 'not-allowed' : 'pointer';
+    }
+
+    async function fetchMonthTotalsAndApply() {
+        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (typeof window.applyGoalCardFromTotals === "function") {
+            window.applyGoalCardFromTotals(data.premium_collected || 0, data.ap || 0);
         }
     }
 
-    // Optional: background reconciliation fetch (safe but not required for "instant")
-    // window.refreshProductionCard && window.refreshProductionCard(true);
-    // window.refreshProductionBreakdownModal && window.refreshProductionBreakdownModal(true);
-    // window.refreshGoalCard && window.refreshGoalCard(true);
-};
+    // This is called by the injected modal button onclick
+    window.ABC_activitySaveClick = async function(event) {
+        if (event) event.preventDefault();
+
+        const form = document.getElementById('activityForm');
+        if (!form) {
+            console.warn('activityForm not found');
+            return;
+        }
+
+        hideSaveError();
+        setSaving(true);
+
+        try {
+            const url = form.getAttribute('action');
+            const fd = new FormData(form);
+
+            // If user left fields blank, do NOT send empty strings for numbers
+            // (Laravel validation is happier, and your controller defaults them to 0)
+            for (const [k, v] of fd.entries()) {
+                if (typeof v === 'string' && v.trim() === '') {
+                    fd.delete(k);
+                }
+            }
+
+            const csrf = getCsrfTokenFromForm(form);
+
+            const res = await fetch(url, {
+                method: 'POST',
+                body: fd,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrf ? {'X-CSRF-TOKEN': csrf} : {})
+                },
+                cache: 'no-store'
+            });
+
+            if (!res.ok) {
+                let text = '';
+                try { text = await res.text(); } catch(e) {}
+                showSaveError('Save failed. ' + (text ? 'Server responded with an error.' : ''));
+                setSaving(false);
+                return;
+            }
+
+            // success
+            // Close the modal immediately
+            const modalEl = document.getElementById('activityModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                instance.hide();
+            }
+
+            // NOW refresh the cards instantly (this is what was not running before)
+            const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
+            const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
+            const p3 = fetchMonthTotalsAndApply();
+
+            await Promise.allSettled([p1, p2, p3]);
+
+            setSaving(false);
+        } catch (err) {
+            console.error(err);
+            showSaveError('Save failed. Please try again.');
+            setSaving(false);
+        }
+    };
+})();
 </script>
 
 <!-- INITIAL LOAD -->
