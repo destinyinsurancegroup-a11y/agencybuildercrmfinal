@@ -14,81 +14,58 @@
 
                     <div class="mb-3">
                         <label class="form-label" style="font-weight:800;">Date</label>
-                        <input
-                            type="date"
-                            class="form-control"
-                            name="activity_date"
-                            value="{{ now()->toDateString() }}"
-                            style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);"
-                        >
+                        <input type="date" class="form-control"
+                               name="activity_date"
+                               value="{{ now()->toDateString() }}"
+                               style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                     </div>
 
                     <div class="row g-3">
-                        <div class="col-6">
-                            <label class="form-label" style="font-weight:800;">Leads Worked</label>
-                            <input type="number" class="form-control" name="leads_worked" min="0" step="1"
-                                   placeholder="0" inputmode="numeric"
-                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
-                        </div>
-
-                        <div class="col-6">
-                            <label class="form-label" style="font-weight:800;">Calls</label>
-                            <input type="number" class="form-control" name="calls" min="0" step="1"
-                                   placeholder="0" inputmode="numeric"
-                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
-                        </div>
-
-                        <div class="col-6">
-                            <label class="form-label" style="font-weight:800;">Stops</label>
-                            <input type="number" class="form-control" name="stops" min="0" step="1"
-                                   placeholder="0" inputmode="numeric"
-                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
-                        </div>
-
-                        <div class="col-6">
-                            <label class="form-label" style="font-weight:800;">Presentations</label>
-                            <input type="number" class="form-control" name="presentations" min="0" step="1"
-                                   placeholder="0" inputmode="numeric"
-                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
-                        </div>
-
-                        <div class="col-6">
-                            <label class="form-label" style="font-weight:800;">Apps Written</label>
-                            <input type="number" class="form-control" name="apps_written" min="0" step="1"
-                                   placeholder="0" inputmode="numeric"
-                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
-                        </div>
+                        @foreach ([
+                            'leads_worked' => 'Leads Worked',
+                            'calls' => 'Calls',
+                            'stops' => 'Stops',
+                            'presentations' => 'Presentations',
+                            'apps_written' => 'Apps Written'
+                        ] as $name => $label)
+                            <div class="col-6">
+                                <label class="form-label" style="font-weight:800;">{{ $label }}</label>
+                                <input type="number" class="form-control"
+                                       name="{{ $name }}"
+                                       min="0" step="1"
+                                       placeholder=""
+                                       style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                            </div>
+                        @endforeach
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Premium Collected ($)</label>
-                            <input id="premiumInput" type="number" class="form-control" name="premium_collected"
-                                   min="0" step="0.01" placeholder="0.00" inputmode="decimal"
+                            <input id="premiumInput" type="number" class="form-control"
+                                   name="premium_collected"
+                                   min="0" step="0.01"
+                                   placeholder=""
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-6">
                             <label class="form-label" style="font-weight:800;">AP ($)</label>
-                            <input id="apInput" type="number" class="form-control" name="ap" readonly value="0.00"
+                            <input id="apInput" type="number" class="form-control" readonly value="0.00"
                                    style="background:#0b0f1a; color:#a7f3d0; border-color: rgba(201,162,39,.35); font-weight:900;">
                             <div class="form-text" style="color:#9ca3af;">
-                                AP is calculated automatically as <strong>Premium × 12</strong>.
+                                AP = Premium × 12
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-3" id="activitySaveError" style="display:none;" aria-live="polite"></div>
+                    <div class="mt-3 text-danger" id="activitySaveError" style="display:none;"></div>
                 </form>
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- ✅ IMPORTANT: onclick works even when injected via innerHTML --}}
-                <button
-                    class="btn"
-                    type="button"
-                    id="saveActivityBtn"
-                    onclick="window.ABC_activitySaveClick(event)"
-                    style="background:#c9a227; color:#111827; font-weight:900; border-radius:12px;"
-                >
+                <button class="btn"
+                        type="button"
+                        id="saveActivityBtn"
+                        style="background:#c9a227; color:#111827; font-weight:900; border-radius:12px;">
                     Save Activity
                 </button>
 
@@ -99,3 +76,60 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const form = document.getElementById('activityForm');
+    const saveBtn = document.getElementById('saveActivityBtn');
+    const premiumInput = document.getElementById('premiumInput');
+    const apInput = document.getElementById('apInput');
+    const errorBox = document.getElementById('activitySaveError');
+
+    function updateAP() {
+        const premium = parseFloat(premiumInput.value || 0);
+        apInput.value = (premium * 12).toFixed(2);
+    }
+
+    premiumInput.addEventListener('input', updateAP);
+
+    saveBtn.addEventListener('click', async function () {
+        errorBox.style.display = 'none';
+        saveBtn.disabled = true;
+
+        try {
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': form.querySelector('[name=_token]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new FormData(form)
+            });
+
+            if (!res.ok) throw new Error('Save failed');
+
+            // ✅ IMMEDIATELY get updated MONTH totals
+            const totalsRes = await fetch('/activity/totals/month?_=' + Date.now(), {
+                cache: 'no-store'
+            });
+            const monthTotals = await totalsRes.json();
+
+            // ✅ HAND TOTALS DIRECTLY TO DASHBOARD (INSTANT)
+            if (window.dashboardAfterActivitySave) {
+                window.dashboardAfterActivitySave({ month_totals: monthTotals });
+            }
+
+            // Close modal
+            const modalEl = document.getElementById('activityModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+
+        } catch (err) {
+            errorBox.innerText = 'Failed to save activity.';
+            errorBox.style.display = 'block';
+        } finally {
+            saveBtn.disabled = false;
+        }
+    });
+})();
+</script>
