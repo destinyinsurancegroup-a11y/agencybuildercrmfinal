@@ -1266,12 +1266,13 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 window.refreshProductionCard = function(force = false) {
     const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
-    if (!activeTab) return;
+    if (!activeTab) return Promise.resolve();
 
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    fetch(url, { cache: "no-store" })
+    // ✅ EDIT: return the fetch promise so callers can await it
+    return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = document.querySelectorAll(
@@ -1299,15 +1300,16 @@ window.refreshProductionBreakdownModal = function(force = false) {
     const modalEl = document.getElementById('productionBreakdownModal');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
-    if (!modalEl || !statsWrap || !tabsWrap) return;
+    if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
 
     const activeTab = tabsWrap.querySelector('.production-tab-active');
-    if (!activeTab) return;
+    if (!activeTab) return Promise.resolve();
 
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    fetch(url, { cache: "no-store" })
+    // ✅ EDIT: return the fetch promise so callers can await it
+    return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = statsWrap.querySelectorAll(
@@ -1422,7 +1424,8 @@ window.refreshGoalCard = function(force = false) {
 
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
 
-    fetch(url, { cache: "no-store" })
+    // ✅ EDIT: return the fetch promise so callers can await it
+    return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const premiumCollected = Number(data.premium_collected || 0);
@@ -1454,24 +1457,60 @@ window.refreshGoalCard = function(force = false) {
 };
 </script>
 
+<!-- ✅ NEW: SINGLE CONTRACT FUNCTION (modal calls this if present) -->
+<script>
+window.dashboardAfterActivitySave = function(detail) {
+    // detail may include month_totals
+    const monthTotals = detail && detail.month_totals ? detail.month_totals : null;
+
+    // Kick off refreshes
+    const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
+    const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
+
+    // Prefer instant goal update when month totals are provided
+    if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
+        window.applyGoalCardFromTotals(
+            monthTotals.premium_collected || 0,
+            monthTotals.ap || 0
+        );
+        // still refresh in background for consistency (optional)
+        const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
+        window.__activitySaveDashboardHandled = true;
+        return Promise.allSettled([p1, p2, p3]).then(() => {});
+    }
+
+    const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
+
+    window.__activitySaveDashboardHandled = true;
+    return Promise.allSettled([p1, p2, p3]).then(() => {});
+};
+</script>
+
 <!-- ✅ EDITED: AUTO-REFRESH AFTER SAVE (USE EVENT TOTALS FOR INSTANT GOAL UPDATE) -->
 <script>
 document.addEventListener("activitySaved", function (e) {
+    // If modal didn’t call dashboardAfterActivitySave (or you're using only events),
+    // we handle it here too.
+    if (typeof window.dashboardAfterActivitySave === "function") {
+        window.dashboardAfterActivitySave(e && e.detail ? e.detail : null);
+        return;
+    }
+
     if (window.refreshProductionCard) window.refreshProductionCard(true);
     if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
 
-    // ✅ INSTANT goal update if month totals were provided by the save response
     const monthTotals = e && e.detail ? e.detail.month_totals : null;
     if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
         window.applyGoalCardFromTotals(
             monthTotals.premium_collected || 0,
             monthTotals.ap || 0
         );
+        window.__activitySaveDashboardHandled = true;
         return;
     }
 
-    // Fallback: fetch totals if event didn't include them
     if (window.refreshGoalCard) window.refreshGoalCard(true);
+    window.__activitySaveDashboardHandled = true;
 });
 </script>
 
