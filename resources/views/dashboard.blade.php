@@ -1271,7 +1271,6 @@ window.refreshProductionCard = function(force = false) {
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    // ✅ EDIT: return the fetch promise so callers can await it
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
@@ -1308,7 +1307,6 @@ window.refreshProductionBreakdownModal = function(force = false) {
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    // ✅ EDIT: return the fetch promise so callers can await it
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
@@ -1331,7 +1329,7 @@ window.refreshProductionBreakdownModal = function(force = false) {
 };
 </script>
 
-<!-- ✅ NEW: APPLY GOAL CARD FROM TOTALS (NO FETCH, INSTANT UI UPDATE) -->
+<!-- ✅ APPLY GOAL CARD FROM TOTALS (NO FETCH, INSTANT UI UPDATE) -->
 <script>
 window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     const goalCard = document.getElementById('abc-goal-card');
@@ -1390,32 +1388,14 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 };
 </script>
 
-<!-- GOAL CARD REFRESH (instant update after Save Activity) -->
+<!-- GOAL CARD REFRESH (fallback fetch) -->
 <script>
 window.refreshGoalCard = function(force = false) {
-    const goalCard = document.getElementById('abc-goal-card');
-    const ring = document.getElementById('abc-goal-ring');
-    const percentText = document.getElementById('abc-goal-percent-text');
-    const neededDisplay = document.getElementById('abc-goal-needed-display');
-    const apEarnedEl = document.getElementById('abc-goal-ap-earned');
-
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
         const n = parseFloat(cleaned);
         return isNaN(n) ? 0 : n;
-    }
-
-    function formatMoney0(n) {
-        const v = Math.round(Number(n) || 0);
-        return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
-    }
-
-    function gaugeColorForPercent(pct) {
-        const p = Number(pct) || 0;
-        if (p <= 24) return '#ef4444';   // red
-        if (p <= 75) return '#c9a227';   // yellow/gold
-        return '#059669';                // green
     }
 
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
@@ -1424,94 +1404,167 @@ window.refreshGoalCard = function(force = false) {
 
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
 
-    // ✅ EDIT: return the fetch promise so callers can await it
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const premiumCollected = Number(data.premium_collected || 0);
             const apEarned = Number(data.ap || 0);
 
-            const remaining = Math.max(0, Math.round(monthlyNeeded - premiumCollected));
-
-            let pct = 0;
-            if (monthlyNeeded > 0) {
-                pct = Math.round(Math.min(100, (premiumCollected / monthlyNeeded) * 100));
+            // Reuse apply function for consistent UI
+            if (typeof window.applyGoalCardFromTotals === "function") {
+                window.applyGoalCardFromTotals(premiumCollected, apEarned);
             }
-
-            const color = gaugeColorForPercent(pct);
-
-            if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
-            if (apEarnedEl) apEarnedEl.innerText = formatMoney0(apEarned);
-
-            if (goalCard) {
-                goalCard.style.setProperty('--progress', String(pct));
-                goalCard.style.setProperty('--gauge-color', color);
-            }
-            if (ring) {
-                ring.style.setProperty('--progress', String(pct));
-                ring.style.setProperty('--gauge-color', color);
-            }
-            if (percentText) percentText.innerText = `${pct}%`;
         })
         .catch(() => {});
 };
 </script>
 
-<!-- ✅ NEW: SINGLE CONTRACT FUNCTION (modal calls this if present) -->
+<!-- ✅ SINGLE CONTRACT FUNCTION (modal/event calls this if present) -->
 <script>
 window.dashboardAfterActivitySave = function(detail) {
-    // detail may include month_totals
     const monthTotals = detail && detail.month_totals ? detail.month_totals : null;
 
-    // Kick off refreshes
     const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
     const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
 
-    // Prefer instant goal update when month totals are provided
     if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
         window.applyGoalCardFromTotals(
             monthTotals.premium_collected || 0,
             monthTotals.ap || 0
         );
-        // still refresh in background for consistency (optional)
-        const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
         window.__activitySaveDashboardHandled = true;
-        return Promise.allSettled([p1, p2, p3]).then(() => {});
+        return Promise.allSettled([p1, p2]).then(() => {});
     }
 
     const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
-
     window.__activitySaveDashboardHandled = true;
     return Promise.allSettled([p1, p2, p3]).then(() => {});
 };
 </script>
 
-<!-- ✅ EDITED: AUTO-REFRESH AFTER SAVE (USE EVENT TOTALS FOR INSTANT GOAL UPDATE) -->
+<!-- ✅ EVENT LISTENER (optional fallback) -->
 <script>
 document.addEventListener("activitySaved", function (e) {
-    // If modal didn’t call dashboardAfterActivitySave (or you're using only events),
-    // we handle it here too.
     if (typeof window.dashboardAfterActivitySave === "function") {
         window.dashboardAfterActivitySave(e && e.detail ? e.detail : null);
         return;
     }
+});
+</script>
 
-    if (window.refreshProductionCard) window.refreshProductionCard(true);
-    if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
-
-    const monthTotals = e && e.detail ? e.detail.month_totals : null;
-    if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-        window.applyGoalCardFromTotals(
-            monthTotals.premium_collected || 0,
-            monthTotals.ap || 0
-        );
-        window.__activitySaveDashboardHandled = true;
-        return;
+<!-- ✅ CRITICAL INSERT: SAVE ACTIVITY HANDLER THAT WORKS WITH INJECTED MODAL -->
+<script>
+/**
+ * Why this is needed:
+ * - Your modal HTML is injected via innerHTML.
+ * - Scripts inside injected HTML do NOT run reliably.
+ * - Inline onclick DOES run.
+ * So the modal button calls this global function.
+ */
+(function () {
+    function n(v) {
+        const x = parseFloat(v);
+        return Number.isFinite(x) ? x : 0;
     }
 
-    if (window.refreshGoalCard) window.refreshGoalCard(true);
-    window.__activitySaveDashboardHandled = true;
-});
+    function showSaveError(msg) {
+        const box = document.getElementById('activitySaveError');
+        if (!box) { alert(msg); return; }
+        box.style.display = 'block';
+        box.style.background = 'rgba(239,68,68,.10)';
+        box.style.border = '1px solid rgba(239,68,68,.35)';
+        box.style.padding = '10px 12px';
+        box.style.borderRadius = '12px';
+        box.style.color = '#fecaca';
+        box.style.fontWeight = '800';
+        box.innerText = msg;
+    }
+
+    function clearSaveError() {
+        const box = document.getElementById('activitySaveError');
+        if (!box) return;
+        box.style.display = 'none';
+        box.innerText = '';
+    }
+
+    // Live AP calc for injected modal (event delegation)
+    document.addEventListener('input', function (e) {
+        if (!e.target || e.target.id !== 'premiumInput') return;
+        const premium = n(e.target.value);
+        const apEl = document.getElementById('apInput');
+        if (apEl) apEl.value = (premium * 12).toFixed(2);
+    });
+
+    window.ABC_activitySaveClick = async function (event) {
+        if (event && event.preventDefault) event.preventDefault();
+
+        clearSaveError();
+
+        const form = document.getElementById('activityForm');
+        const btn  = document.getElementById('saveActivityBtn');
+
+        if (!form) { showSaveError('Activity form not found.'); return; }
+        if (!btn)  { showSaveError('Save button not found.'); return; }
+
+        const tokenEl = form.querySelector('[name=_token]');
+        if (!tokenEl) { showSaveError('Security token missing. Refresh the page.'); return; }
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            // Force AP field value client-side (server still enforces)
+            const premEl = document.getElementById('premiumInput');
+            const apEl   = document.getElementById('apInput');
+            if (premEl && apEl) apEl.value = (n(premEl.value) * 12).toFixed(2);
+
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': tokenEl.value,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: new FormData(form),
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+
+            let saveJson = null;
+            try { saveJson = await res.json(); } catch (e) {}
+
+            if (!res.ok || !saveJson || saveJson.success !== true) {
+                const msg = (saveJson && (saveJson.message || saveJson.error)) ? (saveJson.message || saveJson.error) : 'Save failed.';
+                showSaveError(msg);
+                return;
+            }
+
+            // ✅ OPTION A: immediately fetch fresh month totals, then apply instantly
+            const totalsRes = await fetch('/activity/totals/month?_=' + Date.now(), { cache: 'no-store' });
+            const monthTotals = await totalsRes.json();
+
+            if (typeof window.dashboardAfterActivitySave === 'function') {
+                await window.dashboardAfterActivitySave({ month_totals: monthTotals });
+            } else if (typeof window.applyGoalCardFromTotals === 'function') {
+                window.applyGoalCardFromTotals(monthTotals.premium_collected || 0, monthTotals.ap || 0);
+            }
+
+            // Close modal
+            const modalEl = document.getElementById('activityModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            }
+
+        } catch (err) {
+            console.error(err);
+            showSaveError('Request failed.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    };
+})();
 </script>
 
 <!-- INITIAL LOAD -->
