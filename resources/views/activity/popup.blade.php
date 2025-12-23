@@ -129,7 +129,14 @@
         errEl.innerText = "";
     }
 
-    // ✅ AP live calculation (Premium × 12)
+    function setSaving(isSaving) {
+        if (!saveBtn) return;
+        saveBtn.disabled = !!isSaving;
+        saveBtn.innerText = isSaving ? "Saving..." : "Save Activity";
+        saveBtn.style.opacity = isSaving ? "0.85" : "1";
+        saveBtn.style.cursor = isSaving ? "not-allowed" : "pointer";
+    }
+
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
         const ap = prem * 12;
@@ -149,41 +156,37 @@
         });
     }
 
-    /**
-     * ✅ MOST IMPORTANT FIX:
-     * If the DASHBOARD already defines window.ABC_activitySaveClick (Option A),
-     * DO NOT overwrite it here.
-     *
-     * The dashboard handler is the one that updates instantly.
-     * Overwriting it is what causes “not instant”.
-     */
-    if (typeof window.ABC_activitySaveClick === "function") {
-        // Do nothing — use dashboard’s save handler.
-        return;
+    async function applyInstantDashboardUpdatesFromMonthTotals(monthTotals) {
+        // 1) Goal card instantly (no guessing, use totals from server)
+        if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
+            window.applyGoalCardFromTotals(
+                monthTotals.premium_collected || 0,
+                monthTotals.ap || 0
+            );
+        }
+
+        // 2) Refresh the production cards so they match immediately
+        const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
+        const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
+        await Promise.allSettled([p1, p2]);
     }
 
-    /**
-     * ✅ FALLBACK ONLY (if dashboard didn’t define it)
-     * This fallback saves + applies month_totals instantly without double math.
-     */
-    window.ABC_activitySaveClick = async function (e) {
+    async function handleSaveClick(e) {
         if (e) {
             e.preventDefault();
-            e.stopPropagation();
+            // IMPORTANT: if anything else also tried to listen to this click, stop it here.
             if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+            if (typeof e.stopPropagation === "function") e.stopPropagation();
         }
+
         if (!form) return;
 
+        // ✅ hard global lock so the POST cannot fire twice
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
         clearError();
-
-        const originalText = saveBtn ? saveBtn.innerText : "";
-        if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Saving...";
-        }
+        setSaving(true);
 
         try {
             const url = form.getAttribute("action");
@@ -223,10 +226,9 @@
 
             const data = await res.json().catch(() => ({}));
 
-            // Prefer server month_totals (prevents doubling)
+            // ✅ Use month_totals from server response (best). If missing, fetch once.
             let monthTotals = data && data.month_totals ? data.month_totals : null;
 
-            // Fallback if month_totals missing
             if (!monthTotals) {
                 try {
                     const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
@@ -236,19 +238,10 @@
                 }
             }
 
-            // Apply instantly
-            if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-                window.applyGoalCardFromTotals(
-                    monthTotals.premium_collected || 0,
-                    monthTotals.ap || 0
-                );
-            }
+            // ✅ INSTANT UI UPDATE (this is what you want)
+            await applyInstantDashboardUpdatesFromMonthTotals(monthTotals);
 
-            // Update production cards too
-            if (window.refreshProductionCard) window.refreshProductionCard(true);
-            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
-
-            // Dispatch event for any listeners
+            // Also dispatch event (safe for anything else that wants to react)
             const eventDetail = Object.assign({}, data || {});
             if (monthTotals) eventDetail.month_totals = monthTotals;
             document.dispatchEvent(new CustomEvent("activitySaved", { detail: eventDetail }));
@@ -258,15 +251,28 @@
             if (modalEl && typeof bootstrap !== "undefined") {
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide();
             }
+
         } catch (err) {
             showError(err && err.message ? err.message : "Save failed.");
         } finally {
             window.__ABC_ACTIVITY_SAVING = false;
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerText = originalText || "Save Activity";
-            }
+            setSaving(false);
         }
-    };
+    }
+
+    /**
+     * ✅ KEY FIX FOR DOUBLING:
+     * Remove inline onclick attribute so ONLY ONE save system runs.
+     * Then bind ONE click listener.
+     */
+    if (saveBtn) {
+        saveBtn.removeAttribute("onclick");          // prevents the dashboard/global competing handler
+        saveBtn.onclick = null;                      // extra safety
+        saveBtn.addEventListener("click", handleSaveClick, { passive: false });
+    }
+
+    // Keep this for backwards compatibility (in case something still calls it)
+    window.ABC_activitySaveClick = handleSaveClick;
+
 })();
 </script>
