@@ -108,26 +108,6 @@
     const form = document.getElementById("activityForm");
     const premiumInput = document.getElementById("premiumInput");
     const apInput = document.getElementById("apInput");
-    const saveBtn = document.getElementById("saveActivityBtn");
-    const errEl = document.getElementById("activitySaveError");
-
-    function showError(msg) {
-        if (!errEl) return;
-        errEl.style.display = "block";
-        errEl.style.background = "rgba(239,68,68,.12)";
-        errEl.style.border = "1px solid rgba(239,68,68,.35)";
-        errEl.style.padding = "10px 12px";
-        errEl.style.borderRadius = "12px";
-        errEl.style.color = "#fecaca";
-        errEl.style.fontWeight = "800";
-        errEl.innerText = msg || "Save failed.";
-    }
-
-    function clearError() {
-        if (!errEl) return;
-        errEl.style.display = "none";
-        errEl.innerText = "";
-    }
 
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
@@ -138,7 +118,7 @@
     if (premiumInput) premiumInput.addEventListener("input", updateAP);
     updateAP();
 
-    // Stop Enter from submitting form in modal
+    // Stop Enter from submitting form in modal (prevents accidental submit/double behavior)
     if (form) {
         form.addEventListener("keydown", function (e) {
             if (e.key === "Enter") {
@@ -148,96 +128,11 @@
         });
     }
 
-    window.ABC_activitySaveClick = async function (e) {
-        if (e) e.preventDefault();
-        if (!form) return;
-
-        if (window.__ABC_ACTIVITY_SAVING) return;
-        window.__ABC_ACTIVITY_SAVING = true;
-
-        clearError();
-
-        const originalText = saveBtn ? saveBtn.innerText : "";
-        if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Saving...";
-        }
-
-        try {
-            const url = form.getAttribute("action");
-            const fd = new FormData(form);
-
-            // Normalize blanks to zero so server gets numbers
-            ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
-                const v = fd.get(name);
-                if (v === null || v === "") fd.set(name, "0");
-            });
-            const prem = fd.get("premium_collected");
-            if (prem === null || prem === "") fd.set("premium_collected", "0");
-
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Accept": "application/json",
-                },
-                body: fd,
-                cache: "no-store",
-                credentials: "same-origin",
-            });
-
-            if (res.status === 422) {
-                const j = await res.json().catch(() => ({}));
-                const first = j && j.errors ? Object.values(j.errors)[0]?.[0] : null;
-                showError(first || "Validation failed.");
-                return;
-            }
-
-            if (!res.ok) {
-                const t = await res.text().catch(() => "");
-                showError("Save failed. " + (t ? t.slice(0, 160) : ""));
-                return;
-            }
-
-            const data = await res.json().catch(() => ({}));
-
-            /**
-             * ✅ CRITICAL FIX:
-             * Do NOT "add" the premium again on the client.
-             * Use month_totals from the server response.
-             * If month_totals is missing, fetch /activity/totals/month ONCE.
-             */
-            let monthTotals = data && data.month_totals ? data.month_totals : null;
-
-            if (!monthTotals) {
-                try {
-                    const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
-                    monthTotals = await r2.json();
-                } catch (_) {
-                    monthTotals = null;
-                }
-            }
-
-            const eventDetail = Object.assign({}, data || {});
-            if (monthTotals) eventDetail.month_totals = monthTotals;
-
-            // Dispatch single event
-            document.dispatchEvent(new CustomEvent("activitySaved", { detail: eventDetail }));
-
-            // Close modal
-            const modalEl = document.getElementById("activityModal");
-            if (modalEl && typeof bootstrap !== "undefined") {
-                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-            }
-        } catch (err) {
-            showError(err && err.message ? err.message : "Save failed.");
-        } finally {
-            window.__ABC_ACTIVITY_SAVING = false;
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerText = originalText || "Save Activity";
-            }
-        }
-    };
+    /**
+     * IMPORTANT:
+     * We intentionally DO NOT define window.ABC_activitySaveClick here.
+     * The dashboard (dashboard.blade.php) owns the single save handler (Option A),
+     * which prevents double POSTs and stops premium from doubling.
+     */
 })();
 </script>
