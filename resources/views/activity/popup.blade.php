@@ -137,12 +137,12 @@
         saveBtn.style.cursor = isSaving ? "not-allowed" : "pointer";
     }
 
+    // AP = Premium × 12 (UI only; server also computes AP)
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
         const ap = prem * 12;
         if (apInput) apInput.value = ap.toFixed(2);
     }
-
     if (premiumInput) premiumInput.addEventListener("input", updateAP);
     updateAP();
 
@@ -156,32 +156,26 @@
         });
     }
 
-    async function applyInstantDashboardUpdatesFromMonthTotals(monthTotals) {
-        // 1) Goal card instantly (no guessing, use totals from server)
-        if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-            window.applyGoalCardFromTotals(
-                monthTotals.premium_collected || 0,
-                monthTotals.ap || 0
-            );
-        }
-
-        // 2) Refresh the production cards so they match immediately
-        const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
-        const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
-        await Promise.allSettled([p1, p2]);
+    /**
+     * ✅ MOST IMPORTANT FIX (prevents "doubling"):
+     * The Dashboard page already defines window.ABC_activitySaveClick (Option A).
+     * If we overwrite it here, you can end up with TWO different save systems and TWO POSTs.
+     *
+     * So:
+     * - If a save handler already exists, DO NOT replace it.
+     * - Only provide a fallback handler for pages that do NOT have one.
+     */
+    if (typeof window.ABC_activitySaveClick === "function") {
+        return; // keep the dashboard's handler; prevents double POST and keeps instant update
     }
 
-    async function handleSaveClick(e) {
-        if (e) {
-            e.preventDefault();
-            // IMPORTANT: if anything else also tried to listen to this click, stop it here.
-            if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
-            if (typeof e.stopPropagation === "function") e.stopPropagation();
-        }
-
+    // ---------------------------------------------------------
+    // Fallback save handler (only used if dashboard doesn't provide one)
+    // ---------------------------------------------------------
+    window.ABC_activitySaveClick = async function (e) {
+        if (e) e.preventDefault();
         if (!form) return;
 
-        // ✅ hard global lock so the POST cannot fire twice
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
@@ -226,9 +220,10 @@
 
             const data = await res.json().catch(() => ({}));
 
-            // ✅ Use month_totals from server response (best). If missing, fetch once.
+            // Prefer server month_totals (prevents client-side double math)
             let monthTotals = data && data.month_totals ? data.month_totals : null;
 
+            // If not provided, fetch once
             if (!monthTotals) {
                 try {
                     const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
@@ -238,12 +233,10 @@
                 }
             }
 
-            // ✅ INSTANT UI UPDATE (this is what you want)
-            await applyInstantDashboardUpdatesFromMonthTotals(monthTotals);
-
-            // Also dispatch event (safe for anything else that wants to react)
             const eventDetail = Object.assign({}, data || {});
             if (monthTotals) eventDetail.month_totals = monthTotals;
+
+            // Tell dashboard to refresh instantly (if it's listening)
             document.dispatchEvent(new CustomEvent("activitySaved", { detail: eventDetail }));
 
             // Close modal
@@ -251,28 +244,12 @@
             if (modalEl && typeof bootstrap !== "undefined") {
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide();
             }
-
         } catch (err) {
             showError(err && err.message ? err.message : "Save failed.");
         } finally {
             window.__ABC_ACTIVITY_SAVING = false;
             setSaving(false);
         }
-    }
-
-    /**
-     * ✅ KEY FIX FOR DOUBLING:
-     * Remove inline onclick attribute so ONLY ONE save system runs.
-     * Then bind ONE click listener.
-     */
-    if (saveBtn) {
-        saveBtn.removeAttribute("onclick");          // prevents the dashboard/global competing handler
-        saveBtn.onclick = null;                      // extra safety
-        saveBtn.addEventListener("click", handleSaveClick, { passive: false });
-    }
-
-    // Keep this for backwards compatibility (in case something still calls it)
-    window.ABC_activitySaveClick = handleSaveClick;
-
+    };
 })();
 </script>
