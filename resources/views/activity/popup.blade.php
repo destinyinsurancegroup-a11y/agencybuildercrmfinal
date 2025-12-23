@@ -27,42 +27,42 @@
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Leads Worked</label>
                             <input type="number" class="form-control" name="leads_worked" min="0" step="1"
-                                   inputmode="numeric"
+                                   placeholder="" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Calls</label>
                             <input type="number" class="form-control" name="calls" min="0" step="1"
-                                   inputmode="numeric"
+                                   placeholder="" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Stops</label>
                             <input type="number" class="form-control" name="stops" min="0" step="1"
-                                   inputmode="numeric"
+                                   placeholder="" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Presentations</label>
                             <input type="number" class="form-control" name="presentations" min="0" step="1"
-                                   inputmode="numeric"
+                                   placeholder="" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Apps Written</label>
                             <input type="number" class="form-control" name="apps_written" min="0" step="1"
-                                   inputmode="numeric"
+                                   placeholder="" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Premium Collected ($)</label>
                             <input id="premiumInput" type="number" class="form-control" name="premium_collected"
-                                   min="0" step="0.01" inputmode="decimal"
+                                   min="0" step="0.01" placeholder="" inputmode="decimal"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
@@ -81,11 +81,11 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- ✅ IMPORTANT: NO inline onclick here (prevents double-submit from competing handlers) --}}
                 <button
                     class="btn"
                     type="button"
                     id="saveActivityBtn"
+                    onclick="window.ABC_activitySaveClick(event)"
                     style="background:#c9a227; color:#111827; font-weight:900; border-radius:12px;"
                 >
                     Save Activity
@@ -129,14 +129,6 @@
         errEl.innerText = "";
     }
 
-    function setSaving(isSaving) {
-        if (!saveBtn) return;
-        saveBtn.disabled = !!isSaving;
-        saveBtn.innerText = isSaving ? "Saving..." : "Save Activity";
-        saveBtn.style.opacity = isSaving ? "0.85" : "1";
-        saveBtn.style.cursor = isSaving ? "not-allowed" : "pointer";
-    }
-
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
         const ap = prem * 12;
@@ -156,8 +148,24 @@
         });
     }
 
-    // ✅ Single save function (and we also expose it globally in case something calls it)
-    async function doSave(e) {
+    /**
+     * ✅ MOST IMPORTANT CHANGE:
+     * If the DASHBOARD already defined window.ABC_activitySaveClick (the one that refreshes instantly),
+     * DO NOT overwrite it here.
+     *
+     * Overwriting it is exactly what breaks "instant update".
+     */
+    if (typeof window.ABC_activitySaveClick === "function") {
+        return;
+    }
+
+    /**
+     * Fallback save handler (only used if popup is rendered on a page WITHOUT the dashboard handler)
+     * - Saves once
+     * - Uses server month_totals (never adds client-side)
+     * - Applies goal card + production cards instantly
+     */
+    window.ABC_activitySaveClick = async function (e) {
         if (e) e.preventDefault();
         if (!form) return;
 
@@ -165,7 +173,12 @@
         window.__ABC_ACTIVITY_SAVING = true;
 
         clearError();
-        setSaving(true);
+
+        const originalText = saveBtn ? saveBtn.innerText : "";
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerText = "Saving...";
+        }
 
         try {
             const url = form.getAttribute("action");
@@ -179,11 +192,16 @@
             const prem = fd.get("premium_collected");
             if (prem === null || prem === "") fd.set("premium_collected", "0");
 
+            // CSRF (Laravel)
+            const tokenInput = form.querySelector('input[name="_token"]');
+            const csrf = tokenInput ? tokenInput.value : null;
+
             const res = await fetch(url, {
                 method: "POST",
                 headers: {
                     "X-Requested-With": "XMLHttpRequest",
                     "Accept": "application/json",
+                    ...(csrf ? { "X-CSRF-TOKEN": csrf } : {}),
                 },
                 body: fd,
                 cache: "no-store",
@@ -205,30 +223,15 @@
 
             const data = await res.json().catch(() => ({}));
 
-            // ✅ Use server totals (prevents ANY doubling)
-            const monthTotals = data && data.month_totals ? data.month_totals : null;
-
-            // ✅ INSTANT UI UPDATE (goal + production) using the known-good totals
-            if (monthTotals) {
-                if (typeof window.applyGoalCardFromTotals === "function") {
-                    window.applyGoalCardFromTotals(
-                        Number(monthTotals.premium_collected || 0),
-                        Number(monthTotals.ap || 0)
-                    );
-                } else if (typeof window.refreshGoalCard === "function") {
-                    // fallback if apply function isn't present
-                    window.refreshGoalCard(true);
+            // ✅ Use month_totals from server (or fetch once)
+            let monthTotals = data && data.month_totals ? data.month_totals : null;
+            if (!monthTotals) {
+                try {
+                    const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
+                    monthTotals = await r2.json();
+                } catch (_) {
+                    monthTotals = null;
                 }
-            } else if (typeof window.refreshGoalCard === "function") {
-                // fallback
-                window.refreshGoalCard(true);
-            }
-
-            if (typeof window.refreshProductionCard === "function") {
-                window.refreshProductionCard(true);
-            }
-            if (typeof window.refreshProductionBreakdownModal === "function") {
-                window.refreshProductionBreakdownModal(true);
             }
 
             // Close modal
@@ -237,20 +240,25 @@
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide();
             }
 
+            // ✅ Instant UI refresh
+            if (window.refreshProductionCard) window.refreshProductionCard(true);
+            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
+
+            if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
+                window.applyGoalCardFromTotals(monthTotals.premium_collected || 0, monthTotals.ap || 0);
+            } else if (window.refreshGoalCard) {
+                window.refreshGoalCard(true);
+            }
+
         } catch (err) {
             showError(err && err.message ? err.message : "Save failed.");
         } finally {
             window.__ABC_ACTIVITY_SAVING = false;
-            setSaving(false);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerText = originalText || "Save Activity";
+            }
         }
-    }
-
-    // Expose for compatibility
-    window.ABC_activitySaveClick = doSave;
-
-    // ✅ Attach exactly ONE click listener
-    if (saveBtn) {
-        saveBtn.addEventListener("click", doSave);
-    }
+    };
 })();
 </script>
