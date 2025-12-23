@@ -81,11 +81,11 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
+                {{-- ✅ IMPORTANT: NO inline onclick here (prevents double-submit from competing handlers) --}}
                 <button
                     class="btn"
                     type="button"
                     id="saveActivityBtn"
-                    onclick="window.ABC_activitySaveClick(event)"
                     style="background:#c9a227; color:#111827; font-weight:900; border-radius:12px;"
                 >
                     Save Activity
@@ -156,42 +156,11 @@
         });
     }
 
-    async function fetchMonthTotalsOnce() {
-        const r = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
-        return await r.json();
-    }
-
-    function closeModal() {
-        const modalEl = document.getElementById("activityModal");
-        if (modalEl && typeof bootstrap !== "undefined") {
-            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        }
-    }
-
-    function applyInstantUI(monthTotals) {
-        // ✅ Update goal card instantly (no doubling: we use server totals)
-        if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-            window.applyGoalCardFromTotals(
-                monthTotals.premium_collected || 0,
-                monthTotals.ap || 0
-            );
-        }
-
-        // ✅ Update production cards instantly
-        if (typeof window.refreshProductionCard === "function") {
-            window.refreshProductionCard(true);
-        }
-        if (typeof window.refreshProductionBreakdownModal === "function") {
-            window.refreshProductionBreakdownModal(true);
-        }
-    }
-
-    // ✅ SINGLE SOURCE OF TRUTH SAVE HANDLER
-    window.ABC_activitySaveClick = async function (e) {
+    // ✅ Single save function (and we also expose it globally in case something calls it)
+    async function doSave(e) {
         if (e) e.preventDefault();
         if (!form) return;
 
-        // hard guard against double-fire
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
@@ -207,12 +176,8 @@
                 const v = fd.get(name);
                 if (v === null || v === "") fd.set(name, "0");
             });
-
             const prem = fd.get("premium_collected");
             if (prem === null || prem === "") fd.set("premium_collected", "0");
-
-            // IMPORTANT: do NOT send "ap" from the client (server computes it)
-            fd.delete("ap");
 
             const res = await fetch(url, {
                 method: "POST",
@@ -240,19 +205,37 @@
 
             const data = await res.json().catch(() => ({}));
 
-            // ✅ Use server month_totals if present; otherwise fetch once
-            let monthTotals = (data && data.month_totals) ? data.month_totals : null;
-            if (!monthTotals) {
-                try {
-                    monthTotals = await fetchMonthTotalsOnce();
-                } catch (_) {
-                    monthTotals = null;
+            // ✅ Use server totals (prevents ANY doubling)
+            const monthTotals = data && data.month_totals ? data.month_totals : null;
+
+            // ✅ INSTANT UI UPDATE (goal + production) using the known-good totals
+            if (monthTotals) {
+                if (typeof window.applyGoalCardFromTotals === "function") {
+                    window.applyGoalCardFromTotals(
+                        Number(monthTotals.premium_collected || 0),
+                        Number(monthTotals.ap || 0)
+                    );
+                } else if (typeof window.refreshGoalCard === "function") {
+                    // fallback if apply function isn't present
+                    window.refreshGoalCard(true);
                 }
+            } else if (typeof window.refreshGoalCard === "function") {
+                // fallback
+                window.refreshGoalCard(true);
             }
 
-            // ✅ Close modal and instantly update UI
-            closeModal();
-            if (monthTotals) applyInstantUI(monthTotals);
+            if (typeof window.refreshProductionCard === "function") {
+                window.refreshProductionCard(true);
+            }
+            if (typeof window.refreshProductionBreakdownModal === "function") {
+                window.refreshProductionBreakdownModal(true);
+            }
+
+            // Close modal
+            const modalEl = document.getElementById("activityModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            }
 
         } catch (err) {
             showError(err && err.message ? err.message : "Save failed.");
@@ -260,6 +243,14 @@
             window.__ABC_ACTIVITY_SAVING = false;
             setSaving(false);
         }
-    };
+    }
+
+    // Expose for compatibility
+    window.ABC_activitySaveClick = doSave;
+
+    // ✅ Attach exactly ONE click listener
+    if (saveBtn) {
+        saveBtn.addEventListener("click", doSave);
+    }
 })();
 </script>
