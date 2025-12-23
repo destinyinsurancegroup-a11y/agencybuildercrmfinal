@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\Activity;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 
 class ActivityController extends Controller
 {
@@ -29,24 +28,25 @@ class ActivityController extends Controller
     /**
      * Store a new activity entry.
      *
-     * FIX:
-     * - AP must ALWAYS be calculated as premium_collected * 12 (server-side).
-     * - Prevent double-inserts caused by double POSTs using a short Redis lock.
-     * - Return month_totals so the dashboard goal card updates instantly.
+     * FIXES:
+     * - AP is ALWAYS computed server-side: premium_collected * 12
+     * - Prevent double-inserts WITHOUT migrations by blocking identical submits
+     *   that occur within a short window (e.g., accidental double POST).
+     * - Return month_totals so dashboard can update instantly.
      */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'leads_worked'      => 'nullable|integer|min:0',
-            'calls'             => 'nullable|integer|min:0',
-            'stops'             => 'nullable|integer|min:0',
-            'presentations'     => 'nullable|integer|min:0',
-            'apps_written'      => 'nullable|integer|min:0',
-            'premium_collected' => 'nullable|numeric|min:0',
-            'activity_date'     => 'nullable|date',
+            'leads_worked'       => 'nullable|integer|min:0',
+            'calls'              => 'nullable|integer|min:0',
+            'stops'              => 'nullable|integer|min:0',
+            'presentations'      => 'nullable|integer|min:0',
+            'apps_written'       => 'nullable|integer|min:0',
+            'premium_collected'  => 'nullable|numeric|min:0',
+            'activity_date'      => 'nullable|date',
         ]);
 
-        // Default empty to 0
+        // Normalize empty to 0
         $data['leads_worked']      = (int)($data['leads_worked'] ?? 0);
         $data['calls']             = (int)($data['calls'] ?? 0);
         $data['stops']             = (int)($data['stops'] ?? 0);
@@ -62,35 +62,26 @@ class ActivityController extends Controller
         $userId = Auth::id() ?? 1;
         $agencyId = $user->agency_id ?? 1;
 
-        // ✅ DEDUPE LOCK: if the browser posts twice, only the first creates a row
-        // Fingerprint is based on the payload (so identical submits collide)
-        $fingerprint = sha1(json_encode([
-            'user_id' => $userId,
-            'agency_id' => $agencyId,
-            'leads_worked' => $data['leads_worked'],
-            'calls' => $data['calls'],
-            'stops' => $data['stops'],
-            'presentations' => $data['presentations'],
-            'apps_written' => $data['apps_written'],
-            'premium_collected' => number_format($data['premium_collected'], 2, '.', ''),
-            'activity_date' => $data['activity_date'] ?? null,
-        ]));
+        /**
+         * ✅ IMPORTANT:
+         * This is the "no-migration" dedupe fix.
+         * If the same exact activity payload arrives twice within 3 seconds,
+         * do NOT create a 2nd row.
+         */
+        $recentWindowStart = now()->subSeconds(3);
 
-        $lockKey = "activity_store_lock:{$userId}:{$agencyId}:{$fingerprint}";
-        $lock = Cache::lock($lockKey, 5); // lock lives up to 5 seconds
+        $duplicate = Activity::where('user_id', $userId)
+            ->where('agency_id', $agencyId)
+            ->where('created_at', '>=', $recentWindowStart)
+            ->where('leads_worked', $data['leads_worked'])
+            ->where('calls', $data['calls'])
+            ->where('stops', $data['stops'])
+            ->where('presentations', $data['presentations'])
+            ->where('apps_written', $data['apps_written'])
+            ->where('premium_collected', $data['premium_collected'])
+            ->exists();
 
-        if (!$lock->get()) {
-            // Another identical request is in-flight (or just ran).
-            // Return current month totals (prevents UI from doubling).
-            $monthTotals = $this->computeTotalsForUserRange($userId, 'month');
-            return response()->json([
-                'success' => true,
-                'deduped' => true,
-                'month_totals' => $monthTotals,
-            ]);
-        }
-
-        try {
+        if (!$duplicate) {
             Activity::create([
                 'leads_worked'      => $data['leads_worked'],
                 'calls'             => $data['calls'],
@@ -102,21 +93,20 @@ class ActivityController extends Controller
                 'user_id'           => $userId,
                 'agency_id'         => $agencyId,
             ]);
-
-            $monthTotals = $this->computeTotalsForUserRange($userId, 'month');
-
-            return response()->json([
-                'success' => true,
-                'deduped' => false,
-                'saved' => [
-                    'premium_collected' => (float)$data['premium_collected'],
-                    'ap' => (float)$data['ap'],
-                ],
-                'month_totals' => $monthTotals,
-            ]);
-        } finally {
-            optional($lock)->release();
         }
+
+        // ✅ Return month totals for instant UI update (the dashboard uses this)
+        $monthTotals = $this->computeTotalsForUserRange($userId, 'month');
+
+        return response()->json([
+            'success' => true,
+            'deduped' => $duplicate,
+            'saved' => [
+                'premium_collected' => (float)$data['premium_collected'],
+                'ap' => (float)$data['ap'],
+            ],
+            'month_totals' => $monthTotals,
+        ]);
     }
 
     /**
