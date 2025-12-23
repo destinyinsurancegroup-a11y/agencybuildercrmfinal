@@ -150,14 +150,12 @@
     async function doSave(e) {
         if (e) {
             e.preventDefault();
-            // ✅ This is the key: prevents other click handlers from also running
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
         }
 
         if (!form) return;
 
-        // ✅ Global lock so it can’t double-submit even if called twice
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
@@ -207,10 +205,10 @@
 
             const data = await res.json().catch(() => ({}));
 
-            // ✅ Use server month_totals (prevents client-side doubling)
+            // ✅ Use server month_totals for correct totals (no doubling)
             let monthTotals = data && data.month_totals ? data.month_totals : null;
 
-            // Fallback if server didn’t include month_totals
+            // Fallback if missing
             if (!monthTotals) {
                 try {
                     const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
@@ -223,7 +221,20 @@
             const eventDetail = Object.assign({}, data || {});
             if (monthTotals) eventDetail.month_totals = monthTotals;
 
-            // Dispatch single event for dashboard to refresh instantly
+            // ✅ INSTANT DASHBOARD UPDATE (this is what you lost)
+            // Update goal card immediately using monthTotals
+            if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
+                window.applyGoalCardFromTotals(
+                    monthTotals.premium_collected || 0,
+                    monthTotals.ap || 0
+                );
+            }
+
+            // Refresh production cards instantly too
+            if (window.refreshProductionCard) window.refreshProductionCard(true);
+            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
+
+            // Also dispatch event (in case dashboard is listening)
             document.dispatchEvent(new CustomEvent("activitySaved", { detail: eventDetail }));
 
             // Close modal
@@ -242,12 +253,12 @@
         }
     }
 
-    // ✅ Attach ONE click handler (no inline onclick)
+    // Attach ONE click handler (no inline onclick)
     if (saveBtn) {
-        saveBtn.addEventListener("click", doSave, true); // capture=true helps block other listeners
+        saveBtn.addEventListener("click", doSave, true);
     }
 
-    // Optional: keep global function for compatibility, but point it to the SAME saver
+    // Keep global function for compatibility
     window.ABC_activitySaveClick = doSave;
 })();
 </script>
