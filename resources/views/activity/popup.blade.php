@@ -85,7 +85,6 @@
                     class="btn"
                     type="button"
                     id="saveActivityBtn"
-                    onclick="window.ABC_activitySaveClick(event)"
                     style="background:#c9a227; color:#111827; font-weight:900; border-radius:12px;"
                 >
                     Save Activity
@@ -108,6 +107,26 @@
     const form = document.getElementById("activityForm");
     const premiumInput = document.getElementById("premiumInput");
     const apInput = document.getElementById("apInput");
+    const saveBtn = document.getElementById("saveActivityBtn");
+    const errEl = document.getElementById("activitySaveError");
+
+    function showError(msg) {
+        if (!errEl) return;
+        errEl.style.display = "block";
+        errEl.style.background = "rgba(239,68,68,.12)";
+        errEl.style.border = "1px solid rgba(239,68,68,.35)";
+        errEl.style.padding = "10px 12px";
+        errEl.style.borderRadius = "12px";
+        errEl.style.color = "#fecaca";
+        errEl.style.fontWeight = "800";
+        errEl.innerText = msg || "Save failed.";
+    }
+
+    function clearError() {
+        if (!errEl) return;
+        errEl.style.display = "none";
+        errEl.innerText = "";
+    }
 
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
@@ -118,7 +137,7 @@
     if (premiumInput) premiumInput.addEventListener("input", updateAP);
     updateAP();
 
-    // Stop Enter from submitting form in modal (prevents accidental submit/double behavior)
+    // Stop Enter from submitting form in modal
     if (form) {
         form.addEventListener("keydown", function (e) {
             if (e.key === "Enter") {
@@ -128,11 +147,107 @@
         });
     }
 
-    /**
-     * IMPORTANT:
-     * We intentionally DO NOT define window.ABC_activitySaveClick here.
-     * The dashboard (dashboard.blade.php) owns the single save handler (Option A),
-     * which prevents double POSTs and stops premium from doubling.
-     */
+    async function doSave(e) {
+        if (e) {
+            e.preventDefault();
+            // ✅ This is the key: prevents other click handlers from also running
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        }
+
+        if (!form) return;
+
+        // ✅ Global lock so it can’t double-submit even if called twice
+        if (window.__ABC_ACTIVITY_SAVING) return;
+        window.__ABC_ACTIVITY_SAVING = true;
+
+        clearError();
+
+        const originalText = saveBtn ? saveBtn.innerText : "";
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerText = "Saving...";
+        }
+
+        try {
+            const url = form.getAttribute("action");
+            const fd = new FormData(form);
+
+            // Normalize blanks to zero so server gets numbers
+            ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
+                const v = fd.get(name);
+                if (v === null || v === "") fd.set(name, "0");
+            });
+            const prem = fd.get("premium_collected");
+            if (prem === null || prem === "") fd.set("premium_collected", "0");
+
+            const res = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json",
+                },
+                body: fd,
+                cache: "no-store",
+                credentials: "same-origin",
+            });
+
+            if (res.status === 422) {
+                const j = await res.json().catch(() => ({}));
+                const first = j && j.errors ? Object.values(j.errors)[0]?.[0] : null;
+                showError(first || "Validation failed.");
+                return;
+            }
+
+            if (!res.ok) {
+                const t = await res.text().catch(() => "");
+                showError("Save failed. " + (t ? t.slice(0, 160) : ""));
+                return;
+            }
+
+            const data = await res.json().catch(() => ({}));
+
+            // ✅ Use server month_totals (prevents client-side doubling)
+            let monthTotals = data && data.month_totals ? data.month_totals : null;
+
+            // Fallback if server didn’t include month_totals
+            if (!monthTotals) {
+                try {
+                    const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
+                    monthTotals = await r2.json();
+                } catch (_) {
+                    monthTotals = null;
+                }
+            }
+
+            const eventDetail = Object.assign({}, data || {});
+            if (monthTotals) eventDetail.month_totals = monthTotals;
+
+            // Dispatch single event for dashboard to refresh instantly
+            document.dispatchEvent(new CustomEvent("activitySaved", { detail: eventDetail }));
+
+            // Close modal
+            const modalEl = document.getElementById("activityModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            }
+        } catch (err) {
+            showError(err && err.message ? err.message : "Save failed.");
+        } finally {
+            window.__ABC_ACTIVITY_SAVING = false;
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerText = originalText || "Save Activity";
+            }
+        }
+    }
+
+    // ✅ Attach ONE click handler (no inline onclick)
+    if (saveBtn) {
+        saveBtn.addEventListener("click", doSave, true); // capture=true helps block other listeners
+    }
+
+    // Optional: keep global function for compatibility, but point it to the SAME saver
+    window.ABC_activitySaveClick = doSave;
 })();
 </script>
