@@ -68,7 +68,7 @@
 
                         <div class="col-12">
                             <label class="form-label" style="font-weight:800;">AP ($)</label>
-                            <input id="apInput" type="text" class="form-control" name="ap" readonly value=""
+                            <input id="apInput" type="number" class="form-control" name="ap" readonly value="0.00"
                                    style="background:#0b0f1a; color:#a7f3d0; border-color: rgba(201,162,39,.35); font-weight:900;">
                             <div class="form-text" style="color:#9ca3af;">
                                 AP is calculated automatically as <strong>Premium × 12</strong>.
@@ -100,142 +100,142 @@
 </div>
 
 <script>
-(function(){
-    // Prevent duplicate bindings if this modal HTML is injected again
-    if (window.__ABC_ACTIVITY_MODAL_WIRED) return;
-    window.__ABC_ACTIVITY_MODAL_WIRED = true;
+(function () {
+    // Prevent duplicate wiring when popup HTML is injected multiple times
+    if (window.__ABC_ACTIVITY_POPUP_WIRED) return;
+    window.__ABC_ACTIVITY_POPUP_WIRED = true;
 
-    const form = document.getElementById('activityForm');
-    const premiumEl = document.getElementById('premiumInput');
-    const apEl = document.getElementById('apInput');
-    const errEl = document.getElementById('activitySaveError');
-    const saveBtn = document.getElementById('saveActivityBtn');
+    const form = document.getElementById("activityForm");
+    const premiumInput = document.getElementById("premiumInput");
+    const apInput = document.getElementById("apInput");
+    const saveBtn = document.getElementById("saveActivityBtn");
+    const errEl = document.getElementById("activitySaveError");
 
-    function money2(n){
-        const v = Number(n || 0);
-        return v.toFixed(2);
-    }
-
-    function showError(msg){
+    function showError(msg) {
         if (!errEl) return;
-        errEl.style.display = 'block';
-        errEl.style.background = 'rgba(239,68,68,.12)';
-        errEl.style.border = '1px solid rgba(239,68,68,.35)';
-        errEl.style.padding = '10px 12px';
-        errEl.style.borderRadius = '12px';
-        errEl.style.color = '#fecaca';
-        errEl.style.fontWeight = '800';
-        errEl.innerText = msg || 'Save failed.';
+        errEl.style.display = "block";
+        errEl.style.background = "rgba(239,68,68,.12)";
+        errEl.style.border = "1px solid rgba(239,68,68,.35)";
+        errEl.style.padding = "10px 12px";
+        errEl.style.borderRadius = "12px";
+        errEl.style.color = "#fecaca";
+        errEl.style.fontWeight = "800";
+        errEl.innerText = msg || "Save failed.";
     }
 
-    function clearError(){
+    function clearError() {
         if (!errEl) return;
-        errEl.style.display = 'none';
-        errEl.innerText = '';
+        errEl.style.display = "none";
+        errEl.innerText = "";
     }
 
-    // ✅ Live AP preview
-    function updateApPreview(){
-        const prem = Number(premiumEl && premiumEl.value ? premiumEl.value : 0);
+    function updateAP() {
+        const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
         const ap = prem * 12;
-        if (apEl) apEl.value = money2(ap);
+        if (apInput) apInput.value = ap.toFixed(2);
     }
-    if (premiumEl) premiumEl.addEventListener('input', updateApPreview);
-    updateApPreview();
 
-    // ✅ Stop Enter from causing any accidental submission
+    if (premiumInput) premiumInput.addEventListener("input", updateAP);
+    updateAP();
+
+    // Stop Enter from submitting form in modal
     if (form) {
-        form.addEventListener('keydown', function(e){
-            if (e.key === 'Enter') {
+        form.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
                 e.preventDefault();
                 return false;
             }
         });
     }
 
-    // ✅ THE FIX: one-click = one POST. Locked + button disabled.
-    window.ABC_activitySaveClick = async function(e){
+    window.ABC_activitySaveClick = async function (e) {
         if (e) e.preventDefault();
+        if (!form) return;
 
-        // HARD LOCK: prevents double POST (this is what was doubling your premium)
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
         clearError();
 
+        const originalText = saveBtn ? saveBtn.innerText : "";
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerText = "Saving...";
+        }
+
         try {
-            if (!form) throw new Error('Activity form not found.');
-
-            // Disable button immediately to prevent double click
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.innerText = 'Saving...';
-                saveBtn.style.opacity = '0.8';
-                saveBtn.style.cursor = 'not-allowed';
-            }
-
-            const url = form.getAttribute('action');
+            const url = form.getAttribute("action");
             const fd = new FormData(form);
 
-            // Normalize blank numbers to 0 so backend is consistent
-            const numericFields = ['leads_worked','calls','stops','presentations','apps_written'];
-            numericFields.forEach(name => {
+            // Normalize blanks to zero so server gets numbers
+            ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
                 const v = fd.get(name);
-                if (v === null || v === '') fd.set(name, '0');
+                if (v === null || v === "") fd.set(name, "0");
             });
-            const prem = fd.get('premium_collected');
-            if (prem === null || prem === '') fd.set('premium_collected', '0');
+            const prem = fd.get("premium_collected");
+            if (prem === null || prem === "") fd.set("premium_collected", "0");
 
             const res = await fetch(url, {
-                method: 'POST',
+                method: "POST",
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json",
                 },
                 body: fd,
-                cache: 'no-store',
-                credentials: 'same-origin'
+                cache: "no-store",
+                credentials: "same-origin",
             });
 
-            // Laravel validation errors
             if (res.status === 422) {
                 const j = await res.json().catch(() => ({}));
                 const first = j && j.errors ? Object.values(j.errors)[0]?.[0] : null;
-                showError(first || 'Validation failed.');
+                showError(first || "Validation failed.");
                 return;
             }
 
             if (!res.ok) {
-                const t = await res.text().catch(() => '');
-                showError('Save failed. ' + (t ? t.slice(0, 120) : ''));
+                const t = await res.text().catch(() => "");
+                showError("Save failed. " + (t ? t.slice(0, 160) : ""));
                 return;
             }
 
             const data = await res.json().catch(() => ({}));
 
-            // ✅ Notify dashboard to refresh instantly
-            // (your dashboard listener / dashboardAfterActivitySave will handle totals + goal card)
-            try {
-                const ev = new CustomEvent('activitySaved', { detail: data || {} });
-                document.dispatchEvent(ev);
-            } catch (_) {}
+            /**
+             * ✅ CRITICAL FIX:
+             * Do NOT "add" the premium again on the client.
+             * Use month_totals from the server response.
+             * If month_totals is missing, fetch /activity/totals/month ONCE.
+             */
+            let monthTotals = data && data.month_totals ? data.month_totals : null;
 
-            // Close modal
-            const modalEl = document.getElementById('activityModal');
-            if (modalEl && typeof bootstrap !== 'undefined') {
-                const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
-                inst.hide();
+            if (!monthTotals) {
+                try {
+                    const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
+                    monthTotals = await r2.json();
+                } catch (_) {
+                    monthTotals = null;
+                }
             }
 
+            const eventDetail = Object.assign({}, data || {});
+            if (monthTotals) eventDetail.month_totals = monthTotals;
+
+            // Dispatch single event
+            document.dispatchEvent(new CustomEvent("activitySaved", { detail: eventDetail }));
+
+            // Close modal
+            const modalEl = document.getElementById("activityModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            }
         } catch (err) {
-            showError(err && err.message ? err.message : 'Save failed.');
+            showError(err && err.message ? err.message : "Save failed.");
         } finally {
             window.__ABC_ACTIVITY_SAVING = false;
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.innerText = 'Save Activity';
-                saveBtn.style.opacity = '1';
-                saveBtn.style.cursor = 'pointer';
+                saveBtn.innerText = originalText || "Save Activity";
             }
         }
     };
