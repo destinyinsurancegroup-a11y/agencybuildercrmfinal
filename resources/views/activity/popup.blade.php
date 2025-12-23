@@ -27,42 +27,42 @@
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Leads Worked</label>
                             <input type="number" class="form-control" name="leads_worked" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                                   inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Calls</label>
                             <input type="number" class="form-control" name="calls" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                                   inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Stops</label>
                             <input type="number" class="form-control" name="stops" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                                   inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Presentations</label>
                             <input type="number" class="form-control" name="presentations" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                                   inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Apps Written</label>
                             <input type="number" class="form-control" name="apps_written" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                                   inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Premium Collected ($)</label>
                             <input id="premiumInput" type="number" class="form-control" name="premium_collected"
-                                   min="0" step="0.01" placeholder="" inputmode="decimal"
+                                   min="0" step="0.01" inputmode="decimal"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
@@ -129,20 +129,12 @@
         errEl.innerText = "";
     }
 
-    function setSaving(isSaving) {
-        if (!saveBtn) return;
-        saveBtn.disabled = !!isSaving;
-        saveBtn.innerText = isSaving ? "Saving..." : "Save Activity";
-        saveBtn.style.opacity = isSaving ? "0.85" : "1";
-        saveBtn.style.cursor = isSaving ? "not-allowed" : "pointer";
-    }
-
-    // AP = Premium × 12 (UI only; server also computes AP)
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
         const ap = prem * 12;
         if (apInput) apInput.value = ap.toFixed(2);
     }
+
     if (premiumInput) premiumInput.addEventListener("input", updateAP);
     updateAP();
 
@@ -156,31 +148,32 @@
         });
     }
 
-    /**
-     * ✅ MOST IMPORTANT FIX (prevents "doubling"):
-     * The Dashboard page already defines window.ABC_activitySaveClick (Option A).
-     * If we overwrite it here, you can end up with TWO different save systems and TWO POSTs.
-     *
-     * So:
-     * - If a save handler already exists, DO NOT replace it.
-     * - Only provide a fallback handler for pages that do NOT have one.
-     */
-    if (typeof window.ABC_activitySaveClick === "function") {
-        return; // keep the dashboard's handler; prevents double POST and keeps instant update
+    // ✅ CRITICAL: kill the inline onclick + prevent any other click handlers from firing
+    if (saveBtn) {
+        saveBtn.onclick = null; // removes the inline handler at runtime
     }
 
-    // ---------------------------------------------------------
-    // Fallback save handler (only used if dashboard doesn't provide one)
-    // ---------------------------------------------------------
-    window.ABC_activitySaveClick = async function (e) {
-        if (e) e.preventDefault();
+    async function doSave(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // this prevents any other click listeners from also running
+            if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        }
+
         if (!form) return;
 
+        // ✅ single-flight guard so one click = one POST
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
         clearError();
-        setSaving(true);
+
+        const originalText = saveBtn ? saveBtn.innerText : "";
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerText = "Saving...";
+        }
 
         try {
             const url = form.getAttribute("action");
@@ -220,10 +213,10 @@
 
             const data = await res.json().catch(() => ({}));
 
-            // Prefer server month_totals (prevents client-side double math)
+            // ✅ Use server-provided month_totals (fast + accurate + prevents doubling)
             let monthTotals = data && data.month_totals ? data.month_totals : null;
 
-            // If not provided, fetch once
+            // Fallback ONLY if server didn't send totals
             if (!monthTotals) {
                 try {
                     const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
@@ -236,7 +229,7 @@
             const eventDetail = Object.assign({}, data || {});
             if (monthTotals) eventDetail.month_totals = monthTotals;
 
-            // Tell dashboard to refresh instantly (if it's listening)
+            // ✅ Dispatch event so dashboard updates instantly
             document.dispatchEvent(new CustomEvent("activitySaved", { detail: eventDetail }));
 
             // Close modal
@@ -248,8 +241,20 @@
             showError(err && err.message ? err.message : "Save failed.");
         } finally {
             window.__ABC_ACTIVITY_SAVING = false;
-            setSaving(false);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerText = originalText || "Save Activity";
+            }
         }
-    };
+    }
+
+    // ✅ Attach one real click handler
+    if (saveBtn) {
+        saveBtn.addEventListener("click", doSave, true); // capture phase helps beat other listeners
+    }
+
+    // ✅ Keep global name for compatibility (if something still calls it)
+    window.ABC_activitySaveClick = doSave;
+
 })();
 </script>
