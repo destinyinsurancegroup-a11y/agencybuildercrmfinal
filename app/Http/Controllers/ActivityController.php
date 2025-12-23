@@ -6,14 +6,21 @@ use Illuminate\Http\Request;
 use App\Models\Activity;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ActivityController extends Controller
 {
+    /**
+     * Show the full Activity page (normal web page).
+     */
     public function index()
     {
         return view('activity.index');
     }
 
+    /**
+     * Load the Activity POPUP modal content.
+     */
     public function popup()
     {
         return view('activity.popup');
@@ -22,32 +29,32 @@ class ActivityController extends Controller
     /**
      * Store a new activity entry.
      *
-     * HARD FIX:
-     * - AP is always computed server-side as premium_collected * 12
-     * - Server-side duplicate guard: prevents "double insert" if request fires twice
-     * - Returns month_totals so the dashboard can update instantly without waiting
+     * FIX:
+     * - AP must ALWAYS be calculated as premium_collected * 12 (server-side).
+     * - Prevent double-inserts caused by double POSTs using a short Redis lock.
+     * - Return month_totals so the dashboard goal card updates instantly.
      */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'activity_date'     => 'nullable|date', // optional (UI provides it)
             'leads_worked'      => 'nullable|integer|min:0',
             'calls'             => 'nullable|integer|min:0',
             'stops'             => 'nullable|integer|min:0',
             'presentations'     => 'nullable|integer|min:0',
             'apps_written'      => 'nullable|integer|min:0',
             'premium_collected' => 'nullable|numeric|min:0',
+            'activity_date'     => 'nullable|date',
         ]);
 
-        // Normalize empties
-        $data['leads_worked']      = (int) ($data['leads_worked'] ?? 0);
-        $data['calls']             = (int) ($data['calls'] ?? 0);
-        $data['stops']             = (int) ($data['stops'] ?? 0);
-        $data['presentations']     = (int) ($data['presentations'] ?? 0);
-        $data['apps_written']      = (int) ($data['apps_written'] ?? 0);
-        $data['premium_collected'] = (float) ($data['premium_collected'] ?? 0);
+        // Default empty to 0
+        $data['leads_worked']      = (int)($data['leads_worked'] ?? 0);
+        $data['calls']             = (int)($data['calls'] ?? 0);
+        $data['stops']             = (int)($data['stops'] ?? 0);
+        $data['presentations']     = (int)($data['presentations'] ?? 0);
+        $data['apps_written']      = (int)($data['apps_written'] ?? 0);
+        $data['premium_collected'] = (float)($data['premium_collected'] ?? 0);
 
-        // Always compute AP (never trust client)
+        // ✅ ALWAYS compute AP from premium (Premium * 12)
         $data['ap'] = round($data['premium_collected'] * 12, 2);
 
         // Auth + tenant
@@ -55,76 +62,83 @@ class ActivityController extends Controller
         $userId = Auth::id() ?? 1;
         $agencyId = $user->agency_id ?? 1;
 
-        $data['user_id'] = $userId;
-        $data['agency_id'] = $agencyId;
+        // ✅ DEDUPE LOCK: if the browser posts twice, only the first creates a row
+        // Fingerprint is based on the payload (so identical submits collide)
+        $fingerprint = sha1(json_encode([
+            'user_id' => $userId,
+            'agency_id' => $agencyId,
+            'leads_worked' => $data['leads_worked'],
+            'calls' => $data['calls'],
+            'stops' => $data['stops'],
+            'presentations' => $data['presentations'],
+            'apps_written' => $data['apps_written'],
+            'premium_collected' => number_format($data['premium_collected'], 2, '.', ''),
+            'activity_date' => $data['activity_date'] ?? null,
+        ]));
 
-        /**
-         * ✅ DUPLICATE GUARD (idempotency-like)
-         * If the same payload arrives twice within a short window (ex: double click / duplicate JS),
-         * we return success WITHOUT creating a second row.
-         */
-        $windowSeconds = 5;
-        $since = now()->subSeconds($windowSeconds);
+        $lockKey = "activity_store_lock:{$userId}:{$agencyId}:{$fingerprint}";
+        $lock = Cache::lock($lockKey, 5); // lock lives up to 5 seconds
 
-        $existing = Activity::where('user_id', $userId)
-            ->where('agency_id', $agencyId)
-            ->where('created_at', '>=', $since)
-            ->where('leads_worked', $data['leads_worked'])
-            ->where('calls', $data['calls'])
-            ->where('stops', $data['stops'])
-            ->where('presentations', $data['presentations'])
-            ->where('apps_written', $data['apps_written'])
-            ->where('premium_collected', $data['premium_collected'])
-            ->orderByDesc('id')
-            ->first();
-
-        if ($existing) {
-            // Return month totals so dashboard updates instantly
-            $monthTotals = $this->totalsForUserRange($userId, 'month');
-
+        if (!$lock->get()) {
+            // Another identical request is in-flight (or just ran).
+            // Return current month totals (prevents UI from doubling).
+            $monthTotals = $this->computeTotalsForUserRange($userId, 'month');
             return response()->json([
                 'success' => true,
                 'deduped' => true,
-                'activity_id' => $existing->id,
-                'saved' => [
-                    'premium_collected' => (float) $existing->premium_collected,
-                    'ap' => round(((float) $existing->premium_collected) * 12, 2),
-                ],
                 'month_totals' => $monthTotals,
             ]);
         }
 
-        $created = Activity::create($data);
+        try {
+            Activity::create([
+                'leads_worked'      => $data['leads_worked'],
+                'calls'             => $data['calls'],
+                'stops'             => $data['stops'],
+                'presentations'     => $data['presentations'],
+                'apps_written'      => $data['apps_written'],
+                'premium_collected' => $data['premium_collected'],
+                'ap'                => $data['ap'],
+                'user_id'           => $userId,
+                'agency_id'         => $agencyId,
+            ]);
 
-        // Return month totals so dashboard updates instantly
-        $monthTotals = $this->totalsForUserRange($userId, 'month');
+            $monthTotals = $this->computeTotalsForUserRange($userId, 'month');
 
-        return response()->json([
-            'success' => true,
-            'deduped' => false,
-            'activity_id' => $created->id,
-            'saved' => [
-                'premium_collected' => (float) $data['premium_collected'],
-                'ap' => (float) $data['ap'],
-            ],
-            'month_totals' => $monthTotals,
-        ]);
+            return response()->json([
+                'success' => true,
+                'deduped' => false,
+                'saved' => [
+                    'premium_collected' => (float)$data['premium_collected'],
+                    'ap' => (float)$data['ap'],
+                ],
+                'month_totals' => $monthTotals,
+            ]);
+        } finally {
+            optional($lock)->release();
+        }
     }
 
+    /**
+     * Dashboard production totals.
+     *
+     * FIX:
+     * - AP totals should be SUM(premium_collected) * 12
+     *   so old/wrong stored ap values do NOT pollute totals.
+     */
     public function totals($range)
     {
         $userId = Auth::id() ?? 1;
 
-        return response()->json(
-            $this->totalsForUserRange($userId, $range)
-        );
+        $totals = $this->computeTotalsForUserRange($userId, $range);
+        if (isset($totals['error'])) {
+            return response()->json($totals, 400);
+        }
+
+        return response()->json($totals);
     }
 
-    /**
-     * Shared totals logic so store() can return month_totals instantly.
-     * AP totals are derived from premium (SUM(premium_collected) * 12).
-     */
-    private function totalsForUserRange(int $userId, string $range): array
+    private function computeTotalsForUserRange(int $userId, string $range): array
     {
         $query = Activity::where('user_id', $userId);
         $now = Carbon::now();
@@ -133,18 +147,23 @@ class ActivityController extends Controller
             case 'day':
                 $query->whereBetween('created_at', [$now->copy()->startOfDay(), $now->copy()->endOfDay()]);
                 break;
+
             case 'week':
                 $query->whereBetween('created_at', [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()]);
                 break;
+
             case 'month':
                 $query->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
                 break;
+
             case 'quarter':
                 $query->whereBetween('created_at', [$now->copy()->firstOfQuarter(), $now->copy()->lastOfQuarter()]);
                 break;
+
             case 'year':
                 $query->whereBetween('created_at', [$now->copy()->startOfYear(), $now->copy()->endOfYear()]);
                 break;
+
             default:
                 return ['error' => 'Invalid range'];
         }
@@ -160,13 +179,13 @@ class ActivityController extends Controller
         ")->first();
 
         return [
-            'leads_worked' => (int) $totals->leads_worked,
-            'calls' => (int) $totals->calls,
-            'stops' => (int) $totals->stops,
-            'presentations' => (int) $totals->presentations,
-            'apps_written' => (int) $totals->apps_written,
-            'premium_collected' => (float) $totals->premium_collected,
-            'ap' => (float) $totals->ap,
+            'leads_worked'      => (int)$totals->leads_worked,
+            'calls'             => (int)$totals->calls,
+            'stops'             => (int)$totals->stops,
+            'presentations'     => (int)$totals->presentations,
+            'apps_written'      => (int)$totals->apps_written,
+            'premium_collected' => (float)$totals->premium_collected,
+            'ap'                => (float)$totals->ap,
         ];
     }
 }
