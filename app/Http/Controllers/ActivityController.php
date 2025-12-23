@@ -9,17 +9,11 @@ use Illuminate\Support\Facades\Auth;
 
 class ActivityController extends Controller
 {
-    /**
-     * Show the full Activity page (normal web page).
-     */
     public function index()
     {
         return view('activity.index');
     }
 
-    /**
-     * Load the Activity POPUP modal content.
-     */
     public function popup()
     {
         return view('activity.popup');
@@ -28,18 +22,15 @@ class ActivityController extends Controller
     /**
      * Store a new activity entry.
      *
-     * OPTION A (INSTANT UI):
-     * - Save activity
-     * - Compute fresh totals server-side (month + all ranges)
-     * - Return totals in the SAME response so dashboard updates instantly (no waiting on /activity/totals)
-     *
-     * AP rules:
-     * - AP must ALWAYS be premium_collected * 12 (server-side)
+     * HARD FIX:
+     * - AP is always computed server-side as premium_collected * 12
+     * - Server-side duplicate guard: prevents "double insert" if request fires twice
+     * - Returns month_totals so the dashboard can update instantly without waiting
      */
     public function store(Request $request)
     {
         $data = $request->validate([
-            'activity_date'     => 'nullable|date',
+            'activity_date'     => 'nullable|date', // optional (UI provides it)
             'leads_worked'      => 'nullable|integer|min:0',
             'calls'             => 'nullable|integer|min:0',
             'stops'             => 'nullable|integer|min:0',
@@ -48,136 +39,117 @@ class ActivityController extends Controller
             'premium_collected' => 'nullable|numeric|min:0',
         ]);
 
-        // Default empty to 0
-        $data['leads_worked']      = $data['leads_worked']      ?? 0;
-        $data['calls']             = $data['calls']             ?? 0;
-        $data['stops']             = $data['stops']             ?? 0;
-        $data['presentations']     = $data['presentations']     ?? 0;
-        $data['apps_written']      = $data['apps_written']      ?? 0;
-        $data['premium_collected'] = $data['premium_collected'] ?? 0;
+        // Normalize empties
+        $data['leads_worked']      = (int) ($data['leads_worked'] ?? 0);
+        $data['calls']             = (int) ($data['calls'] ?? 0);
+        $data['stops']             = (int) ($data['stops'] ?? 0);
+        $data['presentations']     = (int) ($data['presentations'] ?? 0);
+        $data['apps_written']      = (int) ($data['apps_written'] ?? 0);
+        $data['premium_collected'] = (float) ($data['premium_collected'] ?? 0);
 
-        // ✅ ALWAYS compute AP from premium (Premium * 12)
-        $data['ap'] = round(((float) $data['premium_collected']) * 12, 2);
+        // Always compute AP (never trust client)
+        $data['ap'] = round($data['premium_collected'] * 12, 2);
 
         // Auth + tenant
         $user = Auth::user();
-        $data['user_id']   = Auth::id() ?? 1;
-        $data['agency_id'] = $user->agency_id ?? 1;
+        $userId = Auth::id() ?? 1;
+        $agencyId = $user->agency_id ?? 1;
 
-        // If user picked a date, set created_at to that date (so totals align with the selected day/week/month)
-        $activityDate = $data['activity_date'] ?? null;
-        unset($data['activity_date']);
+        $data['user_id'] = $userId;
+        $data['agency_id'] = $agencyId;
 
-        $activity = new Activity($data);
+        /**
+         * ✅ DUPLICATE GUARD (idempotency-like)
+         * If the same payload arrives twice within a short window (ex: double click / duplicate JS),
+         * we return success WITHOUT creating a second row.
+         */
+        $windowSeconds = 5;
+        $since = now()->subSeconds($windowSeconds);
 
-        if ($activityDate) {
-            // Use the provided date, keep current time-of-day in app timezone
-            $nowTz = Carbon::now();
-            $dt = Carbon::parse($activityDate, $nowTz->getTimezone())
-                ->setTime($nowTz->hour, $nowTz->minute, $nowTz->second);
+        $existing = Activity::where('user_id', $userId)
+            ->where('agency_id', $agencyId)
+            ->where('created_at', '>=', $since)
+            ->where('leads_worked', $data['leads_worked'])
+            ->where('calls', $data['calls'])
+            ->where('stops', $data['stops'])
+            ->where('presentations', $data['presentations'])
+            ->where('apps_written', $data['apps_written'])
+            ->where('premium_collected', $data['premium_collected'])
+            ->orderByDesc('id')
+            ->first();
 
-            $activity->created_at = $dt;
-            $activity->updated_at = $dt;
+        if ($existing) {
+            // Return month totals so dashboard updates instantly
+            $monthTotals = $this->totalsForUserRange($userId, 'month');
+
+            return response()->json([
+                'success' => true,
+                'deduped' => true,
+                'activity_id' => $existing->id,
+                'saved' => [
+                    'premium_collected' => (float) $existing->premium_collected,
+                    'ap' => round(((float) $existing->premium_collected) * 12, 2),
+                ],
+                'month_totals' => $monthTotals,
+            ]);
         }
 
-        $activity->save();
+        $created = Activity::create($data);
 
-        // ✅ Compute fresh totals RIGHT NOW (this is what makes the dashboard instant)
-        $userId = $data['user_id'];
-
-        $ranges = ['day', 'week', 'month', 'quarter', 'year'];
-        $totalsByRange = [];
-        foreach ($ranges as $range) {
-            $totalsByRange[$range] = $this->computeTotalsForRange($userId, $range);
-        }
+        // Return month totals so dashboard updates instantly
+        $monthTotals = $this->totalsForUserRange($userId, 'month');
 
         return response()->json([
             'success' => true,
+            'deduped' => false,
+            'activity_id' => $created->id,
             'saved' => [
-                'leads_worked'      => (int) $activity->leads_worked,
-                'calls'             => (int) $activity->calls,
-                'stops'             => (int) $activity->stops,
-                'presentations'     => (int) $activity->presentations,
-                'apps_written'      => (int) $activity->apps_written,
-                'premium_collected' => (float) $activity->premium_collected,
-                'ap'                => (float) round(((float) $activity->premium_collected) * 12, 2),
-                'created_at'        => optional($activity->created_at)->toIso8601String(),
+                'premium_collected' => (float) $data['premium_collected'],
+                'ap' => (float) $data['ap'],
             ],
-            // This is the payload the dashboard uses to update instantly:
-            'month_totals'    => $totalsByRange['month'],
-            'totals_by_range' => $totalsByRange,
+            'month_totals' => $monthTotals,
         ]);
     }
 
-    /**
-     * Dashboard production totals.
-     *
-     * AP totals should be SUM(premium_collected) * 12
-     * (so old/wrong stored ap values do NOT pollute totals)
-     */
     public function totals($range)
     {
         $userId = Auth::id() ?? 1;
-        $totals = $this->computeTotalsForRange($userId, $range);
 
-        if ($totals === null) {
-            return response()->json(['error' => 'Invalid range'], 400);
-        }
-
-        return response()->json($totals);
+        return response()->json(
+            $this->totalsForUserRange($userId, $range)
+        );
     }
 
     /**
-     * Compute totals for a user + range.
-     * Returns associative array matching dashboard expectations.
+     * Shared totals logic so store() can return month_totals instantly.
+     * AP totals are derived from premium (SUM(premium_collected) * 12).
      */
-    private function computeTotalsForRange(int $userId, string $range): ?array
+    private function totalsForUserRange(int $userId, string $range): array
     {
         $query = Activity::where('user_id', $userId);
-
         $now = Carbon::now();
 
         switch ($range) {
             case 'day':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfDay(),
-                    $now->copy()->endOfDay(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfDay(), $now->copy()->endOfDay()]);
                 break;
-
             case 'week':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfWeek(),
-                    $now->copy()->endOfWeek(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()]);
                 break;
-
             case 'month':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfMonth(),
-                    $now->copy()->endOfMonth(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
                 break;
-
             case 'quarter':
-                $query->whereBetween('created_at', [
-                    $now->copy()->firstOfQuarter(),
-                    $now->copy()->lastOfQuarter(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->firstOfQuarter(), $now->copy()->lastOfQuarter()]);
                 break;
-
             case 'year':
-                $query->whereBetween('created_at', [
-                    $now->copy()->startOfYear(),
-                    $now->copy()->endOfYear(),
-                ]);
+                $query->whereBetween('created_at', [$now->copy()->startOfYear(), $now->copy()->endOfYear()]);
                 break;
-
             default:
-                return null;
+                return ['error' => 'Invalid range'];
         }
 
-        $row = $query->selectRaw("
+        $totals = $query->selectRaw("
             COALESCE(SUM(leads_worked), 0) AS leads_worked,
             COALESCE(SUM(calls), 0) AS calls,
             COALESCE(SUM(stops), 0) AS stops,
@@ -188,13 +160,13 @@ class ActivityController extends Controller
         ")->first();
 
         return [
-            'leads_worked'      => (int) ($row->leads_worked ?? 0),
-            'calls'             => (int) ($row->calls ?? 0),
-            'stops'             => (int) ($row->stops ?? 0),
-            'presentations'     => (int) ($row->presentations ?? 0),
-            'apps_written'      => (int) ($row->apps_written ?? 0),
-            'premium_collected' => (float) ($row->premium_collected ?? 0),
-            'ap'                => (float) ($row->ap ?? 0),
+            'leads_worked' => (int) $totals->leads_worked,
+            'calls' => (int) $totals->calls,
+            'stops' => (int) $totals->stops,
+            'presentations' => (int) $totals->presentations,
+            'apps_written' => (int) $totals->apps_written,
+            'premium_collected' => (float) $totals->premium_collected,
+            'ap' => (float) $totals->ap,
         ];
     }
 }
