@@ -26,61 +26,81 @@
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Leads Worked</label>
-                            <input type="number" class="form-control" name="leads_worked" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                            <input type="number" class="form-control" name="leads_worked" min="0" step="1" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Calls</label>
-                            <input type="number" class="form-control" name="calls" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                            <input type="number" class="form-control" name="calls" min="0" step="1" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Stops</label>
-                            <input type="number" class="form-control" name="stops" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                            <input type="number" class="form-control" name="stops" min="0" step="1" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Presentations</label>
-                            <input type="number" class="form-control" name="presentations" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                            <input type="number" class="form-control" name="presentations" min="0" step="1" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Apps Written</label>
-                            <input type="number" class="form-control" name="apps_written" min="0" step="1"
-                                   placeholder="" inputmode="numeric"
+                            <input type="number" class="form-control" name="apps_written" min="0" step="1" inputmode="numeric"
                                    style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
                         </div>
 
                         <div class="col-6">
                             <label class="form-label" style="font-weight:800;">Premium Collected ($)</label>
-                            <input id="premiumInput" type="number" class="form-control" name="premium_collected"
-                                   min="0" step="0.01" placeholder="" inputmode="decimal"
-                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                            <input
+                                id="premiumInput"
+                                type="number"
+                                class="form-control"
+                                name="premium_collected"
+                                min="0"
+                                step="0.01"
+                                inputmode="decimal"
+                                style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);"
+                                oninput="
+                                    (function(v){
+                                        var prem = Number(v || 0);
+                                        var ap = prem * 12;
+                                        var apEl = document.getElementById('apInput');
+                                        if(apEl) apEl.value = ap.toFixed(2);
+                                    })(this.value);
+                                "
+                            >
                         </div>
 
                         <div class="col-12">
                             <label class="form-label" style="font-weight:800;">AP ($)</label>
-                            <input id="apInput" type="number" class="form-control" name="ap" readonly value="0.00"
-                                   style="background:#0b0f1a; color:#a7f3d0; border-color: rgba(201,162,39,.35); font-weight:900;">
+                            <input
+                                id="apInput"
+                                type="number"
+                                class="form-control"
+                                name="ap"
+                                readonly
+                                value="0.00"
+                                style="background:#0b0f1a; color:#a7f3d0; border-color: rgba(201,162,39,.35); font-weight:900;"
+                            >
                             <div class="form-text" style="color:#9ca3af;">
                                 AP is calculated automatically as <strong>Premium × 12</strong>.
                             </div>
                         </div>
                     </div>
 
+                    {{-- Dashboard save handler uses this element for errors --}}
                     <div class="mt-3" id="activitySaveError" style="display:none;" aria-live="polite"></div>
                 </form>
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
+                {{-- ✅ IMPORTANT: Use ONLY the dashboard handler (instant refresh) --}}
+                {{-- ✅ No addEventListener in popup, no redefining ABC_activitySaveClick --}}
                 <button
                     class="btn"
                     type="button"
@@ -99,166 +119,25 @@
     </div>
 </div>
 
+{{-- Optional tiny helper: prevent Enter key from submitting the form.
+     If this script doesn't execute due to innerHTML injection, it's still fine. --}}
 <script>
-(function () {
-    // Prevent duplicate wiring when popup HTML is injected multiple times
-    if (window.__ABC_ACTIVITY_POPUP_WIRED) return;
-    window.__ABC_ACTIVITY_POPUP_WIRED = true;
-
-    const form = document.getElementById("activityForm");
-    const premiumInput = document.getElementById("premiumInput");
-    const apInput = document.getElementById("apInput");
-    const saveBtn = document.getElementById("saveActivityBtn");
-    const errEl = document.getElementById("activitySaveError");
-
-    function showError(msg) {
-        if (!errEl) return;
-        errEl.style.display = "block";
-        errEl.style.background = "rgba(239,68,68,.12)";
-        errEl.style.border = "1px solid rgba(239,68,68,.35)";
-        errEl.style.padding = "10px 12px";
-        errEl.style.borderRadius = "12px";
-        errEl.style.color = "#fecaca";
-        errEl.style.fontWeight = "800";
-        errEl.innerText = msg || "Save failed.";
-    }
-
-    function clearError() {
-        if (!errEl) return;
-        errEl.style.display = "none";
-        errEl.innerText = "";
-    }
-
-    function updateAP() {
-        const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
-        const ap = prem * 12;
-        if (apInput) apInput.value = ap.toFixed(2);
-    }
-
-    if (premiumInput) premiumInput.addEventListener("input", updateAP);
-    updateAP();
-
-    // Stop Enter from submitting form in modal
-    if (form) {
-        form.addEventListener("keydown", function (e) {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                return false;
-            }
-        });
-    }
-
-    /**
-     * ✅ MOST IMPORTANT CHANGE:
-     * If the DASHBOARD already defined window.ABC_activitySaveClick (the one that refreshes instantly),
-     * DO NOT overwrite it here.
-     *
-     * Overwriting it is exactly what breaks "instant update".
-     */
-    if (typeof window.ABC_activitySaveClick === "function") {
-        return;
-    }
-
-    /**
-     * Fallback save handler (only used if popup is rendered on a page WITHOUT the dashboard handler)
-     * - Saves once
-     * - Uses server month_totals (never adds client-side)
-     * - Applies goal card + production cards instantly
-     */
-    window.ABC_activitySaveClick = async function (e) {
-        if (e) e.preventDefault();
-        if (!form) return;
-
-        if (window.__ABC_ACTIVITY_SAVING) return;
-        window.__ABC_ACTIVITY_SAVING = true;
-
-        clearError();
-
-        const originalText = saveBtn ? saveBtn.innerText : "";
-        if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.innerText = "Saving...";
+(function(){
+    var form = document.getElementById('activityForm');
+    if (!form) return;
+    form.addEventListener('keydown', function(e){
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            return false;
         }
+    });
 
-        try {
-            const url = form.getAttribute("action");
-            const fd = new FormData(form);
-
-            // Normalize blanks to zero so server gets numbers
-            ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
-                const v = fd.get(name);
-                if (v === null || v === "") fd.set(name, "0");
-            });
-            const prem = fd.get("premium_collected");
-            if (prem === null || prem === "") fd.set("premium_collected", "0");
-
-            // CSRF (Laravel)
-            const tokenInput = form.querySelector('input[name="_token"]');
-            const csrf = tokenInput ? tokenInput.value : null;
-
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Accept": "application/json",
-                    ...(csrf ? { "X-CSRF-TOKEN": csrf } : {}),
-                },
-                body: fd,
-                cache: "no-store",
-                credentials: "same-origin",
-            });
-
-            if (res.status === 422) {
-                const j = await res.json().catch(() => ({}));
-                const first = j && j.errors ? Object.values(j.errors)[0]?.[0] : null;
-                showError(first || "Validation failed.");
-                return;
-            }
-
-            if (!res.ok) {
-                const t = await res.text().catch(() => "");
-                showError("Save failed. " + (t ? t.slice(0, 160) : ""));
-                return;
-            }
-
-            const data = await res.json().catch(() => ({}));
-
-            // ✅ Use month_totals from server (or fetch once)
-            let monthTotals = data && data.month_totals ? data.month_totals : null;
-            if (!monthTotals) {
-                try {
-                    const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
-                    monthTotals = await r2.json();
-                } catch (_) {
-                    monthTotals = null;
-                }
-            }
-
-            // Close modal
-            const modalEl = document.getElementById("activityModal");
-            if (modalEl && typeof bootstrap !== "undefined") {
-                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-            }
-
-            // ✅ Instant UI refresh
-            if (window.refreshProductionCard) window.refreshProductionCard(true);
-            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
-
-            if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-                window.applyGoalCardFromTotals(monthTotals.premium_collected || 0, monthTotals.ap || 0);
-            } else if (window.refreshGoalCard) {
-                window.refreshGoalCard(true);
-            }
-
-        } catch (err) {
-            showError(err && err.message ? err.message : "Save failed.");
-        } finally {
-            window.__ABC_ACTIVITY_SAVING = false;
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerText = originalText || "Save Activity";
-            }
-        }
-    };
+    // initialize AP once (in case premium prefilled)
+    var premEl = document.getElementById('premiumInput');
+    var apEl = document.getElementById('apInput');
+    if (premEl && apEl) {
+        var prem = Number(premEl.value || 0);
+        apEl.value = (prem * 12).toFixed(2);
+    }
 })();
 </script>
