@@ -81,7 +81,9 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- IMPORTANT: keep inline onclick so the DASHBOARD handler runs (instant refresh) --}}
+                {{-- ✅ IMPORTANT:
+                     Use ONLY inline onclick that calls ONE global function.
+                     Do NOT add extra click listeners in this popup (that causes double POST). --}}
                 <button
                     class="btn"
                     type="button"
@@ -158,54 +160,22 @@
     }
 
     /**
-     * =========================================================
-     * ✅ CRITICAL FIX FOR “DOUBLES”
-     * =========================================================
-     * The doubling happened when TWO different save handlers ran:
-     * - one deleted blank fields (dashboard)
-     * - one forced blanks to "0" (popup)
-     * Those payloads are not identical -> server dedupe won't match -> 2 rows -> totals double.
+     * ✅ IMPORTANT:
+     * If Dashboard already defined window.ABC_activitySaveClick (the instant-update version),
+     * DO NOT overwrite it here.
      *
-     * So:
-     * 1) If the dashboard handler exists, we DO NOT replace it.
-     * 2) We WRAP it with a global guard so rapid clicks can't trigger 2 requests.
+     * The popup’s job is ONLY to provide the HTML + AP math.
+     * Dashboard’s job is to save + refresh goal card instantly.
      */
-    if (typeof window.ABC_activitySaveClick === "function" && !window.ABC_activitySaveClick.__ABC_WRAPPED) {
-        const original = window.ABC_activitySaveClick;
-
-        const wrapped = async function (e) {
-            if (e) e.preventDefault();
-
-            // Global guard (prevents double-click / double-fire)
-            if (window.__ABC_ACTIVITY_SAVING) return;
-            window.__ABC_ACTIVITY_SAVING = true;
-
-            clearError();
-            setSaving(true);
-
-            try {
-                // Let the DASHBOARD handler do the save + instant refresh logic
-                return await original(e);
-            } catch (err) {
-                showError(err && err.message ? err.message : "Save failed.");
-                throw err;
-            } finally {
-                window.__ABC_ACTIVITY_SAVING = false;
-                setSaving(false);
-            }
-        };
-
-        wrapped.__ABC_WRAPPED = true;
-        window.ABC_activitySaveClick = wrapped;
-        return; // dashboard page is handled; popup doesn't need its own save handler
+    if (typeof window.ABC_activitySaveClick === "function") {
+        return;
     }
 
     /**
-     * =========================================================
-     * Fallback handler (only if dashboard didn't define one)
-     * - Uses SAME blank-field behavior as dashboard (delete blanks)
-     * - Updates goal instantly by fetching month totals and applying
-     * =========================================================
+     * Fallback save handler (only if popup is used on a page WITHOUT dashboard scripts)
+     * - Saves once
+     * - Uses server month_totals (never adds client-side)
+     * - Applies goal + production instantly if available
      */
     window.ABC_activitySaveClick = async function (e) {
         if (e) e.preventDefault();
@@ -221,11 +191,15 @@
             const url = form.getAttribute("action");
             const fd = new FormData(form);
 
-            // Match dashboard behavior: DELETE blanks (do not force "0" strings)
-            for (const [k, v] of fd.entries()) {
-                if (typeof v === "string" && v.trim() === "") fd.delete(k);
-            }
+            // Normalize blanks to zero so server gets numbers
+            ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
+                const v = fd.get(name);
+                if (v === null || v === "") fd.set(name, "0");
+            });
+            const prem = fd.get("premium_collected");
+            if (prem === null || prem === "") fd.set("premium_collected", "0");
 
+            // CSRF
             const tokenInput = form.querySelector('input[name="_token"]');
             const csrf = tokenInput ? tokenInput.value : null;
 
@@ -255,19 +229,15 @@
             }
 
             const data = await res.json().catch(() => ({}));
+            const monthTotals = data && data.month_totals ? data.month_totals : null;
 
-            // Prefer server month_totals; otherwise fetch once
-            let monthTotals = data && data.month_totals ? data.month_totals : null;
-            if (!monthTotals) {
-                try {
-                    const r2 = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
-                    monthTotals = await r2.json();
-                } catch (_) {
-                    monthTotals = null;
-                }
+            // Close modal
+            const modalEl = document.getElementById("activityModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
             }
 
-            // Instant UI refresh
+            // Instant refresh (if these exist on the page)
             if (window.refreshProductionCard) window.refreshProductionCard(true);
             if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
 
@@ -280,11 +250,6 @@
                 window.refreshGoalCard(true);
             }
 
-            // Close modal
-            const modalEl = document.getElementById("activityModal");
-            if (modalEl && typeof bootstrap !== "undefined") {
-                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-            }
         } catch (err) {
             showError(err && err.message ? err.message : "Save failed.");
         } finally {
