@@ -1152,77 +1152,69 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<!-- ✅ Log Production opener (works even if things load in weird order) -->
+<!-- ✅ FIX: Log Production opens modal reliably (delegated click, minimal) -->
 <script>
 (function () {
-  async function openActivityModal() {
-    if (!window.bootstrap || !window.bootstrap.Modal) {
-      console.warn("Bootstrap Modal API not found. Ensure bootstrap.bundle.js is loaded.");
-      return;
+    async function openActivityModal() {
+        if (typeof bootstrap === "undefined") {
+            console.warn("Bootstrap is not available on this page, cannot open activity modal.");
+            return;
+        }
+
+        let modalEl = document.getElementById("activityModal");
+        if (modalEl) {
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+            return;
+        }
+
+        const existingWrap = document.getElementById("activity-modal-injected");
+        if (existingWrap) {
+            modalEl = document.getElementById("activityModal");
+            if (modalEl) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
+            return;
+        }
+
+        try {
+            const res = await fetch("/activity/popup?_=" + Date.now(), {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                cache: "no-store",
+                credentials: "same-origin"
+            });
+
+            const html = await res.text();
+
+            const wrap = document.createElement("div");
+            wrap.id = "activity-modal-injected";
+            wrap.innerHTML = html;
+            document.body.appendChild(wrap);
+
+            modalEl = document.getElementById("activityModal");
+            if (!modalEl) {
+                console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
+                return;
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        } catch (err) {
+            console.error("Failed to load /activity/popup", err);
+        }
     }
 
-    // If modal already exists, show it
-    let modalEl = document.getElementById("activityModal");
-    if (modalEl) {
-      const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-      modal.show();
-      return;
-    }
+    // Delegated click => always works
+    document.addEventListener("click", function (e) {
+        const btn = e.target.closest("#abc-log-production");
+        if (!btn) return;
+        e.preventDefault();
+        openActivityModal();
+    }, true);
 
-    // If wrapper was already injected, try again
-    const existingWrap = document.getElementById("activity-modal-injected");
-    if (existingWrap) {
-      modalEl = document.getElementById("activityModal");
-      if (modalEl) {
-        const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
-      } else {
-        console.warn("activity-modal-injected exists but #activityModal is still missing.");
-      }
-      return;
-    }
-
-    // Fetch and inject popup HTML
-    try {
-      const res = await fetch("/activity/popup?_=" + Date.now(), {
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          "Accept": "text/html"
-        },
-        credentials: "same-origin",
-        cache: "no-store"
-      });
-
-      const html = await res.text();
-
-      const wrap = document.createElement("div");
-      wrap.id = "activity-modal-injected";
-      wrap.innerHTML = html;
-      document.body.appendChild(wrap);
-
-      modalEl = document.getElementById("activityModal");
-      if (!modalEl) {
-        console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
-        return;
-      }
-
-      const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-      modal.show();
-    } catch (err) {
-      console.error("Failed to load /activity/popup", err);
-    }
-  }
-
-  // Make it available globally (optional, but helpful)
-  window.ABC_openActivityModal = openActivityModal;
-
-  // Click handler for Log Production
-  document.addEventListener("click", function (e) {
-    const btn = e.target.closest("#abc-log-production");
-    if (!btn) return;
-    e.preventDefault();
-    openActivityModal();
-  }, true);
+    // Optional: allow manual call from console
+    window.ABC_openActivityModal = openActivityModal;
 })();
 </script>
 
@@ -1285,11 +1277,7 @@ window.refreshProductionCard = function(force = false) {
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    return fetch(url, {
-        cache: "no-store",
-        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin"
-    })
+    return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = document.querySelectorAll(
@@ -1325,11 +1313,7 @@ window.refreshProductionBreakdownModal = function(force = false) {
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    return fetch(url, {
-        cache: "no-store",
-        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin"
-    })
+    return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = statsWrap.querySelectorAll(
@@ -1415,11 +1399,7 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 window.refreshGoalCard = function(force = false) {
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
 
-    return fetch(url, {
-        cache: "no-store",
-        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin"
-    })
+    return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const premiumCollected = Number(data.premium_collected || 0);
@@ -1433,10 +1413,10 @@ window.refreshGoalCard = function(force = false) {
 };
 </script>
 
-<!-- ✅ FINAL: GLOBAL SAVE HANDLER (single save, JSON-first, instant update, no doubling) -->
+<!-- ✅ FINAL: GLOBAL SAVE HANDLER (minimal fixes: single submit + JSON headers + fallback totals) -->
 <script>
 (function(){
-    // Global in-flight guard to prevent double-submit under any circumstances
+    // Guard prevents any accidental double-click / double handler
     window.__abcActivitySaving = window.__abcActivitySaving || false;
 
     function getCsrfTokenFromForm(formEl) {
@@ -1469,28 +1449,15 @@ window.refreshGoalCard = function(force = false) {
         btn.style.cursor = isSaving ? 'not-allowed' : 'pointer';
     }
 
-    async function fetchMonthTotalsJson() {
-        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin',
-            cache: 'no-store'
-        });
-        return await res.json();
+    async function fetchMonthTotalsAndApply() {
+        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (typeof window.applyGoalCardFromTotals === "function") {
+            window.applyGoalCardFromTotals(data.premium_collected || 0, data.ap || 0);
+        }
     }
 
-    function normalizeTotals(totals) {
-        if (!totals) return { premium_collected: 0, ap: 0 };
-        return {
-            premium_collected: Number(totals.premium_collected ?? totals.premiumCollected ?? totals.premium ?? 0),
-            ap: Number(totals.ap ?? totals.ap_earned ?? totals.apEarned ?? 0)
-        };
-    }
-
-    // SINGLE source of truth for saving
+    // Called by popup Save button
     window.ABC_activitySaveClick = async function(event) {
         if (event) event.preventDefault();
 
@@ -1511,7 +1478,7 @@ window.refreshGoalCard = function(force = false) {
             const url = form.getAttribute('action');
             const fd = new FormData(form);
 
-            // Remove blank values (helps numeric inputs + validation)
+            // Remove blank values
             for (const [k, v] of fd.entries()) {
                 if (typeof v === 'string' && v.trim() === '') {
                     fd.delete(k);
@@ -1532,53 +1499,27 @@ window.refreshGoalCard = function(force = false) {
                 cache: 'no-store'
             });
 
-            const ct = (res.headers.get('content-type') || '').toLowerCase();
-
             if (!res.ok) {
-                let msg = 'Save failed. Please try again.';
-                try {
-                    if (ct.includes('application/json')) {
-                        const errJson = await res.json();
-                        msg = errJson.message || msg;
-                    } else {
-                        await res.text();
-                        msg = 'Save failed. Server responded with an error.';
-                    }
-                } catch(e) {}
-                showSaveError(msg);
+                showSaveError('Save failed. Please try again.');
                 setSaving(false);
                 window.__abcActivitySaving = false;
                 return;
             }
 
-            // JSON-first: if backend returns month_totals, use them, otherwise fetch totals
-            let payload = null;
-            if (ct.includes('application/json')) {
-                payload = await res.json();
-            }
-
-            // Close modal immediately
+            // Close modal
             const modalEl = document.getElementById('activityModal');
-            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-                const instance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
                 instance.hide();
             }
 
-            // Apply goal card instantly
-            if (payload && payload.month_totals) {
-                const t = normalizeTotals(payload.month_totals);
-                if (window.applyGoalCardFromTotals) window.applyGoalCardFromTotals(t.premium_collected, t.ap);
-            } else {
-                const monthTotals = normalizeTotals(await fetchMonthTotalsJson());
-                if (window.applyGoalCardFromTotals) window.applyGoalCardFromTotals(monthTotals.premium_collected, monthTotals.ap);
-            }
+            // Apply goal card instantly (month totals)
+            await fetchMonthTotalsAndApply();
 
-            // Refresh other cards
+            // Refresh production cards
             const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
             const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
-            const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
-
-            await Promise.allSettled([p1, p2, p3]);
+            await Promise.allSettled([p1, p2]);
 
             setSaving(false);
             window.__abcActivitySaving = false;
