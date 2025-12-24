@@ -1,88 +1,254 @@
 {{-- resources/views/activity/popup.blade.php --}}
 
 <div class="modal fade" id="activityModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-
-      <div class="modal-header">
-        <h5 class="modal-title" style="font-weight:900;">Track Daily Activity</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <div class="modal-body">
-
-        <div id="activitySaveError" style="display:none; margin-bottom:10px;"></div>
-
-        {{-- IMPORTANT: action should match your real save route --}}
-        <form id="activityForm" method="POST" action="{{ url('/activity/store') }}">
-          @csrf
-
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Premium Collected</label>
-              <input class="form-control" type="number" step="0.01" name="premium_collected" inputmode="decimal" autocomplete="off">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: 1px solid rgba(201,162,39,.35); border-radius:16px; overflow:hidden;">
+            <div class="modal-header" style="background:#0b1220; color:#fff;">
+                <h5 class="modal-title" style="margin:0; font-weight:900;">Track Daily Activity</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <div class="col-md-6">
-              <label class="form-label">AP</label>
-              <input class="form-control" type="number" step="0.01" name="ap" inputmode="decimal" autocomplete="off">
+            <div class="modal-body" style="background:#0f172a; color:#e5e7eb;">
+                <form id="activityForm" action="{{ route('activity.store') }}" method="POST" autocomplete="off">
+                    @csrf
+
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:800;">Date</label>
+                        <input
+                            type="date"
+                            class="form-control"
+                            name="activity_date"
+                            value="{{ now()->toDateString() }}"
+                            style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);"
+                        >
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:800;">Leads Worked</label>
+                            <input type="number" class="form-control" name="leads_worked" min="0" step="1"
+                                   inputmode="numeric"
+                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:800;">Calls</label>
+                            <input type="number" class="form-control" name="calls" min="0" step="1"
+                                   inputmode="numeric"
+                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:800;">Stops</label>
+                            <input type="number" class="form-control" name="stops" min="0" step="1"
+                                   inputmode="numeric"
+                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:800;">Presentations</label>
+                            <input type="number" class="form-control" name="presentations" min="0" step="1"
+                                   inputmode="numeric"
+                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:800;">Apps Written</label>
+                            <input type="number" class="form-control" name="apps_written" min="0" step="1"
+                                   inputmode="numeric"
+                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label" style="font-weight:800;">Premium Collected ($)</label>
+                            <input id="premiumInput" type="number" class="form-control" name="premium_collected"
+                                   min="0" step="0.01" inputmode="decimal"
+                                   style="background:#0b1220; color:#fff; border-color: rgba(201,162,39,.35);">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight:800;">AP ($)</label>
+                            <input id="apInput" type="number" class="form-control" name="ap" readonly value="0.00"
+                                   style="background:#0b0f1a; color:#a7f3d0; border-color: rgba(201,162,39,.35); font-weight:900;">
+                            <div class="form-text" style="color:#9ca3af;">
+                                AP is calculated automatically as <strong>Premium × 12</strong>.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3" id="activitySaveError" style="display:none;" aria-live="polite"></div>
+                </form>
             </div>
 
-            <div class="col-md-4">
-              <label class="form-label">Leads Worked</label>
-              <input class="form-control" type="number" step="1" name="leads_worked" inputmode="numeric" autocomplete="off">
+            <div class="modal-footer" style="background:#0b1220;">
+                {{-- ✅ NO inline onclick (prevents double-submit) --}}
+                <button
+                    class="btn"
+                    type="button"
+                    id="saveActivityBtn"
+                    style="background:#c9a227; color:#111827; font-weight:900; border-radius:12px;"
+                >
+                    Save Activity
+                </button>
+
+                <button class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius:12px;">
+                    Close
+                </button>
             </div>
-
-            <div class="col-md-4">
-              <label class="form-label">Calls</label>
-              <input class="form-control" type="number" step="1" name="calls" inputmode="numeric" autocomplete="off">
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label">Stops</label>
-              <input class="form-control" type="number" step="1" name="stops" inputmode="numeric" autocomplete="off">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Presentations</label>
-              <input class="form-control" type="number" step="1" name="presentations" inputmode="numeric" autocomplete="off">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Apps Written</label>
-              <input class="form-control" type="number" step="1" name="apps_written" inputmode="numeric" autocomplete="off">
-            </div>
-
-            <div class="col-12">
-              <label class="form-label">Notes</label>
-              <textarea class="form-control" name="notes" rows="3"></textarea>
-            </div>
-          </div>
-        </form>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-
-        {{-- ONLY ONE SAVE PATH --}}
-        <button type="button" class="btn btn-primary" id="saveActivityBtn" onclick="ABC_activitySaveClick(event)">
-          Save Activity
-        </button>
-      </div>
-
+        </div>
     </div>
-  </div>
 </div>
 
 <script>
 (function () {
-  // Prevent Enter-submit so the only save path is the button -> dashboard handler
-  const form = document.getElementById('activityForm');
-  if (!form) return;
+    const form = document.getElementById("activityForm");
+    const premiumInput = document.getElementById("premiumInput");
+    const apInput = document.getElementById("apInput");
+    const saveBtn = document.getElementById("saveActivityBtn");
+    const errEl = document.getElementById("activitySaveError");
 
-  form.addEventListener('submit', function(e){ e.preventDefault(); });
-  form.addEventListener('keydown', function(e){
-    if (e.key === 'Enter') e.preventDefault();
-  });
+    if (!form || !saveBtn) return;
+
+    // ✅ Per-button wiring guard (works even when modal is injected multiple times)
+    if (saveBtn.dataset.abcWired === "1") return;
+    saveBtn.dataset.abcWired = "1";
+
+    function showError(msg) {
+        if (!errEl) return;
+        errEl.style.display = "block";
+        errEl.style.background = "rgba(239,68,68,.12)";
+        errEl.style.border = "1px solid rgba(239,68,68,.35)";
+        errEl.style.padding = "10px 12px";
+        errEl.style.borderRadius = "12px";
+        errEl.style.color = "#fecaca";
+        errEl.style.fontWeight = "800";
+        errEl.innerText = msg || "Save failed.";
+    }
+
+    function clearError() {
+        if (!errEl) return;
+        errEl.style.display = "none";
+        errEl.innerText = "";
+    }
+
+    function setSaving(isSaving) {
+        saveBtn.disabled = !!isSaving;
+        saveBtn.innerText = isSaving ? "Saving..." : "Save Activity";
+        saveBtn.style.opacity = isSaving ? "0.85" : "1";
+        saveBtn.style.cursor = isSaving ? "not-allowed" : "pointer";
+    }
+
+    function updateAP() {
+        const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
+        const ap = prem * 12;
+        if (apInput) apInput.value = ap.toFixed(2);
+    }
+
+    if (premiumInput) premiumInput.addEventListener("input", updateAP);
+    updateAP();
+
+    // Stop Enter from submitting form in modal
+    form.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    async function fetchMonthTotalsAndApply() {
+        // ✅ This is the "instant update" secret sauce: always pull fresh totals and apply
+        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
+        const totals = await res.json().catch(() => null);
+
+        if (totals && typeof window.applyGoalCardFromTotals === "function") {
+            window.applyGoalCardFromTotals(
+                Number(totals.premium_collected || 0),
+                Number(totals.ap || 0)
+            );
+        } else if (typeof window.refreshGoalCard === "function") {
+            // fallback
+            await window.refreshGoalCard(true);
+        }
+    }
+
+    async function doSave(e) {
+        if (e) e.preventDefault();
+
+        // ✅ Global lock prevents any double-click / competing handler issue
+        if (window.__ABC_ACTIVITY_SAVING) return;
+        window.__ABC_ACTIVITY_SAVING = true;
+
+        clearError();
+        setSaving(true);
+
+        try {
+            const url = form.getAttribute("action");
+            const fd = new FormData(form);
+
+            // Normalize blanks to zero so server gets numbers
+            ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
+                const v = fd.get(name);
+                if (v === null || v === "") fd.set(name, "0");
+            });
+            const prem = fd.get("premium_collected");
+            if (prem === null || prem === "") fd.set("premium_collected", "0");
+
+            const res = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json",
+                },
+                body: fd,
+                cache: "no-store",
+                credentials: "same-origin",
+            });
+
+            if (res.status === 422) {
+                const j = await res.json().catch(() => ({}));
+                const first = j && j.errors ? Object.values(j.errors)[0]?.[0] : null;
+                showError(first || "Validation failed.");
+                return;
+            }
+
+            if (!res.ok) {
+                const t = await res.text().catch(() => "");
+                showError("Save failed. " + (t ? t.slice(0, 160) : ""));
+                return;
+            }
+
+            // ✅ close modal immediately (like your working version)
+            const modalEl = document.getElementById("activityModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            }
+
+            // ✅ instant production refresh
+            const p1 = (typeof window.refreshProductionCard === "function")
+                ? window.refreshProductionCard(true)
+                : Promise.resolve();
+
+            const p2 = (typeof window.refreshProductionBreakdownModal === "function")
+                ? window.refreshProductionBreakdownModal(true)
+                : Promise.resolve();
+
+            // ✅ instant goal refresh (this is what you were missing)
+            const p3 = fetchMonthTotalsAndApply();
+
+            await Promise.allSettled([p1, p2, p3]);
+
+        } catch (err) {
+            showError(err && err.message ? err.message : "Save failed.");
+        } finally {
+            window.__ABC_ACTIVITY_SAVING = false;
+            setSaving(false);
+        }
+    }
+
+    // expose for compatibility if anything calls it
+    window.ABC_activitySaveClick = doSave;
+
+    // ✅ single click listener
+    saveBtn.addEventListener("click", doSave);
 })();
 </script>
