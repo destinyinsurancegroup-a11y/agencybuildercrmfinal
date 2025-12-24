@@ -1135,65 +1135,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================
-    // ✅ Log Production wiring (ALWAYS opens the Track Daily Activity modal)
-    // =========================================================
-    async function openActivityModal() {
-        if (typeof bootstrap === "undefined") {
-            console.warn("Bootstrap is not available on this page, cannot open activity modal.");
-            return;
-        }
-
-        let modalEl = document.getElementById("activityModal");
-        if (modalEl) {
-            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
-            return;
-        }
-
-        const existingWrap = document.getElementById("activity-modal-injected");
-        if (existingWrap) {
-            modalEl = document.getElementById("activityModal");
-            if (modalEl) {
-                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                modal.show();
-            }
-            return;
-        }
-
-        try {
-            const res = await fetch("/activity/popup?_=" + Date.now(), {
-                headers: { "X-Requested-With": "XMLHttpRequest" },
-                cache: "no-store"
-            });
-
-            const html = await res.text();
-
-            const wrap = document.createElement("div");
-            wrap.id = "activity-modal-injected";
-            wrap.innerHTML = html;
-            document.body.appendChild(wrap);
-
-            modalEl = document.getElementById("activityModal");
-            if (!modalEl) {
-                console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
-                return;
-            }
-
-            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
-        } catch (err) {
-            console.error("Failed to load /activity/popup", err);
-        }
-    }
-
-    const logBtn = document.getElementById("abc-log-production");
-    if (logBtn) {
-        logBtn.addEventListener("click", () => {
-            openActivityModal();
-        });
-    }
-
-    // =========================================================
     // ✅ Production Breakdown button opens modal
     // =========================================================
     const breakdownBtn = document.getElementById("abc-production-breakdown");
@@ -1209,6 +1150,80 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
+</script>
+
+<!-- ✅ Log Production opener (works even if things load in weird order) -->
+<script>
+(function () {
+  async function openActivityModal() {
+    if (!window.bootstrap || !window.bootstrap.Modal) {
+      console.warn("Bootstrap Modal API not found. Ensure bootstrap.bundle.js is loaded.");
+      return;
+    }
+
+    // If modal already exists, show it
+    let modalEl = document.getElementById("activityModal");
+    if (modalEl) {
+      const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+      return;
+    }
+
+    // If wrapper was already injected, try again
+    const existingWrap = document.getElementById("activity-modal-injected");
+    if (existingWrap) {
+      modalEl = document.getElementById("activityModal");
+      if (modalEl) {
+        const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      } else {
+        console.warn("activity-modal-injected exists but #activityModal is still missing.");
+      }
+      return;
+    }
+
+    // Fetch and inject popup HTML
+    try {
+      const res = await fetch("/activity/popup?_=" + Date.now(), {
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "text/html"
+        },
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const html = await res.text();
+
+      const wrap = document.createElement("div");
+      wrap.id = "activity-modal-injected";
+      wrap.innerHTML = html;
+      document.body.appendChild(wrap);
+
+      modalEl = document.getElementById("activityModal");
+      if (!modalEl) {
+        console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
+        return;
+      }
+
+      const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    } catch (err) {
+      console.error("Failed to load /activity/popup", err);
+    }
+  }
+
+  // Make it available globally (optional, but helpful)
+  window.ABC_openActivityModal = openActivityModal;
+
+  // Click handler for Log Production
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest("#abc-log-production");
+    if (!btn) return;
+    e.preventDefault();
+    openActivityModal();
+  }, true);
+})();
 </script>
 
 <!-- TAB LOGIC (Dashboard Card) -->
@@ -1273,7 +1288,7 @@ window.refreshProductionCard = function(force = false) {
     return fetch(url, {
         cache: "no-store",
         headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin",
+        credentials: "same-origin"
     })
         .then(r => r.json())
         .then(data => {
@@ -1313,7 +1328,7 @@ window.refreshProductionBreakdownModal = function(force = false) {
     return fetch(url, {
         cache: "no-store",
         headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin",
+        credentials: "same-origin"
     })
         .then(r => r.json())
         .then(data => {
@@ -1403,7 +1418,7 @@ window.refreshGoalCard = function(force = false) {
     return fetch(url, {
         cache: "no-store",
         headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
-        credentials: "same-origin",
+        credentials: "same-origin"
     })
         .then(r => r.json())
         .then(data => {
@@ -1418,10 +1433,10 @@ window.refreshGoalCard = function(force = false) {
 };
 </script>
 
-<!-- ✅ FINAL: GLOBAL SAVE HANDLER (single path, JSON-first, no doubles) -->
+<!-- ✅ FINAL: GLOBAL SAVE HANDLER (single save, JSON-first, instant update, no doubling) -->
 <script>
 (function(){
-    // Global in-flight guard to prevent any accidental double-submit
+    // Global in-flight guard to prevent double-submit under any circumstances
     window.__abcActivitySaving = window.__abcActivitySaving || false;
 
     function getCsrfTokenFromForm(formEl) {
@@ -1464,25 +1479,18 @@ window.refreshGoalCard = function(force = false) {
             credentials: 'same-origin',
             cache: 'no-store'
         });
-        const data = await res.json();
-        return data;
+        return await res.json();
     }
 
-    async function applyMonthTotals(totals) {
-        if (!totals) return;
-
-        // Support either flat keys or alternate naming
-        const prem =
-            totals.premium_collected ?? totals.premiumCollected ?? totals.premium ?? 0;
-        const ap =
-            totals.ap ?? totals.ap_earned ?? totals.apEarned ?? 0;
-
-        if (typeof window.applyGoalCardFromTotals === "function") {
-            window.applyGoalCardFromTotals(prem || 0, ap || 0);
-        }
+    function normalizeTotals(totals) {
+        if (!totals) return { premium_collected: 0, ap: 0 };
+        return {
+            premium_collected: Number(totals.premium_collected ?? totals.premiumCollected ?? totals.premium ?? 0),
+            ap: Number(totals.ap ?? totals.ap_earned ?? totals.apEarned ?? 0)
+        };
     }
 
-    // This is called by the injected modal save button (ONLY ONE path)
+    // SINGLE source of truth for saving
     window.ABC_activitySaveClick = async function(event) {
         if (event) event.preventDefault();
 
@@ -1503,7 +1511,7 @@ window.refreshGoalCard = function(force = false) {
             const url = form.getAttribute('action');
             const fd = new FormData(form);
 
-            // If user left fields blank, do NOT send empty strings for numbers
+            // Remove blank values (helps numeric inputs + validation)
             for (const [k, v] of fd.entries()) {
                 if (typeof v === 'string' && v.trim() === '') {
                     fd.delete(k);
@@ -1533,8 +1541,8 @@ window.refreshGoalCard = function(force = false) {
                         const errJson = await res.json();
                         msg = errJson.message || msg;
                     } else {
-                        const text = await res.text();
-                        if (text) msg = 'Save failed. Server responded with an error.';
+                        await res.text();
+                        msg = 'Save failed. Server responded with an error.';
                     }
                 } catch(e) {}
                 showSaveError(msg);
@@ -1543,28 +1551,29 @@ window.refreshGoalCard = function(force = false) {
                 return;
             }
 
-            // JSON-first: use month_totals if provided, else fall back to totals endpoint
+            // JSON-first: if backend returns month_totals, use them, otherwise fetch totals
             let payload = null;
             if (ct.includes('application/json')) {
                 payload = await res.json();
             }
 
-            // Close the modal immediately
+            // Close modal immediately
             const modalEl = document.getElementById('activityModal');
-            if (modalEl && typeof bootstrap !== 'undefined') {
-                const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                const instance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
                 instance.hide();
             }
 
-            // Apply totals ASAP
+            // Apply goal card instantly
             if (payload && payload.month_totals) {
-                await applyMonthTotals(payload.month_totals);
+                const t = normalizeTotals(payload.month_totals);
+                if (window.applyGoalCardFromTotals) window.applyGoalCardFromTotals(t.premium_collected, t.ap);
             } else {
-                const monthTotals = await fetchMonthTotalsJson();
-                await applyMonthTotals(monthTotals);
+                const monthTotals = normalizeTotals(await fetchMonthTotalsJson());
+                if (window.applyGoalCardFromTotals) window.applyGoalCardFromTotals(monthTotals.premium_collected, monthTotals.ap);
             }
 
-            // Refresh other cards (these fetch their own endpoints)
+            // Refresh other cards
             const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
             const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
             const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
