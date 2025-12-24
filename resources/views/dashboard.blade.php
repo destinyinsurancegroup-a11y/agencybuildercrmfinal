@@ -1360,11 +1360,7 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
 
-    // ⚠️ TEMP GHETTO FIX:
-    // Premium is being double-counted upstream somewhere.
-    // Divide by 2 ONLY for goal-card math so "Needed" looks correct.
-    const prem = Number(premiumCollected || 0) / 2;
-
+    const prem = Number(premiumCollected || 0);
     const ap = Number(apEarned || 0);
 
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
@@ -1482,6 +1478,7 @@ window.refreshGoalCard = function(force = false) {
             const fd = new FormData(form);
 
             // If user left fields blank, do NOT send empty strings for numbers
+            // (Laravel validation is happier, and your controller defaults them to 0)
             for (const [k, v] of fd.entries()) {
                 if (typeof v === 'string' && v.trim() === '') {
                     fd.delete(k);
@@ -1516,7 +1513,7 @@ window.refreshGoalCard = function(force = false) {
                 instance.hide();
             }
 
-            // NOW refresh the cards instantly
+            // NOW refresh the cards instantly (this is what was not running before)
             const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
             const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
             const p3 = fetchMonthTotalsAndApply();
