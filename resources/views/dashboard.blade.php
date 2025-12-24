@@ -1270,7 +1270,11 @@ window.refreshProductionCard = function(force = false) {
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    return fetch(url, { cache: "no-store" })
+    return fetch(url, {
+        cache: "no-store",
+        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        credentials: "same-origin",
+    })
         .then(r => r.json())
         .then(data => {
             const rows = document.querySelectorAll(
@@ -1306,7 +1310,11 @@ window.refreshProductionBreakdownModal = function(force = false) {
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
 
-    return fetch(url, { cache: "no-store" })
+    return fetch(url, {
+        cache: "no-store",
+        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        credentials: "same-origin",
+    })
         .then(r => r.json())
         .then(data => {
             const rows = statsWrap.querySelectorAll(
@@ -1390,27 +1398,18 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 <!-- GOAL CARD REFRESH (fetch month totals) -->
 <script>
 window.refreshGoalCard = function(force = false) {
-    const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
-
-    function parseMoneyToNumber(str) {
-        if (!str) return 0;
-        const cleaned = String(str).replace(/[^0-9.]/g, "");
-        const n = parseFloat(cleaned);
-        return isNaN(n) ? 0 : n;
-    }
-
-    const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
-    const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
-
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
 
-    return fetch(url, { cache: "no-store" })
+    return fetch(url, {
+        cache: "no-store",
+        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        credentials: "same-origin",
+    })
         .then(r => r.json())
         .then(data => {
             const premiumCollected = Number(data.premium_collected || 0);
             const apEarned = Number(data.ap || 0);
 
-            // reuse the instant applier
             if (typeof window.applyGoalCardFromTotals === "function") {
                 window.applyGoalCardFromTotals(premiumCollected, apEarned);
             }
@@ -1419,9 +1418,12 @@ window.refreshGoalCard = function(force = false) {
 };
 </script>
 
-<!-- ✅ OPTION A: GLOBAL SAVE HANDLER (THIS IS THE FIX) -->
+<!-- ✅ FINAL: GLOBAL SAVE HANDLER (single path, JSON-first, no doubles) -->
 <script>
 (function(){
+    // Global in-flight guard to prevent any accidental double-submit
+    window.__abcActivitySaving = window.__abcActivitySaving || false;
+
     function getCsrfTokenFromForm(formEl) {
         const tokenInput = formEl ? formEl.querySelector('input[name="_token"]') : null;
         return tokenInput ? tokenInput.value : null;
@@ -1452,21 +1454,45 @@ window.refreshGoalCard = function(force = false) {
         btn.style.cursor = isSaving ? 'not-allowed' : 'pointer';
     }
 
-    async function fetchMonthTotalsAndApply() {
-        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: 'no-store' });
+    async function fetchMonthTotalsJson() {
+        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
         const data = await res.json();
+        return data;
+    }
+
+    async function applyMonthTotals(totals) {
+        if (!totals) return;
+
+        // Support either flat keys or alternate naming
+        const prem =
+            totals.premium_collected ?? totals.premiumCollected ?? totals.premium ?? 0;
+        const ap =
+            totals.ap ?? totals.ap_earned ?? totals.apEarned ?? 0;
+
         if (typeof window.applyGoalCardFromTotals === "function") {
-            window.applyGoalCardFromTotals(data.premium_collected || 0, data.ap || 0);
+            window.applyGoalCardFromTotals(prem || 0, ap || 0);
         }
     }
 
-    // This is called by the injected modal button onclick
+    // This is called by the injected modal save button (ONLY ONE path)
     window.ABC_activitySaveClick = async function(event) {
         if (event) event.preventDefault();
+
+        if (window.__abcActivitySaving) return;
+        window.__abcActivitySaving = true;
 
         const form = document.getElementById('activityForm');
         if (!form) {
             console.warn('activityForm not found');
+            window.__abcActivitySaving = false;
             return;
         }
 
@@ -1478,7 +1504,6 @@ window.refreshGoalCard = function(force = false) {
             const fd = new FormData(form);
 
             // If user left fields blank, do NOT send empty strings for numbers
-            // (Laravel validation is happier, and your controller defaults them to 0)
             for (const [k, v] of fd.entries()) {
                 if (typeof v === 'string' && v.trim() === '') {
                     fd.delete(k);
@@ -1491,21 +1516,39 @@ window.refreshGoalCard = function(force = false) {
                 method: 'POST',
                 body: fd,
                 headers: {
+                    'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                     ...(csrf ? {'X-CSRF-TOKEN': csrf} : {})
                 },
+                credentials: 'same-origin',
                 cache: 'no-store'
             });
 
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+
             if (!res.ok) {
-                let text = '';
-                try { text = await res.text(); } catch(e) {}
-                showSaveError('Save failed. ' + (text ? 'Server responded with an error.' : ''));
+                let msg = 'Save failed. Please try again.';
+                try {
+                    if (ct.includes('application/json')) {
+                        const errJson = await res.json();
+                        msg = errJson.message || msg;
+                    } else {
+                        const text = await res.text();
+                        if (text) msg = 'Save failed. Server responded with an error.';
+                    }
+                } catch(e) {}
+                showSaveError(msg);
                 setSaving(false);
+                window.__abcActivitySaving = false;
                 return;
             }
 
-            // success
+            // JSON-first: use month_totals if provided, else fall back to totals endpoint
+            let payload = null;
+            if (ct.includes('application/json')) {
+                payload = await res.json();
+            }
+
             // Close the modal immediately
             const modalEl = document.getElementById('activityModal');
             if (modalEl && typeof bootstrap !== 'undefined') {
@@ -1513,18 +1556,28 @@ window.refreshGoalCard = function(force = false) {
                 instance.hide();
             }
 
-            // NOW refresh the cards instantly (this is what was not running before)
+            // Apply totals ASAP
+            if (payload && payload.month_totals) {
+                await applyMonthTotals(payload.month_totals);
+            } else {
+                const monthTotals = await fetchMonthTotalsJson();
+                await applyMonthTotals(monthTotals);
+            }
+
+            // Refresh other cards (these fetch their own endpoints)
             const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
             const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
-            const p3 = fetchMonthTotalsAndApply();
+            const p3 = window.refreshGoalCard ? window.refreshGoalCard(true) : Promise.resolve();
 
             await Promise.allSettled([p1, p2, p3]);
 
             setSaving(false);
+            window.__abcActivitySaving = false;
         } catch (err) {
             console.error(err);
             showSaveError('Save failed. Please try again.');
             setSaving(false);
+            window.__abcActivitySaving = false;
         }
     };
 })();
