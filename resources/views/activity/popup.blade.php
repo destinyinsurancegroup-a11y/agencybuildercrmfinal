@@ -81,14 +81,11 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- ✅ IMPORTANT:
-                     Use ONLY inline onclick that calls ONE global function.
-                     Do NOT add extra click listeners in this popup (that causes double POST). --}}
+                {{-- ✅ IMPORTANT: NO inline onclick (prevents double-submit from competing handlers) --}}
                 <button
                     class="btn"
                     type="button"
                     id="saveActivityBtn"
-                    onclick="window.ABC_activitySaveClick && window.ABC_activitySaveClick(event)"
                     style="background:#c9a227; color:#111827; font-weight:900; border-radius:12px;"
                 >
                     Save Activity
@@ -104,15 +101,16 @@
 
 <script>
 (function () {
-    // Prevent duplicate wiring when popup HTML is injected multiple times
-    if (window.__ABC_ACTIVITY_POPUP_WIRED) return;
-    window.__ABC_ACTIVITY_POPUP_WIRED = true;
-
     const form = document.getElementById("activityForm");
     const premiumInput = document.getElementById("premiumInput");
     const apInput = document.getElementById("apInput");
     const saveBtn = document.getElementById("saveActivityBtn");
     const errEl = document.getElementById("activitySaveError");
+
+    // ✅ Per-button wiring guard (NOT global forever)
+    if (!form || !saveBtn) return;
+    if (saveBtn.dataset.abcWired === "1") return;
+    saveBtn.dataset.abcWired = "1";
 
     function showError(msg) {
         if (!errEl) return;
@@ -133,7 +131,6 @@
     }
 
     function setSaving(isSaving) {
-        if (!saveBtn) return;
         saveBtn.disabled = !!isSaving;
         saveBtn.innerText = isSaving ? "Saving..." : "Save Activity";
         saveBtn.style.opacity = isSaving ? "0.85" : "1";
@@ -150,37 +147,35 @@
     updateAP();
 
     // Stop Enter from submitting form in modal
-    if (form) {
-        form.addEventListener("keydown", function (e) {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                return false;
-            }
-        });
+    form.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    async function forceRefreshDashboardTotals() {
+        // ✅ These are defined on dashboard.blade.php
+        const p1 = (typeof window.refreshProductionCard === "function")
+            ? window.refreshProductionCard(true)
+            : Promise.resolve();
+
+        const p2 = (typeof window.refreshProductionBreakdownModal === "function")
+            ? window.refreshProductionBreakdownModal(true)
+            : Promise.resolve();
+
+        // ✅ This one fetches /activity/totals/month and applies goal card
+        const p3 = (typeof window.refreshGoalCard === "function")
+            ? window.refreshGoalCard(true)
+            : Promise.resolve();
+
+        await Promise.allSettled([p1, p2, p3]);
     }
 
-    /**
-     * ✅ IMPORTANT:
-     * If Dashboard already defined window.ABC_activitySaveClick (the instant-update version),
-     * DO NOT overwrite it here.
-     *
-     * The popup’s job is ONLY to provide the HTML + AP math.
-     * Dashboard’s job is to save + refresh goal card instantly.
-     */
-    if (typeof window.ABC_activitySaveClick === "function") {
-        return;
-    }
-
-    /**
-     * Fallback save handler (only if popup is used on a page WITHOUT dashboard scripts)
-     * - Saves once
-     * - Uses server month_totals (never adds client-side)
-     * - Applies goal + production instantly if available
-     */
-    window.ABC_activitySaveClick = async function (e) {
+    async function doSave(e) {
         if (e) e.preventDefault();
-        if (!form) return;
 
+        // ✅ Global lock (prevents double click AND prevents competing handlers)
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
@@ -199,16 +194,11 @@
             const prem = fd.get("premium_collected");
             if (prem === null || prem === "") fd.set("premium_collected", "0");
 
-            // CSRF
-            const tokenInput = form.querySelector('input[name="_token"]');
-            const csrf = tokenInput ? tokenInput.value : null;
-
             const res = await fetch(url, {
                 method: "POST",
                 headers: {
                     "X-Requested-With": "XMLHttpRequest",
                     "Accept": "application/json",
-                    ...(csrf ? { "X-CSRF-TOKEN": csrf } : {}),
                 },
                 body: fd,
                 cache: "no-store",
@@ -229,26 +219,24 @@
             }
 
             const data = await res.json().catch(() => ({}));
-            const monthTotals = data && data.month_totals ? data.month_totals : null;
 
-            // Close modal
+            // ✅ FAST PATH: if server returned month_totals, apply immediately (instant visual update)
+            if (data && data.month_totals && typeof window.applyGoalCardFromTotals === "function") {
+                window.applyGoalCardFromTotals(
+                    Number(data.month_totals.premium_collected || 0),
+                    Number(data.month_totals.ap || 0)
+                );
+            }
+
+            // Close modal right away
             const modalEl = document.getElementById("activityModal");
             if (modalEl && typeof bootstrap !== "undefined") {
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide();
             }
 
-            // Instant refresh (if these exist on the page)
-            if (window.refreshProductionCard) window.refreshProductionCard(true);
-            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
-
-            if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-                window.applyGoalCardFromTotals(
-                    Number(monthTotals.premium_collected || 0),
-                    Number(monthTotals.ap || 0)
-                );
-            } else if (window.refreshGoalCard) {
-                window.refreshGoalCard(true);
-            }
+            // ✅ TRUTH PASS: always force-refresh from server so it can NEVER be “doubled”
+            // (this makes UI match DB even if anything weird happened)
+            await forceRefreshDashboardTotals();
 
         } catch (err) {
             showError(err && err.message ? err.message : "Save failed.");
@@ -256,6 +244,12 @@
             window.__ABC_ACTIVITY_SAVING = false;
             setSaving(false);
         }
-    };
+    }
+
+    // expose for compatibility (if anything calls it)
+    window.ABC_activitySaveClick = doSave;
+
+    // ✅ ONLY ONE click listener
+    saveBtn.addEventListener("click", doSave);
 })();
 </script>
