@@ -10,52 +10,52 @@
       </div>
 
       <div class="modal-body">
-        {{-- Error area used by dashboard handler --}}
+
         <div id="activitySaveError" style="display:none; margin-bottom:10px;"></div>
 
-        <form id="activityForm" method="POST" action="{{ $action ?? url('/activity/save') }}">
+        {{-- IMPORTANT: action should match your real save route --}}
+        <form id="activityForm" method="POST" action="{{ url('/activity/store') }}">
           @csrf
 
-          {{-- NOTE: Keep your existing real inputs / names. These are safe defaults. --}}
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label" for="premium_collected">Premium Collected</label>
-              <input id="premium_collected" name="premium_collected" type="number" step="0.01" class="form-control" inputmode="decimal" autocomplete="off">
+              <label class="form-label">Premium Collected</label>
+              <input class="form-control" type="number" step="0.01" name="premium_collected" inputmode="decimal" autocomplete="off">
             </div>
 
             <div class="col-md-6">
-              <label class="form-label" for="ap">AP</label>
-              <input id="ap" name="ap" type="number" step="0.01" class="form-control" inputmode="decimal" autocomplete="off">
+              <label class="form-label">AP</label>
+              <input class="form-control" type="number" step="0.01" name="ap" inputmode="decimal" autocomplete="off">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Leads Worked</label>
+              <input class="form-control" type="number" step="1" name="leads_worked" inputmode="numeric" autocomplete="off">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Calls</label>
+              <input class="form-control" type="number" step="1" name="calls" inputmode="numeric" autocomplete="off">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Stops</label>
+              <input class="form-control" type="number" step="1" name="stops" inputmode="numeric" autocomplete="off">
             </div>
 
             <div class="col-md-6">
-              <label class="form-label" for="leads_worked">Leads Worked</label>
-              <input id="leads_worked" name="leads_worked" type="number" step="1" class="form-control" inputmode="numeric" autocomplete="off">
+              <label class="form-label">Presentations</label>
+              <input class="form-control" type="number" step="1" name="presentations" inputmode="numeric" autocomplete="off">
             </div>
 
             <div class="col-md-6">
-              <label class="form-label" for="calls">Calls</label>
-              <input id="calls" name="calls" type="number" step="1" class="form-control" inputmode="numeric" autocomplete="off">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="stops">Stops</label>
-              <input id="stops" name="stops" type="number" step="1" class="form-control" inputmode="numeric" autocomplete="off">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="presentations">Presentations</label>
-              <input id="presentations" name="presentations" type="number" step="1" class="form-control" inputmode="numeric" autocomplete="off">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label" for="apps_written">Apps Written</label>
-              <input id="apps_written" name="apps_written" type="number" step="1" class="form-control" inputmode="numeric" autocomplete="off">
+              <label class="form-label">Apps Written</label>
+              <input class="form-control" type="number" step="1" name="apps_written" inputmode="numeric" autocomplete="off">
             </div>
 
             <div class="col-12">
-              <label class="form-label" for="notes">Notes</label>
-              <textarea id="notes" name="notes" class="form-control" rows="3"></textarea>
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" name="notes" rows="3"></textarea>
             </div>
           </div>
         </form>
@@ -64,7 +64,7 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
 
-        {{-- ONLY ONE SAVE PATH: this calls the dashboard handler. No extra listeners here. --}}
+        {{-- ONLY ONE SAVE PATH --}}
         <button type="button" class="btn btn-primary" id="saveActivityBtn" onclick="ABC_activitySaveClick(event)">
           Save Activity
         </button>
@@ -76,7 +76,7 @@
 
 <script>
 (function () {
-  // Prevent Enter from submitting the form (we want only the dashboard JS save handler)
+  // Prevent Enter-submit so the only save path is the button -> dashboard handler
   const form = document.getElementById('activityForm');
   if (!form) return;
 
