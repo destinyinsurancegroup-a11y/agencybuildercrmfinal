@@ -81,7 +81,7 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- ✅ IMPORTANT: NO inline onclick (prevents double-submit from competing handlers) --}}
+                {{-- ✅ NO inline onclick (prevents double-submit) --}}
                 <button
                     class="btn"
                     type="button"
@@ -107,8 +107,9 @@
     const saveBtn = document.getElementById("saveActivityBtn");
     const errEl = document.getElementById("activitySaveError");
 
-    // ✅ Per-button wiring guard (NOT global forever)
     if (!form || !saveBtn) return;
+
+    // ✅ Per-button wiring guard (works even when modal is injected multiple times)
     if (saveBtn.dataset.abcWired === "1") return;
     saveBtn.dataset.abcWired = "1";
 
@@ -154,28 +155,26 @@
         }
     });
 
-    async function forceRefreshDashboardTotals() {
-        // ✅ These are defined on dashboard.blade.php
-        const p1 = (typeof window.refreshProductionCard === "function")
-            ? window.refreshProductionCard(true)
-            : Promise.resolve();
+    async function fetchMonthTotalsAndApply() {
+        // ✅ This is the "instant update" secret sauce: always pull fresh totals and apply
+        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
+        const totals = await res.json().catch(() => null);
 
-        const p2 = (typeof window.refreshProductionBreakdownModal === "function")
-            ? window.refreshProductionBreakdownModal(true)
-            : Promise.resolve();
-
-        // ✅ This one fetches /activity/totals/month and applies goal card
-        const p3 = (typeof window.refreshGoalCard === "function")
-            ? window.refreshGoalCard(true)
-            : Promise.resolve();
-
-        await Promise.allSettled([p1, p2, p3]);
+        if (totals && typeof window.applyGoalCardFromTotals === "function") {
+            window.applyGoalCardFromTotals(
+                Number(totals.premium_collected || 0),
+                Number(totals.ap || 0)
+            );
+        } else if (typeof window.refreshGoalCard === "function") {
+            // fallback
+            await window.refreshGoalCard(true);
+        }
     }
 
     async function doSave(e) {
         if (e) e.preventDefault();
 
-        // ✅ Global lock (prevents double click AND prevents competing handlers)
+        // ✅ Global lock prevents any double-click / competing handler issue
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
@@ -218,25 +217,25 @@
                 return;
             }
 
-            const data = await res.json().catch(() => ({}));
-
-            // ✅ FAST PATH: if server returned month_totals, apply immediately (instant visual update)
-            if (data && data.month_totals && typeof window.applyGoalCardFromTotals === "function") {
-                window.applyGoalCardFromTotals(
-                    Number(data.month_totals.premium_collected || 0),
-                    Number(data.month_totals.ap || 0)
-                );
-            }
-
-            // Close modal right away
+            // ✅ close modal immediately (like your working version)
             const modalEl = document.getElementById("activityModal");
             if (modalEl && typeof bootstrap !== "undefined") {
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide();
             }
 
-            // ✅ TRUTH PASS: always force-refresh from server so it can NEVER be “doubled”
-            // (this makes UI match DB even if anything weird happened)
-            await forceRefreshDashboardTotals();
+            // ✅ instant production refresh
+            const p1 = (typeof window.refreshProductionCard === "function")
+                ? window.refreshProductionCard(true)
+                : Promise.resolve();
+
+            const p2 = (typeof window.refreshProductionBreakdownModal === "function")
+                ? window.refreshProductionBreakdownModal(true)
+                : Promise.resolve();
+
+            // ✅ instant goal refresh (this is what you were missing)
+            const p3 = fetchMonthTotalsAndApply();
+
+            await Promise.allSettled([p1, p2, p3]);
 
         } catch (err) {
             showError(err && err.message ? err.message : "Save failed.");
@@ -246,10 +245,10 @@
         }
     }
 
-    // expose for compatibility (if anything calls it)
+    // expose for compatibility if anything calls it
     window.ABC_activitySaveClick = doSave;
 
-    // ✅ ONLY ONE click listener
+    // ✅ single click listener
     saveBtn.addEventListener("click", doSave);
 })();
 </script>
