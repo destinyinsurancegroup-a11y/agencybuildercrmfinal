@@ -81,7 +81,7 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- ✅ NO inline onclick (prevents double-submit) --}}
+                {{-- ✅ NO inline onclick --}}
                 <button
                     class="btn"
                     type="button"
@@ -105,38 +105,12 @@
     const premiumInput = document.getElementById("premiumInput");
     const apInput = document.getElementById("apInput");
     const saveBtn = document.getElementById("saveActivityBtn");
-    const errEl = document.getElementById("activitySaveError");
 
     if (!form || !saveBtn) return;
 
-    // ✅ Per-button wiring guard (works even when modal is injected multiple times)
+    // ✅ Prevent double-wiring if modal HTML is injected multiple times
     if (saveBtn.dataset.abcWired === "1") return;
     saveBtn.dataset.abcWired = "1";
-
-    function showError(msg) {
-        if (!errEl) return;
-        errEl.style.display = "block";
-        errEl.style.background = "rgba(239,68,68,.12)";
-        errEl.style.border = "1px solid rgba(239,68,68,.35)";
-        errEl.style.padding = "10px 12px";
-        errEl.style.borderRadius = "12px";
-        errEl.style.color = "#fecaca";
-        errEl.style.fontWeight = "800";
-        errEl.innerText = msg || "Save failed.";
-    }
-
-    function clearError() {
-        if (!errEl) return;
-        errEl.style.display = "none";
-        errEl.innerText = "";
-    }
-
-    function setSaving(isSaving) {
-        saveBtn.disabled = !!isSaving;
-        saveBtn.innerText = isSaving ? "Saving..." : "Save Activity";
-        saveBtn.style.opacity = isSaving ? "0.85" : "1";
-        saveBtn.style.cursor = isSaving ? "not-allowed" : "pointer";
-    }
 
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
@@ -147,7 +121,7 @@
     if (premiumInput) premiumInput.addEventListener("input", updateAP);
     updateAP();
 
-    // Stop Enter from submitting form in modal
+    // ✅ Stop Enter from submitting the form
     form.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();
@@ -155,100 +129,15 @@
         }
     });
 
-    async function fetchMonthTotalsAndApply() {
-        // ✅ This is the "instant update" secret sauce: always pull fresh totals and apply
-        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: "no-store" });
-        const totals = await res.json().catch(() => null);
-
-        if (totals && typeof window.applyGoalCardFromTotals === "function") {
-            window.applyGoalCardFromTotals(
-                Number(totals.premium_collected || 0),
-                Number(totals.ap || 0)
-            );
-        } else if (typeof window.refreshGoalCard === "function") {
-            // fallback
-            await window.refreshGoalCard(true);
+    // ✅ Popup does NOT implement saving.
+    // It ONLY calls the dashboard-defined save handler.
+    saveBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (typeof window.ABC_activitySaveClick === "function") {
+            window.ABC_activitySaveClick(e);
+        } else {
+            console.warn("ABC_activitySaveClick is not defined on window (dashboard handler missing).");
         }
-    }
-
-    async function doSave(e) {
-        if (e) e.preventDefault();
-
-        // ✅ Global lock prevents any double-click / competing handler issue
-        if (window.__ABC_ACTIVITY_SAVING) return;
-        window.__ABC_ACTIVITY_SAVING = true;
-
-        clearError();
-        setSaving(true);
-
-        try {
-            const url = form.getAttribute("action");
-            const fd = new FormData(form);
-
-            // Normalize blanks to zero so server gets numbers
-            ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
-                const v = fd.get(name);
-                if (v === null || v === "") fd.set(name, "0");
-            });
-            const prem = fd.get("premium_collected");
-            if (prem === null || prem === "") fd.set("premium_collected", "0");
-
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "Accept": "application/json",
-                },
-                body: fd,
-                cache: "no-store",
-                credentials: "same-origin",
-            });
-
-            if (res.status === 422) {
-                const j = await res.json().catch(() => ({}));
-                const first = j && j.errors ? Object.values(j.errors)[0]?.[0] : null;
-                showError(first || "Validation failed.");
-                return;
-            }
-
-            if (!res.ok) {
-                const t = await res.text().catch(() => "");
-                showError("Save failed. " + (t ? t.slice(0, 160) : ""));
-                return;
-            }
-
-            // ✅ close modal immediately (like your working version)
-            const modalEl = document.getElementById("activityModal");
-            if (modalEl && typeof bootstrap !== "undefined") {
-                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-            }
-
-            // ✅ instant production refresh
-            const p1 = (typeof window.refreshProductionCard === "function")
-                ? window.refreshProductionCard(true)
-                : Promise.resolve();
-
-            const p2 = (typeof window.refreshProductionBreakdownModal === "function")
-                ? window.refreshProductionBreakdownModal(true)
-                : Promise.resolve();
-
-            // ✅ instant goal refresh (this is what you were missing)
-            const p3 = fetchMonthTotalsAndApply();
-
-            await Promise.allSettled([p1, p2, p3]);
-
-        } catch (err) {
-            showError(err && err.message ? err.message : "Save failed.");
-        } finally {
-            window.__ABC_ACTIVITY_SAVING = false;
-            setSaving(false);
-        }
-    }
-
-    // expose for compatibility if anything calls it
-    window.ABC_activitySaveClick = doSave;
-
-    // ✅ single click listener
-    saveBtn.addEventListener("click", doSave);
+    });
 })();
 </script>
