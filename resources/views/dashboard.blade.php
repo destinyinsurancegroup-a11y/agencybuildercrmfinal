@@ -5,13 +5,11 @@
      * ✅ Robust time source for JS: epoch milliseconds (UTC)
      */
     $serverTimeMs = now()->utc()->timestamp * 1000;
-
     // ✅ Reset goal to 0 (until backend persistence is wired)
-    $goalMonthName = now()->format('F');                 // fallback until JS sets it
-    $placeholderGoal = 0;                               // $0
-    $placeholderPercent = 0;                            // 0%
-    $placeholderNeededMonthly = 0;                      // $0
-
+    $goalMonthName = now()->format('F'); // fallback until JS sets it
+    $placeholderGoal = 0; // $0
+    $placeholderPercent = 0; // 0%
+    $placeholderNeededMonthly = 0; // $0
     /**
      * ✅ Days-left (server fallback) should be "days left AFTER today"
      */
@@ -20,10 +18,8 @@
     $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
     $daysLeft = max($daysLeftRaw, 0);
 @endphp
-
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
     :root {
         --gold: #c9a227;
         --gold-soft: #f5e6b3;
@@ -32,59 +28,49 @@
         --text-subtle: #4b5563;
         --text-faint: #9ca3af;
         --money-green: #059669;
-
         /* Sidebar-like black */
         --abc-black: #0b1220;
         --abc-black-2: #0f172a;
-
         --danger-red: #ef4444;
         --ring-track: rgba(255,255,255,0.14);
     }
-
     .dashboard-page {
         padding: 30px 40px;
         background: var(--bg-page);
         min-height: 100vh;
         font-family: 'Inter', sans-serif;
     }
-
     /* ===== Header Layout (Search top-right + alert + agent) ===== */
     .dashboard-header { margin-bottom: 22px; }
-
     .dashboard-header-top {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
         gap: 18px;
     }
-
     .dashboard-title {
         font-size: 32px;
         font-weight: 700;
         color: var(--text-main);
         margin-bottom: 10px;
     }
-
     .dashboard-subtitle {
         font-size: 22px;
         font-weight: 600;
         color: var(--text-subtle);
         margin-bottom: 6px;
     }
-
     .dashboard-datetime {
         font-size: 16px;
         font-weight: 600;
         color: var(--text-faint);
     }
-
     .dashboard-right-tools {
         display: flex;
         align-items: center;
         gap: 10px;
         padding-top: 6px;
     }
-
     .top-search {
         display: flex;
         align-items: center;
@@ -96,7 +82,6 @@
         min-width: 420px;
         box-shadow: 0 10px 20px -16px rgba(0,0,0,0.25);
     }
-
     .top-search input {
         border: none;
         outline: none;
@@ -104,14 +89,12 @@
         font-size: 14px;
         color: var(--text-main);
     }
-
     .top-search .icon {
         color: #6b7280;
         font-size: 14px;
         width: 16px;
         text-align: center;
     }
-
     .top-icon-btn {
         width: 40px;
         height: 40px;
@@ -125,7 +108,6 @@
         box-shadow: 0 10px 20px -16px rgba(0,0,0,0.25);
         position: relative;
     }
-
     .top-icon-btn .dot {
         position: absolute;
         right: 8px;
@@ -136,7 +118,6 @@
         background: #ef4444;
         border: 2px solid #fff;
     }
-
     .top-agent-btn {
         height: 40px;
         border-radius: 12px;
@@ -152,7 +133,6 @@
         font-size: 14px;
         color: var(--text-main);
     }
-
     .top-agent-avatar {
         width: 28px;
         height: 28px;
@@ -165,7 +145,6 @@
         font-weight: 900;
         font-size: 13px;
     }
-
     /* ==== GRID ==== */
     .dashboard-grid {
         display: grid;
@@ -173,7 +152,6 @@
         gap: 20px;
         margin-top: 18px;
     }
-
     .dashboard-card {
         background: #fff;
         border-radius: 18px;
@@ -183,7 +161,6 @@
             0 18px 30px -12px rgba(0,0,0,0.35),
             0 8px 16px -8px rgba(0,0,0,0.18);
     }
-
     /* ===== PRODUCTION CARD ===== */
     .production-title {
         text-align: center;
@@ -191,11 +168,9 @@
         font-weight: 700;
         margin-bottom: 14px;
     }
-
     .production-tabs-wrapper {
         display: flex; justify-content: center; margin-bottom: 18px;
     }
-
     .production-tabs {
         display: inline-flex;
         gap: 6px;
@@ -204,7 +179,6 @@
         border: 1px solid #e5e7eb;
         background: #f9fafb;
     }
-
     .production-tab {
         padding: 6px 12px;
         font-size: 14px;
@@ -215,23 +189,19 @@
         color: #6b7280;
         border: none;
     }
-
     .production-tab-active {
         background: var(--gold);
         color: #111827;
         box-shadow: 0 3px 6px rgba(0,0,0,0.25);
     }
-
     .production-range { display: none; }
     .production-range-active { display: block; }
-
     .production-label {
         font-size: 18px;
         color: #4b5563;
         font-weight: 500;
         padding: 6px 0;
     }
-
     .production-value {
         font-size: 24px;
         font-weight: 700;
@@ -239,19 +209,16 @@
         padding: 6px 0;
         white-space: nowrap;
     }
-
     .money {
         color: var(--money-green) !important;
         font-weight: 800 !important;
     }
-
     /* CARD TITLES */
     .dashboard-card-title-row {
         display: flex;
         justify-content: space-between;
         margin-bottom: 12px;
     }
-
     .dashboard-card-title {
         font-size: 20px;
         font-weight: 700;
@@ -260,27 +227,22 @@
         gap: 8px;
         color: var(--text-main);
     }
-
     .dashboard-card-icon {
         background: var(--gold-soft);
         padding: 6px;
         border-radius: 50%;
         font-size: 14px;
     }
-
     .dashboard-list { list-style: none; padding: 0; margin: 0; }
     .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
-
     /* =========================================================
        GOAL CARD
        ========================================================= */
-
     .goal-card-wrap {
         width: 50%;
         margin-top: 6px;
         margin-bottom: 18px;
     }
-
     .goal-card {
         background: linear-gradient(180deg, var(--abc-black-2) 0%, var(--abc-black) 100%);
         border-radius: 18px;
@@ -292,7 +254,6 @@
         position: relative;
         color: #fff;
     }
-
     .goal-card::before {
         content: "";
         position: absolute;
@@ -315,7 +276,6 @@
         background: rgba(255,255,255,0.025);
         pointer-events: none;
     }
-
     .goal-header {
         display: flex;
         align-items: center;
@@ -327,7 +287,6 @@
         position: relative;
         z-index: 1;
     }
-
     .goal-header-left {
         display: flex;
         align-items: center;
@@ -337,7 +296,6 @@
         letter-spacing: 0.2px;
         line-height: 1.05;
     }
-
     .goal-icon {
         width: 34px;
         height: 34px;
@@ -352,7 +310,6 @@
         font-size: 14px;
         flex: 0 0 auto;
     }
-
     .goal-input-wrap {
         display: flex;
         align-items: stretch;
@@ -362,7 +319,6 @@
         background: rgba(0,0,0,0.25);
         flex: 0 0 auto;
     }
-
     .goal-input {
         width: 140px;
         padding: 10px 12px;
@@ -373,7 +329,6 @@
         font-size: 18px;
         font-weight: 900;
     }
-
     .goal-save {
         padding: 10px 14px;
         border: none;
@@ -384,7 +339,6 @@
         cursor: pointer;
         opacity: 0.95;
     }
-
     .goal-body {
         display: grid;
         grid-template-columns: 1.05fr 0.95fr;
@@ -394,36 +348,30 @@
         position: relative;
         z-index: 1;
     }
-
     .goal-main {
         font-size: 44px;
         font-weight: 900;
         margin-bottom: 12px;
         line-height: 1.1;
     }
-
     .goal-main .amt { color: var(--gold); }
     .goal-main .ap { color: #ffffff; }
-
     .goal-label {
         font-size: 20px;
         font-weight: 800;
         color: var(--gold);
         margin-bottom: 6px;
     }
-
     .goal-needed-row {
         display: flex;
         align-items: baseline;
         gap: 12px;
     }
-
     .goal-needed {
         font-size: 40px;
         font-weight: 900;
         color: #ffffff;
     }
-
     /* ✅ Gauge uses --gauge-color and --progress */
     .goal-ring {
         width: 213px;
@@ -437,7 +385,6 @@
         position: relative;
         z-index: 3;
     }
-
     .goal-ring::before {
         content: "";
         width: 170px;
@@ -447,7 +394,6 @@
         border: 1px solid rgba(255,255,255,0.10);
         position: absolute;
     }
-
     .goal-ring-center {
         position: relative;
         z-index: 2;
@@ -460,7 +406,6 @@
         height: 100%;
         gap: 6px;
     }
-
     .goal-percent {
         font-size: 54px;
         font-weight: 900;
@@ -468,7 +413,6 @@
         line-height: 1;
         margin: 0;
     }
-
     .goal-complete {
         font-size: 18px;
         font-weight: 600;
@@ -476,13 +420,11 @@
         line-height: 1.1;
         margin: 0;
     }
-
     .goal-strip-wrap {
         position: relative;
         padding: 0 18px 16px;
         z-index: 1;
     }
-
     .goal-strip {
         height: 46px;
         display: flex;
@@ -500,9 +442,7 @@
             rgba(255,255,255,0.00) 100%
         );
     }
-
     .goal-strip span { font-weight: 900; }
-
     /* ✅ Gauge position (already moved up) */
     .goal-strip-ring-anchor {
         position: absolute;
@@ -510,7 +450,6 @@
         top: -205px;
         z-index: 4;
     }
-
     .goal-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -519,7 +458,6 @@
         position: relative;
         z-index: 1;
     }
-
     .goal-btn {
         border-radius: 12px;
         padding: 7px 7px;
@@ -530,50 +468,41 @@
         border: 1px solid rgba(255,255,255,0.12);
         min-height: 48px;
     }
-
     /* ✅ Log Production centered */
     #abc-log-production {
         cursor: pointer;
         justify-content: center !important;
     }
     #abc-log-production .goal-btn-left { align-items: center; }
-
     /* ✅ Production Breakdown clickable */
     #abc-production-breakdown { cursor: pointer; }
-
     .goal-btn-primary {
         background: var(--gold);
         color: #111827;
         box-shadow: 0 10px 18px -12px rgba(0,0,0,0.55);
     }
-
     .goal-btn-secondary {
         background: rgba(0,0,0,0.18);
         border: 1px solid rgba(255,255,255,0.14);
         color: #fff;
     }
-
     .goal-btn-left {
         display: flex;
         flex-direction: column;
         gap: 2px;
     }
-
     .goal-btn-title {
         font-size: 22px;
         font-weight: 900;
         line-height: 1.05;
     }
-
     /* ===== Production Breakdown Modal (Bootstrap) ===== */
     .abc-modal-wide .modal-dialog {
         max-width: 920px;
     }
-
     .abc-breakdown-wrap {
         padding: 6px 8px 16px;
     }
-
     .abc-breakdown-title {
         text-align: center;
         font-size: 22px;
@@ -581,67 +510,52 @@
         margin: 10px 0 12px;
         color: #111827;
     }
-
     /* Responsive */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
-
         .goal-ring { width: 190px; height: 190px; }
         .goal-ring::before { width: 152px; height: 152px; }
         .goal-percent { font-size: 46px; }
         .goal-complete { font-size: 15px; }
-
         .goal-strip-ring-anchor { top: -185px; }
     }
-
     @media (max-width: 1100px) {
         .goal-card-wrap { width: 100%; }
         .top-search { min-width: 240px; }
     }
-
     @media (max-width: 860px) {
         .dashboard-header-top { flex-direction: column; align-items: stretch; }
         .dashboard-right-tools { justify-content: flex-start; }
         .top-search { min-width: 0; width: 100%; }
-
         .goal-body { grid-template-columns: 1fr; }
         .goal-actions { grid-template-columns: 1fr; }
         .goal-header-left { font-size: 34px; }
-
         .goal-ring { width: 176px; height: 176px; }
         .goal-ring::before { width: 140px; height: 140px; }
         .goal-percent { font-size: 42px; }
         .goal-complete { font-size: 13px; }
-
         .goal-strip-ring-anchor { right: 18px; top: -170px; }
     }
 </style>
-
 <div class="dashboard-page">
-
     <div class="dashboard-header">
         <div class="dashboard-header-top">
             <div>
                 <div class="dashboard-title">Dashboard</div>
-
                 <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
-
                 <div class="dashboard-datetime local-time" data-server-time-ms="{{ $serverTimeMs }}">
                     Loading time…
                 </div>
             </div>
-
             <div class="dashboard-right-tools">
                 <div class="top-search">
                     <span class="icon">🔍</span>
                     <input type="text" placeholder="Search contacts, leads, or clients...">
                 </div>
-
                 <button class="top-icon-btn" type="button" aria-label="Alerts">
                     🔔
                     <span class="dot" aria-hidden="true"></span>
                 </button>
-
                 <button class="top-agent-btn" type="button" aria-label="Agent menu">
                     <span class="top-agent-avatar">A</span>
                     Agent
@@ -649,7 +563,6 @@
             </div>
         </div>
     </div>
-
     {{-- GOAL CARD (50% wide) --}}
     <div class="goal-card-wrap">
         <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }}; --gauge-color: var(--danger-red);">
@@ -658,7 +571,6 @@
                     <span class="goal-icon">●</span>
                     <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                 </div>
-
                 <div class="goal-input-wrap">
                     <input
                         id="abc-goal-input"
@@ -671,30 +583,25 @@
                     <button id="abc-goal-submit" class="goal-save" type="button">Submit →</button>
                 </div>
             </div>
-
             <div class="goal-body">
                 <div>
                     <div class="goal-main">
                         <span class="amt" id="abc-goal-ap-earned">$0</span>
                         <span class="ap"> AP</span>
                     </div>
-
                     <div class="goal-label">Collected Premium Needed:</div>
                     <div class="goal-needed-row">
                         <div class="goal-needed" id="abc-goal-needed-display">${{ number_format($placeholderNeededMonthly, 0) }}</div>
                     </div>
                 </div>
-
                 <div style="position:relative;">
                     {{-- reserved space; ring is positioned over strip below --}}
                 </div>
             </div>
-
             <div class="goal-strip-wrap">
                 <div class="goal-strip">
                     <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
                 </div>
-
                 <div class="goal-strip-ring-anchor">
                     <div id="abc-goal-ring" class="goal-ring" aria-label="Goal progress ring">
                         <div class="goal-ring-center">
@@ -704,14 +611,12 @@
                     </div>
                 </div>
             </div>
-
             <div class="goal-actions">
                 <button id="abc-log-production" class="goal-btn goal-btn-primary" type="button">
                     <div class="goal-btn-left">
                         <div class="goal-btn-title">Log Production</div>
                     </div>
                 </button>
-
                 <button id="abc-production-breakdown" class="goal-btn goal-btn-secondary" type="button">
                     <div class="goal-btn-left">
                         <div class="goal-btn-title">Production Breakdown</div>
@@ -721,13 +626,11 @@
             </div>
         </div>
     </div>
-
     {{-- GRID START --}}
     <div class="dashboard-grid">
         {{-- CURRENT PRODUCTION CARD --}}
         <div class="dashboard-card" id="abc-current-production-card">
             <div class="production-title">Current Production</div>
-
             <div class="production-tabs-wrapper">
                 <div class="production-tabs">
                     <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
@@ -737,9 +640,7 @@
                     <button class="production-tab" data-production-tab="year" type="button">Year</button>
                 </div>
             </div>
-
             <div class="dashboard-card-body production-stats">
-
                 <div class="production-range production-range-active" data-production-range="day">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -751,7 +652,6 @@
                         <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
-
                 <div class="production-range" data-production-range="week">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -763,7 +663,6 @@
                         <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
-
                 <div class="production-range" data-production-range="month">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -775,7 +674,6 @@
                         <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
-
                 <div class="production-range" data-production-range="quarter">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -787,7 +685,6 @@
                         <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
-
                 <div class="production-range" data-production-range="year">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -799,10 +696,8 @@
                         <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
-
             </div>
         </div>
-
         {{-- UPCOMING APPOINTMENTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
@@ -830,7 +725,6 @@
                 @endif
             </div>
         </div>
-
         {{-- TODAY'S INSIGHTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
@@ -839,13 +733,11 @@
                     Today’s Insights
                 </div>
             </div>
-
             <div class="dashboard-card-body">
                 <ul class="dashboard-list">
                     <li>Birthdays in next 7 days: {{ $birthdays->count() }}</li>
                     <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
                 </ul>
-
                 @if($birthdays->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -862,7 +754,6 @@
                         @endforeach
                     </ul>
                 @endif
-
                 @if($anniversaries->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -881,7 +772,6 @@
                 @endif
             </div>
         </div>
-
         {{-- GIDEON OPPORTUNITIES --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
@@ -925,14 +815,11 @@
                 @endif
             </div>
         </div>
-
     </div>{{-- END GRID --}}
-
     <div class="dashboard-footer-note" style="margin-top: 20px; color:#6b7280;">
         © {{ now()->year }} Agency Builder CRM — Tier 1
     </div>
 </div>
-
 {{-- ✅ Production Breakdown Modal --}}
 <div class="modal fade" id="productionBreakdownModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered abc-modal-wide">
@@ -941,10 +828,8 @@
                 <h5 class="modal-title" style="font-weight:900;">Production Breakdown</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-
             <div class="modal-body abc-breakdown-wrap">
                 <div class="abc-breakdown-title">Current Production</div>
-
                 <div class="production-tabs-wrapper">
                     <div class="production-tabs" id="abc-breakdown-tabs">
                         <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
@@ -954,9 +839,7 @@
                         <button class="production-tab" data-production-tab="year" type="button">Year</button>
                     </div>
                 </div>
-
                 <div class="dashboard-card-body production-stats" id="abc-breakdown-stats">
-
                     <div class="production-range production-range-active" data-production-range="day">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -968,7 +851,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="week">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -980,7 +862,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="month">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -992,7 +873,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="quarter">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -1004,7 +884,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="year">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -1016,72 +895,57 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                 </div>
             </div>
-
         </div>
     </div>
 </div>
-
 <!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING + BUTTON WIRING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
     const serverTimeMsStr = timeEl.getAttribute("data-server-time-ms");
-
     const ms = parseInt(serverTimeMsStr, 10);
     const localDate = new Date(ms);
-
     if (isNaN(localDate.getTime())) {
         greetEl.innerText = "Good day, Agent";
         timeEl.innerText = "—";
         return;
     }
-
     const hour = localDate.getHours();
     let greeting = "Good ";
     if (hour < 12) greeting += "morning";
     else if (hour < 17) greeting += "afternoon";
     else greeting += "evening";
-
     greetEl.innerText = greeting + ", Agent";
-
     const datePart = localDate.toLocaleDateString(undefined, {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric"
     });
-
     const timePart = localDate.toLocaleTimeString(undefined, {
         hour: "numeric",
         minute: "2-digit"
     });
-
     timeEl.innerText = `${datePart} • ${timePart}`;
-
     // ✅ Month sync for goal card
     const goalMonthEl = document.getElementById("abc-goal-month");
     if (goalMonthEl) {
         const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
         goalMonthEl.innerText = monthName;
     }
-
     // ✅ Days-left sync for goal card: days left in month AFTER today
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
         const y = localDate.getFullYear();
         const m = localDate.getMonth();
         const d = localDate.getDate();
-
         const startOfTomorrow = new Date(y, m, d + 1);
         const endOfMonth = new Date(y, m + 1, 0);
         const startOfEnd = new Date(y, m, endOfMonth.getDate());
-
         const msPerDay = 24 * 60 * 60 * 1000;
-
         if (startOfTomorrow > startOfEnd) {
             daysLeftEl.innerText = 0;
         } else {
@@ -1089,51 +953,42 @@ document.addEventListener("DOMContentLoaded", function () {
             daysLeftEl.innerText = Math.max(diffDays, 0);
         }
     }
-
     // =========================================================
     // ✅ Goal Amount Submit Wiring (front-end)
     // =========================================================
     const goalInput = document.getElementById("abc-goal-input");
     const goalSubmit = document.getElementById("abc-goal-submit");
-
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
         const n = parseFloat(cleaned);
         return isNaN(n) ? 0 : n;
     }
-
     function formatMoney0(n) {
         const v = Math.round(Number(n) || 0);
         return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
-
     function setGoalInput(goalApNumber) {
         const goalAp = Math.max(0, Math.round(goalApNumber || 0));
         if (goalInput) goalInput.value = formatMoney0(goalAp);
     }
-
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     setGoalInput(savedGoal !== null ? parseMoneyToNumber(savedGoal) : 0);
-
     if (goalInput) {
         goalInput.addEventListener("blur", () => {
             const raw = parseMoneyToNumber(goalInput.value);
             setGoalInput(raw);
         });
     }
-
     if (goalSubmit) {
         goalSubmit.addEventListener("click", () => {
             const raw = goalInput ? parseMoneyToNumber(goalInput.value) : 0;
             const goalAp = Math.max(0, Math.round(raw));
             localStorage.setItem("abc_monthly_goal_ap", String(goalAp));
             setGoalInput(goalAp);
-
             if (window.refreshGoalCard) window.refreshGoalCard(true);
         });
     }
-
     // =========================================================
     // ✅ Log Production wiring (ALWAYS opens the Track Daily Activity modal)
     // =========================================================
@@ -1142,14 +997,12 @@ document.addEventListener("DOMContentLoaded", function () {
             console.warn("Bootstrap is not available on this page, cannot open activity modal.");
             return;
         }
-
         let modalEl = document.getElementById("activityModal");
         if (modalEl) {
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
             return;
         }
-
         const existingWrap = document.getElementById("activity-modal-injected");
         if (existingWrap) {
             modalEl = document.getElementById("activityModal");
@@ -1159,40 +1012,33 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             return;
         }
-
         try {
             const res = await fetch("/activity/popup?_=" + Date.now(), {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
                 cache: "no-store"
             });
-
             const html = await res.text();
-
             const wrap = document.createElement("div");
             wrap.id = "activity-modal-injected";
             wrap.innerHTML = html;
             document.body.appendChild(wrap);
-
             modalEl = document.getElementById("activityModal");
             if (!modalEl) {
                 console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
                 return;
             }
-
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
         } catch (err) {
             console.error("Failed to load /activity/popup", err);
         }
     }
-
     const logBtn = document.getElementById("abc-log-production");
     if (logBtn) {
         logBtn.addEventListener("click", () => {
             openActivityModal();
         });
     }
-
     // =========================================================
     // ✅ Production Breakdown button opens modal
     // =========================================================
@@ -1201,89 +1047,71 @@ document.addEventListener("DOMContentLoaded", function () {
         breakdownBtn.addEventListener("click", () => {
             const modalEl = document.getElementById("productionBreakdownModal");
             if (!modalEl || typeof bootstrap === "undefined") return;
-
             const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
             instance.show();
-
             if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     }
 });
 </script>
-
 <!-- TAB LOGIC (Dashboard Card) -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const tabs = document.querySelectorAll('#abc-current-production-card .production-tab');
     const ranges = document.querySelectorAll('#abc-current-production-card .production-range');
-
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const range = tab.dataset.productionTab;
-
             tabs.forEach(t => t.classList.remove('production-tab-active'));
             tab.classList.add('production-tab-active');
-
             ranges.forEach(r => {
                 r.classList.toggle('production-range-active', r.dataset.productionRange === range);
             });
-
             if (window.refreshProductionCard) window.refreshProductionCard(true);
         });
     });
 });
 </script>
-
 <!-- TAB LOGIC (Production Breakdown Modal) -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const tabWrap = document.getElementById('abc-breakdown-tabs');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     if (!tabWrap || !statsWrap) return;
-
     const tabs = tabWrap.querySelectorAll('.production-tab');
     const ranges = statsWrap.querySelectorAll('.production-range');
-
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const range = tab.dataset.productionTab;
-
             tabs.forEach(t => t.classList.remove('production-tab-active'));
             tab.classList.add('production-tab-active');
-
             ranges.forEach(r => {
                 r.classList.toggle('production-range-active', r.dataset.productionRange === range);
             });
-
             if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     });
 });
 </script>
-
 <!-- UPDATE STATS (Dashboard Card) -->
 <script>
 window.refreshProductionCard = function(force = false) {
     const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
     if (!activeTab) return Promise.resolve();
-
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
-
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = document.querySelectorAll(
                 `#abc-current-production-card .production-range[data-production-range="${active}"] .production-value`
             );
-
             if (rows.length === 7) {
                 rows[0].innerText = data.leads_worked;
                 rows[1].innerText = data.calls;
                 rows[2].innerText = data.stops;
                 rows[3].innerText = data.presentations;
                 rows[4].innerText = data.apps_written;
-
                 rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
                 rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
             }
@@ -1291,7 +1119,6 @@ window.refreshProductionCard = function(force = false) {
         .catch(() => {});
 };
 </script>
-
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
 window.refreshProductionBreakdownModal = function(force = false) {
@@ -1299,27 +1126,22 @@ window.refreshProductionBreakdownModal = function(force = false) {
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
     if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
-
     const activeTab = tabsWrap.querySelector('.production-tab-active');
     if (!activeTab) return Promise.resolve();
-
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
-
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const rows = statsWrap.querySelectorAll(
                 `.production-range[data-production-range="${active}"] .production-value`
             );
-
             if (rows.length === 7) {
                 rows[0].innerText = data.leads_worked;
                 rows[1].innerText = data.calls;
                 rows[2].innerText = data.stops;
                 rows[3].innerText = data.presentations;
                 rows[4].innerText = data.apps_written;
-
                 rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
                 rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
             }
@@ -1327,7 +1149,6 @@ window.refreshProductionBreakdownModal = function(force = false) {
         .catch(() => {});
 };
 </script>
-
 <!-- APPLY GOAL CARD FROM TOTALS -->
 <script>
 window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
@@ -1336,45 +1157,35 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     const percentText = document.getElementById('abc-goal-percent-text');
     const neededDisplay = document.getElementById('abc-goal-needed-display');
     const apEarnedEl = document.getElementById('abc-goal-ap-earned');
-
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
         const n = parseFloat(cleaned);
         return isNaN(n) ? 0 : n;
     }
-
     function formatMoney0(n) {
         const v = Math.round(Number(n) || 0);
         return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
-
     function gaugeColorForPercent(pct) {
         const p = Number(pct) || 0;
         if (p <= 24) return '#ef4444';
         if (p <= 75) return '#c9a227';
         return '#059669';
     }
-
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
-
     const prem = Number(premiumCollected || 0);
     const ap = Number(apEarned || 0);
-
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
-
     let pct = 0;
     if (monthlyNeeded > 0) {
         pct = Math.round(Math.min(100, (prem / monthlyNeeded) * 100));
     }
-
     const color = gaugeColorForPercent(pct);
-
     if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
     if (apEarnedEl) apEarnedEl.innerText = formatMoney0(ap);
-
     if (goalCard) {
         goalCard.style.setProperty('--progress', String(pct));
         goalCard.style.setProperty('--gauge-color', color);
@@ -1386,30 +1197,24 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     if (percentText) percentText.innerText = `${pct}%`;
 };
 </script>
-
 <!-- GOAL CARD REFRESH (fetch month totals) -->
 <script>
 window.refreshGoalCard = function(force = false) {
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
-
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
         const n = parseFloat(cleaned);
         return isNaN(n) ? 0 : n;
     }
-
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
-
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
-
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const premiumCollected = Number(data.premium_collected || 0);
             const apEarned = Number(data.ap || 0);
-
             // reuse the instant applier
             if (typeof window.applyGoalCardFromTotals === "function") {
                 window.applyGoalCardFromTotals(premiumCollected, apEarned);
@@ -1418,15 +1223,19 @@ window.refreshGoalCard = function(force = false) {
         .catch(() => {});
 };
 </script>
-
 <!-- ✅ OPTION A: GLOBAL SAVE HANDLER (THIS IS THE FIX) -->
 <script>
 (function(){
+    function parseMoneyToNumber(str) {
+        if (!str) return 0;
+        const cleaned = String(str).replace(/[^0-9.]/g, "");
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+    }
     function getCsrfTokenFromForm(formEl) {
         const tokenInput = formEl ? formEl.querySelector('input[name="_token"]') : null;
         return tokenInput ? tokenInput.value : null;
     }
-
     function showSaveError(msg) {
         const err = document.getElementById('activitySaveError');
         if (!err) return;
@@ -1435,14 +1244,12 @@ window.refreshGoalCard = function(force = false) {
         err.style.fontWeight = '800';
         err.innerText = msg || 'Save failed. Please try again.';
     }
-
     function hideSaveError() {
         const err = document.getElementById('activitySaveError');
         if (!err) return;
         err.style.display = 'none';
         err.innerText = '';
     }
-
     function setSaving(isSaving) {
         const btn = document.getElementById('saveActivityBtn');
         if (!btn) return;
@@ -1451,32 +1258,110 @@ window.refreshGoalCard = function(force = false) {
         btn.style.opacity = isSaving ? '0.8' : '1';
         btn.style.cursor = isSaving ? 'not-allowed' : 'pointer';
     }
-
-    async function fetchMonthTotalsAndApply() {
-        const res = await fetch(`/activity/totals/month?_=${Date.now()}`, { cache: 'no-store' });
-        const data = await res.json();
-        if (typeof window.applyGoalCardFromTotals === "function") {
-            window.applyGoalCardFromTotals(data.premium_collected || 0, data.ap || 0);
+    function updateProductionUI(wrapperId, range, fields) {
+        const wrapper = document.getElementById(wrapperId);
+        if (!wrapper) return;
+        const values = wrapper.querySelectorAll(`.production-range[data-production-range="${range}"] .production-value`);
+        if (values.length !== 7) return;
+        let currentNums = Array.from(values).map(el => {
+            let text = el.innerText;
+            if (text === '--') return 0;
+            if (el.classList.contains('money')) {
+                return parseFloat(text.replace(/[^0-9.-]+/g, '') || 0);
+            }
+            return Number(text || 0);
+        });
+        currentNums[0] += fields.leads_worked;
+        currentNums[1] += fields.calls;
+        currentNums[2] += fields.stops;
+        currentNums[3] += fields.presentations;
+        currentNums[4] += fields.apps_written;
+        currentNums[5] += fields.premium_collected;
+        currentNums[6] += fields.ap;
+        for (let i = 0; i < 7; i++) {
+            if (i < 5) {
+                values[i].innerText = Math.round(currentNums[i]);
+            } else {
+                values[i].innerText = '$' + currentNums[i].toFixed(2);
+            }
         }
     }
-
+    async function localUpdateUIFromForm(form) {
+        const fields = {
+            leads_worked: Number(form.querySelector('[name="leads_worked"]').value || 0),
+            calls: Number(form.querySelector('[name="calls"]').value || 0),
+            stops: Number(form.querySelector('[name="stops"]').value || 0),
+            presentations: Number(form.querySelector('[name="presentations"]').value || 0),
+            apps_written: Number(form.querySelector('[name="apps_written"]').value || 0),
+            premium_collected: Number(form.querySelector('[name="premium_collected"]').value || 0),
+            ap: Number(form.querySelector('[name="ap"]').value || 0),
+        };
+        const activityDateStr = form.querySelector('[name="activity_date"]').value;
+        if (!activityDateStr) return;
+        const activityDate = new Date(activityDateStr);
+        if (isNaN(activityDate.getTime())) return;
+        const now = new Date();
+        // Day
+        const isDay = activityDate.getFullYear() === now.getFullYear() &&
+                      activityDate.getMonth() === now.getMonth() &&
+                      activityDate.getDate() === now.getDate();
+        // Week (Sunday to Saturday)
+        const dayOfWeek = now.getDay();
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - dayOfWeek);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        const isWeek = activityDate >= startOfWeek && activityDate <= endOfWeek;
+        // Month
+        const isMonth = activityDate.getFullYear() === now.getFullYear() &&
+                        activityDate.getMonth() === now.getMonth();
+        // Quarter
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        const quarterStartMonth = currentQuarter * 3;
+        const startOfQuarter = new Date(now.getFullYear(), quarterStartMonth, 1);
+        const endOfQuarter = new Date(now.getFullYear(), quarterStartMonth + 3, 0);
+        const isQuarter = activityDate >= startOfQuarter && activityDate <= endOfQuarter;
+        // Year
+        const isYear = activityDate.getFullYear() === now.getFullYear();
+        const rangeChecks = {
+            day: isDay,
+            week: isWeek,
+            month: isMonth,
+            quarter: isQuarter,
+            year: isYear,
+        };
+        const wrappers = ['abc-current-production-card', 'abc-breakdown-stats'];
+        for (const wrapperId of wrappers) {
+            for (const range in rangeChecks) {
+                if (rangeChecks[range]) {
+                    updateProductionUI(wrapperId, range, fields);
+                }
+            }
+        }
+        // Goal card (month only)
+        if (isMonth && typeof window.applyGoalCardFromTotals === "function") {
+            const apEarnedEl = document.getElementById('abc-goal-ap-earned');
+            const currentApStr = apEarnedEl ? apEarnedEl.innerText : '$0';
+            const currentAp = parseMoneyToNumber(currentApStr);
+            const newAp = currentAp + fields.ap;
+            const currentPrem = currentAp / 12;
+            const newPrem = currentPrem + fields.premium_collected;
+            window.applyGoalCardFromTotals(newPrem, newAp);
+        }
+    }
     // This is called by the injected modal button onclick
     window.ABC_activitySaveClick = async function(event) {
         if (event) event.preventDefault();
-
         const form = document.getElementById('activityForm');
         if (!form) {
             console.warn('activityForm not found');
             return;
         }
-
         hideSaveError();
         setSaving(true);
-
         try {
             const url = form.getAttribute('action');
             const fd = new FormData(form);
-
             // If user left fields blank, do NOT send empty strings for numbers
             // (Laravel validation is happier, and your controller defaults them to 0)
             for (const [k, v] of fd.entries()) {
@@ -1484,9 +1369,7 @@ window.refreshGoalCard = function(force = false) {
                     fd.delete(k);
                 }
             }
-
             const csrf = getCsrfTokenFromForm(form);
-
             const res = await fetch(url, {
                 method: 'POST',
                 body: fd,
@@ -1496,7 +1379,6 @@ window.refreshGoalCard = function(force = false) {
                 },
                 cache: 'no-store'
             });
-
             if (!res.ok) {
                 let text = '';
                 try { text = await res.text(); } catch(e) {}
@@ -1504,7 +1386,6 @@ window.refreshGoalCard = function(force = false) {
                 setSaving(false);
                 return;
             }
-
             // success
             // Close the modal immediately
             const modalEl = document.getElementById('activityModal');
@@ -1512,14 +1393,8 @@ window.refreshGoalCard = function(force = false) {
                 const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
                 instance.hide();
             }
-
-            // NOW refresh the cards instantly (this is what was not running before)
-            const p1 = window.refreshProductionCard ? window.refreshProductionCard(true) : Promise.resolve();
-            const p2 = window.refreshProductionBreakdownModal ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
-            const p3 = fetchMonthTotalsAndApply();
-
-            await Promise.allSettled([p1, p2, p3]);
-
+            // Optimistically update UI locally
+            await localUpdateUIFromForm(form);
             setSaving(false);
         } catch (err) {
             console.error(err);
@@ -1529,7 +1404,6 @@ window.refreshGoalCard = function(force = false) {
     };
 })();
 </script>
-
 <!-- INITIAL LOAD -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -1537,5 +1411,4 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.refreshGoalCard) window.refreshGoalCard(true);
 });
 </script>
-
 @endsection
