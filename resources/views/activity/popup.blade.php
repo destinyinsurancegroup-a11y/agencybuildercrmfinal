@@ -81,7 +81,7 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- ✅ Popup does NOT save directly. It calls dashboard global handler. --}}
+                {{-- ✅ Popup does NOT save. It only calls dashboard global handler. --}}
                 <button
                     class="btn"
                     type="button"
@@ -108,7 +108,7 @@
 
     if (!form || !saveBtn) return;
 
-    // ✅ Guard: modal can be injected multiple times
+    // ✅ Prevent duplicate wiring if modal injected multiple times
     if (saveBtn.dataset.abcWired === "1") return;
     saveBtn.dataset.abcWired = "1";
 
@@ -121,7 +121,7 @@
     if (premiumInput) premiumInput.addEventListener("input", updateAP);
     updateAP();
 
-    // ✅ Prevent Enter from submitting the form
+    // ✅ Stop Enter from submitting form in modal
     form.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();
@@ -129,13 +129,12 @@
         }
     });
 
-    // ✅ SINGLE save pathway: call dashboard handler only
+    // ✅ ONLY call dashboard-defined handler
     saveBtn.addEventListener("click", function (e) {
-        e.preventDefault();
         if (typeof window.ABC_activitySaveClick === "function") {
             window.ABC_activitySaveClick(e);
         } else {
-            console.warn("ABC_activitySaveClick not found on window (dashboard script missing).");
+            console.warn("ABC_activitySaveClick is not defined on window (dashboard script missing).");
         }
     });
 })();
