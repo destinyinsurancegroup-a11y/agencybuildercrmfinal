@@ -81,7 +81,7 @@
             </div>
 
             <div class="modal-footer" style="background:#0b1220;">
-                {{-- ✅ NO inline onclick --}}
+                {{-- ✅ NO inline onclick. Popup only calls dashboard global handler. --}}
                 <button
                     class="btn"
                     type="button"
@@ -105,12 +105,25 @@
     const premiumInput = document.getElementById("premiumInput");
     const apInput = document.getElementById("apInput");
     const saveBtn = document.getElementById("saveActivityBtn");
+    const errEl = document.getElementById("activitySaveError");
 
     if (!form || !saveBtn) return;
 
-    // ✅ Prevent double-wiring if modal HTML is injected multiple times
+    // ✅ Guard: prevents re-wiring when modal HTML is injected multiple times
     if (saveBtn.dataset.abcWired === "1") return;
     saveBtn.dataset.abcWired = "1";
+
+    function showError(msg) {
+        if (!errEl) return;
+        errEl.style.display = "block";
+        errEl.style.background = "rgba(239,68,68,.12)";
+        errEl.style.border = "1px solid rgba(239,68,68,.35)";
+        errEl.style.padding = "10px 12px";
+        errEl.style.borderRadius = "12px";
+        errEl.style.color = "#fecaca";
+        errEl.style.fontWeight = "800";
+        errEl.innerText = msg || "Save failed.";
+    }
 
     function updateAP() {
         const prem = Number(premiumInput && premiumInput.value ? premiumInput.value : 0);
@@ -121,7 +134,7 @@
     if (premiumInput) premiumInput.addEventListener("input", updateAP);
     updateAP();
 
-    // ✅ Stop Enter from submitting the form
+    // ✅ Stop Enter from submitting form in modal
     form.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             e.preventDefault();
@@ -129,14 +142,12 @@
         }
     });
 
-    // ✅ Popup does NOT implement saving.
-    // It ONLY calls the dashboard-defined save handler.
-    saveBtn.addEventListener("click", function (e) {
-        e.preventDefault();
+    // ✅ Popup does NOT save. It only calls the dashboard-defined global handler.
+    saveBtn.addEventListener("click", function(e) {
         if (typeof window.ABC_activitySaveClick === "function") {
             window.ABC_activitySaveClick(e);
         } else {
-            console.warn("ABC_activitySaveClick is not defined on window (dashboard handler missing).");
+            showError("Save handler not loaded on dashboard.");
         }
     });
 })();
