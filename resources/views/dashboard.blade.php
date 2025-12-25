@@ -1,25 +1,16 @@
-{{-- resources/views/dashboard.blade.php --}}
-
 @extends('layouts.app')
 @section('content')
 @php
-    /**
-     * ✅ Robust time source for JS: epoch milliseconds (UTC)
-     */
     $serverTimeMs = now()->utc()->timestamp * 1000;
 
-    // ✅ Reset goal to 0 (until backend persistence is wired)
-    $goalMonthName = now()->format('F');                 // fallback until JS sets it
-    $placeholderGoal = 0;                               // $0
-    $placeholderPercent = 0;                            // 0%
-    $placeholderNeededMonthly = 0;                      // $0
+    $goalMonthName = now()->format('F');
+    $placeholderGoal = 0;
+    $placeholderPercent = 0;
+    $placeholderNeededMonthly = 0;
 
-    /**
-     * ✅ Days-left (server fallback) should be "days left AFTER today"
-     */
     $tomorrowStart = now()->addDay()->startOfDay();
     $endOfMonthStart = now()->endOfMonth()->startOfDay();
-    $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
+    $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1;
     $daysLeft = max($daysLeftRaw, 0);
 @endphp
 
@@ -35,7 +26,6 @@
         --text-faint: #9ca3af;
         --money-green: #059669;
 
-        /* Sidebar-like black */
         --abc-black: #0b1220;
         --abc-black-2: #0f172a;
 
@@ -50,7 +40,6 @@
         font-family: 'Inter', sans-serif;
     }
 
-    /* ===== Header Layout (Search top-right + alert + agent) ===== */
     .dashboard-header { margin-bottom: 22px; }
 
     .dashboard-header-top {
@@ -168,7 +157,6 @@
         font-size: 13px;
     }
 
-    /* ==== GRID ==== */
     .dashboard-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -186,7 +174,6 @@
             0 8px 16px -8px rgba(0,0,0,0.18);
     }
 
-    /* ===== PRODUCTION CARD ===== */
     .production-title {
         text-align: center;
         font-size: 20px;
@@ -247,7 +234,6 @@
         font-weight: 800 !important;
     }
 
-    /* CARD TITLES */
     .dashboard-card-title-row {
         display: flex;
         justify-content: space-between;
@@ -273,15 +259,7 @@
     .dashboard-list { list-style: none; padding: 0; margin: 0; }
     .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
 
-    /* =========================================================
-       GOAL CARD
-       ========================================================= */
-
-    .goal-card-wrap {
-        width: 50%;
-        margin-top: 6px;
-        margin-bottom: 18px;
-    }
+    .goal-card-wrap { width: 50%; margin-top: 6px; margin-bottom: 18px; }
 
     .goal-card {
         background: linear-gradient(180deg, var(--abc-black-2) 0%, var(--abc-black) 100%);
@@ -426,7 +404,6 @@
         color: #ffffff;
     }
 
-    /* ✅ Gauge uses --gauge-color and --progress */
     .goal-ring {
         width: 213px;
         height: 213px;
@@ -505,7 +482,6 @@
 
     .goal-strip span { font-weight: 900; }
 
-    /* ✅ Gauge position (already moved up) */
     .goal-strip-ring-anchor {
         position: absolute;
         right: 18px;
@@ -533,14 +509,12 @@
         min-height: 48px;
     }
 
-    /* ✅ Log Production centered */
     #abc-log-production {
         cursor: pointer;
         justify-content: center !important;
     }
     #abc-log-production .goal-btn-left { align-items: center; }
 
-    /* ✅ Production Breakdown clickable */
     #abc-production-breakdown { cursor: pointer; }
 
     .goal-btn-primary {
@@ -567,14 +541,9 @@
         line-height: 1.05;
     }
 
-    /* ===== Production Breakdown Modal (Bootstrap) ===== */
-    .abc-modal-wide .modal-dialog {
-        max-width: 920px;
-    }
+    .abc-modal-wide .modal-dialog { max-width: 920px; }
 
-    .abc-breakdown-wrap {
-        padding: 6px 8px 16px;
-    }
+    .abc-breakdown-wrap { padding: 6px 8px 16px; }
 
     .abc-breakdown-title {
         text-align: center;
@@ -584,15 +553,12 @@
         color: #111827;
     }
 
-    /* Responsive */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
-
         .goal-ring { width: 190px; height: 190px; }
         .goal-ring::before { width: 152px; height: 152px; }
         .goal-percent { font-size: 46px; }
         .goal-complete { font-size: 15px; }
-
         .goal-strip-ring-anchor { top: -185px; }
     }
 
@@ -605,16 +571,13 @@
         .dashboard-header-top { flex-direction: column; align-items: stretch; }
         .dashboard-right-tools { justify-content: flex-start; }
         .top-search { min-width: 0; width: 100%; }
-
         .goal-body { grid-template-columns: 1fr; }
         .goal-actions { grid-template-columns: 1fr; }
         .goal-header-left { font-size: 34px; }
-
         .goal-ring { width: 176px; height: 176px; }
         .goal-ring::before { width: 140px; height: 140px; }
         .goal-percent { font-size: 42px; }
         .goal-complete { font-size: 13px; }
-
         .goal-strip-ring-anchor { right: 18px; top: -170px; }
     }
 </style>
@@ -625,9 +588,7 @@
         <div class="dashboard-header-top">
             <div>
                 <div class="dashboard-title">Dashboard</div>
-
                 <div class="dashboard-subtitle local-greeting">Loading greeting…</div>
-
                 <div class="dashboard-datetime local-time" data-server-time-ms="{{ $serverTimeMs }}">
                     Loading time…
                 </div>
@@ -652,7 +613,7 @@
         </div>
     </div>
 
-    {{-- GOAL CARD (50% wide) --}}
+    {{-- GOAL CARD --}}
     <div class="goal-card-wrap">
         <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }}; --gauge-color: var(--danger-red);">
             <div class="goal-header">
@@ -687,9 +648,7 @@
                     </div>
                 </div>
 
-                <div style="position:relative;">
-                    {{-- reserved space; ring is positioned over strip below --}}
-                </div>
+                <div style="position:relative;"></div>
             </div>
 
             <div class="goal-strip-wrap">
@@ -724,7 +683,7 @@
         </div>
     </div>
 
-    {{-- GRID START --}}
+    {{-- GRID --}}
     <div class="dashboard-grid">
         {{-- CURRENT PRODUCTION CARD --}}
         <div class="dashboard-card" id="abc-current-production-card">
@@ -741,7 +700,6 @@
             </div>
 
             <div class="dashboard-card-body production-stats">
-
                 <div class="production-range production-range-active" data-production-range="day">
                     <table style="width:100%;">
                         <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -801,7 +759,6 @@
                         <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                     </table>
                 </div>
-
             </div>
         </div>
 
@@ -928,14 +885,14 @@
             </div>
         </div>
 
-    </div>{{-- END GRID --}}
+    </div>
 
     <div class="dashboard-footer-note" style="margin-top: 20px; color:#6b7280;">
         © {{ now()->year }} Agency Builder CRM — Tier 1
     </div>
 </div>
 
-{{-- ✅ Production Breakdown Modal --}}
+{{-- Production Breakdown Modal --}}
 <div class="modal fade" id="productionBreakdownModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered abc-modal-wide">
         <div class="modal-content">
@@ -958,7 +915,6 @@
                 </div>
 
                 <div class="dashboard-card-body production-stats" id="abc-breakdown-stats">
-
                     <div class="production-range production-range-active" data-production-range="day">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -1026,19 +982,19 @@
     </div>
 </div>
 
-<!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING + BUTTON WIRING -->
+<!-- LOCAL TIME + GREETING + MONTH + DAYS LEFT + GOAL INPUT + BUTTON WIRING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const timeEl = document.querySelector(".local-time");
     const greetEl = document.querySelector(".local-greeting");
-    const serverTimeMsStr = timeEl.getAttribute("data-server-time-ms");
+    const serverTimeMsStr = timeEl ? timeEl.getAttribute("data-server-time-ms") : null;
 
-    const ms = parseInt(serverTimeMsStr, 10);
+    const ms = parseInt(serverTimeMsStr || "0", 10);
     const localDate = new Date(ms);
 
     if (isNaN(localDate.getTime())) {
-        greetEl.innerText = "Good day, Agent";
-        timeEl.innerText = "—";
+        if (greetEl) greetEl.innerText = "Good day, Agent";
+        if (timeEl) timeEl.innerText = "—";
         return;
     }
 
@@ -1048,7 +1004,7 @@ document.addEventListener("DOMContentLoaded", function () {
     else if (hour < 17) greeting += "afternoon";
     else greeting += "evening";
 
-    greetEl.innerText = greeting + ", Agent";
+    if (greetEl) greetEl.innerText = greeting + ", Agent";
 
     const datePart = localDate.toLocaleDateString(undefined, {
         weekday: "long",
@@ -1062,16 +1018,14 @@ document.addEventListener("DOMContentLoaded", function () {
         minute: "2-digit"
     });
 
-    timeEl.innerText = `${datePart} • ${timePart}`;
+    if (timeEl) timeEl.innerText = `${datePart} • ${timePart}`;
 
-    // ✅ Month sync for goal card
     const goalMonthEl = document.getElementById("abc-goal-month");
     if (goalMonthEl) {
         const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
         goalMonthEl.innerText = monthName;
     }
 
-    // ✅ Days-left sync for goal card: days left in month AFTER today
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
         const y = localDate.getFullYear();
@@ -1092,9 +1046,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // =========================================================
-    // ✅ Goal Amount Submit Wiring (front-end)
-    // =========================================================
+    // Goal input
     const goalInput = document.getElementById("abc-goal-input");
     const goalSubmit = document.getElementById("abc-goal-submit");
 
@@ -1136,9 +1088,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // =========================================================
-    // ✅ Log Production wiring (ALWAYS opens the Track Daily Activity modal)
-    // =========================================================
+    // Log Production opens activity modal (dynamic inject)
     async function openActivityModal() {
         if (typeof bootstrap === "undefined") {
             console.warn("Bootstrap is not available on this page, cannot open activity modal.");
@@ -1187,9 +1137,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const logBtn = document.getElementById("abc-log-production");
     if (logBtn) logBtn.addEventListener("click", openActivityModal);
 
-    // =========================================================
-    // ✅ Production Breakdown button opens modal
-    // =========================================================
     const breakdownBtn = document.getElementById("abc-production-breakdown");
     if (breakdownBtn) {
         breakdownBtn.addEventListener("click", () => {
@@ -1287,10 +1234,9 @@ window.refreshProductionCard = function(force = false) {
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
 window.refreshProductionBreakdownModal = function(force = false) {
-    const modalEl = document.getElementById('productionBreakdownModal');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
-    if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
+    if (!statsWrap || !tabsWrap) return Promise.resolve();
 
     const activeTab = tabsWrap.querySelector('.production-tab-active');
     if (!activeTab) return Promise.resolve();
@@ -1379,7 +1325,7 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 };
 </script>
 
-<!-- GOAL CARD REFRESH (fetch month totals) -->
+<!-- GOAL CARD REFRESH -->
 <script>
 window.refreshGoalCard = function(force = false) {
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
@@ -1398,7 +1344,7 @@ window.refreshGoalCard = function(force = false) {
 };
 </script>
 
-<!-- ✅ SINGLE SOURCE OF TRUTH: DASHBOARD GLOBAL SAVE HANDLER -->
+<!-- ✅ SINGLE SAVE PATH: GLOBAL DASHBOARD HANDLER -->
 <script>
 (function(){
     function showSaveError(msg) {
@@ -1445,11 +1391,10 @@ window.refreshGoalCard = function(force = false) {
         }
     }
 
-    // ✅ This is called by the popup Save button (popup only calls this; popup does NOT override it)
     window.ABC_activitySaveClick = async function(event) {
         if (event) event.preventDefault();
 
-        // ✅ hard lock: prevents duplicates if something tries to fire twice
+        // ✅ Global lock = no double submits
         if (window.__ABC_ACTIVITY_SAVING) return;
         window.__ABC_ACTIVITY_SAVING = true;
 
@@ -1466,30 +1411,25 @@ window.refreshGoalCard = function(force = false) {
             const url = form.getAttribute('action');
             const fd = new FormData(form);
 
-            // Normalize blanks to zero (so totals are correct and server gets numbers)
+            // Normalize blanks to 0 for numeric fields
             ["leads_worked","calls","stops","presentations","apps_written"].forEach(name => {
                 const v = fd.get(name);
                 if (v === null || v === "") fd.set(name, "0");
             });
-            const prem = fd.get("premium_collected");
-            if (prem === null || prem === "") fd.set("premium_collected", "0");
-
-            // CSRF from the form hidden _token (most reliable for injected modal)
-            const csrf = (form.querySelector('input[name="_token"]') || {}).value;
+            if (fd.get("premium_collected") === null || fd.get("premium_collected") === "") fd.set("premium_collected", "0");
+            if (fd.get("ap") === null || fd.get("ap") === "") fd.set("ap", "0");
 
             const res = await fetch(url, {
                 method: 'POST',
                 body: fd,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                    ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
+                    'Accept': 'application/json'
                 },
                 cache: 'no-store',
                 credentials: 'same-origin'
             });
 
-            // Validation errors (Laravel 422 JSON)
             if (res.status === 422) {
                 const j = await res.json().catch(() => ({}));
                 const first = j && j.errors ? Object.values(j.errors)[0]?.[0] : null;
@@ -1499,17 +1439,13 @@ window.refreshGoalCard = function(force = false) {
 
             if (!res.ok) {
                 const t = await res.text().catch(() => '');
-                showSaveError('Save failed.' + (t ? ' ' + t.slice(0,160) : ''));
+                showSaveError('Save failed. ' + (t ? t.slice(0, 160) : ''));
                 return;
             }
 
-            // Try to use response JSON month_totals if provided
-            let monthTotals = null;
-            const ct = (res.headers.get('content-type') || '').toLowerCase();
-            if (ct.includes('application/json')) {
-                const j = await res.json().catch(() => null);
-                if (j && j.month_totals) monthTotals = j.month_totals;
-            }
+            // Try to use JSON month_totals if controller returns it
+            let payload = null;
+            payload = await res.json().catch(() => null);
 
             // Close modal immediately
             const modalEl = document.getElementById('activityModal');
@@ -1518,25 +1454,28 @@ window.refreshGoalCard = function(force = false) {
             }
 
             // Refresh production cards
-            const p1 = (typeof window.refreshProductionCard === 'function') ? window.refreshProductionCard(true) : Promise.resolve();
-            const p2 = (typeof window.refreshProductionBreakdownModal === 'function') ? window.refreshProductionBreakdownModal(true) : Promise.resolve();
+            const p1 = (typeof window.refreshProductionCard === "function")
+                ? window.refreshProductionCard(true)
+                : Promise.resolve();
 
-            // Refresh goal card instantly (prefer month_totals, else fetch totals)
-            const p3 = (async () => {
-                if (monthTotals && typeof window.applyGoalCardFromTotals === "function") {
-                    window.applyGoalCardFromTotals(
-                        Number(monthTotals.premium_collected || 0),
-                        Number(monthTotals.ap || 0)
-                    );
-                } else {
-                    await fetchMonthTotalsAndApply();
-                }
-            })();
+            const p2 = (typeof window.refreshProductionBreakdownModal === "function")
+                ? window.refreshProductionBreakdownModal(true)
+                : Promise.resolve();
+
+            // Goal card refresh (prefer month_totals, fallback to fetch)
+            const p3 = (payload && payload.month_totals)
+                ? (typeof window.applyGoalCardFromTotals === "function"
+                    ? Promise.resolve(window.applyGoalCardFromTotals(
+                        Number(payload.month_totals.premium_collected || 0),
+                        Number(payload.month_totals.ap || 0)
+                    ))
+                    : fetchMonthTotalsAndApply())
+                : fetchMonthTotalsAndApply();
 
             await Promise.allSettled([p1, p2, p3]);
 
         } catch (err) {
-            showSaveError('Save failed. Please try again.');
+            showSaveError(err && err.message ? err.message : 'Save failed.');
         } finally {
             window.__ABC_ACTIVITY_SAVING = false;
             setSaving(false);
