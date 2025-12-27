@@ -19,10 +19,25 @@
     $endOfMonthStart = now()->endOfMonth()->startOfDay();
     $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
     $daysLeft = max($daysLeftRaw, 0);
+
+    /**
+     * ✅ Gideon safe payload (prevents 500 if controller isn't passing $gideon yet)
+     */
+    $gideonSafe = $gideon ?? [
+        'scan' => [
+            'status' => 'idle',
+            'minutes_ago' => null,
+            'scope' => ['Leads', 'Beneficiaries', 'Emergency Contacts', 'Open Loops'],
+        ],
+        'actions' => [],
+    ];
 @endphp
 
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    /* ✅ ADD: Gideon Priority Actions CSS (safe even if file missing; it just won't load styles) */
+    @import url('/css/gideon_priority_actions.css');
 
     :root {
         --gold: #c9a227;
@@ -351,8 +366,6 @@
         line-height: 1.05;
     }
 
-    /* ✅ EDIT: Removed .goal-icon styles because the dot is removed */
-
     .goal-input-wrap {
         display: flex;
         align-items: stretch;
@@ -448,8 +461,6 @@
         height: 100%;
         gap: 6px;
     }
-
-    /* ✅ Percent text ALWAYS WHITE */
     .goal-percent {
         font-size: 54px;
         font-weight: 900;
@@ -457,7 +468,6 @@
         line-height: 1;
         margin: 0;
     }
-
     .goal-complete {
         font-size: 18px;
         font-weight: 600;
@@ -760,35 +770,46 @@
                     View all →
                 </a>
             </div>
+
             <div class="dashboard-card-body">
-                @if($gideonOpportunities->isEmpty())
-                    <ul class="dashboard-list">
-                        <li>
-                            No Gideon opportunities yet.
-                            As Gideon scans your leads and book of business,
-                            suggestions will appear here.
-                        </li>
-                    </ul>
+
+                {{-- ✅ SAFE WIRING:
+                     If the partial exists, show Priority Actions.
+                     If it doesn't, show the old list so dashboard never 500s.
+                --}}
+                @if(\Illuminate\Support\Facades\View::exists('partials.gideon_priority_actions'))
+                    @include('partials.gideon_priority_actions', ['gideon' => $gideonSafe])
                 @else
-                    <ul class="dashboard-list">
-                        @foreach($gideonOpportunities as $opp)
+                    @if($gideonOpportunities->isEmpty())
+                        <ul class="dashboard-list">
                             <li>
-                                <strong>{{ $opp->title }}</strong><br>
-                                <span style="color: var(--text-faint); font-size: 13px;">
-                                    {{ \Illuminate\Support\Str::limit($opp->short_reason, 80) }}
-                                </span><br>
-                                <span style="display:inline-block; margin-top:4px; background: var(--gold-soft); color: var(--text-main); font-size:11px; border-radius:999px; padding:2px 8px; text-transform:uppercase;">
-                                    {{ str_replace('_', ' ', $opp->category) }}
-                                </span>
-                                @if(isset($opp->source_snapshot['full_name']))
-                                    <span style="color: var(--text-faint); font-size: 12px;">
-                                        • {{ $opp->source_snapshot['full_name'] }}
-                                    </span>
-                                @endif
+                                No Gideon opportunities yet.
+                                As Gideon scans your leads and book of business,
+                                suggestions will appear here.
                             </li>
-                        @endforeach
-                    </ul>
+                        </ul>
+                    @else
+                        <ul class="dashboard-list">
+                            @foreach($gideonOpportunities as $opp)
+                                <li>
+                                    <strong>{{ $opp->title }}</strong><br>
+                                    <span style="color: var(--text-faint); font-size: 13px;">
+                                        {{ \Illuminate\Support\Str::limit($opp->short_reason, 80) }}
+                                    </span><br>
+                                    <span style="display:inline-block; margin-top:4px; background: var(--gold-soft); color: var(--text-main); font-size:11px; border-radius:999px; padding:2px 8px; text-transform:uppercase;">
+                                        {{ str_replace('_', ' ', $opp->category) }}
+                                    </span>
+                                    @if(isset($opp->source_snapshot['full_name']))
+                                        <span style="color: var(--text-faint); font-size: 12px;">
+                                            • {{ $opp->source_snapshot['full_name'] }}
+                                        </span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 @endif
+
             </div>
         </div>
 
@@ -1128,21 +1149,13 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
         return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
 
-    /* ✅ Circle color rules requested
-       0–25%  = white
-       26–50% = light green
-       51–80% = darker green
-       81–99% = even darker green
-       100%+  = gold
-    */
     function gaugeColorForPercent(pct) {
         const p = Number(pct) || 0;
-
-        if (p <= 25) return '#ffffff';  // white
-        if (p <= 50) return '#86efac';  // light green
-        if (p <= 80) return '#22c55e';  // darker green
-        if (p <= 99) return '#15803d';  // even darker green
-        return '#c9a227';               // gold
+        if (p <= 25) return '#ffffff';
+        if (p <= 50) return '#86efac';
+        if (p <= 80) return '#22c55e';
+        if (p <= 99) return '#15803d';
+        return '#c9a227';
     }
 
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
@@ -1154,12 +1167,11 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
 
-    // ✅ allow 101%+ text, but cap ring fill at 100%
     let rawPct = 0;
     if (monthlyNeeded > 0) {
-        rawPct = Math.round((prem / monthlyNeeded) * 100); // can be 101%+
+        rawPct = Math.round((prem / monthlyNeeded) * 100);
     }
-    const ringPct = Math.max(0, Math.min(100, rawPct));   // ring never overfills
+    const ringPct = Math.max(0, Math.min(100, rawPct));
     const color = gaugeColorForPercent(rawPct);
 
     if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
@@ -1198,6 +1210,33 @@ window.refreshGoalCard = function(force = false) {
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     if (window.refreshGoalCard) window.refreshGoalCard(true);
+});
+</script>
+
+<!-- ✅ Gideon Deep Scan button wiring (SAFE no-op unless button exists) -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const btn = document.getElementById("gideonDeepScanBtn");
+    if (!btn) return;
+
+    btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        const old = btn.textContent;
+        btn.textContent = "Running…";
+
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content || "";
+            await fetch("/gideon/deep-scan", {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": token }
+            });
+            window.location.reload();
+        } catch (e) {
+            btn.disabled = false;
+            btn.textContent = old;
+            alert("Deep scan failed. Check logs.");
+        }
+    });
 });
 </script>
 
