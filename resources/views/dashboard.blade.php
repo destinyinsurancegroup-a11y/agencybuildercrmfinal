@@ -5,13 +5,11 @@
      * ✅ Robust time source for JS: epoch milliseconds (UTC)
      */
     $serverTimeMs = now()->utc()->timestamp * 1000;
-
     // ✅ Reset goal to 0 (until backend persistence is wired)
     $goalMonthName = now()->format('F'); // fallback until JS sets it
     $placeholderGoal = 0; // $0
     $placeholderPercent = 0; // 0%
     $placeholderNeededMonthly = 0; // $0
-
     /**
      * ✅ Days-left (server fallback) should be "days left AFTER today"
      */
@@ -20,7 +18,6 @@
     $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
     $daysLeft = max($daysLeftRaw, 0);
 @endphp
-
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     :root {
@@ -148,6 +145,42 @@
         font-weight: 900;
         font-size: 13px;
     }
+
+    /* =========================================================
+       ✅ NEW TOP ROW LAYOUT
+       Left: Goal card (50%)
+       Right: Upcoming + Insights stacked (50%) and equal total height
+       ========================================================= */
+    .dashboard-top-row{
+        display:flex;
+        gap:20px;
+        align-items: stretch; /* makes both sides same height */
+        margin-top: 6px;
+        margin-bottom: 18px;
+    }
+    .goal-card-wrap {
+        flex: 0 0 calc(50% - 10px);
+        width: auto;
+        margin: 0; /* remove old margins so alignment is clean */
+    }
+    .side-cards-wrap{
+        flex: 0 0 calc(50% - 10px);
+        display:flex;
+        flex-direction: column;
+        gap:20px;
+        min-height: 0;
+    }
+    .side-cards-wrap .dashboard-card{
+        flex: 1; /* makes both cards share the space equally */
+        display:flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .side-cards-wrap .dashboard-card-body{
+        flex: 1;
+        overflow: auto; /* if content ever gets long */
+    }
+
     /* ==== GRID ==== */
     .dashboard-grid {
         display: grid;
@@ -164,58 +197,7 @@
             0 18px 30px -12px rgba(0,0,0,0.35),
             0 8px 16px -8px rgba(0,0,0,0.18);
     }
-    /* ===== PRODUCTION CARD ===== */
-    .production-title {
-        text-align: center;
-        font-size: 20px;
-        font-weight: 700;
-        margin-bottom: 14px;
-    }
-    .production-tabs-wrapper {
-        display: flex; justify-content: center; margin-bottom: 18px;
-    }
-    .production-tabs {
-        display: inline-flex;
-        gap: 6px;
-        padding: 4px;
-        border-radius: 999px;
-        border: 1px solid #e5e7eb;
-        background: #f9fafb;
-    }
-    .production-tab {
-        padding: 6px 12px;
-        font-size: 14px;
-        border-radius: 999px;
-        background: transparent;
-        cursor: pointer;
-        font-weight: 600;
-        color: #6b7280;
-        border: none;
-    }
-    .production-tab-active {
-        background: var(--gold);
-        color: #111827;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.25);
-    }
-    .production-range { display: none; }
-    .production-range-active { display: block; }
-    .production-label {
-        font-size: 18px;
-        color: #4b5563;
-        font-weight: 500;
-        padding: 6px 0;
-    }
-    .production-value {
-        font-size: 24px;
-        font-weight: 700;
-        text-align: right !important;
-        padding: 6px 0;
-        white-space: nowrap;
-    }
-    .money {
-        color: var(--money-green) !important;
-        font-weight: 800 !important;
-    }
+
     /* CARD TITLES */
     .dashboard-card-title-row {
         display: flex;
@@ -242,11 +224,6 @@
     /* =========================================================
        GOAL CARD
        ========================================================= */
-    .goal-card-wrap {
-        width: 50%;
-        margin-top: 6px;
-        margin-bottom: 18px;
-    }
     .goal-card {
         background: linear-gradient(180deg, var(--abc-black-2) 0%, var(--abc-black) 100%);
         border-radius: 18px;
@@ -257,6 +234,7 @@
         overflow: hidden;
         position: relative;
         color: #fff;
+        height: 100%; /* ✅ important so it stretches to match right column */
     }
     .goal-card::before {
         content: "";
@@ -500,14 +478,9 @@
         font-weight: 900;
         line-height: 1.05;
     }
-
     /* ===== Production Breakdown Modal (Bootstrap) ===== */
-    .abc-modal-wide .modal-dialog {
-        max-width: 920px;
-    }
-    .abc-breakdown-wrap {
-        padding: 6px 8px 16px;
-    }
+    .abc-modal-wide .modal-dialog { max-width: 920px; }
+    .abc-breakdown-wrap { padding: 6px 8px 16px; }
     .abc-breakdown-title {
         text-align: center;
         font-size: 22px;
@@ -515,18 +488,10 @@
         margin: 10px 0 12px;
         color: #111827;
     }
-
     /* Responsive */
-    @media (max-width: 1400px) {
-        .goal-header-left { font-size: 40px; }
-        .goal-ring { width: 190px; height: 190px; }
-        .goal-ring::before { width: 152px; height: 152px; }
-        .goal-percent { font-size: 46px; }
-        .goal-complete { font-size: 15px; }
-        .goal-strip-ring-anchor { top: -185px; }
-    }
     @media (max-width: 1100px) {
-        .goal-card-wrap { width: 100%; }
+        .dashboard-top-row{ flex-direction: column; }
+        .goal-card-wrap, .side-cards-wrap{ flex: 1 1 auto; width: 100%; }
         .top-search { min-width: 240px; }
     }
     @media (max-width: 860px) {
@@ -535,12 +500,6 @@
         .top-search { min-width: 0; width: 100%; }
         .goal-body { grid-template-columns: 1fr; }
         .goal-actions { grid-template-columns: 1fr; }
-        .goal-header-left { font-size: 34px; }
-        .goal-ring { width: 176px; height: 176px; }
-        .goal-ring::before { width: 140px; height: 140px; }
-        .goal-percent { font-size: 42px; }
-        .goal-complete { font-size: 13px; }
-        .goal-strip-ring-anchor { right: 18px; top: -170px; }
     }
 </style>
 
@@ -571,232 +530,157 @@
         </div>
     </div>
 
-    {{-- GOAL CARD (50% wide) --}}
-    <div class="goal-card-wrap">
-        <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }}; --gauge-color: var(--danger-red);">
-            <div class="goal-header">
-                <div class="goal-header-left">
-                    <span class="goal-icon">●</span>
-                    <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
-                </div>
-                <div class="goal-input-wrap">
-                    <input
-                        id="abc-goal-input"
-                        class="goal-input"
-                        type="text"
-                        inputmode="numeric"
-                        autocomplete="off"
-                        value="${{ number_format($placeholderGoal, 0) }}"
-                    >
-                    <button id="abc-goal-submit" class="goal-save" type="button">Submit →</button>
-                </div>
-            </div>
+    {{-- ✅ NEW TOP ROW: Goal card (left) + Upcoming/Insights (right stacked) --}}
+    <div class="dashboard-top-row">
 
-            <div class="goal-body">
-                <div>
-                    <div class="goal-main">
-                        <span class="amt" id="abc-goal-ap-earned">$0</span>
-                        <span class="ap"> AP</span>
+        {{-- GOAL CARD (LEFT 50%) --}}
+        <div class="goal-card-wrap">
+            <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }}; --gauge-color: var(--danger-red);">
+                <div class="goal-header">
+                    <div class="goal-header-left">
+                        <span class="goal-icon">●</span>
+                        <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                     </div>
-                    <div class="goal-label">Collected Premium Needed:</div>
-                    <div class="goal-needed-row">
-                        <div class="goal-needed" id="abc-goal-needed-display">${{ number_format($placeholderNeededMonthly, 0) }}</div>
+                    <div class="goal-input-wrap">
+                        <input
+                            id="abc-goal-input"
+                            class="goal-input"
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            value="${{ number_format($placeholderGoal, 0) }}"
+                        >
+                        <button id="abc-goal-submit" class="goal-save" type="button">Submit →</button>
                     </div>
                 </div>
-                <div style="position:relative;">
-                    {{-- reserved space; ring is positioned over strip below --}}
+                <div class="goal-body">
+                    <div>
+                        <div class="goal-main">
+                            <span class="amt" id="abc-goal-ap-earned">$0</span>
+                            <span class="ap"> AP</span>
+                        </div>
+                        <div class="goal-label">Collected Premium Needed:</div>
+                        <div class="goal-needed-row">
+                            <div class="goal-needed" id="abc-goal-needed-display">${{ number_format($placeholderNeededMonthly, 0) }}</div>
+                        </div>
+                    </div>
+                    <div style="position:relative;">
+                        {{-- reserved space; ring is positioned over strip below --}}
+                    </div>
                 </div>
-            </div>
-
-            <div class="goal-strip-wrap">
-                <div class="goal-strip">
-                    <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
-                </div>
-                <div class="goal-strip-ring-anchor">
-                    <div id="abc-goal-ring" class="goal-ring" aria-label="Goal progress ring">
-                        <div class="goal-ring-center">
-                            <div id="abc-goal-percent-text" class="goal-percent">{{ $placeholderPercent }}%</div>
-                            <div class="goal-complete">Complete</div>
+                <div class="goal-strip-wrap">
+                    <div class="goal-strip">
+                        <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
+                    </div>
+                    <div class="goal-strip-ring-anchor">
+                        <div id="abc-goal-ring" class="goal-ring" aria-label="Goal progress ring">
+                            <div class="goal-ring-center">
+                                <div id="abc-goal-percent-text" class="goal-percent">{{ $placeholderPercent }}%</div>
+                                <div class="goal-complete">Complete</div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <div class="goal-actions">
+                    <button id="abc-log-production" class="goal-btn goal-btn-primary" type="button">
+                        <div class="goal-btn-left">
+                            <div class="goal-btn-title">Log Production</div>
+                        </div>
+                    </button>
+                    <button id="abc-production-breakdown" class="goal-btn goal-btn-secondary" type="button">
+                        <div class="goal-btn-left">
+                            <div class="goal-btn-title">Production Breakdown</div>
+                        </div>
+                        <div style="font-size:14px; font-weight:900;">›</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- RIGHT 50%: Upcoming + Insights stacked --}}
+        <div class="side-cards-wrap">
+
+            {{-- UPCOMING APPOINTMENTS --}}
+            <div class="dashboard-card">
+                <div class="dashboard-card-title-row">
+                    <div class="dashboard-card-title">
+                        <span class="dashboard-card-icon">📅</span>
+                        Upcoming Appointments
+                    </div>
+                </div>
+                <div class="dashboard-card-body">
+                    @if($events->isEmpty())
+                        <ul class="dashboard-list">
+                            <li>No upcoming appointments.</li>
+                        </ul>
+                    @else
+                        <ul class="dashboard-list">
+                            @foreach($events as $event)
+                                <li>
+                                    <strong>{{ $event->title }}</strong><br>
+                                    <span style="color: var(--text-faint); font-size: 13px;">
+                                        {{ \Carbon\Carbon::parse($event->start)->format('M j, g:i A') }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
             </div>
 
-            <div class="goal-actions">
-                <button id="abc-log-production" class="goal-btn goal-btn-primary" type="button">
-                    <div class="goal-btn-left">
-                        <div class="goal-btn-title">Log Production</div>
+            {{-- TODAY'S INSIGHTS --}}
+            <div class="dashboard-card">
+                <div class="dashboard-card-title-row">
+                    <div class="dashboard-card-title">
+                        <span class="dashboard-card-icon">✨</span>
+                        Today’s Insights
                     </div>
-                </button>
-                <button id="abc-production-breakdown" class="goal-btn goal-btn-secondary" type="button">
-                    <div class="goal-btn-left">
-                        <div class="goal-btn-title">Production Breakdown</div>
-                    </div>
-                    <div style="font-size:14px; font-weight:900;">›</div>
-                </button>
+                </div>
+                <div class="dashboard-card-body">
+                    <ul class="dashboard-list">
+                        <li>Birthdays in next 7 days: {{ $birthdays->count() }}</li>
+                        <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
+                    </ul>
+                    @if($birthdays->isNotEmpty())
+                        <hr style="margin: 10px 0;">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                            🎂 Upcoming Birthdays
+                        </div>
+                        <ul class="dashboard-list">
+                            @foreach($birthdays as $contact)
+                                <li>
+                                    <strong>{{ $contact->full_name }}</strong>
+                                    <span style="color: var(--text-faint); font-size: 13px;">
+                                        • {{ optional($contact->date_of_birth)->format('M j') }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                    @if($anniversaries->isNotEmpty())
+                        <hr style="margin: 10px 0;">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
+                            💍 Upcoming Anniversaries
+                        </div>
+                        <ul class="dashboard-list">
+                            @foreach($anniversaries as $contact)
+                                <li>
+                                    <strong>{{ $contact->full_name }}</strong>
+                                    <span style="color: var(--text-faint); font-size: 13px;">
+                                        • {{ optional($contact->anniversary)->format('M j') }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
             </div>
+
         </div>
     </div>
 
     {{-- GRID START --}}
     <div class="dashboard-grid">
-
-        {{-- =========================================================
-             ✅ CURRENT PRODUCTION CARD REMOVED FROM DASHBOARD GRID
-             Reason: Current Production now lives inside the
-             "Production Breakdown" button/modal above.
-             Not deleted — kept here commented for future use.
-        ========================================================== --}}
-        {{--
-        <div class="dashboard-card" id="abc-current-production-card">
-            <div class="production-title">Current Production</div>
-            <div class="production-tabs-wrapper">
-                <div class="production-tabs">
-                    <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
-                    <button class="production-tab" data-production-tab="week" type="button">Week</button>
-                    <button class="production-tab" data-production-tab="month" type="button">Month</button>
-                    <button class="production-tab" data-production-tab="quarter" type="button">Quarter</button>
-                    <button class="production-tab" data-production-tab="year" type="button">Year</button>
-                </div>
-            </div>
-            <div class="dashboard-card-body production-stats">
-                <div class="production-range production-range-active" data-production-range="day">
-                    <table style="width:100%;">
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
-                    </table>
-                </div>
-                <div class="production-range" data-production-range="week">
-                    <table style="width:100%;">
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
-                    </table>
-                </div>
-                <div class="production-range" data-production-range="month">
-                    <table style="width:100%;">
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
-                    </table>
-                </div>
-                <div class="production-range" data-production-range="quarter">
-                    <table style="width:100%;">
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
-                    </table>
-                </div>
-                <div class="production-range" data-production-range="year">
-                    <table style="width:100%;">
-                        <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Calls</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Stops</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Presentations</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Apps Written</td><td class="production-value">--</td></tr>
-                        <tr><td class="production-label">Premium Collected</td><td class="production-value money">$--</td></tr>
-                        <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-        --}}
-
-        {{-- UPCOMING APPOINTMENTS --}}
-        <div class="dashboard-card">
-            <div class="dashboard-card-title-row">
-                <div class="dashboard-card-title">
-                    <span class="dashboard-card-icon">📅</span>
-                    Upcoming Appointments
-                </div>
-            </div>
-            <div class="dashboard-card-body">
-                @if($events->isEmpty())
-                    <ul class="dashboard-list">
-                        <li>No upcoming appointments.</li>
-                    </ul>
-                @else
-                    <ul class="dashboard-list">
-                        @foreach($events as $event)
-                            <li>
-                                <strong>{{ $event->title }}</strong><br>
-                                <span style="color: var(--text-faint); font-size: 13px;">
-                                    {{ \Carbon\Carbon::parse($event->start)->format('M j, g:i A') }}
-                                </span>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
-        </div>
-
-        {{-- TODAY'S INSIGHTS --}}
-        <div class="dashboard-card">
-            <div class="dashboard-card-title-row">
-                <div class="dashboard-card-title">
-                    <span class="dashboard-card-icon">✨</span>
-                    Today’s Insights
-                </div>
-            </div>
-            <div class="dashboard-card-body">
-                <ul class="dashboard-list">
-                    <li>Birthdays in next 7 days: {{ $birthdays->count() }}</li>
-                    <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
-                </ul>
-
-                @if($birthdays->isNotEmpty())
-                    <hr style="margin: 10px 0;">
-                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                        🎂 Upcoming Birthdays
-                    </div>
-                    <ul class="dashboard-list">
-                        @foreach($birthdays as $contact)
-                            <li>
-                                <strong>{{ $contact->full_name }}</strong>
-                                <span style="color: var(--text-faint); font-size: 13px;">
-                                    • {{ optional($contact->date_of_birth)->format('M j') }}
-                                </span>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-
-                @if($anniversaries->isNotEmpty())
-                    <hr style="margin: 10px 0;">
-                    <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
-                        💍 Upcoming Anniversaries
-                    </div>
-                    <ul class="dashboard-list">
-                        @foreach($anniversaries as $contact)
-                            <li>
-                                <strong>{{ $contact->full_name }}</strong>
-                                <span style="color: var(--text-faint); font-size: 13px;">
-                                    • {{ optional($contact->anniversary)->format('M j') }}
-                                </span>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
-        </div>
-
         {{-- GIDEON OPPORTUNITIES --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
@@ -840,7 +724,6 @@
                 @endif
             </div>
         </div>
-
     </div>{{-- END GRID --}}
 
     <div class="dashboard-footer-note" style="margin-top: 20px; color:#6b7280;">
@@ -858,7 +741,6 @@
             </div>
             <div class="modal-body abc-breakdown-wrap">
                 <div class="abc-breakdown-title">Current Production</div>
-
                 <div class="production-tabs-wrapper">
                     <div class="production-tabs" id="abc-breakdown-tabs">
                         <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
@@ -868,7 +750,6 @@
                         <button class="production-tab" data-production-tab="year" type="button">Year</button>
                     </div>
                 </div>
-
                 <div class="dashboard-card-body production-stats" id="abc-breakdown-stats">
                     <div class="production-range production-range-active" data-production-range="day">
                         <table style="width:100%;">
@@ -881,7 +762,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="week">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -893,7 +773,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="month">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -905,7 +784,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="quarter">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -917,7 +795,6 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
-
                     <div class="production-range" data-production-range="year">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -930,7 +807,6 @@
                         </table>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
@@ -987,7 +863,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const endOfMonth = new Date(y, m + 1, 0);
         const startOfEnd = new Date(y, m, endOfMonth.getDate());
         const msPerDay = 24 * 60 * 60 * 1000;
-
         if (startOfTomorrow > startOfEnd) {
             daysLeftEl.innerText = 0;
         } else {
@@ -1045,14 +920,12 @@ document.addEventListener("DOMContentLoaded", function () {
             console.warn("Bootstrap is not available on this page, cannot open activity modal.");
             return;
         }
-
         let modalEl = document.getElementById("activityModal");
         if (modalEl) {
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
             return;
         }
-
         const existingWrap = document.getElementById("activity-modal-injected");
         if (existingWrap) {
             modalEl = document.getElementById("activityModal");
@@ -1062,7 +935,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             return;
         }
-
         try {
             const res = await fetch("/activity/popup?_=" + Date.now(), {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -1073,7 +945,6 @@ document.addEventListener("DOMContentLoaded", function () {
             wrap.id = "activity-modal-injected";
             wrap.innerHTML = html;
             document.body.appendChild(wrap);
-
             modalEl = document.getElementById("activityModal");
             if (!modalEl) {
                 console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
@@ -1101,10 +972,8 @@ document.addEventListener("DOMContentLoaded", function () {
         breakdownBtn.addEventListener("click", () => {
             const modalEl = document.getElementById("productionBreakdownModal");
             if (!modalEl || typeof bootstrap === "undefined") return;
-
             const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
             instance.show();
-
             if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     }
@@ -1117,10 +986,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const tabWrap = document.getElementById('abc-breakdown-tabs');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     if (!tabWrap || !statsWrap) return;
-
     const tabs = tabWrap.querySelectorAll('.production-tab');
     const ranges = statsWrap.querySelectorAll('.production-range');
-
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const range = tab.dataset.productionTab;
@@ -1135,62 +1002,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<!-- =========================================================
-     ✅ TAB LOGIC (Dashboard Card) DISABLED
-     Current Production card removed from dashboard grid.
-========================================================== -->
-<!--
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const tabs = document.querySelectorAll('#abc-current-production-card .production-tab');
-    const ranges = document.querySelectorAll('#abc-current-production-card .production-range');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const range = tab.dataset.productionTab;
-            tabs.forEach(t => t.classList.remove('production-tab-active'));
-            tab.classList.add('production-tab-active');
-            ranges.forEach(r => {
-                r.classList.toggle('production-range-active', r.dataset.productionRange === range);
-            });
-            if (window.refreshProductionCard) window.refreshProductionCard(true);
-        });
-    });
-});
-</script>
--->
-
-<!-- =========================================================
-     ✅ UPDATE STATS (Dashboard Card) DISABLED
-     Current Production card removed from dashboard grid.
-========================================================== -->
-<!--
-<script>
-window.refreshProductionCard = function(force = false) {
-    const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
-    if (!activeTab) return Promise.resolve();
-    const active = activeTab.dataset.productionTab;
-    const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
-    return fetch(url, { cache: "no-store" })
-        .then(r => r.json())
-        .then(data => {
-            const rows = document.querySelectorAll(
-                `#abc-current-production-card .production-range[data-production-range="${active}"] .production-value`
-            );
-            if (rows.length === 7) {
-                rows[0].innerText = data.leads_worked;
-                rows[1].innerText = data.calls;
-                rows[2].innerText = data.stops;
-                rows[3].innerText = data.presentations;
-                rows[4].innerText = data.apps_written;
-                rows[5].innerText = "$" + Number(data.premium_collected || 0).toFixed(2);
-                rows[6].innerText = "$" + Number(data.ap || 0).toFixed(2);
-            }
-        })
-        .catch(() => {});
-};
-</script>
--->
-
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
 window.refreshProductionBreakdownModal = function(force = false) {
@@ -1198,13 +1009,10 @@ window.refreshProductionBreakdownModal = function(force = false) {
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
     if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
-
     const activeTab = tabsWrap.querySelector('.production-tab-active');
     if (!activeTab) return Promise.resolve();
-
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
-
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
@@ -1233,7 +1041,6 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     const percentText = document.getElementById('abc-goal-percent-text');
     const neededDisplay = document.getElementById('abc-goal-needed-display');
     const apEarnedEl = document.getElementById('abc-goal-ap-earned');
-
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
@@ -1250,26 +1057,19 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
         if (p <= 75) return '#c9a227';
         return '#059669';
     }
-
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
-
     const prem = Number(premiumCollected || 0);
     const ap = Number(apEarned || 0);
-
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
-
     let pct = 0;
     if (monthlyNeeded > 0) {
         pct = Math.round(Math.min(100, (prem / monthlyNeeded) * 100));
     }
-
     const color = gaugeColorForPercent(pct);
-
     if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
     if (apEarnedEl) apEarnedEl.innerText = formatMoney0(ap);
-
     if (goalCard) {
         goalCard.style.setProperty('--progress', String(pct));
         goalCard.style.setProperty('--gauge-color', color);
@@ -1285,18 +1085,6 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 <!-- GOAL CARD REFRESH (fetch month totals) -->
 <script>
 window.refreshGoalCard = function(force = false) {
-    const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
-
-    function parseMoneyToNumber(str) {
-        if (!str) return 0;
-        const cleaned = String(str).replace(/[^0-9.]/g, "");
-        const n = parseFloat(cleaned);
-        return isNaN(n) ? 0 : n;
-    }
-
-    const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
-    const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
-
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
@@ -1311,219 +1099,10 @@ window.refreshGoalCard = function(force = false) {
 };
 </script>
 
-<!-- ✅ OPTION A: GLOBAL SAVE HANDLER (EXISTING) -->
-<script>
-(function(){
-    function parseMoneyToNumber(str) {
-        if (!str) return 0;
-        const cleaned = String(str).replace(/[^0-9.]/g, "");
-        const n = parseFloat(cleaned);
-        return isNaN(n) ? 0 : n;
-    }
-    function getCsrfTokenFromForm(formEl) {
-        const tokenInput = formEl ? formEl.querySelector('input[name="_token"]') : null;
-        return tokenInput ? tokenInput.value : null;
-    }
-    function showSaveError(msg) {
-        const err = document.getElementById('activitySaveError');
-        if (!err) return;
-        err.style.display = 'block';
-        err.style.color = '#fecaca';
-        err.style.fontWeight = '800';
-        err.innerText = msg || 'Save failed. Please try again.';
-    }
-    function hideSaveError() {
-        const err = document.getElementById('activitySaveError');
-        if (!err) return;
-        err.style.display = 'none';
-        err.innerText = '';
-    }
-    function setSaving(isSaving) {
-        const btn = document.getElementById('saveActivityBtn');
-        if (!btn) return;
-        btn.disabled = !!isSaving;
-        btn.innerText = isSaving ? 'Saving…' : 'Save Activity';
-        btn.style.opacity = isSaving ? '0.8' : '1';
-        btn.style.cursor = isSaving ? 'not-allowed' : 'pointer';
-    }
-    function updateProductionUI(wrapperId, range, fields) {
-        const wrapper = document.getElementById(wrapperId);
-        if (!wrapper) return;
-        const values = wrapper.querySelectorAll(`.production-range[data-production-range="${range}"] .production-value`);
-        if (values.length !== 7) return;
-
-        let currentNums = Array.from(values).map(el => {
-            let text = el.innerText;
-            if (text === '--') return 0;
-            if (el.classList.contains('money')) {
-                return parseFloat(text.replace(/[^0-9.-]+/g, '') || 0);
-            }
-            return Number(text || 0);
-        });
-
-        currentNums[0] += fields.leads_worked;
-        currentNums[1] += fields.calls;
-        currentNums[2] += fields.stops;
-        currentNums[3] += fields.presentations;
-        currentNums[4] += fields.apps_written;
-        currentNums[5] += fields.premium_collected;
-        currentNums[6] += fields.ap;
-
-        for (let i = 0; i < 7; i++) {
-            if (i < 5) {
-                values[i].innerText = Math.round(currentNums[i]);
-            } else {
-                values[i].innerText = '$' + currentNums[i].toFixed(2);
-            }
-        }
-    }
-
-    async function localUpdateUIFromForm(form) {
-        const fields = {
-            leads_worked: Number(form.querySelector('[name="leads_worked"]').value || 0),
-            calls: Number(form.querySelector('[name="calls"]').value || 0),
-            stops: Number(form.querySelector('[name="stops"]').value || 0),
-            presentations: Number(form.querySelector('[name="presentations"]').value || 0),
-            apps_written: Number(form.querySelector('[name="apps_written"]').value || 0),
-            premium_collected: Number(form.querySelector('[name="premium_collected"]').value || 0),
-            ap: Number(form.querySelector('[name="ap"]').value || 0),
-        };
-
-        const activityDateStr = form.querySelector('[name="activity_date"]').value;
-        if (!activityDateStr) return;
-
-        const activityDate = new Date(activityDateStr);
-        if (isNaN(activityDate.getTime())) return;
-
-        const now = new Date();
-
-        // Day
-        const isDay = activityDate.getFullYear() === now.getFullYear() &&
-                      activityDate.getMonth() === now.getMonth() &&
-                      activityDate.getDate() === now.getDate();
-
-        // Week (Sunday to Saturday)
-        const dayOfWeek = now.getDay();
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - dayOfWeek);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        const isWeek = activityDate >= startOfWeek && activityDate <= endOfWeek;
-
-        // Month
-        const isMonth = activityDate.getFullYear() === now.getFullYear() &&
-                        activityDate.getMonth() === now.getMonth();
-
-        // Quarter
-        const currentQuarter = Math.floor(now.getMonth() / 3);
-        const quarterStartMonth = currentQuarter * 3;
-        const startOfQuarter = new Date(now.getFullYear(), quarterStartMonth, 1);
-        const endOfQuarter = new Date(now.getFullYear(), quarterStartMonth + 3, 0);
-        const isQuarter = activityDate >= startOfQuarter && activityDate <= endOfQuarter;
-
-        // Year
-        const isYear = activityDate.getFullYear() === now.getFullYear();
-
-        const rangeChecks = {
-            day: isDay,
-            week: isWeek,
-            month: isMonth,
-            quarter: isQuarter,
-            year: isYear,
-        };
-
-        // ✅ EDIT: Dashboard card removed, so ONLY update the Breakdown Modal stats wrapper
-        const wrappers = ['abc-breakdown-stats'];
-
-        for (const wrapperId of wrappers) {
-            for (const range in rangeChecks) {
-                if (rangeChecks[range]) {
-                    updateProductionUI(wrapperId, range, fields);
-                }
-            }
-        }
-
-        // Goal card (month only)
-        if (isMonth && typeof window.applyGoalCardFromTotals === "function") {
-            const apEarnedEl = document.getElementById('abc-goal-ap-earned');
-            const currentApStr = apEarnedEl ? apEarnedEl.innerText : '$0';
-            const currentAp = parseMoneyToNumber(currentApStr);
-            const newAp = currentAp + fields.ap;
-            const currentPrem = currentAp / 12;
-            const newPrem = currentPrem + fields.premium_collected;
-            window.applyGoalCardFromTotals(newPrem, newAp);
-        }
-    }
-
-    // This is called by the injected modal button onclick
-    window.ABC_activitySaveClick = async function(event) {
-        if (event) event.preventDefault();
-
-        const form = document.getElementById('activityForm');
-        if (!form) {
-            console.warn('activityForm not found');
-            return;
-        }
-
-        hideSaveError();
-        setSaving(true);
-
-        try {
-            const url = form.getAttribute('action');
-            const fd = new FormData(form);
-
-            // If user left fields blank, do NOT send empty strings for numbers
-            for (const [k, v] of fd.entries()) {
-                if (typeof v === 'string' && v.trim() === '') {
-                    fd.delete(k);
-                }
-            }
-
-            const csrf = getCsrfTokenFromForm(form);
-            const res = await fetch(url, {
-                method: 'POST',
-                body: fd,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    ...(csrf ? {'X-CSRF-TOKEN': csrf} : {})
-                },
-                cache: 'no-store'
-            });
-
-            if (!res.ok) {
-                let text = '';
-                try { text = await res.text(); } catch(e) {}
-                showSaveError('Save failed. ' + (text ? 'Server responded with an error.' : ''));
-                setSaving(false);
-                return;
-            }
-
-            // success - close modal
-            const modalEl = document.getElementById('activityModal');
-            if (modalEl && typeof bootstrap !== 'undefined') {
-                const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
-                instance.hide();
-            }
-
-            // Optimistically update UI locally (modal + goal only)
-            await localUpdateUIFromForm(form);
-
-            setSaving(false);
-        } catch (err) {
-            console.error(err);
-            showSaveError('Save failed. Please try again.');
-            setSaving(false);
-        }
-    };
-})();
-</script>
-
 <!-- INITIAL LOAD -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    // ✅ EDIT: Dashboard Current Production card removed, so do NOT call refreshProductionCard()
     if (window.refreshGoalCard) window.refreshGoalCard(true);
 });
 </script>
-
 @endsection
