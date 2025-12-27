@@ -188,6 +188,12 @@
         gap: 20px;
         margin-top: 18px;
     }
+
+    /* ✅ NEW: Make a card span the full dashboard grid width */
+    .dashboard-card-full {
+        grid-column: 1 / -1;
+    }
+
     .dashboard-card {
         background: #fff;
         border-radius: 18px;
@@ -681,8 +687,8 @@
 
     {{-- GRID START --}}
     <div class="dashboard-grid">
-        {{-- GIDEON OPPORTUNITIES --}}
-        <div class="dashboard-card">
+        {{-- GIDEON OPPORTUNITIES (FULL WIDTH) --}}
+        <div class="dashboard-card dashboard-card-full">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
                     <span class="dashboard-card-icon">🤖</span>
