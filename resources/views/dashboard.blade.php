@@ -19,26 +19,10 @@
     $endOfMonthStart = now()->endOfMonth()->startOfDay();
     $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
     $daysLeft = max($daysLeftRaw, 0);
-
-    /**
-     * ✅ SAFE FALLBACK so dashboard doesn't break before controller is updated.
-     * Step 2 will pass real $gideon data.
-     */
-    $gideonSafe = $gideon ?? [
-        'scan' => [
-            'status' => 'idle',
-            'minutes_ago' => null,
-            'scope' => ['Leads','Beneficiaries','Emergency Contacts','Open Loops'],
-        ],
-        'actions' => [],
-    ];
 @endphp
 
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-    /* ✅ STEP 1 ADD: import your new Gideon card CSS */
-    @import url('/css/gideon_priority_actions.css');
 
     :root {
         --gold: #c9a227;
@@ -776,10 +760,35 @@
                     View all →
                 </a>
             </div>
-
-            {{-- ✅ STEP 1 CHANGE: render the new Gideon Priority Actions card inside the allotted Gideon section --}}
             <div class="dashboard-card-body">
-                @include('partials.gideon_priority_actions', ['gideon' => $gideonSafe])
+                @if($gideonOpportunities->isEmpty())
+                    <ul class="dashboard-list">
+                        <li>
+                            No Gideon opportunities yet.
+                            As Gideon scans your leads and book of business,
+                            suggestions will appear here.
+                        </li>
+                    </ul>
+                @else
+                    <ul class="dashboard-list">
+                        @foreach($gideonOpportunities as $opp)
+                            <li>
+                                <strong>{{ $opp->title }}</strong><br>
+                                <span style="color: var(--text-faint); font-size: 13px;">
+                                    {{ \Illuminate\Support\Str::limit($opp->short_reason, 80) }}
+                                </span><br>
+                                <span style="display:inline-block; margin-top:4px; background: var(--gold-soft); color: var(--text-main); font-size:11px; border-radius:999px; padding:2px 8px; text-transform:uppercase;">
+                                    {{ str_replace('_', ' ', $opp->category) }}
+                                </span>
+                                @if(isset($opp->source_snapshot['full_name']))
+                                    <span style="color: var(--text-faint); font-size: 12px;">
+                                        • {{ $opp->source_snapshot['full_name'] }}
+                                    </span>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
 
@@ -1189,35 +1198,6 @@ window.refreshGoalCard = function(force = false) {
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     if (window.refreshGoalCard) window.refreshGoalCard(true);
-});
-</script>
-
-<!-- ✅ STEP 1 ADD: Deep Scan button wiring (safe no-op if button not present) -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const btn = document.getElementById("gideonDeepScanBtn");
-    if (!btn) return;
-
-    btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        const old = btn.textContent;
-        btn.textContent = "Running…";
-
-        try {
-            await fetch("/gideon/deep-scan", {
-                method: "POST",
-                headers: {
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.content || ""
-                }
-            });
-
-            window.location.reload();
-        } catch (e) {
-            btn.disabled = false;
-            btn.textContent = old;
-            alert("Deep scan failed. Check logs.");
-        }
-    });
 });
 </script>
 
