@@ -5,11 +5,13 @@
      * ✅ Robust time source for JS: epoch milliseconds (UTC)
      */
     $serverTimeMs = now()->utc()->timestamp * 1000;
+
     // ✅ Reset goal to 0 (until backend persistence is wired)
     $goalMonthName = now()->format('F'); // fallback until JS sets it
     $placeholderGoal = 0; // $0
     $placeholderPercent = 0; // 0%
     $placeholderNeededMonthly = 0; // $0
+
     /**
      * ✅ Days-left (server fallback) should be "days left AFTER today"
      */
@@ -18,8 +20,10 @@
     $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
     $daysLeft = max($daysLeftRaw, 0);
 @endphp
+
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
     :root {
         --gold: #c9a227;
         --gold-soft: #f5e6b3;
@@ -28,18 +32,22 @@
         --text-subtle: #4b5563;
         --text-faint: #9ca3af;
         --money-green: #059669;
+
         /* Sidebar-like black */
         --abc-black: #0b1220;
         --abc-black-2: #0f172a;
+
         --danger-red: #ef4444;
         --ring-track: rgba(255,255,255,0.14);
     }
+
     .dashboard-page {
         padding: 30px 40px;
         background: var(--bg-page);
         min-height: 100vh;
         font-family: 'Inter', sans-serif;
     }
+
     /* ===== Header Layout (Search top-right + alert + agent) ===== */
     .dashboard-header { margin-bottom: 22px; }
     .dashboard-header-top {
@@ -147,21 +155,21 @@
     }
 
     /* =========================================================
-       ✅ NEW TOP ROW LAYOUT
+       ✅ TOP ROW LAYOUT
        Left: Goal card (50%)
        Right: Upcoming + Insights stacked (50%) and equal total height
        ========================================================= */
     .dashboard-top-row{
         display:flex;
         gap:20px;
-        align-items: stretch; /* makes both sides same height */
+        align-items: stretch;
         margin-top: 6px;
         margin-bottom: 18px;
     }
     .goal-card-wrap {
         flex: 0 0 calc(50% - 10px);
         width: auto;
-        margin: 0; /* remove old margins so alignment is clean */
+        margin: 0;
     }
     .side-cards-wrap{
         flex: 0 0 calc(50% - 10px);
@@ -171,14 +179,14 @@
         min-height: 0;
     }
     .side-cards-wrap .dashboard-card{
-        flex: 1; /* makes both cards share the space equally */
+        flex: 1;
         display:flex;
         flex-direction: column;
         min-height: 0;
     }
     .side-cards-wrap .dashboard-card-body{
         flex: 1;
-        overflow: auto; /* if content ever gets long */
+        overflow: auto;
     }
 
     /* ==== GRID ==== */
@@ -189,11 +197,6 @@
         margin-top: 18px;
     }
 
-    /* ✅ NEW: Make a card span the full dashboard grid width */
-    .dashboard-card-full {
-        grid-column: 1 / -1;
-    }
-
     .dashboard-card {
         background: #fff;
         border-radius: 18px;
@@ -202,6 +205,11 @@
         box-shadow:
             0 18px 30px -12px rgba(0,0,0,0.35),
             0 8px 16px -8px rgba(0,0,0,0.18);
+    }
+
+    /* ✅ Gideon card spans full width under top row */
+    .dashboard-card-span-all {
+        grid-column: 1 / -1;
     }
 
     /* CARD TITLES */
@@ -228,6 +236,64 @@
     .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
 
     /* =========================================================
+       ✅ RESTORED PRODUCTION STYLES (THIS FIXES THE MODAL LOOK)
+       ========================================================= */
+    .production-title {
+        text-align: center;
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 14px;
+    }
+    .production-tabs-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 18px;
+    }
+    .production-tabs {
+        display: inline-flex;
+        gap: 6px;
+        padding: 4px;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+    .production-tab {
+        padding: 6px 12px;
+        font-size: 14px;
+        border-radius: 999px;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 600;
+        color: #6b7280;
+        border: none;
+    }
+    .production-tab-active {
+        background: var(--gold);
+        color: #111827;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+    }
+    .production-range { display: none; }
+    .production-range-active { display: block; }
+
+    .production-label {
+        font-size: 18px;
+        color: #4b5563;
+        font-weight: 500;
+        padding: 6px 0;
+    }
+    .production-value {
+        font-size: 24px;
+        font-weight: 700;
+        text-align: right !important;
+        padding: 6px 0;
+        white-space: nowrap;
+    }
+    .money {
+        color: var(--money-green) !important;
+        font-weight: 800 !important;
+    }
+
+    /* =========================================================
        GOAL CARD
        ========================================================= */
     .goal-card {
@@ -240,7 +306,7 @@
         overflow: hidden;
         position: relative;
         color: #fff;
-        height: 100%; /* ✅ important so it stretches to match right column */
+        height: 100%;
     }
     .goal-card::before {
         content: "";
@@ -360,7 +426,6 @@
         font-weight: 900;
         color: #ffffff;
     }
-    /* ✅ Gauge uses --gauge-color and --progress */
     .goal-ring {
         width: 213px;
         height: 213px;
@@ -431,7 +496,6 @@
         );
     }
     .goal-strip span { font-weight: 900; }
-    /* ✅ Gauge position (already moved up) */
     .goal-strip-ring-anchor {
         position: absolute;
         right: 18px;
@@ -456,14 +520,13 @@
         border: 1px solid rgba(255,255,255,0.12);
         min-height: 48px;
     }
-    /* ✅ Log Production centered */
     #abc-log-production {
         cursor: pointer;
         justify-content: center !important;
     }
     #abc-log-production .goal-btn-left { align-items: center; }
-    /* ✅ Production Breakdown clickable */
     #abc-production-breakdown { cursor: pointer; }
+
     .goal-btn-primary {
         background: var(--gold);
         color: #111827;
@@ -484,6 +547,7 @@
         font-weight: 900;
         line-height: 1.05;
     }
+
     /* ===== Production Breakdown Modal (Bootstrap) ===== */
     .abc-modal-wide .modal-dialog { max-width: 920px; }
     .abc-breakdown-wrap { padding: 6px 8px 16px; }
@@ -494,6 +558,7 @@
         margin: 10px 0 12px;
         color: #111827;
     }
+
     /* Responsive */
     @media (max-width: 1100px) {
         .dashboard-top-row{ flex-direction: column; }
@@ -536,7 +601,7 @@
         </div>
     </div>
 
-    {{-- ✅ NEW TOP ROW: Goal card (left) + Upcoming/Insights (right stacked) --}}
+    {{-- ✅ TOP ROW --}}
     <div class="dashboard-top-row">
 
         {{-- GOAL CARD (LEFT 50%) --}}
@@ -559,6 +624,7 @@
                         <button id="abc-goal-submit" class="goal-save" type="button">Submit →</button>
                     </div>
                 </div>
+
                 <div class="goal-body">
                     <div>
                         <div class="goal-main">
@@ -570,10 +636,9 @@
                             <div class="goal-needed" id="abc-goal-needed-display">${{ number_format($placeholderNeededMonthly, 0) }}</div>
                         </div>
                     </div>
-                    <div style="position:relative;">
-                        {{-- reserved space; ring is positioned over strip below --}}
-                    </div>
+                    <div style="position:relative;"></div>
                 </div>
+
                 <div class="goal-strip-wrap">
                     <div class="goal-strip">
                         <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
@@ -587,6 +652,7 @@
                         </div>
                     </div>
                 </div>
+
                 <div class="goal-actions">
                     <button id="abc-log-production" class="goal-btn goal-btn-primary" type="button">
                         <div class="goal-btn-left">
@@ -647,6 +713,7 @@
                         <li>Birthdays in next 7 days: {{ $birthdays->count() }}</li>
                         <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
                     </ul>
+
                     @if($birthdays->isNotEmpty())
                         <hr style="margin: 10px 0;">
                         <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -663,6 +730,7 @@
                             @endforeach
                         </ul>
                     @endif
+
                     @if($anniversaries->isNotEmpty())
                         <hr style="margin: 10px 0;">
                         <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -687,8 +755,9 @@
 
     {{-- GRID START --}}
     <div class="dashboard-grid">
+
         {{-- GIDEON OPPORTUNITIES (FULL WIDTH) --}}
-        <div class="dashboard-card dashboard-card-full">
+        <div class="dashboard-card dashboard-card-span-all">
             <div class="dashboard-card-title-row">
                 <div class="dashboard-card-title">
                     <span class="dashboard-card-icon">🤖</span>
@@ -730,6 +799,7 @@
                 @endif
             </div>
         </div>
+
     </div>{{-- END GRID --}}
 
     <div class="dashboard-footer-note" style="margin-top: 20px; color:#6b7280;">
@@ -745,8 +815,10 @@
                 <h5 class="modal-title" style="font-weight:900;">Production Breakdown</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+
             <div class="modal-body abc-breakdown-wrap">
                 <div class="abc-breakdown-title">Current Production</div>
+
                 <div class="production-tabs-wrapper">
                     <div class="production-tabs" id="abc-breakdown-tabs">
                         <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
@@ -756,6 +828,7 @@
                         <button class="production-tab" data-production-tab="year" type="button">Year</button>
                     </div>
                 </div>
+
                 <div class="dashboard-card-body production-stats" id="abc-breakdown-stats">
                     <div class="production-range production-range-active" data-production-range="day">
                         <table style="width:100%;">
@@ -768,6 +841,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="week">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -779,6 +853,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="month">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -790,6 +865,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="quarter">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -801,6 +877,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="year">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -813,6 +890,7 @@
                         </table>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -869,6 +947,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const endOfMonth = new Date(y, m + 1, 0);
         const startOfEnd = new Date(y, m, endOfMonth.getDate());
         const msPerDay = 24 * 60 * 60 * 1000;
+
         if (startOfTomorrow > startOfEnd) {
             daysLeftEl.innerText = 0;
         } else {
@@ -919,28 +998,24 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================
-    // ✅ Log Production wiring (ALWAYS opens the Track Daily Activity modal)
+    // ✅ Log Production wiring (opens the Track Daily Activity modal)
     // =========================================================
     async function openActivityModal() {
-        if (typeof bootstrap === "undefined") {
-            console.warn("Bootstrap is not available on this page, cannot open activity modal.");
-            return;
-        }
+        if (typeof bootstrap === "undefined") return;
+
         let modalEl = document.getElementById("activityModal");
         if (modalEl) {
-            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
             return;
         }
+
         const existingWrap = document.getElementById("activity-modal-injected");
         if (existingWrap) {
             modalEl = document.getElementById("activityModal");
-            if (modalEl) {
-                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                modal.show();
-            }
+            if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
             return;
         }
+
         try {
             const res = await fetch("/activity/popup?_=" + Date.now(), {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -951,24 +1026,18 @@ document.addEventListener("DOMContentLoaded", function () {
             wrap.id = "activity-modal-injected";
             wrap.innerHTML = html;
             document.body.appendChild(wrap);
+
             modalEl = document.getElementById("activityModal");
-            if (!modalEl) {
-                console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
-                return;
-            }
-            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
+            if (!modalEl) return;
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
         } catch (err) {
-            console.error("Failed to load /activity/popup", err);
+            console.error(err);
         }
     }
 
     const logBtn = document.getElementById("abc-log-production");
-    if (logBtn) {
-        logBtn.addEventListener("click", () => {
-            openActivityModal();
-        });
-    }
+    if (logBtn) logBtn.addEventListener("click", openActivityModal);
 
     // =========================================================
     // ✅ Production Breakdown button opens modal
@@ -978,8 +1047,9 @@ document.addEventListener("DOMContentLoaded", function () {
         breakdownBtn.addEventListener("click", () => {
             const modalEl = document.getElementById("productionBreakdownModal");
             if (!modalEl || typeof bootstrap === "undefined") return;
-            const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
-            instance.show();
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
             if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     }
@@ -992,16 +1062,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const tabWrap = document.getElementById('abc-breakdown-tabs');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     if (!tabWrap || !statsWrap) return;
+
     const tabs = tabWrap.querySelectorAll('.production-tab');
     const ranges = statsWrap.querySelectorAll('.production-range');
+
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const range = tab.dataset.productionTab;
+
             tabs.forEach(t => t.classList.remove('production-tab-active'));
             tab.classList.add('production-tab-active');
+
             ranges.forEach(r => {
                 r.classList.toggle('production-range-active', r.dataset.productionRange === range);
             });
+
             if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     });
@@ -1011,14 +1086,16 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
 window.refreshProductionBreakdownModal = function(force = false) {
-    const modalEl = document.getElementById('productionBreakdownModal');
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
-    if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
+    if (!statsWrap || !tabsWrap) return Promise.resolve();
+
     const activeTab = tabsWrap.querySelector('.production-tab-active');
     if (!activeTab) return Promise.resolve();
+
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
+
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
@@ -1047,6 +1124,7 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     const percentText = document.getElementById('abc-goal-percent-text');
     const neededDisplay = document.getElementById('abc-goal-needed-display');
     const apEarnedEl = document.getElementById('abc-goal-ap-earned');
+
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
@@ -1063,19 +1141,26 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
         if (p <= 75) return '#c9a227';
         return '#059669';
     }
+
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
+
     const prem = Number(premiumCollected || 0);
     const ap = Number(apEarned || 0);
+
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
+
     let pct = 0;
     if (monthlyNeeded > 0) {
         pct = Math.round(Math.min(100, (prem / monthlyNeeded) * 100));
     }
+
     const color = gaugeColorForPercent(pct);
+
     if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
     if (apEarnedEl) apEarnedEl.innerText = formatMoney0(ap);
+
     if (goalCard) {
         goalCard.style.setProperty('--progress', String(pct));
         goalCard.style.setProperty('--gauge-color', color);
@@ -1111,4 +1196,5 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.refreshGoalCard) window.refreshGoalCard(true);
 });
 </script>
+
 @endsection
