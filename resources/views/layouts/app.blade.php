@@ -75,7 +75,10 @@
         <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
         <a class="nav-item" href="{{ route('service.index') }}">Service</a>
 
-        <a class="nav-item" href="#" onclick="openActivityPopup()">Activity</a>
+        {{-- ✅ Activity removed from sidebar.
+            Activity logging still exists and is accessed via the "Log Production" button on the dashboard.
+            Do NOT delete backend routes or popup view.
+        --}}
 
         <a class="nav-item" href="/calendar">Calendar</a>
 
@@ -163,9 +166,13 @@
                     bootstrap.Modal.getInstance(modalEl).hide();
                 }
 
-                if (typeof window.refreshProductionCard === 'function') {
-                    window.refreshProductionCard();
-                }
+                // ✅ Clean separation:
+                // Do not force dashboard refresh logic here.
+                // Just broadcast "activity saved" so any page that cares can refresh itself.
+                window.dispatchEvent(new CustomEvent('activity:saved'));
+            })
+            .catch(() => {
+                alert('Error saving activity.');
             });
         });
     </script>
