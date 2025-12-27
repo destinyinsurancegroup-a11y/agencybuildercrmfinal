@@ -459,13 +459,16 @@
         height: 100%;
         gap: 6px;
     }
+
+    /* ✅ EDIT: Percent text ALWAYS WHITE */
     .goal-percent {
         font-size: 54px;
         font-weight: 900;
-        color: var(--gauge-color, var(--danger-red));
+        color: #ffffff;
         line-height: 1;
         margin: 0;
     }
+
     .goal-complete {
         font-size: 18px;
         font-weight: 600;
@@ -789,7 +792,8 @@
                                     {{ str_replace('_', ' ', $opp->category) }}
                                 </span>
                                 @if(isset($opp->source_snapshot['full_name']))
-                                    <span style="color: var(--text-faint); font-size: 12px;">
+                                    <span style="color: var(--text-faint); font-size:unch
+                                        12px;">
                                         • {{ $opp->source_snapshot['full_name'] }}
                                     </span>
                                 @endif
@@ -1135,11 +1139,22 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
         const v = Math.round(Number(n) || 0);
         return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
+
+    /* ✅ EDIT: Circle color rules requested
+       0–25%  = white
+       26–50% = light green
+       51–80% = darker green
+       81–99% = even darker green
+       100%+  = gold
+    */
     function gaugeColorForPercent(pct) {
         const p = Number(pct) || 0;
-        if (p <= 24) return '#ef4444';
-        if (p <= 75) return '#c9a227';
-        return '#059669';
+
+        if (p <= 25) return '#ffffff';  // white
+        if (p <= 50) return '#86efac';  // light green
+        if (p <= 80) return '#22c55e';  // darker green
+        if (p <= 99) return '#15803d';  // even darker green
+        return '#c9a227';               // gold
     }
 
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
@@ -1151,25 +1166,26 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
 
-    let pct = 0;
+    // ✅ EDIT: allow 101%+ text, but cap ring fill at 100%
+    let rawPct = 0;
     if (monthlyNeeded > 0) {
-        pct = Math.round(Math.min(100, (prem / monthlyNeeded) * 100));
+        rawPct = Math.round((prem / monthlyNeeded) * 100); // can be 101%+
     }
-
-    const color = gaugeColorForPercent(pct);
+    const ringPct = Math.max(0, Math.min(100, rawPct));   // ring never overfills
+    const color = gaugeColorForPercent(rawPct);
 
     if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
     if (apEarnedEl) apEarnedEl.innerText = formatMoney0(ap);
 
     if (goalCard) {
-        goalCard.style.setProperty('--progress', String(pct));
+        goalCard.style.setProperty('--progress', String(ringPct));
         goalCard.style.setProperty('--gauge-color', color);
     }
     if (ring) {
-        ring.style.setProperty('--progress', String(pct));
+        ring.style.setProperty('--progress', String(ringPct));
         ring.style.setProperty('--gauge-color', color);
     }
-    if (percentText) percentText.innerText = `${pct}%`;
+    if (percentText) percentText.innerText = `${Math.max(0, rawPct)}%`;
 };
 </script>
 
