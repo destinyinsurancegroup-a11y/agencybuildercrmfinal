@@ -350,20 +350,9 @@
         letter-spacing: 0.2px;
         line-height: 1.05;
     }
-    .goal-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0,0,0,0.25);
-        border: 1px solid rgba(255,255,255,0.12);
-        color: var(--gold);
-        font-weight: 900;
-        font-size: 14px;
-        flex: 0 0 auto;
-    }
+
+    /* ✅ EDIT: Removed .goal-icon styles because the dot is removed */
+
     .goal-input-wrap {
         display: flex;
         align-items: stretch;
@@ -460,7 +449,7 @@
         gap: 6px;
     }
 
-    /* ✅ EDIT: Percent text ALWAYS WHITE */
+    /* ✅ Percent text ALWAYS WHITE */
     .goal-percent {
         font-size: 54px;
         font-weight: 900;
@@ -612,7 +601,7 @@
             <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }}; --gauge-color: var(--danger-red);">
                 <div class="goal-header">
                     <div class="goal-header-left">
-                        <span class="goal-icon">●</span>
+                        {{-- ✅ EDIT: Removed the dot --}}
                         <span id="abc-goal-month">{{ $goalMonthName }}</span> Goal
                     </div>
                     <div class="goal-input-wrap">
@@ -792,8 +781,7 @@
                                     {{ str_replace('_', ' ', $opp->category) }}
                                 </span>
                                 @if(isset($opp->source_snapshot['full_name']))
-                                    <span style="color: var(--text-faint); font-size:unch
-                                        12px;">
+                                    <span style="color: var(--text-faint); font-size: 12px;">
                                         • {{ $opp->source_snapshot['full_name'] }}
                                     </span>
                                 @endif
@@ -1140,7 +1128,7 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
         return "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
     }
 
-    /* ✅ EDIT: Circle color rules requested
+    /* ✅ Circle color rules requested
        0–25%  = white
        26–50% = light green
        51–80% = darker green
@@ -1166,7 +1154,7 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
 
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
 
-    // ✅ EDIT: allow 101%+ text, but cap ring fill at 100%
+    // ✅ allow 101%+ text, but cap ring fill at 100%
     let rawPct = 0;
     if (monthlyNeeded > 0) {
         rawPct = Math.round((prem / monthlyNeeded) * 100); // can be 101%+
