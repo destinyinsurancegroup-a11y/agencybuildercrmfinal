@@ -5,11 +5,13 @@
      * ✅ Robust time source for JS: epoch milliseconds (UTC)
      */
     $serverTimeMs = now()->utc()->timestamp * 1000;
+
     // ✅ Reset goal to 0 (until backend persistence is wired)
     $goalMonthName = now()->format('F'); // fallback until JS sets it
     $placeholderGoal = 0; // $0
     $placeholderPercent = 0; // 0%
     $placeholderNeededMonthly = 0; // $0
+
     /**
      * ✅ Days-left (server fallback) should be "days left AFTER today"
      */
@@ -18,6 +20,7 @@
     $daysLeftRaw = $tomorrowStart->diffInDays($endOfMonthStart, false) + 1; // inclusive from tomorrow
     $daysLeft = max($daysLeftRaw, 0);
 @endphp
+
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     :root {
@@ -235,6 +238,7 @@
     }
     .dashboard-list { list-style: none; padding: 0; margin: 0; }
     .dashboard-list li { font-size: 14px; margin-bottom: 6px; }
+
     /* =========================================================
        GOAL CARD
        ========================================================= */
@@ -496,6 +500,7 @@
         font-weight: 900;
         line-height: 1.05;
     }
+
     /* ===== Production Breakdown Modal (Bootstrap) ===== */
     .abc-modal-wide .modal-dialog {
         max-width: 920px;
@@ -510,6 +515,7 @@
         margin: 10px 0 12px;
         color: #111827;
     }
+
     /* Responsive */
     @media (max-width: 1400px) {
         .goal-header-left { font-size: 40px; }
@@ -537,6 +543,7 @@
         .goal-strip-ring-anchor { right: 18px; top: -170px; }
     }
 </style>
+
 <div class="dashboard-page">
     <div class="dashboard-header">
         <div class="dashboard-header-top">
@@ -563,6 +570,7 @@
             </div>
         </div>
     </div>
+
     {{-- GOAL CARD (50% wide) --}}
     <div class="goal-card-wrap">
         <div id="abc-goal-card" class="goal-card" style="--progress: {{ $placeholderPercent }}; --gauge-color: var(--danger-red);">
@@ -583,6 +591,7 @@
                     <button id="abc-goal-submit" class="goal-save" type="button">Submit →</button>
                 </div>
             </div>
+
             <div class="goal-body">
                 <div>
                     <div class="goal-main">
@@ -598,6 +607,7 @@
                     {{-- reserved space; ring is positioned over strip below --}}
                 </div>
             </div>
+
             <div class="goal-strip-wrap">
                 <div class="goal-strip">
                     <span><span id="abc-days-left">{{ $daysLeft }}</span> days left</span>&nbsp;to reach goal
@@ -611,6 +621,7 @@
                     </div>
                 </div>
             </div>
+
             <div class="goal-actions">
                 <button id="abc-log-production" class="goal-btn goal-btn-primary" type="button">
                     <div class="goal-btn-left">
@@ -626,9 +637,17 @@
             </div>
         </div>
     </div>
+
     {{-- GRID START --}}
     <div class="dashboard-grid">
-        {{-- CURRENT PRODUCTION CARD --}}
+
+        {{-- =========================================================
+             ✅ CURRENT PRODUCTION CARD REMOVED FROM DASHBOARD GRID
+             Reason: Current Production now lives inside the
+             "Production Breakdown" button/modal above.
+             Not deleted — kept here commented for future use.
+        ========================================================== --}}
+        {{--
         <div class="dashboard-card" id="abc-current-production-card">
             <div class="production-title">Current Production</div>
             <div class="production-tabs-wrapper">
@@ -698,6 +717,8 @@
                 </div>
             </div>
         </div>
+        --}}
+
         {{-- UPCOMING APPOINTMENTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
@@ -725,6 +746,7 @@
                 @endif
             </div>
         </div>
+
         {{-- TODAY'S INSIGHTS --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
@@ -738,6 +760,7 @@
                     <li>Birthdays in next 7 days: {{ $birthdays->count() }}</li>
                     <li>Anniversaries in next 7 days: {{ $anniversaries->count() }}</li>
                 </ul>
+
                 @if($birthdays->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -754,6 +777,7 @@
                         @endforeach
                     </ul>
                 @endif
+
                 @if($anniversaries->isNotEmpty())
                     <hr style="margin: 10px 0;">
                     <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">
@@ -772,6 +796,7 @@
                 @endif
             </div>
         </div>
+
         {{-- GIDEON OPPORTUNITIES --}}
         <div class="dashboard-card">
             <div class="dashboard-card-title-row">
@@ -815,11 +840,14 @@
                 @endif
             </div>
         </div>
+
     </div>{{-- END GRID --}}
+
     <div class="dashboard-footer-note" style="margin-top: 20px; color:#6b7280;">
         © {{ now()->year }} Agency Builder CRM — Tier 1
     </div>
 </div>
+
 {{-- ✅ Production Breakdown Modal --}}
 <div class="modal fade" id="productionBreakdownModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered abc-modal-wide">
@@ -830,6 +858,7 @@
             </div>
             <div class="modal-body abc-breakdown-wrap">
                 <div class="abc-breakdown-title">Current Production</div>
+
                 <div class="production-tabs-wrapper">
                     <div class="production-tabs" id="abc-breakdown-tabs">
                         <button class="production-tab production-tab-active" data-production-tab="day" type="button">Day</button>
@@ -839,6 +868,7 @@
                         <button class="production-tab" data-production-tab="year" type="button">Year</button>
                     </div>
                 </div>
+
                 <div class="dashboard-card-body production-stats" id="abc-breakdown-stats">
                     <div class="production-range production-range-active" data-production-range="day">
                         <table style="width:100%;">
@@ -851,6 +881,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="week">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -862,6 +893,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="month">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -873,6 +905,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="quarter">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -884,6 +917,7 @@
                             <tr><td class="production-label">AP</td><td class="production-value money">$--</td></tr>
                         </table>
                     </div>
+
                     <div class="production-range" data-production-range="year">
                         <table style="width:100%;">
                             <tr><td class="production-label">Leads Worked</td><td class="production-value">--</td></tr>
@@ -896,10 +930,12 @@
                         </table>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
 </div>
+
 <!-- LOCAL TIME + GREETING + MONTH + DAYS-LEFT SYNC (AFTER TODAY) + GOAL INPUT WIRING + BUTTON WIRING -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -908,17 +944,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const serverTimeMsStr = timeEl.getAttribute("data-server-time-ms");
     const ms = parseInt(serverTimeMsStr, 10);
     const localDate = new Date(ms);
+
     if (isNaN(localDate.getTime())) {
         greetEl.innerText = "Good day, Agent";
         timeEl.innerText = "—";
         return;
     }
+
     const hour = localDate.getHours();
     let greeting = "Good ";
     if (hour < 12) greeting += "morning";
     else if (hour < 17) greeting += "afternoon";
     else greeting += "evening";
     greetEl.innerText = greeting + ", Agent";
+
     const datePart = localDate.toLocaleDateString(undefined, {
         weekday: "long",
         year: "numeric",
@@ -930,12 +969,14 @@ document.addEventListener("DOMContentLoaded", function () {
         minute: "2-digit"
     });
     timeEl.innerText = `${datePart} • ${timePart}`;
+
     // ✅ Month sync for goal card
     const goalMonthEl = document.getElementById("abc-goal-month");
     if (goalMonthEl) {
         const monthName = localDate.toLocaleDateString(undefined, { month: "long" });
         goalMonthEl.innerText = monthName;
     }
+
     // ✅ Days-left sync for goal card: days left in month AFTER today
     const daysLeftEl = document.getElementById("abc-days-left");
     if (daysLeftEl) {
@@ -946,6 +987,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const endOfMonth = new Date(y, m + 1, 0);
         const startOfEnd = new Date(y, m, endOfMonth.getDate());
         const msPerDay = 24 * 60 * 60 * 1000;
+
         if (startOfTomorrow > startOfEnd) {
             daysLeftEl.innerText = 0;
         } else {
@@ -953,11 +995,13 @@ document.addEventListener("DOMContentLoaded", function () {
             daysLeftEl.innerText = Math.max(diffDays, 0);
         }
     }
+
     // =========================================================
     // ✅ Goal Amount Submit Wiring (front-end)
     // =========================================================
     const goalInput = document.getElementById("abc-goal-input");
     const goalSubmit = document.getElementById("abc-goal-submit");
+
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
@@ -972,14 +1016,17 @@ document.addEventListener("DOMContentLoaded", function () {
         const goalAp = Math.max(0, Math.round(goalApNumber || 0));
         if (goalInput) goalInput.value = formatMoney0(goalAp);
     }
+
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     setGoalInput(savedGoal !== null ? parseMoneyToNumber(savedGoal) : 0);
+
     if (goalInput) {
         goalInput.addEventListener("blur", () => {
             const raw = parseMoneyToNumber(goalInput.value);
             setGoalInput(raw);
         });
     }
+
     if (goalSubmit) {
         goalSubmit.addEventListener("click", () => {
             const raw = goalInput ? parseMoneyToNumber(goalInput.value) : 0;
@@ -989,6 +1036,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (window.refreshGoalCard) window.refreshGoalCard(true);
         });
     }
+
     // =========================================================
     // ✅ Log Production wiring (ALWAYS opens the Track Daily Activity modal)
     // =========================================================
@@ -997,12 +1045,14 @@ document.addEventListener("DOMContentLoaded", function () {
             console.warn("Bootstrap is not available on this page, cannot open activity modal.");
             return;
         }
+
         let modalEl = document.getElementById("activityModal");
         if (modalEl) {
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
             return;
         }
+
         const existingWrap = document.getElementById("activity-modal-injected");
         if (existingWrap) {
             modalEl = document.getElementById("activityModal");
@@ -1012,6 +1062,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             return;
         }
+
         try {
             const res = await fetch("/activity/popup?_=" + Date.now(), {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -1022,6 +1073,7 @@ document.addEventListener("DOMContentLoaded", function () {
             wrap.id = "activity-modal-injected";
             wrap.innerHTML = html;
             document.body.appendChild(wrap);
+
             modalEl = document.getElementById("activityModal");
             if (!modalEl) {
                 console.warn("Loaded /activity/popup but #activityModal was not found in returned HTML.");
@@ -1033,12 +1085,14 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error("Failed to load /activity/popup", err);
         }
     }
+
     const logBtn = document.getElementById("abc-log-production");
     if (logBtn) {
         logBtn.addEventListener("click", () => {
             openActivityModal();
         });
     }
+
     // =========================================================
     // ✅ Production Breakdown button opens modal
     // =========================================================
@@ -1047,14 +1101,45 @@ document.addEventListener("DOMContentLoaded", function () {
         breakdownBtn.addEventListener("click", () => {
             const modalEl = document.getElementById("productionBreakdownModal");
             if (!modalEl || typeof bootstrap === "undefined") return;
+
             const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
             instance.show();
+
             if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
         });
     }
 });
 </script>
-<!-- TAB LOGIC (Dashboard Card) -->
+
+<!-- TAB LOGIC (Production Breakdown Modal) -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tabWrap = document.getElementById('abc-breakdown-tabs');
+    const statsWrap = document.getElementById('abc-breakdown-stats');
+    if (!tabWrap || !statsWrap) return;
+
+    const tabs = tabWrap.querySelectorAll('.production-tab');
+    const ranges = statsWrap.querySelectorAll('.production-range');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const range = tab.dataset.productionTab;
+            tabs.forEach(t => t.classList.remove('production-tab-active'));
+            tab.classList.add('production-tab-active');
+            ranges.forEach(r => {
+                r.classList.toggle('production-range-active', r.dataset.productionRange === range);
+            });
+            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
+        });
+    });
+});
+</script>
+
+<!-- =========================================================
+     ✅ TAB LOGIC (Dashboard Card) DISABLED
+     Current Production card removed from dashboard grid.
+========================================================== -->
+<!--
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const tabs = document.querySelectorAll('#abc-current-production-card .production-tab');
@@ -1072,28 +1157,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
-<!-- TAB LOGIC (Production Breakdown Modal) -->
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const tabWrap = document.getElementById('abc-breakdown-tabs');
-    const statsWrap = document.getElementById('abc-breakdown-stats');
-    if (!tabWrap || !statsWrap) return;
-    const tabs = tabWrap.querySelectorAll('.production-tab');
-    const ranges = statsWrap.querySelectorAll('.production-range');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const range = tab.dataset.productionTab;
-            tabs.forEach(t => t.classList.remove('production-tab-active'));
-            tab.classList.add('production-tab-active');
-            ranges.forEach(r => {
-                r.classList.toggle('production-range-active', r.dataset.productionRange === range);
-            });
-            if (window.refreshProductionBreakdownModal) window.refreshProductionBreakdownModal(true);
-        });
-    });
-});
-</script>
-<!-- UPDATE STATS (Dashboard Card) -->
+-->
+
+<!-- =========================================================
+     ✅ UPDATE STATS (Dashboard Card) DISABLED
+     Current Production card removed from dashboard grid.
+========================================================== -->
+<!--
 <script>
 window.refreshProductionCard = function(force = false) {
     const activeTab = document.querySelector("#abc-current-production-card .production-tab-active");
@@ -1119,6 +1189,8 @@ window.refreshProductionCard = function(force = false) {
         .catch(() => {});
 };
 </script>
+-->
+
 <!-- UPDATE STATS (Production Breakdown Modal) -->
 <script>
 window.refreshProductionBreakdownModal = function(force = false) {
@@ -1126,10 +1198,13 @@ window.refreshProductionBreakdownModal = function(force = false) {
     const statsWrap = document.getElementById('abc-breakdown-stats');
     const tabsWrap = document.getElementById('abc-breakdown-tabs');
     if (!modalEl || !statsWrap || !tabsWrap) return Promise.resolve();
+
     const activeTab = tabsWrap.querySelector('.production-tab-active');
     if (!activeTab) return Promise.resolve();
+
     const active = activeTab.dataset.productionTab;
     const url = `/activity/totals/${active}` + (force ? `?_=${Date.now()}` : "");
+
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
@@ -1149,6 +1224,7 @@ window.refreshProductionBreakdownModal = function(force = false) {
         .catch(() => {});
 };
 </script>
+
 <!-- APPLY GOAL CARD FROM TOTALS -->
 <script>
 window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
@@ -1157,6 +1233,7 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     const percentText = document.getElementById('abc-goal-percent-text');
     const neededDisplay = document.getElementById('abc-goal-needed-display');
     const apEarnedEl = document.getElementById('abc-goal-ap-earned');
+
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
@@ -1173,19 +1250,26 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
         if (p <= 75) return '#c9a227';
         return '#059669';
     }
+
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
+
     const prem = Number(premiumCollected || 0);
     const ap = Number(apEarned || 0);
+
     const remaining = Math.max(0, Math.round(monthlyNeeded - prem));
+
     let pct = 0;
     if (monthlyNeeded > 0) {
         pct = Math.round(Math.min(100, (prem / monthlyNeeded) * 100));
     }
+
     const color = gaugeColorForPercent(pct);
+
     if (neededDisplay) neededDisplay.innerText = formatMoney0(remaining);
     if (apEarnedEl) apEarnedEl.innerText = formatMoney0(ap);
+
     if (goalCard) {
         goalCard.style.setProperty('--progress', String(pct));
         goalCard.style.setProperty('--gauge-color', color);
@@ -1197,25 +1281,28 @@ window.applyGoalCardFromTotals = function(premiumCollected, apEarned) {
     if (percentText) percentText.innerText = `${pct}%`;
 };
 </script>
+
 <!-- GOAL CARD REFRESH (fetch month totals) -->
 <script>
 window.refreshGoalCard = function(force = false) {
     const savedGoal = localStorage.getItem("abc_monthly_goal_ap");
+
     function parseMoneyToNumber(str) {
         if (!str) return 0;
         const cleaned = String(str).replace(/[^0-9.]/g, "");
         const n = parseFloat(cleaned);
         return isNaN(n) ? 0 : n;
     }
+
     const goalAp = Math.max(0, Math.round(parseMoneyToNumber(savedGoal)));
     const monthlyNeeded = goalAp > 0 ? Math.round(goalAp / 12) : 0;
+
     const url = `/activity/totals/month` + (force ? `?_=${Date.now()}` : "");
     return fetch(url, { cache: "no-store" })
         .then(r => r.json())
         .then(data => {
             const premiumCollected = Number(data.premium_collected || 0);
             const apEarned = Number(data.ap || 0);
-            // reuse the instant applier
             if (typeof window.applyGoalCardFromTotals === "function") {
                 window.applyGoalCardFromTotals(premiumCollected, apEarned);
             }
@@ -1223,7 +1310,8 @@ window.refreshGoalCard = function(force = false) {
         .catch(() => {});
 };
 </script>
-<!-- ✅ OPTION A: GLOBAL SAVE HANDLER (THIS IS THE FIX) -->
+
+<!-- ✅ OPTION A: GLOBAL SAVE HANDLER (EXISTING) -->
 <script>
 (function(){
     function parseMoneyToNumber(str) {
@@ -1263,6 +1351,7 @@ window.refreshGoalCard = function(force = false) {
         if (!wrapper) return;
         const values = wrapper.querySelectorAll(`.production-range[data-production-range="${range}"] .production-value`);
         if (values.length !== 7) return;
+
         let currentNums = Array.from(values).map(el => {
             let text = el.innerText;
             if (text === '--') return 0;
@@ -1271,6 +1360,7 @@ window.refreshGoalCard = function(force = false) {
             }
             return Number(text || 0);
         });
+
         currentNums[0] += fields.leads_worked;
         currentNums[1] += fields.calls;
         currentNums[2] += fields.stops;
@@ -1278,6 +1368,7 @@ window.refreshGoalCard = function(force = false) {
         currentNums[4] += fields.apps_written;
         currentNums[5] += fields.premium_collected;
         currentNums[6] += fields.ap;
+
         for (let i = 0; i < 7; i++) {
             if (i < 5) {
                 values[i].innerText = Math.round(currentNums[i]);
@@ -1286,6 +1377,7 @@ window.refreshGoalCard = function(force = false) {
             }
         }
     }
+
     async function localUpdateUIFromForm(form) {
         const fields = {
             leads_worked: Number(form.querySelector('[name="leads_worked"]').value || 0),
@@ -1296,15 +1388,20 @@ window.refreshGoalCard = function(force = false) {
             premium_collected: Number(form.querySelector('[name="premium_collected"]').value || 0),
             ap: Number(form.querySelector('[name="ap"]').value || 0),
         };
+
         const activityDateStr = form.querySelector('[name="activity_date"]').value;
         if (!activityDateStr) return;
+
         const activityDate = new Date(activityDateStr);
         if (isNaN(activityDate.getTime())) return;
+
         const now = new Date();
+
         // Day
         const isDay = activityDate.getFullYear() === now.getFullYear() &&
                       activityDate.getMonth() === now.getMonth() &&
                       activityDate.getDate() === now.getDate();
+
         // Week (Sunday to Saturday)
         const dayOfWeek = now.getDay();
         const startOfWeek = new Date(now);
@@ -1312,17 +1409,21 @@ window.refreshGoalCard = function(force = false) {
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         const isWeek = activityDate >= startOfWeek && activityDate <= endOfWeek;
+
         // Month
         const isMonth = activityDate.getFullYear() === now.getFullYear() &&
                         activityDate.getMonth() === now.getMonth();
+
         // Quarter
         const currentQuarter = Math.floor(now.getMonth() / 3);
         const quarterStartMonth = currentQuarter * 3;
         const startOfQuarter = new Date(now.getFullYear(), quarterStartMonth, 1);
         const endOfQuarter = new Date(now.getFullYear(), quarterStartMonth + 3, 0);
         const isQuarter = activityDate >= startOfQuarter && activityDate <= endOfQuarter;
+
         // Year
         const isYear = activityDate.getFullYear() === now.getFullYear();
+
         const rangeChecks = {
             day: isDay,
             week: isWeek,
@@ -1330,7 +1431,10 @@ window.refreshGoalCard = function(force = false) {
             quarter: isQuarter,
             year: isYear,
         };
-        const wrappers = ['abc-current-production-card', 'abc-breakdown-stats'];
+
+        // ✅ EDIT: Dashboard card removed, so ONLY update the Breakdown Modal stats wrapper
+        const wrappers = ['abc-breakdown-stats'];
+
         for (const wrapperId of wrappers) {
             for (const range in rangeChecks) {
                 if (rangeChecks[range]) {
@@ -1338,6 +1442,7 @@ window.refreshGoalCard = function(force = false) {
                 }
             }
         }
+
         // Goal card (month only)
         if (isMonth && typeof window.applyGoalCardFromTotals === "function") {
             const apEarnedEl = document.getElementById('abc-goal-ap-earned');
@@ -1349,26 +1454,31 @@ window.refreshGoalCard = function(force = false) {
             window.applyGoalCardFromTotals(newPrem, newAp);
         }
     }
+
     // This is called by the injected modal button onclick
     window.ABC_activitySaveClick = async function(event) {
         if (event) event.preventDefault();
+
         const form = document.getElementById('activityForm');
         if (!form) {
             console.warn('activityForm not found');
             return;
         }
+
         hideSaveError();
         setSaving(true);
+
         try {
             const url = form.getAttribute('action');
             const fd = new FormData(form);
+
             // If user left fields blank, do NOT send empty strings for numbers
-            // (Laravel validation is happier, and your controller defaults them to 0)
             for (const [k, v] of fd.entries()) {
                 if (typeof v === 'string' && v.trim() === '') {
                     fd.delete(k);
                 }
             }
+
             const csrf = getCsrfTokenFromForm(form);
             const res = await fetch(url, {
                 method: 'POST',
@@ -1379,6 +1489,7 @@ window.refreshGoalCard = function(force = false) {
                 },
                 cache: 'no-store'
             });
+
             if (!res.ok) {
                 let text = '';
                 try { text = await res.text(); } catch(e) {}
@@ -1386,15 +1497,17 @@ window.refreshGoalCard = function(force = false) {
                 setSaving(false);
                 return;
             }
-            // success
-            // Close the modal immediately
+
+            // success - close modal
             const modalEl = document.getElementById('activityModal');
             if (modalEl && typeof bootstrap !== 'undefined') {
                 const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
                 instance.hide();
             }
-            // Optimistically update UI locally
+
+            // Optimistically update UI locally (modal + goal only)
             await localUpdateUIFromForm(form);
+
             setSaving(false);
         } catch (err) {
             console.error(err);
@@ -1404,11 +1517,13 @@ window.refreshGoalCard = function(force = false) {
     };
 })();
 </script>
+
 <!-- INITIAL LOAD -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    if (window.refreshProductionCard) window.refreshProductionCard(true);
+    // ✅ EDIT: Dashboard Current Production card removed, so do NOT call refreshProductionCard()
     if (window.refreshGoalCard) window.refreshGoalCard(true);
 });
 </script>
+
 @endsection
