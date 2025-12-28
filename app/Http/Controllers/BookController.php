@@ -4,18 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Contact;
 use App\Models\Note;
-use App\Models\ContactRelation;   // Unified relations table
+use App\Models\ContactRelation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class BookController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | INDEX – LEFT LIST + RIGHT PANEL
-    |--------------------------------------------------------------------------
-    */
     public function index(Request $request)
     {
         $query = Contact::query()
@@ -52,21 +47,11 @@ class BookController extends Controller
         return view('book.index', compact('clients', 'selected'));
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CREATE PANEL (AJAX)
-    |--------------------------------------------------------------------------
-    */
     public function createPanel()
     {
         return view('book.partials.create');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | STORE – NEW BOOK CLIENT
-    |--------------------------------------------------------------------------
-    */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -103,6 +88,7 @@ class BookController extends Controller
         $client = Contact::create($validated);
 
         $client->in_book_of_business = true;
+        $client->contact_type = 'book';
         $client->save();
 
         $this->saveRelations($request, $client, 'beneficiary');
@@ -111,15 +97,12 @@ class BookController extends Controller
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | ✅ IMPORT – UPLOAD EXCEL INTO BOOK OF BUSINESS
-    |--------------------------------------------------------------------------
-    | Fixes: "BookController::import does not exist" 500
-    |
-    | Expects: <input type="file" name="file">
-    |--------------------------------------------------------------------------
-    */
+    /**
+     * ✅ IMPORT – Book of Business upload
+     * Fixes “nothing happened” by:
+     *  - selecting correct worksheet by name (Book / Book of Business)
+     *  - returning JSON for AJAX/fetch uploads
+     */
     public function import(Request $request)
     {
         $request->validate([
@@ -129,9 +112,8 @@ class BookController extends Controller
         $user = Auth::user();
         if (! $user) abort(403);
 
-        // If you don't already have phpspreadsheet installed, this will show a clear message.
         if (! class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
-            return back()->with('error', 'Spreadsheet importer not installed. Run: composer require phpoffice/phpspreadsheet');
+            return $this->importRespond($request, false, 'Spreadsheet importer not installed. Run: composer require phpoffice/phpspreadsheet', []);
         }
 
         $tenantId = $user->tenant_id ?? 1;
@@ -143,16 +125,21 @@ class BookController extends Controller
         $filePath = $request->file('file')->getRealPath();
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
 
-        // Use first worksheet for Book import
-        $sheet = $spreadsheet->getSheet(0);
+        // ✅ Try to find the correct sheet by name
+        $sheet = $this->pickBookWorksheet($spreadsheet);
         $rows = $sheet->toArray(null, true, true, true);
 
         if (!is_array($rows) || count($rows) < 2) {
-            return back()->with('error', 'Spreadsheet appears empty or missing data rows.');
+            return $this->importRespond($request, false, 'Spreadsheet appears empty or missing rows.', []);
         }
 
-        // Map headers -> column letters (normalized)
-        $headerRow = $rows[1] ?? [];
+        // ✅ Find the real header row (skip leading blank rows)
+        $headerRowIndex = $this->findHeaderRowIndex($rows);
+        if ($headerRowIndex === null) {
+            return $this->importRespond($request, false, 'Could not find a header row. Make sure row 1 contains column names.', []);
+        }
+
+        $headerRow = $rows[$headerRowIndex];
         $headerMap = [];
         foreach ($headerRow as $col => $val) {
             $norm = $this->normalizeHeader($val);
@@ -174,7 +161,7 @@ class BookController extends Controller
 
         DB::beginTransaction();
         try {
-            for ($i = 2; $i <= count($rows); $i++) {
+            for ($i = $headerRowIndex + 1; $i <= count($rows); $i++) {
                 $row = $rows[$i] ?? null;
                 if (!is_array($row)) continue;
 
@@ -183,10 +170,10 @@ class BookController extends Controller
                 $email     = $get($row, ['email']);
                 $phone     = $get($row, ['phone','phone_number']);
 
-                // Skip blank rows
+                // Skip empty rows
                 if (!$firstName && !$lastName && !$email && !$phone) continue;
 
-                // Upsert key: email > phone > name combo
+                // Find existing contact
                 $query = Contact::query();
                 if ($email) {
                     $query->where('email', $email);
@@ -223,12 +210,7 @@ class BookController extends Controller
                     'premium_due_text'  => $get($row, ['premium_due_text','due_text','draft_day']),
                 ];
 
-                // Enforce Book flags on import
-                $payload['contact_type'] = 'book';
-                $payload['in_book_of_business'] = true;
-                $payload['created_by'] = $user->id;
-
-                // Remove nulls so we don't overwrite existing values with blanks
+                // Don’t overwrite with blanks
                 $payload = array_filter($payload, fn($v) => $v !== null);
 
                 if ($contact) {
@@ -240,10 +222,16 @@ class BookController extends Controller
                     $created++;
                 }
 
-                // ✅ Import relations if present (Beneficiaries / Emergency Contacts)
+                // ✅ FORCE book flags even if model fillable blocks them
+                $contact->contact_type = 'book';
+                $contact->in_book_of_business = true;
+                $contact->created_by = $contact->created_by ?? $user->id;
+                $contact->save();
+
+                // Relations (beneficiary/emergency)
                 $this->importRelationsFromRow($row, $headerMap, $contact, $user->id, $tenantId);
 
-                // ✅ Optional note (Notes column)
+                // Notes column
                 $notesBody = $get($row, ['notes','note']);
                 if ($notesBody) {
                     Note::create([
@@ -259,17 +247,17 @@ class BookController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Import failed: ' . $e->getMessage());
+            return $this->importRespond($request, false, 'Import failed: ' . $e->getMessage(), []);
         }
 
-        return back()->with('success', "Book import complete. Created: {$created}, Updated: {$updated}, Notes: {$notesCreated}");
+        return $this->importRespond($request, true, 'Book import complete.', [
+            'created' => $created,
+            'updated' => $updated,
+            'notes'   => $notesCreated,
+            'sheet'   => $sheet->getTitle(),
+        ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHOW PANEL (AJAX ONLY)
-    |--------------------------------------------------------------------------
-    */
     public function show(Contact $client)
     {
         if (request()->ajax()) {
@@ -279,31 +267,16 @@ class BookController extends Controller
         return abort(404);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | EDIT PANEL (AJAX)
-    |--------------------------------------------------------------------------
-    */
     public function editPanel(Contact $client)
     {
         return view('book.partials.edit', compact('client'));
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | FULL PAGE EDIT
-    |--------------------------------------------------------------------------
-    */
     public function edit(Contact $client)
     {
         return view('book.edit', compact('client'));
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE – SAVES EVERYTHING INCLUDING DESTINY RELATIONS
-    |--------------------------------------------------------------------------
-    */
     public function update(Request $request, Contact $client)
     {
         $validated = $request->validate([
@@ -346,11 +319,6 @@ class BookController extends Controller
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SAVE RELATIONS (Unified Destiny Logic)
-    |--------------------------------------------------------------------------
-    */
     private function saveRelations(Request $request, Contact $client, string $type)
     {
         $key  = $type === 'beneficiary' ? 'beneficiaries' : 'emergency_contacts';
@@ -392,109 +360,59 @@ class BookController extends Controller
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES – ADD (BOOK + SERVICE + LEADS)
-    |--------------------------------------------------------------------------
-    */
-    public function storeNote(Request $request, Contact $client)
+    // =========================
+    // Helpers (Import)
+    // =========================
+
+    private function importRespond(Request $request, bool $success, string $message, array $meta)
     {
-        $data = $request->validate([
-            'body' => 'required|string|max:5000',
-        ]);
-
-        $tenantId = $client->tenant_id
-            ?? (Auth::user()->tenant_id ?? 1);
-
-        $note = Note::create([
-            'contact_id' => $client->id,
-            'note'       => trim($data['body']),
-            'created_by' => Auth::id() ?? $client->created_by,
-            'tenant_id'  => $tenantId,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'note'    => $note,
-        ], 201);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES – UPDATE
-    |--------------------------------------------------------------------------
-    */
-    public function updateNote(Request $request, Contact $client, Note $note)
-    {
-        if ($note->contact_id !== $client->id) abort(404);
-
-        $data = $request->validate([
-            'body' => 'required|string|max:5000',
-        ]);
-
-        $note->update([
-            'note' => trim($data['body']),
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'note'    => $note->fresh(),
-        ]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | NOTES – DELETE
-    |--------------------------------------------------------------------------
-    */
-    public function destroyNote(Contact $client, Note $note)
-    {
-        if ($note->contact_id !== $client->id) abort(404);
-
-        $note->delete();
-
-        return response()->json(['success' => true]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | SEND TO SERVICE
-    |--------------------------------------------------------------------------
-    */
-    public function sendToService(Contact $client)
-    {
-        $user = Auth::user();
-
-        if ($user && $client->agency_id !== $user->agency_id) {
-            abort(403, 'Unauthorized');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => $success,
+                'message' => $message,
+                'meta'    => $meta,
+            ], $success ? 200 : 422);
         }
 
-        $client->contact_type        = 'service';
-        $client->in_book_of_business = true;
-        $client->service_status      = null;
-        $client->service_archived_at = null;
-        $client->save();
-
-        return redirect()->route('service.index', ['selected' => $client->id]);
+        return $success
+            ? redirect()->route('book.index')->with('success', $message)
+            : redirect()->route('book.index')->with('error', $message);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | DELETE RELATIONS
-    |--------------------------------------------------------------------------
-    */
-    public function deleteRelation(Request $request, Contact $client, ContactRelation $relation)
+    private function pickBookWorksheet($spreadsheet)
     {
-        if ($relation->contact_id !== $client->id) abort(403);
+        $candidates = ['book of business', 'book', 'book_of_business'];
 
-        $relation->delete();
+        foreach ($spreadsheet->getWorksheetIterator() as $ws) {
+            $title = strtolower(trim($ws->getTitle()));
+            foreach ($candidates as $c) {
+                if ($title === $c) return $ws;
+            }
+        }
 
-        return response()->json(['success' => true]);
+        // fallback
+        return $spreadsheet->getSheet(0);
     }
 
-    // ======================================================================
-    // Import Helpers
-    // ======================================================================
+    private function findHeaderRowIndex(array $rows): ?int
+    {
+        // Look for a row containing at least one of these:
+        $needles = ['first_name', 'first name', 'lastname', 'last_name', 'email', 'phone'];
+
+        for ($i = 1; $i <= min(count($rows), 15); $i++) {
+            $row = $rows[$i] ?? [];
+            $joined = strtolower(implode(' ', array_map(fn($v) => trim((string)$v), $row)));
+
+            $hits = 0;
+            foreach ($needles as $n) {
+                if (str_contains($joined, str_replace('_', ' ', $n))) $hits++;
+            }
+
+            if ($hits >= 2) return $i;
+        }
+
+        return null;
+    }
 
     private function normalizeHeader($v): string
     {
@@ -538,12 +456,6 @@ class BookController extends Controller
         return date('Y-m-d', $ts);
     }
 
-    /**
-     * Import named relations from spreadsheet row.
-     * Supports up to 5 each:
-     *  beneficiary_1_name, beneficiary_1_phone, beneficiary_1_relationship
-     *  emergency_contact_1_name, emergency_contact_1_phone, emergency_contact_1_relationship
-     */
     private function importRelationsFromRow(array $row, array $headerMap, Contact $client, int $userId, int $tenantId): void
     {
         for ($i = 1; $i <= 5; $i++) {
@@ -554,7 +466,7 @@ class BookController extends Controller
                 "beneficiary_{$i}_phone", "beneficiary{$i}_phone",
             ]);
             $bRel = $this->getByHeader($row, $headerMap, [
-                "beneficiary_{$i}_relationship", "beneficiary{$i}_relationship", "beneficiary_{$i}_relation", "beneficiary{$i}_relation",
+                "beneficiary_{$i}_relationship", "beneficiary{$i}_relationship",
             ]);
 
             if ($bName) {
@@ -572,14 +484,13 @@ class BookController extends Controller
             }
 
             $eName = $this->getByHeader($row, $headerMap, [
-                "emergency_contact_{$i}_name", "emergencycontact_{$i}_name", "emergency_{$i}_name", "emergency{$i}_name",
-                "emergency_contact_{$i}", "emergency{$i}",
+                "emergency_contact_{$i}_name", "emergency{$i}_name", "emergency_contact_{$i}", "emergency{$i}",
             ]);
             $ePhone = $this->getByHeader($row, $headerMap, [
-                "emergency_contact_{$i}_phone", "emergencycontact_{$i}_phone", "emergency_{$i}_phone", "emergency{$i}_phone",
+                "emergency_contact_{$i}_phone", "emergency{$i}_phone",
             ]);
             $eRel = $this->getByHeader($row, $headerMap, [
-                "emergency_contact_{$i}_relationship", "emergencycontact_{$i}_relationship", "emergency_{$i}_relationship", "emergency{$i}_relationship",
+                "emergency_contact_{$i}_relationship", "emergency{$i}_relationship",
             ]);
 
             if ($eName) {
