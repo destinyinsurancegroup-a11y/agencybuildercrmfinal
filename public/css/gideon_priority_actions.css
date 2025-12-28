@@ -1,1 +1,203 @@
+/* ============================================================
+   GIDEON PRIORITY ACTIONS — PRODUCTION CSS
+   Location: public/css/gideon_priority_actions.css
+   Purpose: Styles ONLY the Gideon Priority Actions dashboard card
+   ============================================================ */
 
+/* ---------- Color System ---------- */
+:root {
+    --gideon-text-main: #111827;
+    --gideon-text-subtle: #6b7280;
+    --gideon-border: #e5e7eb;
+    --gideon-bg: #ffffff;
+
+    /* Priority colors (highest → lowest impact) */
+    --gideon-p1: #dc2626; /* Red */
+    --gideon-p2: #f59e0b; /* Amber */
+    --gideon-p3: #22c55e; /* Green */
+    --gideon-p4: #3b82f6; /* Blue */
+    --gideon-p5: #6b7280; /* Gray */
+
+    --gideon-btn-dark: #111827;
+    --gideon-btn-dark-hover: #0b1220;
+}
+
+/* ---------- Wrapper ---------- */
+.gideon-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* ---------- Top Row (status + scan button) ---------- */
+.gideon-toprow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.gideon-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--gideon-text-subtle);
+}
+
+.gideon-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+/* ---------- Scope Chips ---------- */
+.gideon-scope {
+    font-size: 12px;
+    color: var(--gideon-text-subtle);
+}
+
+.gideon-scope-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.gideon-scope-chip {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #f3f4f6;
+    border: 1px solid var(--gideon-border);
+    font-weight: 600;
+}
+
+/* ---------- Action List ---------- */
+.gideon-actions {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ---------- Single Action ---------- */
+.gideon-action {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--gideon-border);
+    background: var(--gideon-bg);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.gideon-action:hover {
+    box-shadow: 0 14px 24px -18px rgba(0,0,0,0.35);
+    transform: translateY(-1px);
+}
+
+/* ---------- Priority Pill ---------- */
+.gideon-pill {
+    font-size: 11px;
+    font-weight: 900;
+    padding: 5px 10px;
+    border-radius: 999px;
+    color: #fff;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.gideon-pill.p1 { background: var(--gideon-p1); }
+.gideon-pill.p2 { background: var(--gideon-p2); color: #111827; }
+.gideon-pill.p3 { background: var(--gideon-p3); color: #111827; }
+.gideon-pill.p4 { background: var(--gideon-p4); }
+.gideon-pill.p5 { background: var(--gideon-p5); }
+
+/* ---------- Text Block ---------- */
+.gideon-action-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.gideon-action-title {
+    font-size: 14px;
+    font-weight: 900;
+    margin: 0 0 4px;
+    color: var(--gideon-text-main);
+}
+
+.gideon-action-reason {
+    font-size: 12px;
+    color: var(--gideon-text-subtle);
+    margin: 0 0 6px;
+}
+
+.gideon-action-meta {
+    font-size: 12px;
+    color: #4b5563;
+}
+
+.gideon-action-meta strong {
+    font-weight: 800;
+    color: var(--gideon-text-main);
+}
+
+/* ---------- CTA Column ---------- */
+.gideon-action-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+/* ---------- Buttons ---------- */
+.gideon-btn {
+    border-radius: 10px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 900;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.gideon-btn:hover {
+    background: #f9fafb;
+    transform: translateY(-1px);
+}
+
+.gideon-btn-primary {
+    background: var(--gideon-btn-dark);
+    border-color: var(--gideon-btn-dark);
+    color: #fff;
+}
+
+.gideon-btn-primary:hover {
+    background: var(--gideon-btn-dark-hover);
+}
+
+/* Anchor buttons */
+a.gideon-btn {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+    .gideon-action {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .gideon-action-cta {
+        align-items: flex-start;
+    }
+}
