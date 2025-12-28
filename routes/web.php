@@ -29,6 +29,9 @@ use App\Http\Controllers\Gideon\GideonInsightsController;
 // ✅ NEW: GIDEON SPARRING CONTROLLER (for Sparring Partner page)
 use App\Http\Controllers\Gideon\GideonSparringController;
 
+// ✅ NEW: GIDEON SCAN CONTROLLER (scan + deep scan + top)
+use App\Http\Controllers\GideonScanController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION
@@ -356,6 +359,17 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
+
+    /*
+    |--------------------------------------------------------------------------
+    | ✅ NEW: GIDEON SCAN ENDPOINTS (REAL SCAN LOGIC)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('gideon')->group(function () {
+        Route::post('/scan', [GideonScanController::class, 'scan'])->name('gideon.scan');
+        Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
+        Route::get('/top', [GideonScanController::class, 'top'])->name('gideon.top');
+    });
 
     /*
     |--------------------------------------------------------------------------
