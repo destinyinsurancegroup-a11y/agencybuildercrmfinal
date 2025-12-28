@@ -4,6 +4,7 @@ namespace App\Services\Gideon;
 
 use App\Models\GideonOpportunity;
 use App\Models\Lead;
+use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -19,6 +20,48 @@ use Illuminate\Support\Facades\Schema;
  */
 class OpportunityScanner
 {
+    /**
+     * ✅ New scanner entrypoint used by GideonScanController (scan + deep scan).
+     * Keeps runForUser() intact so older routes don't break.
+     *
+     * @param  int   $agencyId
+     * @param  int   $userId
+     * @param  bool  $deep
+     * @return array{created:int,message:string}
+     */
+    public function run(int $agencyId, int $userId, bool $deep = false): array
+    {
+        $user = User::find($userId);
+
+        if (! $user) {
+            return [
+                'created' => 0,
+                'message' => 'User not found.',
+            ];
+        }
+
+        // Safety: if user has no agency_id, fall back to passed agencyId
+        // but prefer user->agency_id when present.
+        $resolvedAgencyId = (int) ($user->agency_id ?? $agencyId);
+
+        if (! $resolvedAgencyId) {
+            return [
+                'created' => 0,
+                'message' => 'No agency_id available; cannot scope opportunities.',
+            ];
+        }
+
+        // For now we reuse the existing logic (revive old leads).
+        $result = $this->runForUser($user);
+
+        // Placeholder note so UI can confirm deep was requested.
+        if ($deep) {
+            $result['message'] = trim($result['message'] . ' Deep scan requested (expanded rules pending).');
+        }
+
+        return $result;
+    }
+
     /**
      * Run opportunity scan for the given user.
      *
@@ -50,7 +93,7 @@ class OpportunityScanner
         // RULE #1: REVIVE OLD LEADS
         // ---------------------------------------------------------------------
         if (class_exists(Lead::class) && Schema::hasTable('contacts')) {
-            [$count, $msg] = $this->reviveOldLeads($user, $agencyId);
+            [$count, $msg] = $this->reviveOldLeads($user, (int) $agencyId);
             $createdCount += $count;
             $messages[]    = $msg;
         } else {
@@ -131,7 +174,8 @@ class OpportunityScanner
                 ]
             );
 
-            if ($opp) {
+            // ✅ Count only NEWLY created opportunities (not updates)
+            if ($opp && $opp->wasRecentlyCreated) {
                 $createdCount++;
             }
         }
