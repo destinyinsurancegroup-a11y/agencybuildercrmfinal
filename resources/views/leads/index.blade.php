@@ -81,7 +81,6 @@
         margin-bottom: 20px;
         display: flex;
         gap: 8px;
-        flex-wrap: wrap;
     }
 
     .contact-list-item {
@@ -107,16 +106,6 @@
     .empty-right-panel {
         height: 100%;
         background: transparent !important;
-    }
-
-    /* small helper so summaries look good in left column */
-    .import-summary {
-        margin-bottom: 14px;
-        border-radius: 12px;
-        padding: 10px 12px;
-        font-size: 13px;
-        border: 1px solid rgba(0,0,0,0.08);
-        background: #f8fafc;
     }
 </style>
 
@@ -150,41 +139,9 @@
                     </div>
                 </div>
 
-                {{-- ✅ Import errors --}}
-                @if ($errors->any())
-                    <div class="alert alert-danger" style="border-radius:12px;">
-                        <div class="fw-bold mb-1">Upload failed</div>
-                        <ul class="mb-0" style="padding-left:18px;">
-                            @foreach ($errors->all() as $err)
-                                <li>{{ $err }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                {{-- ✅ Import summary --}}
-                @if (session('import_summary'))
-                    @php($s = session('import_summary'))
-                    <div class="import-summary">
-                        <div class="fw-bold mb-1">Upload results</div>
-                        <div>Created: <strong>{{ $s['created'] ?? 0 }}</strong></div>
-                        <div>Skipped: <strong>{{ $s['skipped'] ?? 0 }}</strong></div>
-
-                        @if (!empty($s['row_errors']))
-                            <hr style="margin:8px 0;">
-                            <div class="fw-bold">Row issues (first {{ count($s['row_errors']) }})</div>
-                            <ul class="mb-0" style="padding-left:18px;">
-                                @foreach ($s['row_errors'] as $e)
-                                    <li>Row {{ $e['row'] ?? '?' }}: {{ $e['error'] ?? 'Unknown error' }}</li>
-                                @endforeach
-                            </ul>
-                        @endif
-                    </div>
-                @endif
-
                 <!-- Search (client-side only) -->
                 <div class="contacts-search-wrapper">
-                    <input
+                    <input 
                         type="text"
                         id="lead-search"
                         class="contacts-search-input"
@@ -193,9 +150,9 @@
                     <button class="contacts-search-btn" disabled>Search</button>
                 </div>
 
-                <!-- Add Lead + Upload + Template -->
+                <!-- Add Lead + Upload -->
                 <div class="button-row">
-                    <button
+                    <button 
                         id="add-lead-btn"
                         class="btn-gold"
                         data-create-url="{{ route('leads.create') }}"
@@ -203,21 +160,13 @@
                         Add Lead
                     </button>
 
-                    <button
+                    <button 
                         class="btn-gold"
                         data-bs-toggle="modal"
                         data-bs-target="#uploadLeadModal"
                     >
                         Upload
                     </button>
-
-                    {{-- Optional: Template link if you added LeadController@downloadTemplate + route --}}
-                    @if (Route::has('leads.import.template'))
-                        <a class="btn-gold" style="text-decoration:none; display:inline-flex; align-items:center;"
-                           href="{{ route('leads.import.template') }}">
-                            Template
-                        </a>
-                    @endif
                 </div>
 
                 <!-- Lead List -->
@@ -239,7 +188,7 @@
                             }
                         @endphp
 
-                        <div
+                        <div 
                             class="contact-list-item js-lead-row"
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
@@ -283,10 +232,9 @@
 <!-- UPLOAD LEADS MODAL -->
 <div class="modal fade" id="uploadLeadModal" tabindex="-1">
     <div class="modal-dialog">
-        <form
-            {{-- ✅ FIX: this must hit LeadController@import, not contacts.import --}}
-            action="{{ route('leads.import') }}"
-            method="POST"
+        <form 
+            action="{{ route('contacts.import') }}" 
+            method="POST" 
             enctype="multipart/form-data"
             class="modal-content"
         >
@@ -299,16 +247,13 @@
 
             <div class="modal-body">
                 <label class="form-label">Choose CSV or Excel file</label>
-                <input
+                <input 
                     type="file"
                     name="file"
                     class="form-control"
                     accept=".csv, .xlsx, .xls"
                     required
                 >
-                <div class="form-text">
-                    Blank fields are allowed. Each row creates a lead contact card.
-                </div>
             </div>
 
             <div class="modal-footer">
