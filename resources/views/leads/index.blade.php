@@ -201,9 +201,12 @@
                         Upload
                     </button>
 
-                    @if(Route::has('leads.import.template'))
-                        <a class="btn-gold" style="text-decoration:none; display:inline-flex; align-items:center;"
-                           href="{{ route('leads.import.template') }}">
+                    @if (Route::has('leads.import.template'))
+                        <a
+                            class="btn-gold"
+                            style="text-decoration:none; display:inline-flex; align-items:center;"
+                            href="{{ route('leads.import.template') }}"
+                        >
                             Template
                         </a>
                     @endif
@@ -214,7 +217,7 @@
                     @forelse ($leads as $lead)
                         @php
                             $isArchivedView = !empty($showingArchived) && $showingArchived;
-                            $status         = $lead->status ?? '';
+                            $status         = (string)($lead->status ?? '');
                             $statusLower    = strtolower($status);
                             $isSold         = ($statusLower === 'sold');
 
@@ -222,13 +225,16 @@
                                 ? route('book.show', $lead->id)
                                 : route('leads.show', $lead->id);
 
-                            // ✅ Compute badge class WITHOUT blade directives inside attributes
+                            // ✅ Blade-safe badge class (NO directives inside attributes)
                             $badgeClass = 'badge bg-secondary';
                             if ($statusLower === 'sold') {
                                 $badgeClass = 'badge bg-success';
                             } elseif ($statusLower === 'not interested') {
                                 $badgeClass = 'badge bg-danger';
                             }
+
+                            $displayName = $lead->full_name
+                                ?? trim((string)($lead->first_name ?? '') . ' ' . (string)($lead->last_name ?? ''));
                         @endphp
 
                         <div
@@ -236,9 +242,7 @@
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
                         >
-                            <span>
-                                {{ $lead->full_name ?? trim(($lead->first_name ?? '') . ' ' . ($lead->last_name ?? '')) }}
-                            </span>
+                            <span>{{ $displayName }}</span>
 
                             @if($isArchivedView)
                                 <span class="{{ $badgeClass }}">{{ $status }}</span>
