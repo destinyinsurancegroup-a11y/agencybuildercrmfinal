@@ -169,12 +169,8 @@ class BookController extends Controller
     }
 
     /**
-     * ✅ BULK IMPORT (CSV/XLSX/XLS) for Book of Business.
-     * Requirements:
-     * - Create 1 contact card per row.
-     * - Blank/optional sections must NOT fail import.
-     * - Skip only truly empty rows OR rows with no identifier at all.
-     * - Count created + updated so success reflects actual work.
+     * ✅ BULK IMPORT: creates 1 contact card per row.
+     * Optional/blank columns DO NOT fail import.
      */
     public function import(Request $request)
     {
@@ -186,16 +182,21 @@ class BookController extends Controller
         if (!$user) abort(403);
 
         $file = $request->file('file');
-        $rows = $this->parseSpreadsheetToRows($file->getRealPath(), $file->getClientOriginalExtension());
+        $ext  = strtolower((string)$file->getClientOriginalExtension());
 
-        if (count($rows) === 0) {
-            $ext = strtolower((string)$file->getClientOriginalExtension());
-            $hint = ($ext === 'xlsx' || $ext === 'xls')
-                ? 'No rows were parsed. If this was an Excel file, confirm PhpSpreadsheet is installed (phpoffice/phpspreadsheet).'
-                : 'No rows were parsed. Confirm the file has a header row and at least one data row.';
+        // If they upload XLSX/XLS and PhpSpreadsheet isn't installed, we must fail loudly.
+        if (in_array($ext, ['xlsx', 'xls'], true) && !class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
             return redirect()
                 ->route('book.index')
-                ->with('import_error', "Upload worked, but no rows were found in the file. {$hint}");
+                ->with('import_error', 'Excel upload requires PhpSpreadsheet. Run: composer require phpoffice/phpspreadsheet سپس دوباره تلاش کنید.');
+        }
+
+        $rows = $this->parseSpreadsheetToRows($file->getRealPath(), $ext);
+
+        if (count($rows) === 0) {
+            return redirect()
+                ->route('book.index')
+                ->with('import_error', 'Upload worked, but no rows were found in the file (no data rows parsed). Confirm there is a header row and at least one contact row.');
         }
 
         $created = 0;
@@ -203,60 +204,54 @@ class BookController extends Controller
         $skipped = 0;
         $firstId = null;
 
-        foreach ($rows as $rowIndex => $row) {
-            // Flexible header mapping (ALL optional)
-            $first = $this->getRowVal($row, ['first_name','firstname','first name','fname']);
-            $last  = $this->getRowVal($row, ['last_name','lastname','last name','lname']);
+        foreach ($rows as $row) {
+            // IDENTIFIERS (any one is enough)
+            $first = $this->getRowVal($row, ['first_name','first name','firstname','fname']);
+            $last  = $this->getRowVal($row, ['last_name','last name','lastname','lname']);
             $email = $this->getRowVal($row, ['email','e-mail','email_address']);
-            $phone = $this->getRowVal($row, ['phone','mobile','cell','phone_number']);
+            $phone = $this->getRowVal($row, ['phone','phone_number','mobile','cell']);
 
-            // Skip truly empty / unusable row (no identifier at all)
             if ($this->isBlankIdentifierRow($first, $last, $email, $phone)) {
                 $skipped++;
                 continue;
             }
 
+            // Map your exact spreadsheet headers + existing CRM fields
             $payload = [
-                'first_name'    => $this->cleanStr($first),
-                'last_name'     => $this->cleanStr($last),
-                'email'         => $this->cleanStr($email),
-                'phone'         => $this->cleanStr($phone),
+                'first_name'  => $this->cleanStr($first),
+                'last_name'   => $this->cleanStr($last),
+                'city'        => $this->cleanStr($this->getRowVal($row, ['city'])),
+                'state'       => $this->cleanStr($this->getRowVal($row, ['state'])),
+                'phone'       => $this->cleanStr($phone),
+                'email'       => $this->cleanStr($email),
 
-                'city'          => $this->cleanStr($this->getRowVal($row, ['city'])),
-                'state'         => $this->cleanStr($this->getRowVal($row, ['state'])),
-                'postal_code'   => $this->cleanStr($this->getRowVal($row, ['postal_code','zip','zipcode','zip code'])),
-                'address_line1' => $this->cleanStr($this->getRowVal($row, ['address','address_line1','address 1','street','street address'])),
-                'address_line2' => $this->cleanStr($this->getRowVal($row, ['address_line2','address 2','apt','unit'])),
-
-                // Book/policy fields (optional)
-                'carrier'          => $this->cleanStr($this->getRowVal($row, ['carrier'])),
-                'policy_type'      => $this->cleanStr($this->getRowVal($row, ['policy_type','policy type','type'])),
-                'face_amount'      => $this->toNumber($this->getRowVal($row, ['face_amount','face amount','coverage','coverage amount'])),
-                'premium_amount'   => $this->toNumber($this->getRowVal($row, ['premium_amount','premium','monthly premium','premium amount'])),
-                'premium_due_text' => $this->cleanStr($this->getRowVal($row, ['premium_due_text','premium due','due','draft day'])),
-                'policy_issue_date'=> $this->toDate($this->getRowVal($row, ['policy_issue_date','issue date','policy issue'])),
-                'premium_due_date' => $this->toDate($this->getRowVal($row, ['premium_due_date','draft date','due date'])),
-
-                'date_of_birth' => $this->toDate($this->getRowVal($row, ['date_of_birth','dob','birthdate','date of birth'])),
-                'anniversary'   => $this->toDate($this->getRowVal($row, ['anniversary'])),
+                'contact_type'        => 'book',
+                'in_book_of_business' => true,
+                'created_by'          => $user->id,
             ];
 
-            // Remove empty strings (keep nulls out too)
+            // Optional: last contacted mapping if your contacts table has a suitable column
+            $lastContacted = $this->toDate($this->getRowVal($row, ['last_contacted', 'last contacted']));
+            if ($lastContacted) {
+                // set whichever exists
+                if (Schema::hasColumn('contacts', 'last_contacted_at')) {
+                    $payload['last_contacted_at'] = $lastContacted;
+                } elseif (Schema::hasColumn('contacts', 'last_contacted')) {
+                    $payload['last_contacted'] = $lastContacted;
+                }
+            }
+
+            // Set agency/tenant if those columns exist
+            $this->setIfHasColumn($payload, 'agency_id', $user->agency_id ?? null);
+            $this->setIfHasColumn($payload, 'tenant_id', $user->tenant_id ?? null);
+
+            // Remove null/empty
             foreach ($payload as $k => $v) {
                 if ($v === '' || $v === null) unset($payload[$k]);
             }
 
-            $payload['contact_type']        = 'book';
-            $payload['created_by']          = $user->id;
-            $payload['in_book_of_business'] = true;
-
-            // If schema has these, set them safely
-            $this->setIfHasColumn($payload, 'agency_id', $user->agency_id ?? null);
-            $this->setIfHasColumn($payload, 'tenant_id', $user->tenant_id ?? null);
-
-            // Find existing: prefer email match, else phone match (if present)
+            // Dedupe: prefer email, else phone
             $client = null;
-
             if (!empty($payload['email'])) {
                 $client = Contact::query()->where('email', $payload['email'])->first();
             } elseif (!empty($payload['phone'])) {
@@ -278,8 +273,8 @@ class BookController extends Controller
 
             if (!$firstId) $firstId = $client->id;
 
-            // Notes column (optional)
-            $noteText = $this->getRowVal($row, ['notes','note']);
+            // Notes (from your sheet)
+            $noteText = $this->getRowVal($row, ['notes']);
             if ($noteText) {
                 $tenantId = $client->tenant_id ?? ($user->tenant_id ?? 1);
                 Note::create([
@@ -290,8 +285,8 @@ class BookController extends Controller
                 ]);
             }
 
-            // Optional relations from row
-            $this->importRelationsFromRow($client, $row, $user);
+            // Your sheet has Beneficiary Count / Emergency Contacts (counts only).
+            // We do NOT create relations from counts (no names/phones). Safe to ignore.
         }
 
         $processed = $created + $updated;
@@ -299,7 +294,7 @@ class BookController extends Controller
         if ($processed === 0) {
             return redirect()
                 ->route('book.index')
-                ->with('import_error', "Upload worked, but 0 contacts were created/updated. Skipped {$skipped} rows (usually blank or no identifier).");
+                ->with('import_error', "Upload worked, but 0 contacts were created/updated. Skipped {$skipped} empty rows.");
         }
 
         return redirect()
@@ -334,13 +329,13 @@ class BookController extends Controller
                 $payload[$column] = $value;
             }
         } catch (\Throwable $e) {
-            // If schema call fails for any reason, do nothing
+            // ignore
         }
     }
 
     private function importRelationsFromRow(Contact $client, array $row, $user): void
     {
-        // Beneficiaries: up to 4
+        // (unchanged)
         for ($i = 1; $i <= 4; $i++) {
             $name = $this->getRowVal($row, ["beneficiary_{$i}_name", "beneficiary {$i} name", "beneficiary{$i} name"]);
             if ($name) {
@@ -358,7 +353,6 @@ class BookController extends Controller
             }
         }
 
-        // Emergency: up to 3
         for ($i = 1; $i <= 3; $i++) {
             $name = $this->getRowVal($row, ["emergency_{$i}_name", "emergency {$i} name", "emergency{$i} name"]);
             if ($name) {
@@ -379,6 +373,7 @@ class BookController extends Controller
 
     private function saveRelations(Request $request, Contact $client, string $type)
     {
+        // (unchanged)
         $key  = $type === 'beneficiary' ? 'beneficiaries' : 'emergency_contacts';
         $user = Auth::user();
 
@@ -503,7 +498,6 @@ class BookController extends Controller
             return $this->parseCsv($path);
         }
 
-        // XLSX/XLS via PhpSpreadsheet if available
         if (class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
             $sheet = $spreadsheet->getActiveSheet();
@@ -530,7 +524,6 @@ class BookController extends Controller
             return $out;
         }
 
-        // If you get here, xlsx/xls support isn't installed
         return [];
     }
 
@@ -542,7 +535,6 @@ class BookController extends Controller
         $headers = fgetcsv($handle);
         if (!$headers) return [];
 
-        // Strip UTF-8 BOM from first header cell if present
         if (isset($headers[0])) {
             $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string)$headers[0]);
         }
@@ -584,20 +576,11 @@ class BookController extends Controller
         return null;
     }
 
-    private function toNumber($val): ?float
-    {
-        if ($val === null || $val === '') return null;
-        $clean = preg_replace('/[^0-9\.\-]/', '', (string)$val);
-        if ($clean === '' || $clean === null) return null;
-        $n = (float)$clean;
-        return is_nan($n) ? null : $n;
-    }
-
     private function toDate($val): ?string
     {
         if ($val === null || $val === '') return null;
 
-        if (is_numeric($val)) {
+        if (is_numeric($val) && class_exists(\PhpOffice\PhpSpreadsheet\Shared\Date::class)) {
             try {
                 $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$val);
                 return $date->format('Y-m-d');
