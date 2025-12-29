@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\Note;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Collection;
 
 class LeadController extends Controller
 {
@@ -113,249 +114,297 @@ class LeadController extends Controller
     }
 
     /**
-     * ✅ BULK IMPORT LEADS (Book-of-Business style)
+     * ✅ BULK IMPORT LEADS (EXACT same engine as BookController)
      *
-     * - One row => one Contact (contact_type=lead)
+     * - One row => one lead Contact card
      * - Blank fields allowed
-     * - Tries to map flexible header names
-     * - Hardened against Excel objects/arrays causing "Array to string conversion"
+     * - CSV always supported
+     * - XLSX/XLS supported ONLY if PhpSpreadsheet is installed
+     * - Dedupe by email, else phone (same as Book)
+     * - Notes create Note records (same as Book)
      */
     public function import(Request $request)
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,xlsx,xls', 'max:10240'],
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls',
         ]);
 
-        try {
-            $file = $request->file('file');
+        $user = Auth::user();
+        if (!$user) abort(403);
 
-            // Import rows as a Collection (first sheet)
-            $sheets = Excel::toCollection(
-                new class implements \Maatwebsite\Excel\Concerns\ToCollection {
-                    public function collection(Collection $rows) {}
-                },
-                $file
-            );
+        $file = $request->file('file');
+        $ext  = strtolower((string) $file->getClientOriginalExtension());
 
-            $rows = $sheets->first() ?? collect();
-
-            if ($rows->count() < 2) {
-                return back()->with('import_error', 'Import failed: file appears empty (needs header + at least one row).');
-            }
-
-            // Build header map from row 0 (unique + normalized)
-            $headerRow = $rows->get(0);
-            $headerMap = $this->normalizeHeaders($headerRow);
-
-            $created = 0;
-            $skipped = 0;
-
-            DB::transaction(function () use ($rows, $headerMap, &$created, &$skipped) {
-                for ($i = 1; $i < $rows->count(); $i++) {
-                    $row = $rows->get($i);
-
-                    $data = $this->extractLeadRow($row, $headerMap);
-
-                    if ($this->rowIsEmpty($data)) {
-                        $skipped++;
-                        continue;
-                    }
-
-                    $contact = new Contact();
-
-                    // If TenantScoped does not auto-set agency_id, uncomment:
-                    // $contact->agency_id = auth()->user()->agency_id;
-
-                    $contact->contact_type = 'lead';
-                    $contact->status       = $data['status'] ?: 'New';
-
-                    $contact->first_name   = $data['first_name'] ?: null;
-                    $contact->last_name    = $data['last_name'] ?: null;
-                    $contact->email        = $data['email'] ?: null;
-                    $contact->phone        = $data['phone'] ?: null;
-
-                    // Optional fields (safe scalar strings)
-                    if ($data['address'] !== '')     $contact->address     = $data['address'];
-                    if ($data['city'] !== '')        $contact->city        = $data['city'];
-                    if ($data['state'] !== '')       $contact->state       = $data['state'];
-                    if ($data['zip'] !== '')         $contact->zip         = $data['zip'];
-                    if ($data['company'] !== '')     $contact->company     = $data['company'];
-                    if ($data['lead_source'] !== '') $contact->lead_source = $data['lead_source'];
-
-                    /**
-                     * NOTES WARNING:
-                     * Some CRMs store notes in a separate table (you do have NoteController).
-                     * If your contacts table does NOT have a "notes" column, remove the next line.
-                     * If it DOES have it, we keep it but safely as a string.
-                     */
-                    if ($data['notes'] !== '') {
-                        $contact->notes = $data['notes'];
-                    }
-
-                    $contact->save();
-                    $created++;
-                }
-            });
-
+        // If they upload XLSX/XLS and PhpSpreadsheet isn't installed, fail loudly (same as Book).
+        if (in_array($ext, ['xlsx', 'xls'], true) && !class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
             return redirect()
                 ->route('leads.index')
-                ->with('import_success', "Leads import complete. Created: {$created}. Skipped empty rows: {$skipped}.");
-
-        } catch (\Throwable $e) {
-            return back()->with('import_error', 'Import failed: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Normalize header names into canonical keys (and make duplicates unique).
-     * Prevents edge cases where duplicate columns or blank headers break mapping.
-     */
-    private function normalizeHeaders($headerRow): array
-    {
-        $values = $this->rowToArray($headerRow);
-
-        $map = [];
-        $seen = [];
-
-        foreach ($values as $idx => $raw) {
-            $key = Str::of($this->toScalarString($raw))
-                ->lower()
-                ->trim()
-                ->replace(['*', '#', '.', ','], '')
-                ->replace(['-', '_'], ' ')
-                ->squish()
-                ->toString();
-
-            if ($key === '') {
-                $key = 'column';
-            }
-
-            // Make duplicates unique: email, email_2, email_3...
-            if (isset($seen[$key])) {
-                $seen[$key]++;
-                $key = $key . '_' . $seen[$key];
-            } else {
-                $seen[$key] = 1;
-            }
-
-            $map[$idx] = $key;
+                ->with('import_error', 'Excel upload requires PhpSpreadsheet. Run: composer require phpoffice/phpspreadsheet then try again.');
         }
 
-        return $map;
-    }
+        $rows = $this->parseSpreadsheetToRows($file->getRealPath(), $ext);
 
-    /**
-     * Extract data from a row using the normalized header map.
-     * All values are forced into safe scalar strings.
-     */
-    private function extractLeadRow($row, array $headerMap): array
-    {
-        $values = $this->rowToArray($row);
-
-        $raw = [];
-        foreach ($values as $idx => $val) {
-            $header = $headerMap[$idx] ?? '';
-            if ($header === '') continue;
-
-            // Force safe scalar strings to prevent "Array to string conversion"
-            $raw[$header] = $this->toScalarString($val);
+        if (count($rows) === 0) {
+            return redirect()
+                ->route('leads.index')
+                ->with('import_error', 'Upload worked, but no rows were found in the file (no data rows parsed). Confirm there is a header row and at least one lead row.');
         }
 
-        $get = function (array $keys) use ($raw) {
-            foreach ($keys as $k) {
-                if (array_key_exists($k, $raw) && $raw[$k] !== '') {
-                    return $raw[$k];
+        $created = 0;
+        $updated = 0;
+        $skipped = 0;
+        $firstId = null;
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($rows as $row) {
+                // IDENTIFIERS (any one is enough)
+                $first = $this->getRowVal($row, ['first_name','first name','firstname','fname']);
+                $last  = $this->getRowVal($row, ['last_name','last name','lastname','lname']);
+                $email = $this->getRowVal($row, ['email','e-mail','email_address']);
+                $phone = $this->getRowVal($row, ['phone','phone_number','mobile','cell']);
+
+                if ($this->isBlankIdentifierRow($first, $last, $email, $phone)) {
+                    $skipped++;
+                    continue;
+                }
+
+                // Build payload (same pattern as Book) — but as LEAD
+                $payload = [
+                    'first_name'   => $this->cleanStr($first),
+                    'last_name'    => $this->cleanStr($last),
+                    'city'         => $this->cleanStr($this->getRowVal($row, ['city'])),
+                    'state'        => $this->cleanStr($this->getRowVal($row, ['state'])),
+                    'phone'        => $this->cleanStr($phone),
+                    'email'        => $this->cleanStr($email),
+
+                    // LEAD specifics
+                    'contact_type' => 'lead',
+                    'status'       => $this->cleanStr($this->getRowVal($row, ['status'])) ?? 'New',
+                    'created_by'   => $user->id,
+                ];
+
+                // Optional columns (only set if exist in schema)
+                $this->setIfHasColumn($payload, 'company', $this->cleanStr($this->getRowVal($row, ['company','business'])));
+                $this->setIfHasColumn($payload, 'lead_source', $this->cleanStr($this->getRowVal($row, ['lead_source','lead source','source'])));
+                $this->setIfHasColumn($payload, 'address', $this->cleanStr($this->getRowVal($row, ['address','street','street_address','street address'])));
+                $this->setIfHasColumn($payload, 'zip', $this->cleanStr($this->getRowVal($row, ['zip','zipcode','postal','postal_code','postal code'])));
+
+                // Optional: last contacted mapping if your contacts table has a suitable column
+                $lastContacted = $this->toDate($this->getRowVal($row, ['last_contacted', 'last contacted']));
+                if ($lastContacted) {
+                    if (Schema::hasColumn('contacts', 'last_contacted_at')) {
+                        $payload['last_contacted_at'] = $lastContacted;
+                    } elseif (Schema::hasColumn('contacts', 'last_contacted')) {
+                        $payload['last_contacted'] = $lastContacted;
+                    }
+                }
+
+                // Set agency/tenant if those columns exist (same as Book)
+                $this->setIfHasColumn($payload, 'agency_id', $user->agency_id ?? null);
+                $this->setIfHasColumn($payload, 'tenant_id', $user->tenant_id ?? null);
+
+                // Remove null/empty
+                foreach ($payload as $k => $v) {
+                    if ($v === '' || $v === null) unset($payload[$k]);
+                }
+
+                // Dedupe: prefer email, else phone (same as Book)
+                $lead = null;
+                if (!empty($payload['email'])) {
+                    $lead = Contact::query()->where('email', $payload['email'])->first();
+                } elseif (!empty($payload['phone'])) {
+                    $lead = Contact::query()->where('phone', $payload['phone'])->first();
+                }
+
+                if ($lead) {
+                    // Ensure it stays a lead
+                    $lead->fill($payload);
+                    $lead->contact_type = 'lead';
+                    $lead->save();
+                    $updated++;
+                } else {
+                    $lead = Contact::create($payload);
+                    $created++;
+                }
+
+                if (!$firstId) $firstId = $lead->id;
+
+                // Notes (creates Note record, same as Book)
+                $noteText = $this->getRowVal($row, ['notes', 'note']);
+                if ($noteText) {
+                    $tenantId = $lead->tenant_id ?? ($user->tenant_id ?? 1);
+                    Note::create([
+                        'contact_id' => $lead->id,
+                        'note'       => trim((string) $noteText),
+                        'created_by' => $user->id,
+                        'tenant_id'  => $tenantId,
+                    ]);
                 }
             }
-            return '';
-        };
 
-        return [
-            'first_name'  => $get(['first name', 'firstname', 'first']),
-            'last_name'   => $get(['last name', 'lastname', 'last']),
-            'email'       => $get(['email', 'email address', 'e-mail']),
-            'phone'       => $get(['phone', 'phone number', 'mobile', 'cell']),
-            'address'     => $get(['address', 'street', 'street address']),
-            'city'        => $get(['city']),
-            'state'       => $get(['state']),
-            'zip'         => $get(['zip', 'zipcode', 'postal', 'postal code']),
-            'company'     => $get(['company', 'business']),
-            'lead_source' => $get(['lead source', 'source']),
-            'notes'       => $get(['notes', 'note']),
-            'status'      => $get(['status']),
-        ];
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return redirect()
+                ->route('leads.index')
+                ->with('import_error', 'Import failed: ' . $e->getMessage());
+        }
+
+        $processed = $created + $updated;
+
+        if ($processed === 0) {
+            return redirect()
+                ->route('leads.index')
+                ->with('import_error', "Upload worked, but 0 leads were created/updated. Skipped {$skipped} empty rows.");
+        }
+
+        return redirect()
+            ->route('leads.index', $firstId ? ['selected' => $firstId] : [])
+            ->with('import_success', "Import complete: {$created} created, {$updated} updated. Skipped {$skipped} rows.");
     }
 
-    private function rowIsEmpty(array $data): bool
+    // ======================================================================
+    // IMPORT HELPERS (COPIED from BookController)
+    // ======================================================================
+
+    private function parseSpreadsheetToRows(string $path, string $ext): array
     {
-        $keys = ['first_name', 'last_name', 'email', 'phone', 'company'];
+        $ext = strtolower($ext);
+
+        if ($ext === 'csv' || $ext === 'txt') {
+            return $this->parseCsv($path);
+        }
+
+        if (class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray(null, true, true, true);
+
+            if (count($rows) < 2) return [];
+
+            $headerRow = array_shift($rows);
+            $headers = [];
+            foreach ($headerRow as $col => $val) {
+                $headers[$col] = $this->normalizeHeader((string) $val);
+            }
+
+            $out = [];
+            foreach ($rows as $r) {
+                $assoc = [];
+                foreach ($headers as $col => $h) {
+                    if ($h === '') continue;
+                    $assoc[$h] = isset($r[$col]) ? trim((string) $r[$col]) : null;
+                }
+                if (count(array_filter($assoc, fn ($v) => $v !== null && $v !== '')) === 0) continue;
+                $out[] = $assoc;
+            }
+            return $out;
+        }
+
+        return [];
+    }
+
+    private function parseCsv(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        if (!$handle) return [];
+
+        $headers = fgetcsv($handle);
+        if (!$headers) return [];
+
+        if (isset($headers[0])) {
+            $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]);
+        }
+
+        $headers = array_map(fn ($h) => $this->normalizeHeader((string) $h), $headers);
+
+        $rows = [];
+        while (($data = fgetcsv($handle)) !== false) {
+            $row = [];
+            foreach ($headers as $i => $h) {
+                if ($h === '') continue;
+                $row[$h] = isset($data[$i]) ? trim((string) $data[$i]) : null;
+            }
+            if (count(array_filter($row, fn ($v) => $v !== null && $v !== '')) === 0) continue;
+            $rows[] = $row;
+        }
+
+        fclose($handle);
+        return $rows;
+    }
+
+    private function normalizeHeader(string $h): string
+    {
+        $h = Str::of($h)->trim()->lower()->toString();
+        $h = preg_replace('/[^a-z0-9\_ ]/i', '', $h) ?? $h;
+        $h = str_replace(' ', '_', $h);
+        $h = preg_replace('/_+/', '_', $h) ?? $h;
+        return trim((string) $h, '_');
+    }
+
+    private function getRowVal(array $row, array $keys)
+    {
         foreach ($keys as $k) {
-            if (!empty($data[$k])) return false;
+            $k = $this->normalizeHeader((string) $k);
+            if (array_key_exists($k, $row) && $row[$k] !== null && $row[$k] !== '') {
+                return $row[$k];
+            }
         }
-        return true;
+        return null;
     }
 
-    /**
-     * Convert a Laravel-Excel row to a plain array.
-     * Handles Collection rows and array rows safely.
-     */
-    private function rowToArray($row): array
+    private function isBlankIdentifierRow($first, $last, $email, $phone): bool
     {
-        if ($row instanceof Collection) {
-            return $row->toArray();
-        }
+        $first = trim((string) $first);
+        $last  = trim((string) $last);
+        $email = trim((string) $email);
+        $phone = trim((string) $phone);
 
-        if (is_array($row)) {
-            return $row;
-        }
-
-        // Some sheet rows can be Arrayable-like objects
-        if (is_object($row) && method_exists($row, 'toArray')) {
-            return $row->toArray();
-        }
-
-        return (array) $row;
+        return ($first === '' && $last === '' && $email === '' && $phone === '');
     }
 
-    /**
-     * Force any Excel cell value into a safe scalar string.
-     * Prevents "Array to string conversion" and object issues.
-     */
-    private function toScalarString($val): string
+    private function cleanStr($v): ?string
     {
-        if ($val === null) return '';
+        if ($v === null) return null;
+        $s = trim((string) $v);
+        if ($s === '') return null;
+        $s = preg_replace('/[\x00-\x1F\x7F]/u', '', $s);
+        return Str::limit($s, 2000, '');
+    }
 
-        // If we somehow got an array, flatten it.
-        if (is_array($val)) {
-            $flat = [];
-            foreach ($val as $v) {
-                if (is_scalar($v)) $flat[] = (string) $v;
+    private function setIfHasColumn(array &$payload, string $column, $value): void
+    {
+        if ($value === null) return;
+        try {
+            if (Schema::hasColumn('contacts', $column) && !array_key_exists($column, $payload)) {
+                $payload[$column] = $value;
             }
-            return trim(implode(' ', $flat));
+        } catch (\Throwable $e) {
+            // ignore
+        }
+    }
+
+    private function toDate($val): ?string
+    {
+        if ($val === null || $val === '') return null;
+
+        if (is_numeric($val) && class_exists(\PhpOffice\PhpSpreadsheet\Shared\Date::class)) {
+            try {
+                $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $val);
+                return $date->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
         }
 
-        // Handle objects (RichText, DateTime, etc.)
-        if (is_object($val)) {
-            // PhpSpreadsheet RichText often casts cleanly via __toString
-            if (method_exists($val, '__toString')) {
-                return trim((string) $val);
-            }
-
-            // DateTime-like objects
-            if ($val instanceof \DateTimeInterface) {
-                return $val->format('Y-m-d');
-            }
-
-            // Last resort: safe json encode
-            return trim(json_encode($val));
+        $val = trim((string) $val);
+        try {
+            return \Carbon\Carbon::parse($val)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
         }
-
-        // Scalar -> string
-        $str = trim((string) $val);
-
-        // Normalize non-breaking spaces
-        $str = str_replace("\xC2\xA0", ' ', $str);
-
-        return trim($str);
     }
 }
