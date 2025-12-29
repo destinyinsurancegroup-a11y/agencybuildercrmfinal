@@ -214,7 +214,7 @@
                                 ? route('book.show', $lead->id)
                                 : route('leads.show', $lead->id);
 
-                            // ✅ IMPORTANT: Blade-safe badge class (no @if inside attributes)
+                            // ✅ Blade-safe badge class (no @if inside attributes)
                             $badgeClass = 'badge bg-secondary';
                             if ($statusLower === 'sold') {
                                 $badgeClass = 'badge bg-success';
@@ -301,11 +301,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const container = document.getElementById('contact-details-container');
 
-    function loadPanel(url) {
+    // ✅ Mirror Book pattern: a named loader function (global if partials need it later)
+    window.loadLeadPanel = function (url) {
         container.innerHTML = `
-            <div style="padding:40px; text-align:center;">
-                <div class="spinner-border text-warning" role="status"></div>
-                <p class="mt-3 text-muted">Loading...</p>
+            <div style="padding:40px;">
+                <div class="text-center">
+                    <div class="spinner-border text-warning" role="status"></div>
+                    <p class="mt-3 text-muted">Loading...</p>
+                </div>
             </div>
         `;
 
@@ -314,12 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(html => container.innerHTML = html)
             .catch(() => {
                 container.innerHTML = `
-                    <div style="padding:40px; text-align:center; color:red;">
+                    <div style="padding:40px; color:red;">
                         Failed to load.
                     </div>
                 `;
             });
-    }
+    };
 
     /* CLICK A LEAD */
     document.querySelectorAll('.js-lead-row').forEach(row => {
@@ -327,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.js-lead-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
             row.classList.add('active-contact-row');
-            loadPanel(row.dataset.showUrl);
+            loadLeadPanel(row.dataset.showUrl);
         });
     });
 
@@ -335,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addBtn = document.getElementById('add-lead-btn');
     if (addBtn) {
         addBtn.addEventListener('click', function () {
-            loadPanel(this.dataset.createUrl);
+            loadLeadPanel(this.dataset.createUrl);
         });
     }
 
@@ -350,15 +353,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     });
 
-    {{-- ✅ If upload had errors, reopen modal so user sees it (match Book tab) --}}
+    // ✅ If upload had errors, reopen modal so user sees it (match Book tab)
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadLeadModal');
         if (modalEl) new bootstrap.Modal(modalEl).show();
     @endif
 
-    {{-- Optional: auto-load selected lead if controller passes $selected --}}
-    @if(!empty($selected))
-        loadPanel("{{ route('leads.show', $selected) }}");
+    // ✅ Match Book behavior: load selected lead if controller passes ?selected=
+    @php
+        $selectedFromQuery = request()->get('selected');
+    @endphp
+    @if(!empty($selectedFromQuery))
+        loadLeadPanel("{{ route('leads.show', $selectedFromQuery) }}");
     @endif
 });
 </script>
