@@ -227,6 +227,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/archive/not-saved', [ServiceController::class, 'notSavedArchive'])
             ->name('service.archive.not-saved');
 
+        // ✅ NEW: BULK UPLOAD SERVICE CLIENTS (must come before /{client})
+        Route::post('/import', [ServiceController::class, 'import'])
+            ->name('service.import');
+
         // ROUTES OPERATING ON A SPECIFIC CLIENT/SERVICE RECORD
         Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
         Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
