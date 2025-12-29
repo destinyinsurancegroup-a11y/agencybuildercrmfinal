@@ -9,18 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
-
-// ✅ Spreadsheet reader (XLSX/CSV)
-use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class BookController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | INDEX – LEFT LIST + RIGHT PANEL
-    |--------------------------------------------------------------------------
-    */
     public function index(Request $request)
     {
         $query = Contact::query()
@@ -62,196 +53,6 @@ class BookController extends Controller
         return view('book.partials.create');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | ✅ IMPORT – BULK UPLOAD CSV/XLSX INTO BOOK OF BUSINESS
-    |--------------------------------------------------------------------------
-    |
-    | What it does:
-    | - Reads header row
-    | - Maps columns by common names (case-insensitive)
-    | - Creates/updates contacts as Book records
-    | - Adds a Note if "Notes" column exists
-    |
-    | Expected columns (any subset is OK):
-    | First Name, Last Name, Email, Phone,
-    | Address Line1, Address Line2, City, State, Postal Code,
-    | Date of Birth, Anniversary,
-    | Carrier, Policy Type, Face Amount, Premium Amount,
-    | Premium Due Date, Policy Issue Date, Premium Due (Text),
-    | Notes
-    |
-    | Extra columns are ignored.
-    */
-    public function import(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls',
-        ]);
-
-        $user = Auth::user();
-        if (! $user) {
-            abort(403);
-        }
-
-        $file = $request->file('file');
-
-        try {
-            $spreadsheet = IOFactory::load($file->getPathname());
-            $sheet = $spreadsheet->getActiveSheet();
-            $rows = $sheet->toArray(null, true, true, true); // keyed by column letters
-        } catch (\Throwable $e) {
-            return back()->with('error', 'Could not read spreadsheet. Make sure it is a valid CSV/XLSX file.');
-        }
-
-        if (count($rows) < 2) {
-            return back()->with('error', 'Spreadsheet is empty or missing rows.');
-        }
-
-        // ---- Build header map (A,B,C...) => normalized header key
-        $headerRow = array_shift($rows);
-        $headers = [];
-        foreach ($headerRow as $col => $headerLabel) {
-            $norm = $this->normalizeHeader($headerLabel);
-            if ($norm !== '') {
-                $headers[$col] = $norm;
-            }
-        }
-
-        if (count($headers) === 0) {
-            return back()->with('error', 'Could not detect header row. Row 1 must contain column names.');
-        }
-
-        $created = 0;
-        $updated = 0;
-        $skipped = 0;
-        $firstImportedId = null;
-
-        foreach ($rows as $r) {
-            // Convert row from [A=>...,B=>...] to [normalized_header=>value]
-            $data = [];
-            foreach ($headers as $col => $key) {
-                $data[$key] = $r[$col] ?? null;
-            }
-
-            // Require at least a name
-            $firstName = trim((string)($data['first_name'] ?? ''));
-            $lastName  = trim((string)($data['last_name'] ?? ''));
-
-            if ($firstName === '' && $lastName === '') {
-                $skipped++;
-                continue;
-            }
-
-            // Map to Contact fields (only if columns exist)
-            $payload = [];
-
-            $payload['first_name'] = $firstName ?: null;
-            $payload['last_name']  = $lastName ?: null;
-
-            if (!empty($data['email'])) $payload['email'] = trim((string)$data['email']);
-            if (!empty($data['phone'])) $payload['phone'] = trim((string)$data['phone']);
-
-            if (!empty($data['address_line1'])) $payload['address_line1'] = trim((string)$data['address_line1']);
-            if (!empty($data['address_line2'])) $payload['address_line2'] = trim((string)$data['address_line2']);
-            if (!empty($data['city'])) $payload['city'] = trim((string)$data['city']);
-            if (!empty($data['state'])) $payload['state'] = trim((string)$data['state']);
-            if (!empty($data['postal_code'])) $payload['postal_code'] = trim((string)$data['postal_code']);
-
-            if (!empty($data['date_of_birth'])) {
-                $dob = $this->parseDate($data['date_of_birth']);
-                if ($dob) $payload['date_of_birth'] = $dob;
-            }
-
-            if (!empty($data['anniversary'])) {
-                $ann = $this->parseDate($data['anniversary']);
-                if ($ann) $payload['anniversary'] = $ann;
-            }
-
-            if (!empty($data['carrier'])) $payload['carrier'] = trim((string)$data['carrier']);
-            if (!empty($data['policy_type'])) $payload['policy_type'] = trim((string)$data['policy_type']);
-
-            if (!empty($data['face_amount'])) $payload['face_amount'] = $this->parseNumber($data['face_amount']);
-            if (!empty($data['premium_amount'])) $payload['premium_amount'] = $this->parseNumber($data['premium_amount']);
-
-            if (!empty($data['premium_due_date'])) {
-                $pdd = $this->parseDate($data['premium_due_date']);
-                if ($pdd) $payload['premium_due_date'] = $pdd;
-            }
-
-            if (!empty($data['policy_issue_date'])) {
-                $pid = $this->parseDate($data['policy_issue_date']);
-                if ($pid) $payload['policy_issue_date'] = $pid;
-            }
-
-            if (!empty($data['premium_due_text'])) $payload['premium_due_text'] = trim((string)$data['premium_due_text']);
-
-            // Force Book tagging
-            $payload['contact_type'] = 'book';
-            $payload['in_book_of_business'] = true;
-            $payload['created_by'] = $user->id;
-
-            // ✅ Upsert strategy:
-            // Prefer email match; otherwise phone; otherwise create new.
-            $query = Contact::query();
-            if (!empty($payload['email'])) {
-                $query->where('email', $payload['email']);
-            } elseif (!empty($payload['phone'])) {
-                $query->where('phone', $payload['phone']);
-            } else {
-                $query = null;
-            }
-
-            if ($query) {
-                $existing = $query->first();
-                if ($existing) {
-                    // Update only non-empty fields
-                    foreach ($payload as $k => $v) {
-                        if ($v !== null && $v !== '') {
-                            $existing->{$k} = $v;
-                        }
-                    }
-                    $existing->save();
-                    $client = $existing;
-                    $updated++;
-                } else {
-                    $client = Contact::create($payload);
-                    $created++;
-                }
-            } else {
-                $client = Contact::create($payload);
-                $created++;
-            }
-
-            if (!$firstImportedId && $client) {
-                $firstImportedId = $client->id;
-            }
-
-            // Notes (optional)
-            $noteText = trim((string)($data['notes'] ?? ''));
-            if ($noteText !== '') {
-                $tenantId = $client->tenant_id ?? ($user->tenant_id ?? 1);
-
-                Note::create([
-                    'contact_id' => $client->id,
-                    'note'       => $noteText,
-                    'created_by' => $user->id,
-                    'tenant_id'  => $tenantId,
-                ]);
-            }
-        }
-
-        // Redirect back to Book and auto-open first imported record
-        return redirect()
-            ->route('book.index', ['selected' => $firstImportedId])
-            ->with('success', "Import complete. Created: {$created}, Updated: {$updated}, Skipped: {$skipped}");
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | STORE – NEW BOOK CLIENT
-    |--------------------------------------------------------------------------
-    */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -292,6 +93,17 @@ class BookController extends Controller
 
         $this->saveRelations($request, $client, 'beneficiary');
         $this->saveRelations($request, $client, 'emergency');
+
+        // If notes were provided in create form, store as Note record (optional)
+        if (!empty($validated['notes'])) {
+            $tenantId = $client->tenant_id ?? ($user?->tenant_id ?? 1);
+            Note::create([
+                'contact_id' => $client->id,
+                'note'       => trim($validated['notes']),
+                'created_by' => $user?->id ?? $client->created_by,
+                'tenant_id'  => $tenantId,
+            ]);
+        }
 
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
@@ -357,19 +169,175 @@ class BookController extends Controller
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
+    /**
+     * ✅ FIX: BULK IMPORT (CSV/XLSX/XLS) for Book of Business.
+     * This is the missing/weak piece that caused “nothing happens”.
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls',
+        ]);
+
+        $user = Auth::user();
+        if (!$user) abort(403);
+
+        $rows = $this->parseSpreadsheetToRows($request->file('file')->getRealPath(), $request->file('file')->getClientOriginalExtension());
+
+        if (count($rows) === 0) {
+            return redirect()
+                ->route('book.index')
+                ->with('import_error', 'Upload worked, but no rows were found in the file.');
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $firstId = null;
+
+        foreach ($rows as $row) {
+            // Flexible header mapping
+            $first = $this->getRowVal($row, ['first_name','firstname','first name','fname']);
+            $last  = $this->getRowVal($row, ['last_name','lastname','last name','lname']);
+
+            if (trim((string)$first) === '' || trim((string)$last) === '') {
+                $skipped++;
+                continue;
+            }
+
+            $payload = [
+                'first_name'    => trim((string)$first),
+                'last_name'     => trim((string)$last),
+                'email'         => $this->getRowVal($row, ['email','e-mail']),
+                'phone'         => $this->getRowVal($row, ['phone','mobile','cell']),
+                'city'          => $this->getRowVal($row, ['city']),
+                'state'         => $this->getRowVal($row, ['state']),
+                'postal_code'   => $this->getRowVal($row, ['postal_code','zip','zipcode','zip code']),
+                'address_line1' => $this->getRowVal($row, ['address','address_line1','address 1','street','street address']),
+                'address_line2' => $this->getRowVal($row, ['address_line2','address 2','apt','unit']),
+
+                // Book/policy fields (optional)
+                'carrier'       => $this->getRowVal($row, ['carrier']),
+                'policy_type'   => $this->getRowVal($row, ['policy_type','policy type','type']),
+                'face_amount'   => $this->toNumber($this->getRowVal($row, ['face_amount','face amount','coverage','coverage amount'])),
+                'premium_amount'=> $this->toNumber($this->getRowVal($row, ['premium_amount','premium','monthly premium','premium amount'])),
+                'premium_due_text' => $this->getRowVal($row, ['premium_due_text','premium due','due','draft day']),
+                'policy_issue_date' => $this->toDate($this->getRowVal($row, ['policy_issue_date','issue date','policy issue'])),
+                'premium_due_date'  => $this->toDate($this->getRowVal($row, ['premium_due_date','draft date','due date'])),
+
+                'date_of_birth' => $this->toDate($this->getRowVal($row, ['date_of_birth','dob','birthdate','date of birth'])),
+                'anniversary'   => $this->toDate($this->getRowVal($row, ['anniversary'])),
+            ];
+
+            // Clean null/empty strings
+            foreach ($payload as $k => $v) {
+                if ($v === '' || $v === null) unset($payload[$k]);
+            }
+
+            $payload['contact_type'] = 'book';
+            $payload['created_by']   = $user->id;
+
+            // Create (or update by email if present)
+            $client = null;
+            $email = $payload['email'] ?? null;
+
+            if ($email) {
+                $client = Contact::query()
+                    ->where('email', $email)
+                    ->first();
+            }
+
+            if ($client) {
+                $client->fill($payload);
+                $client->contact_type = 'book';
+                $client->in_book_of_business = true;
+                $client->save();
+            } else {
+                $client = Contact::create($payload);
+                $client->in_book_of_business = true;
+                $client->save();
+                $created++;
+            }
+
+            if (!$firstId) $firstId = $client->id;
+
+            // Notes column (optional)
+            $noteText = $this->getRowVal($row, ['notes','note']);
+            if ($noteText) {
+                $tenantId = $client->tenant_id ?? ($user->tenant_id ?? 1);
+                Note::create([
+                    'contact_id' => $client->id,
+                    'note'       => trim((string)$noteText),
+                    'created_by' => $user->id,
+                    'tenant_id'  => $tenantId,
+                ]);
+            }
+
+            // Beneficiaries / Emergency contacts (optional)
+            // Supports columns like:
+            // beneficiary_1_name, beneficiary_1_relationship, beneficiary_1_phone
+            // emergency_1_name, emergency_1_relationship, emergency_1_phone
+            $this->importRelationsFromRow($client, $row, $user);
+        }
+
+        if ($created === 0 && $skipped > 0) {
+            return redirect()
+                ->route('book.index')
+                ->with('import_error', "Upload worked, but 0 contacts were imported. {$skipped} rows were skipped (usually missing First/Last Name).");
+        }
+
+        return redirect()
+            ->route('book.index', $firstId ? ['selected' => $firstId] : [])
+            ->with('import_success', "Imported {$created} contacts successfully. Skipped {$skipped} rows.");
+    }
+
+    private function importRelationsFromRow(Contact $client, array $row, $user): void
+    {
+        // Beneficiaries: up to 4
+        for ($i = 1; $i <= 4; $i++) {
+            $name = $this->getRowVal($row, ["beneficiary_{$i}_name", "beneficiary {$i} name", "beneficiary{$i} name"]);
+            if ($name) {
+                ContactRelation::create([
+                    'contact_id'   => $client->id,
+                    'type'         => 'beneficiary',
+                    'name'         => $name,
+                    'relationship' => $this->getRowVal($row, ["beneficiary_{$i}_relationship", "beneficiary {$i} relationship"]),
+                    'phone'        => $this->getRowVal($row, ["beneficiary_{$i}_phone", "beneficiary {$i} phone"]),
+                    'contacted'    => 0,
+                    'tenant_id'    => $client->tenant_id ?? ($user?->tenant_id),
+                    'created_by'   => $user?->id ?? $client->created_by,
+                    'agency_id'    => $client->agency_id,
+                ]);
+            }
+        }
+
+        // Emergency: up to 3
+        for ($i = 1; $i <= 3; $i++) {
+            $name = $this->getRowVal($row, ["emergency_{$i}_name", "emergency {$i} name", "emergency{$i} name"]);
+            if ($name) {
+                ContactRelation::create([
+                    'contact_id'   => $client->id,
+                    'type'         => 'emergency',
+                    'name'         => $name,
+                    'relationship' => $this->getRowVal($row, ["emergency_{$i}_relationship", "emergency {$i} relationship"]),
+                    'phone'        => $this->getRowVal($row, ["emergency_{$i}_phone", "emergency {$i} phone"]),
+                    'contacted'    => 0,
+                    'tenant_id'    => $client->tenant_id ?? ($user?->tenant_id),
+                    'created_by'   => $user?->id ?? $client->created_by,
+                    'agency_id'    => $client->agency_id,
+                ]);
+            }
+        }
+    }
+
     private function saveRelations(Request $request, Contact $client, string $type)
     {
         $key  = $type === 'beneficiary' ? 'beneficiaries' : 'emergency_contacts';
         $user = Auth::user();
 
-        if (!$request->has($key)) {
-            return;
-        }
+        if (!$request->has($key)) return;
 
         foreach ($request->$key as $row) {
-            if (!isset($row['name']) || trim($row['name']) === '') {
-                continue;
-            }
+            if (!isset($row['name']) || trim($row['name']) === '') continue;
 
             if (!empty($row['id'])) {
                 $relation = ContactRelation::where('id', $row['id'])
@@ -408,8 +376,7 @@ class BookController extends Controller
             'body' => 'required|string|max:5000',
         ]);
 
-        $tenantId = $client->tenant_id
-            ?? (Auth::user()->tenant_id ?? 1);
+        $tenantId = $client->tenant_id ?? (Auth::user()->tenant_id ?? 1);
 
         $note = Note::create([
             'contact_id' => $client->id,
@@ -426,9 +393,7 @@ class BookController extends Controller
 
     public function updateNote(Request $request, Contact $client, Note $note)
     {
-        if ($note->contact_id !== $client->id) {
-            abort(404);
-        }
+        if ($note->contact_id !== $client->id) abort(404);
 
         $data = $request->validate([
             'body' => 'required|string|max:5000',
@@ -446,9 +411,7 @@ class BookController extends Controller
 
     public function destroyNote(Contact $client, Note $note)
     {
-        if ($note->contact_id !== $client->id) {
-            abort(404);
-        }
+        if ($note->contact_id !== $client->id) abort(404);
 
         $note->delete();
 
@@ -460,10 +423,7 @@ class BookController extends Controller
     public function sendToService(Contact $client)
     {
         $user = Auth::user();
-
-        if ($user && $client->agency_id !== $user->agency_id) {
-            abort(403, 'Unauthorized');
-        }
+        if ($user && $client->agency_id !== $user->agency_id) abort(403, 'Unauthorized');
 
         $client->contact_type        = 'service';
         $client->in_book_of_business = true;
@@ -476,114 +436,128 @@ class BookController extends Controller
 
     public function deleteRelation(Request $request, Contact $client, ContactRelation $relation)
     {
-        if ($relation->contact_id !== $client->id) {
-            abort(403);
-        }
+        if ($relation->contact_id !== $client->id) abort(403);
 
         $relation->delete();
 
         return response()->json(['success' => true]);
     }
 
-    // =========================================================
-    // Helpers
-    // =========================================================
+    // ======================================================================
+    // IMPORT HELPERS
+    // ======================================================================
 
-    private function normalizeHeader($value): string
+    private function parseSpreadsheetToRows(string $path, string $ext): array
     {
-        $v = trim((string)$value);
-        if ($v === '') return '';
+        $ext = strtolower($ext);
 
-        $v = Str::lower($v);
-        $v = preg_replace('/[^a-z0-9]+/i', '_', $v);
-        $v = trim($v, '_');
+        if ($ext === 'csv' || $ext === 'txt') {
+            return $this->parseCsv($path);
+        }
 
-        // Map common variants => canonical keys
-        $map = [
-            'first' => 'first_name',
-            'first_name' => 'first_name',
-            'firstname' => 'first_name',
+        // XLSX/XLS via PhpSpreadsheet if available
+        if (class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray(null, true, true, true);
 
-            'last' => 'last_name',
-            'last_name' => 'last_name',
-            'lastname' => 'last_name',
+            if (count($rows) < 2) return [];
 
-            'email' => 'email',
-            'e_mail' => 'email',
+            $headerRow = array_shift($rows);
+            $headers = [];
+            foreach ($headerRow as $col => $val) {
+                $headers[$col] = $this->normalizeHeader((string)$val);
+            }
 
-            'phone' => 'phone',
-            'mobile' => 'phone',
-            'cell' => 'phone',
+            $out = [];
+            foreach ($rows as $r) {
+                $assoc = [];
+                foreach ($headers as $col => $h) {
+                    if ($h === '') continue;
+                    $assoc[$h] = isset($r[$col]) ? trim((string)$r[$col]) : null;
+                }
+                if (count(array_filter($assoc, fn($v) => $v !== null && $v !== '')) === 0) continue;
+                $out[] = $assoc;
+            }
+            return $out;
+        }
 
-            'address' => 'address_line1',
-            'address_line1' => 'address_line1',
-            'address1' => 'address_line1',
-
-            'address_line2' => 'address_line2',
-            'address2' => 'address_line2',
-
-            'city' => 'city',
-            'state' => 'state',
-            'postal' => 'postal_code',
-            'zip' => 'postal_code',
-            'postal_code' => 'postal_code',
-
-            'dob' => 'date_of_birth',
-            'date_of_birth' => 'date_of_birth',
-
-            'anniversary' => 'anniversary',
-
-            'carrier' => 'carrier',
-            'policy' => 'policy_type',
-            'policy_type' => 'policy_type',
-
-            'face_amount' => 'face_amount',
-            'face' => 'face_amount',
-
-            'premium' => 'premium_amount',
-            'premium_amount' => 'premium_amount',
-
-            'premium_due_date' => 'premium_due_date',
-            'policy_issue_date' => 'policy_issue_date',
-            'premium_due_text' => 'premium_due_text',
-
-            'notes' => 'notes',
-            'note' => 'notes',
-        ];
-
-        return $map[$v] ?? $v;
+        // If you get here, xlsx/xls support isn't installed
+        return [];
     }
 
-    private function parseNumber($value): ?float
+    private function parseCsv(string $path): array
     {
-        $v = trim((string)$value);
-        if ($v === '') return null;
+        $handle = fopen($path, 'r');
+        if (!$handle) return [];
 
-        // remove $ and commas
-        $v = str_replace([',', '$'], '', $v);
-        if (!is_numeric($v)) return null;
+        $headers = fgetcsv($handle);
+        if (!$headers) return [];
 
-        return (float)$v;
+        $headers = array_map(fn($h) => $this->normalizeHeader((string)$h), $headers);
+
+        $rows = [];
+        while (($data = fgetcsv($handle)) !== false) {
+            $row = [];
+            foreach ($headers as $i => $h) {
+                if ($h === '') continue;
+                $row[$h] = isset($data[$i]) ? trim((string)$data[$i]) : null;
+            }
+            if (count(array_filter($row, fn($v) => $v !== null && $v !== '')) === 0) continue;
+            $rows[] = $row;
+        }
+
+        fclose($handle);
+        return $rows;
     }
 
-    private function parseDate($value): ?string
+    private function normalizeHeader(string $h): string
     {
-        // Excel date numeric
-        if (is_numeric($value)) {
+        $h = Str::of($h)->trim()->lower()->toString();
+        $h = preg_replace('/[^a-z0-9\_ ]/i', '', $h) ?? $h;
+        $h = str_replace(' ', '_', $h);
+        $h = preg_replace('/_+/', '_', $h) ?? $h;
+        return trim((string)$h, '_');
+    }
+
+    private function getRowVal(array $row, array $keys)
+    {
+        foreach ($keys as $k) {
+            $k = $this->normalizeHeader((string)$k);
+            if (array_key_exists($k, $row) && $row[$k] !== null && $row[$k] !== '') {
+                return $row[$k];
+            }
+        }
+        return null;
+    }
+
+    private function toNumber($val): ?float
+    {
+        if ($val === null || $val === '') return null;
+        $clean = preg_replace('/[^0-9\.\-]/', '', (string)$val);
+        if ($clean === '' || $clean === null) return null;
+        $n = (float)$clean;
+        return is_nan($n) ? null : $n;
+    }
+
+    private function toDate($val): ?string
+    {
+        if ($val === null || $val === '') return null;
+
+        // If Excel serialized number slips through
+        if (is_numeric($val)) {
+            // PhpSpreadsheet usually already converts, but just in case:
             try {
-                // PhpSpreadsheet stores Excel dates as serial numbers
-                $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$value);
-                return Carbon::instance($dt)->format('Y-m-d');
+                $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float)$val);
+                return $date->format('Y-m-d');
             } catch (\Throwable $e) {
                 return null;
             }
         }
 
-        $v = trim((string)$value);
-        if ($v === '') return null;
-
+        $val = trim((string)$val);
         try {
-            return Carbon::parse($v)->format('Y-m-d');
+            return \Carbon\Carbon::parse($val)->format('Y-m-d');
         } catch (\Throwable $e) {
             return null;
         }
