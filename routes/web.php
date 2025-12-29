@@ -142,6 +142,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads',          [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/archived', [LeadController::class, 'archived'])->name('leads.archived'); // ⭐ Archived leads
     Route::get('/leads/create',   [LeadController::class, 'create'])->name('leads.create');
+
+    // ✅ NEW: BULK UPLOAD LEADS → creates lead contact cards (one per row)
+    Route::post('/leads/import', [LeadController::class, 'import'])
+        ->name('leads.import');
+
+    // ✅ NEW (optional): Download template for bulk lead upload
+    Route::get('/leads/import/template', [LeadController::class, 'downloadTemplate'])
+        ->name('leads.import.template');
+
+    // Keep {id} route AFTER the explicit /import routes
     Route::get('/leads/{id}',     [LeadController::class, 'show'])->name('leads.show');
 
     /* ⭐ CONVERT LEAD TO CLIENT ⭐ */
