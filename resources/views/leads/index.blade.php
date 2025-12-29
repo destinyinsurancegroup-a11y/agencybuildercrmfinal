@@ -3,7 +3,6 @@
 @section('content')
 
 <style>
-    /* EXACT COPY OF CONTACTS CSS (unaltered) */
     .contacts-card {
         background: #ffffff;
         border-radius: 18px;
@@ -16,103 +15,47 @@
         border: 1px solid #e5e7eb;
     }
 
-    .contacts-card-wrapper {
-        width: 320px !important;
-        max-width: 320px !important;
-    }
-
-    .contacts-header {
-        font-size: 24px;
-        font-weight: 700;
-        margin-bottom: 18px;
-    }
+    .contacts-card-wrapper { width: 320px !important; max-width: 320px !important; }
+    .contacts-header { font-size: 24px; font-weight: 700; margin-bottom: 18px; }
 
     .contacts-search-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 18px;
+        display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
     }
 
     .contacts-search-input {
-        width: 100%;
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid #d1d5db;
-        background: #ffffff;
-        font-size: 14px;
+        width: 100%; padding: 10px 12px; border-radius: 10px;
+        border: 1px solid #d1d5db; background: #ffffff; font-size: 14px;
     }
 
     .contacts-search-btn {
-        padding: 10px 16px;
-        border-radius: 10px;
-        border: none;
-        background: #c9a227;
-        color: #111827;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.20);
+        padding: 10px 16px; border-radius: 10px; border: none;
+        background: #c9a227; color: #111827; font-size: 13px;
+        font-weight: 700; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.20);
         text-transform: uppercase;
     }
-
-    .contacts-search-btn:hover {
-        background: #b5901f;
-    }
+    .contacts-search-btn:hover { background: #b5901f; }
 
     .btn-gold {
-        background: #c9a227;
-        color: #111827;
-        border: none;
-        padding: 7px 14px;
-        font-weight: 600;
-        border-radius: 10px;
+        background: #c9a227; color: #111827; border: none;
+        padding: 7px 14px; font-weight: 600; border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
-        text-transform: uppercase;
-        font-size: 12px;
-        cursor: pointer;
+        text-transform: uppercase; font-size: 12px; cursor: pointer;
         white-space: nowrap;
     }
+    .btn-gold:hover { background: #b5901f; }
 
-    .btn-gold:hover {
-        background: #b5901f;
-    }
-
-    .button-row {
-        margin-bottom: 20px;
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
+    .button-row { margin-bottom: 20px; display: flex; gap: 8px; flex-wrap: wrap; }
 
     .contact-list-item {
-        padding: 10px 6px;
-        font-size: 15px;
-        border-bottom: 1px solid #eee;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 6px;
+        padding: 10px 6px; font-size: 15px; border-bottom: 1px solid #eee;
+        cursor: pointer; display: flex; justify-content: space-between;
+        align-items: center; gap: 6px;
     }
+    .contact-list-item:hover { background: #f9fafb; }
+    .active-contact-row { background: #eae6d1 !important; font-weight: 600; }
+    .empty-right-panel { height: 100%; background: transparent !important; }
 
-    .contact-list-item:hover {
-        background: #f9fafb;
-    }
-
-    .active-contact-row {
-        background: #eae6d1 !important;
-        font-weight: 600;
-    }
-
-    .empty-right-panel {
-        height: 100%;
-        background: transparent !important;
-    }
-
-    .flash-wrap {
-        margin-bottom: 14px;
-    }
+    .flash-wrap { margin-bottom: 14px; }
 </style>
 
 <div class="dashboard-page">
@@ -122,7 +65,6 @@
         <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
-                {{-- Header + Active/Archived toggle --}}
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div class="contacts-header mb-0">
                         @if(!empty($showingArchived) && $showingArchived)
@@ -145,7 +87,7 @@
                     </div>
                 </div>
 
-                {{-- ✅ FLASH MESSAGES (match Book of Business behavior) --}}
+                {{-- FLASH MESSAGES (match Book of Business behavior) --}}
                 <div class="flash-wrap">
                     @if (session('import_success'))
                         <div class="alert alert-success py-2 mb-2">
@@ -214,7 +156,6 @@
                                 ? route('book.show', $lead->id)
                                 : route('leads.show', $lead->id);
 
-                            // ✅ Blade-safe badge class (no @if inside attributes)
                             $badgeClass = 'badge bg-secondary';
                             if ($statusLower === 'sold') {
                                 $badgeClass = 'badge bg-success';
@@ -226,7 +167,7 @@
                         @endphp
 
                         <div
-                            class="contact-list-item js-lead-row {{ (isset($selected) && $selected == $lead->id) ? 'active-contact-row' : '' }}"
+                            class="contact-list-item js-lead-row {{ (!empty($selected) && (string)$selected === (string)$lead->id) ? 'active-contact-row' : '' }}"
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
                         >
@@ -294,21 +235,17 @@
 
 @endsection
 
-
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
     const container = document.getElementById('contact-details-container');
 
-    // ✅ Mirror Book pattern: a named loader function (global if partials need it later)
-    window.loadLeadPanel = function (url) {
+    function loadPanel(url) {
         container.innerHTML = `
-            <div style="padding:40px;">
-                <div class="text-center">
-                    <div class="spinner-border text-warning" role="status"></div>
-                    <p class="mt-3 text-muted">Loading...</p>
-                </div>
+            <div style="padding:40px; text-align:center;">
+                <div class="spinner-border text-warning" role="status"></div>
+                <p class="mt-3 text-muted">Loading...</p>
             </div>
         `;
 
@@ -317,32 +254,32 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(html => container.innerHTML = html)
             .catch(() => {
                 container.innerHTML = `
-                    <div style="padding:40px; color:red;">
+                    <div style="padding:40px; text-align:center; color:red;">
                         Failed to load.
                     </div>
                 `;
             });
-    };
+    }
 
-    /* CLICK A LEAD */
+    // CLICK A LEAD
     document.querySelectorAll('.js-lead-row').forEach(row => {
         row.addEventListener('click', () => {
             document.querySelectorAll('.js-lead-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
             row.classList.add('active-contact-row');
-            loadLeadPanel(row.dataset.showUrl);
+            loadPanel(row.dataset.showUrl);
         });
     });
 
-    /* ADD LEAD */
+    // ADD LEAD
     const addBtn = document.getElementById('add-lead-btn');
     if (addBtn) {
         addBtn.addEventListener('click', function () {
-            loadLeadPanel(this.dataset.createUrl);
+            loadPanel(this.dataset.createUrl);
         });
     }
 
-    /* CLIENT SIDE SEARCH */
+    // CLIENT SIDE SEARCH
     document.getElementById('lead-search').addEventListener('keyup', function () {
         const term = this.value.toLowerCase();
         document.querySelectorAll('#lead-list .js-lead-row')
@@ -353,18 +290,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     });
 
-    // ✅ If upload had errors, reopen modal so user sees it (match Book tab)
+    // If upload had errors, reopen modal so user sees it (match Book tab)
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadLeadModal');
         if (modalEl) new bootstrap.Modal(modalEl).show();
     @endif
 
-    // ✅ Match Book behavior: load selected lead if controller passes ?selected=
-    @php
-        $selectedFromQuery = request()->get('selected');
-    @endphp
-    @if(!empty($selectedFromQuery))
-        loadLeadPanel("{{ route('leads.show', $selectedFromQuery) }}");
+    // Auto-load selected lead if provided
+    @if(!empty($selected))
+        loadPanel("{{ route('leads.show', $selected) }}");
     @endif
 });
 </script>
