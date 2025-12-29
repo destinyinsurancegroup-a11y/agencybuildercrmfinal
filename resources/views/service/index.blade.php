@@ -241,11 +241,11 @@
                     type="file"
                     name="file"
                     class="form-control"
-                    accept=".csv, .txt, .xlsx, .xls"
+                    accept=".csv, .xlsx, .xls"
                     required
                 >
                 <small class="text-muted d-block mt-2">
-                    Tip: Header row can include First Name / Last Name / Email / Phone. Blanks are allowed.
+                    Tip: Header row should include fields like First Name / Last Name / Email / Phone, but blanks are allowed.
                 </small>
             </div>
 
@@ -259,9 +259,6 @@
 
 @endsection
 
-{{-- ============================================================
-     JAVASCRIPT — SERVICE MODULE (AJAX RIGHT PANEL)
-     ============================================================ --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -277,18 +274,16 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        fetch(url, {
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        })
-        .then(res => res.text())
-        .then(html => container.innerHTML = html)
-        .catch(() => {
-            container.innerHTML = `
-                <div style="padding:40px; text-align:center; color:red;">
-                    Failed to load.
-                </div>
-            `;
-        });
+        fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
+            .then(res => res.text())
+            .then(html => container.innerHTML = html)
+            .catch(() => {
+                container.innerHTML = `
+                    <div style="padding:40px; text-align:center; color:red;">
+                        Failed to load.
+                    </div>
+                `;
+            });
     };
 
     /* ===== CLICK A CLIENT ===== */
@@ -313,286 +308,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* ===== CLIENT SIDE SEARCH ===== */
-    document.getElementById('service-search').addEventListener('keyup', function () {
-        const term = this.value.toLowerCase();
-        document.querySelectorAll('#service-list .js-service-row')
-            .forEach(row =>
-                row.style.display = row.textContent.toLowerCase().includes(term)
-                    ? 'block'
-                    : 'none'
-            );
-    });
+    const searchEl = document.getElementById('service-search');
+    if (searchEl) {
+        searchEl.addEventListener('keyup', function () {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('#service-list .js-service-row')
+                .forEach(row =>
+                    row.style.display = row.textContent.toLowerCase().includes(term)
+                        ? 'block'
+                        : 'none'
+                );
+        });
+    }
 
     /* ===== AUTO-LOAD SELECTED ===== */
     @if(!empty($selected))
         loadServicePanel("{{ route('service.show', $selected) }}");
     @endif
 
-    /* ✅ If upload had errors, reopen modal so user sees it (match Book/Leads) */
+    /* ✅ If upload had errors, reopen modal (match Book/Leads) */
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadServiceModal');
         if (modalEl) new bootstrap.Modal(modalEl).show();
     @endif
 });
-
-
-/* ============================================================
-   BEC (Beneficiary / Emergency Contact) — SERVICE VERSION
-   ============================================================ */
-
-/* ---------- ADD BENEFICIARY ---------- */
-function openAddBeneficiary(clientId) {
-    document.getElementById('beneficiaryModalTitle').innerText = "Add Beneficiary";
-    document.getElementById('beneficiary_id').value = "";
-    document.getElementById('beneficiary_client_id').value = clientId;
-
-    document.getElementById('beneficiary_name').value = "";
-    document.getElementById('beneficiary_relationship').value = "";
-    document.getElementById('beneficiary_phone').value = "";
-    document.getElementById('beneficiary_contacted').value = "0";
-
-    new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
-}
-
-/* ---------- EDIT BENEFICIARY ---------- */
-function editBeneficiary(id) {
-    fetch(`/api/beneficiaries/${id}`)
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('beneficiaryModalTitle').innerText = "Edit Beneficiary";
-
-            document.getElementById('beneficiary_id').value = data.id;
-            document.getElementById('beneficiary_client_id').value = data.contact_id;
-
-            document.getElementById('beneficiary_name').value = data.name;
-            document.getElementById('beneficiary_relationship').value = data.relationship ?? "";
-            document.getElementById('beneficiary_phone').value = data.phone ?? "";
-            document.getElementById('beneficiary_contacted').value = data.contacted ? "1" : "0";
-
-            new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
-        });
-}
-
-/* ---------- SAVE BENEFICIARY ---------- */
-document.addEventListener("submit", function (e) {
-    if (e.target.id !== "beneficiaryForm") return;
-    e.preventDefault();
-
-    let id = document.getElementById('beneficiary_id').value;
-    let clientId = document.getElementById('beneficiary_client_id').value;
-
-    let url = id
-        ? `/service/${clientId}/beneficiaries/${id}`
-        : `/service/${clientId}/beneficiaries`;
-
-    let method = id ? "PUT" : "POST";
-
-    fetch(url, {
-        method: method,
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        },
-        body: JSON.stringify({
-            name: document.getElementById('beneficiary_name').value,
-            relationship: document.getElementById('beneficiary_relationship').value,
-            phone: document.getElementById('beneficiary_phone').value,
-            contacted: document.getElementById('beneficiary_contacted').value
-        })
-    })
-    .then(r => r.json())
-    .then(() => {
-        bootstrap.Modal.getInstance(document.getElementById('beneficiaryModal')).hide();
-        loadServicePanel(`/service/${clientId}`);
-    });
-});
-
-/* ---------- DELETE BENEFICIARY ---------- */
-function deleteBeneficiary(clientId, id) {
-    if (!confirm("Delete beneficiary?")) return;
-
-    fetch(`/service/${clientId}/beneficiaries/${id}`, {
-        method: "DELETE",
-        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
-    })
-    .then(r => r.json())
-    .then(() => loadServicePanel(`/service/${clientId}`));
-}
-
-
-/* ---------- ADD EMERGENCY CONTACT ---------- */
-function openAddEmergency(clientId) {
-    document.getElementById('emergencyModalTitle').innerText = "Add Emergency Contact";
-    document.getElementById('emergency_id').value = "";
-    document.getElementById('emergency_client_id').value = clientId;
-
-    document.getElementById('emergency_name').value = "";
-    document.getElementById('emergency_relationship').value = "";
-    document.getElementById('emergency_phone').value = "";
-    document.getElementById('emergency_contacted').value = "0";
-
-    new bootstrap.Modal(document.getElementById('emergencyModal')).show();
-}
-
-/* ---------- EDIT EMERGENCY ---------- */
-function editEmergency(id) {
-    fetch(`/api/emergency/${id}`)
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('emergencyModalTitle').innerText = "Edit Emergency Contact";
-
-            document.getElementById('emergency_id').value = data.id;
-            document.getElementById('emergency_client_id').value = data.contact_id;
-
-            document.getElementById('emergency_name').value = data.name;
-            document.getElementById('emergency_relationship').value = data.relationship ?? "";
-            document.getElementById('emergency_phone').value = data.phone ?? "";
-            document.getElementById('emergency_contacted').value = data.contacted ? "1" : "0";
-
-            new bootstrap.Modal(document.getElementById('emergencyModal')).show();
-        });
-}
-
-/* ---------- SAVE EMERGENCY ---------- */
-document.addEventListener("submit", function (e) {
-    if (e.target.id !== "emergencyForm") return;
-    e.preventDefault();
-
-    let id = document.getElementById('emergency_id').value;
-    let clientId = document.getElementById('emergency_client_id').value;
-
-    let url = id
-        ? `/service/${clientId}/emergency/${id}`
-        : `/service/${clientId}/emergency`;
-
-    let method = id ? "PUT" : "POST";
-
-    fetch(url, {
-        method: method,
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        },
-        body: JSON.stringify({
-            name: document.getElementById('emergency_name').value,
-            relationship: document.getElementById('emergency_relationship').value,
-            phone: document.getElementById('emergency_phone').value,
-            contacted: document.getElementById('emergency_contacted').value
-        })
-    })
-    .then(r => r.json())
-    .then(() => {
-        bootstrap.Modal.getInstance(document.getElementById('emergencyModal')).hide();
-        loadServicePanel(`/service/${clientId}`);
-    });
-});
-
-/* ---------- DELETE EMERGENCY ---------- */
-function deleteEmergency(clientId, id) {
-    if (!confirm("Delete emergency contact?")) return;
-
-    fetch(`/service/${clientId}/emergency/${id}`, {
-        method: "DELETE",
-        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}" }
-    })
-    .then(r => r.json())
-    .then(() => loadServicePanel(`/service/${clientId}`));
-}
-
-
-/* ============================================================
-   SERVICE NOTES — GLOBAL HANDLERS
-   ============================================================ */
-
-/* ---------- NOTES: ADD ---------- */
-function saveServiceNote(clientId) {
-    const textarea = document.getElementById('new_note_body');
-    if (!textarea) {
-        console.warn('new_note_body textarea not found');
-        return;
-    }
-
-    const body = textarea.value.trim();
-    if (!body) {
-        alert("Note cannot be empty.");
-        return;
-    }
-
-    fetch(`/service/${clientId}/notes`, {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({ body })
-    })
-    .then(r => {
-        if (!r.ok) throw new Error('Failed to save note');
-        return r.json();
-    })
-    .then(() => {
-        textarea.value = '';
-        loadServicePanel(`/service/${clientId}`);
-    })
-    .catch(err => {
-        console.error(err);
-        alert('Error saving note.');
-    });
-}
-
-/* ---------- NOTES: EDIT ---------- */
-function editServiceNote(clientId, noteId) {
-    const noteEl = document.querySelector(`#note-${noteId} .service-note-body`);
-    if (!noteEl) {
-        console.warn('note body element not found');
-        return;
-    }
-
-    const existing = noteEl.innerText.trim();
-    const updated = prompt("Edit note:", existing);
-    if (updated === null) return;
-
-    fetch(`/service/${clientId}/notes/${noteId}`, {
-        method: 'PUT',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({ body: updated })
-    })
-    .then(r => {
-        if (!r.ok) throw new Error('Failed to update note');
-        return r.json();
-    })
-    .then(() => loadServicePanel(`/service/${clientId}`))
-    .catch(err => {
-        console.error(err);
-        alert('Error updating note.');
-    });
-}
-
-/* ---------- NOTES: DELETE ---------- */
-function deleteServiceNote(clientId, noteId) {
-    if (!confirm("Delete this note?")) return;
-
-    fetch(`/service/${clientId}/notes/${noteId}`, {
-        method: 'DELETE',
-        headers: {
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
-        }
-    })
-    .then(r => {
-        if (!r.ok) throw new Error('Failed to delete note');
-        return r.json();
-    })
-    .then(() => loadServicePanel(`/service/${clientId}`))
-    .catch(err => {
-        console.error(err);
-        alert('Error deleting note.');
-    });
-}
 </script>
 @endpush
