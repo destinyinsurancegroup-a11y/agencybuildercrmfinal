@@ -140,7 +140,7 @@
                     </div>
                 </div>
 
-                {{-- Import errors --}}
+                {{-- Upload errors --}}
                 @if ($errors->any())
                     <div class="alert alert-danger" style="border-radius:12px;">
                         <div class="fw-bold mb-1">Upload failed</div>
@@ -152,7 +152,7 @@
                     </div>
                 @endif
 
-                {{-- Import summary --}}
+                {{-- Upload summary --}}
                 @if (session('import_summary'))
                     @php($s = session('import_summary'))
                     <div class="alert alert-success" style="border-radius:12px;">
@@ -201,7 +201,7 @@
                         Upload
                     </button>
 
-                    @if (Route::has('leads.import.template'))
+                    @if(Route::has('leads.import.template'))
                         <a class="btn-gold" style="text-decoration:none; display:inline-flex; align-items:center;"
                            href="{{ route('leads.import.template') }}">
                             Template
@@ -216,12 +216,18 @@
                             $isArchivedView = !empty($showingArchived) && $showingArchived;
                             $status         = $lead->status ?? '';
                             $statusLower    = strtolower($status);
-                            $isSold         = $statusLower === 'sold';
+                            $isSold         = ($statusLower === 'sold');
 
-                            if ($isArchivedView && $isSold) {
-                                $rowUrl = route('book.show', $lead->id);
-                            } else {
-                                $rowUrl = route('leads.show', $lead->id);
+                            $rowUrl = ($isArchivedView && $isSold)
+                                ? route('book.show', $lead->id)
+                                : route('leads.show', $lead->id);
+
+                            // ✅ Compute badge class WITHOUT blade directives inside attributes
+                            $badgeClass = 'badge bg-secondary';
+                            if ($statusLower === 'sold') {
+                                $badgeClass = 'badge bg-success';
+                            } elseif ($statusLower === 'not interested') {
+                                $badgeClass = 'badge bg-danger';
                             }
                         @endphp
 
@@ -231,20 +237,11 @@
                             data-show-url="{{ $rowUrl }}"
                         >
                             <span>
-                                {{ $lead->full_name ?? ($lead->first_name . ' ' . $lead->last_name) }}
+                                {{ $lead->full_name ?? trim(($lead->first_name ?? '') . ' ' . ($lead->last_name ?? '')) }}
                             </span>
 
                             @if($isArchivedView)
-                                <span class="badge
-                                    @if($statusLower === 'sold')
-                                        bg-success
-                                    @elseif($statusLower === 'not interested')
-                                        bg-danger
-                                    @else
-                                        bg-secondary
-                                    @endif">
-                                    {{ $status }}
-                                </span>
+                                <span class="{{ $badgeClass }}">{{ $status }}</span>
                             @endif
                         </div>
                     @empty
