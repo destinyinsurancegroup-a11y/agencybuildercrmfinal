@@ -80,6 +80,7 @@
         margin-bottom: 20px;
         display: flex;
         gap: 8px;
+        flex-wrap: wrap;
     }
 
     .contact-list-item {
@@ -102,6 +103,10 @@
         height: 100%;
         background: transparent !important;
     }
+
+    .flash-wrap {
+        margin-bottom: 14px;
+    }
 </style>
 
 <div class="dashboard-page">
@@ -122,9 +127,35 @@
                     </a>
                 </div>
 
+                {{-- ✅ FLASH MESSAGES (match Book/Leads behavior) --}}
+                <div class="flash-wrap">
+                    @if (session('import_success'))
+                        <div class="alert alert-success py-2 mb-2">
+                            {{ session('import_success') }}
+                        </div>
+                    @endif
+
+                    @if (session('import_error'))
+                        <div class="alert alert-danger py-2 mb-2">
+                            {{ session('import_error') }}
+                        </div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger py-2 mb-2">
+                            <div><strong>Upload error:</strong></div>
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $err)
+                                    <li>{{ $err }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                </div>
+
                 <!-- Search -->
                 <div class="contacts-search-wrapper">
-                    <input 
+                    <input
                         type="text"
                         id="service-search"
                         class="contacts-search-input"
@@ -133,26 +164,38 @@
                     <button class="contacts-search-btn" disabled>Go</button>
                 </div>
 
-                <!-- Add Client -->
+                <!-- Add Client + Upload -->
                 <div class="button-row">
-                    <button 
+                    <button
                         id="add-service-client-btn"
                         class="btn-gold"
                         data-create-url="{{ route('service.create.panel') }}"
                     >
                         Add
                     </button>
+
+                    <button
+                        class="btn-gold"
+                        data-bs-toggle="modal"
+                        data-bs-target="#uploadServiceModal"
+                    >
+                        Upload
+                    </button>
                 </div>
 
                 <!-- Client List -->
                 <div id="service-list">
                     @forelse ($clients as $client)
-                        <div 
+                        @php
+                            $name = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+                        @endphp
+
+                        <div
                             class="contact-list-item js-service-row {{ (isset($selected) && $selected == $client->id) ? 'active-contact-row' : '' }}"
                             data-id="{{ $client->id }}"
                             data-show-url="{{ route('service.show', $client->id) }}"
                         >
-                            {{ $client->full_name }}
+                            {{ $name ?: '(No Name)' }}
 
                             @if($client->policy_type)
                                 <br><small class="text-muted">{{ $client->policy_type }}</small>
@@ -173,6 +216,44 @@
             </div>
         </div>
 
+    </div>
+</div>
+
+<!-- ✅ UPLOAD SERVICE MODAL -->
+<div class="modal fade" id="uploadServiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form
+            action="{{ route('service.import') }}"
+            method="POST"
+            enctype="multipart/form-data"
+            class="modal-content"
+        >
+            @csrf
+
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title">Upload Service Clients</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <label class="form-label">Choose CSV or Excel file</label>
+                <input
+                    type="file"
+                    name="file"
+                    class="form-control"
+                    accept=".csv, .txt, .xlsx, .xls"
+                    required
+                >
+                <small class="text-muted d-block mt-2">
+                    Tip: Header row can include First Name / Last Name / Email / Phone. Blanks are allowed.
+                </small>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-gold">Upload</button>
+            </div>
+
+        </form>
     </div>
 </div>
 
@@ -245,6 +326,12 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ===== AUTO-LOAD SELECTED ===== */
     @if(!empty($selected))
         loadServicePanel("{{ route('service.show', $selected) }}");
+    @endif
+
+    /* ✅ If upload had errors, reopen modal so user sees it (match Book/Leads) */
+    @if(session('import_error') || $errors->any())
+        const modalEl = document.getElementById('uploadServiceModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
     @endif
 });
 
@@ -456,7 +543,6 @@ function saveServiceNote(clientId) {
 
 /* ---------- NOTES: EDIT ---------- */
 function editServiceNote(clientId, noteId) {
-    // 🔴 CHANGED SELECTOR: now uses .service-note-body (matches partial)
     const noteEl = document.querySelector(`#note-${noteId} .service-note-body`);
     if (!noteEl) {
         console.warn('note body element not found');
@@ -465,7 +551,7 @@ function editServiceNote(clientId, noteId) {
 
     const existing = noteEl.innerText.trim();
     const updated = prompt("Edit note:", existing);
-    if (updated === null) return; // user cancelled
+    if (updated === null) return;
 
     fetch(`/service/${clientId}/notes/${noteId}`, {
         method: 'PUT',
@@ -508,6 +594,5 @@ function deleteServiceNote(clientId, noteId) {
         alert('Error deleting note.');
     });
 }
-
 </script>
 @endpush
