@@ -71,6 +71,7 @@
         text-transform: uppercase;
         font-size: 12px;
         cursor: pointer;
+        white-space: nowrap;
     }
 
     .btn-gold:hover {
@@ -81,6 +82,7 @@
         margin-bottom: 20px;
         display: flex;
         gap: 8px;
+        flex-wrap: wrap;
     }
 
     .contact-list-item {
@@ -106,6 +108,10 @@
     .empty-right-panel {
         height: 100%;
         background: transparent !important;
+    }
+
+    .flash-wrap {
+        margin-bottom: 14px;
     }
 </style>
 
@@ -139,9 +145,35 @@
                     </div>
                 </div>
 
+                {{-- ✅ FLASH MESSAGES (match Book of Business behavior) --}}
+                <div class="flash-wrap">
+                    @if (session('import_success'))
+                        <div class="alert alert-success py-2 mb-2">
+                            {{ session('import_success') }}
+                        </div>
+                    @endif
+
+                    @if (session('import_error'))
+                        <div class="alert alert-danger py-2 mb-2">
+                            {{ session('import_error') }}
+                        </div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger py-2 mb-2">
+                            <div><strong>Upload error:</strong></div>
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $err)
+                                    <li>{{ $err }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                </div>
+
                 <!-- Search (client-side only) -->
                 <div class="contacts-search-wrapper">
-                    <input 
+                    <input
                         type="text"
                         id="lead-search"
                         class="contacts-search-input"
@@ -152,7 +184,7 @@
 
                 <!-- Add Lead + Upload -->
                 <div class="button-row">
-                    <button 
+                    <button
                         id="add-lead-btn"
                         class="btn-gold"
                         data-create-url="{{ route('leads.create') }}"
@@ -160,7 +192,7 @@
                         Add Lead
                     </button>
 
-                    <button 
+                    <button
                         class="btn-gold"
                         data-bs-toggle="modal"
                         data-bs-target="#uploadLeadModal"
@@ -173,41 +205,35 @@
                 <div id="lead-list">
                     @forelse ($leads as $lead)
                         @php
-                            // Decide where clicking this row should go:
-                            // - Active view or Not Interested (still lead) → leads.show
-                            // - Archived + Sold (now client) → book.show
                             $isArchivedView = !empty($showingArchived) && $showingArchived;
-                            $status         = $lead->status ?? '';
+                            $status         = (string)($lead->status ?? '');
                             $statusLower    = strtolower($status);
-                            $isSold         = $statusLower === 'sold';
+                            $isSold         = ($statusLower === 'sold');
 
-                            if ($isArchivedView && $isSold) {
-                                $rowUrl = route('book.show', $lead->id);
-                            } else {
-                                $rowUrl = route('leads.show', $lead->id);
+                            $rowUrl = ($isArchivedView && $isSold)
+                                ? route('book.show', $lead->id)
+                                : route('leads.show', $lead->id);
+
+                            // ✅ IMPORTANT: Blade-safe badge class (no @if inside attributes)
+                            $badgeClass = 'badge bg-secondary';
+                            if ($statusLower === 'sold') {
+                                $badgeClass = 'badge bg-success';
+                            } elseif ($statusLower === 'not interested') {
+                                $badgeClass = 'badge bg-danger';
                             }
+
+                            $name = $lead->full_name ?? trim(($lead->first_name ?? '') . ' ' . ($lead->last_name ?? ''));
                         @endphp
 
-                        <div 
-                            class="contact-list-item js-lead-row"
+                        <div
+                            class="contact-list-item js-lead-row {{ (isset($selected) && $selected == $lead->id) ? 'active-contact-row' : '' }}"
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
                         >
-                            <span>
-                                {{ $lead->full_name ?? ($lead->first_name . ' ' . $lead->last_name) }}
-                            </span>
+                            <span>{{ $name ?: '(No Name)' }}</span>
 
                             @if($isArchivedView)
-                                <span class="badge
-                                    @if($statusLower === 'sold')
-                                        bg-success
-                                    @elseif($statusLower === 'not interested')
-                                        bg-danger
-                                    @else
-                                        bg-secondary
-                                    @endif">
-                                    {{ $status }}
-                                </span>
+                                <span class="{{ $badgeClass }}">{{ $status }}</span>
                             @endif
                         </div>
                     @empty
@@ -228,13 +254,12 @@
     </div>
 </div>
 
-
 <!-- UPLOAD LEADS MODAL -->
 <div class="modal fade" id="uploadLeadModal" tabindex="-1">
     <div class="modal-dialog">
-        <form 
-            action="{{ route('contacts.import') }}" 
-            method="POST" 
+        <form
+            action="{{ route('leads.import') }}"
+            method="POST"
             enctype="multipart/form-data"
             class="modal-content"
         >
@@ -247,13 +272,16 @@
 
             <div class="modal-body">
                 <label class="form-label">Choose CSV or Excel file</label>
-                <input 
+                <input
                     type="file"
                     name="file"
                     class="form-control"
                     accept=".csv, .xlsx, .xls"
                     required
                 >
+                <small class="text-muted d-block mt-2">
+                    Tip: Header row should include fields like First Name / Last Name / Email / Phone, but blanks are allowed.
+                </small>
             </div>
 
             <div class="modal-footer">
@@ -263,7 +291,6 @@
         </form>
     </div>
 </div>
-
 
 @endsection
 
@@ -282,174 +309,57 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        fetch(url, {
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        })
-        .then(res => res.text())
-        .then(html => container.innerHTML = html)
-        .catch(() => {
-            container.innerHTML = `
-                <div style="padding:40px; text-align:center; color:red;">
-                    Failed to load.
-                </div>
-            `;
-        });
+        fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
+            .then(res => res.text())
+            .then(html => container.innerHTML = html)
+            .catch(() => {
+                container.innerHTML = `
+                    <div style="padding:40px; text-align:center; color:red;">
+                        Failed to load.
+                    </div>
+                `;
+            });
     }
 
     /* CLICK A LEAD */
     document.querySelectorAll('.js-lead-row').forEach(row => {
         row.addEventListener('click', () => {
-
             document.querySelectorAll('.js-lead-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
-
             row.classList.add('active-contact-row');
-
             loadPanel(row.dataset.showUrl);
         });
     });
 
     /* ADD LEAD */
-    document.getElementById('add-lead-btn').addEventListener('click', function () {
-        loadPanel(this.dataset.createUrl);
-    });
+    const addBtn = document.getElementById('add-lead-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function () {
+            loadPanel(this.dataset.createUrl);
+        });
+    }
 
     /* CLIENT SIDE SEARCH */
     document.getElementById('lead-search').addEventListener('keyup', function () {
         const term = this.value.toLowerCase();
         document.querySelectorAll('#lead-list .js-lead-row')
-            .forEach(row =>
+            .forEach(row => {
                 row.style.display = row.textContent.toLowerCase().includes(term)
                     ? 'flex'
-                    : 'none'
-            );
+                    : 'none';
+            });
     });
 
-    /* =======================================================
-       AUTO-LOAD SELECTED LEAD AFTER EDIT/CREATE (from ?selected=)
-       ======================================================= */
-    (function () {
-        const params = new URLSearchParams(window.location.search);
-        const selected = params.get('selected');
-        if (!selected) return;
+    {{-- ✅ If upload had errors, reopen modal so user sees it (match Book tab) --}}
+    @if(session('import_error') || $errors->any())
+        const modalEl = document.getElementById('uploadLeadModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
+    @endif
 
-        const row = document.querySelector(`.js-lead-row[data-id="${selected}"]`);
-        if (row) {
-            // visually select it
-            document.querySelectorAll('.js-lead-row')
-                .forEach(r => r.classList.remove('active-contact-row'));
-            row.classList.add('active-contact-row');
-
-            // load its details in the right panel
-            loadPanel(row.dataset.showUrl);
-        }
-    })();
-
-    /* =======================================================
-       GLOBAL LEAD NOTE FUNCTIONS (used by details partial)
-       ======================================================= */
-
-    window.saveLeadNote = function (contactId) {
-        const bodyField = document.getElementById('lead_new_note_body');
-        if (!bodyField) {
-            console.error('lead_new_note_body textarea not found');
-            alert('Could not find note field.');
-            return;
-        }
-
-        const body = bodyField.value.trim();
-        if (!body) {
-            alert("Note cannot be empty.");
-            return;
-        }
-
-        fetch(`/leads/${contactId}/notes`, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify({ body })
-        })
-        .then(async (res) => {
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error('Error saving note:', txt);
-                alert("Error saving note. Check /debug-laravel-log.");
-                return;
-            }
-            // Reload just the right-hand panel by re-calling the show route
-            loadPanel(`/leads/${contactId}`);
-        })
-        .catch(err => {
-            console.error(err);
-            alert("Network error saving note.");
-        });
-    };
-
-    window.editLeadNote = function (contactId, noteId) {
-        const existingEl = document.querySelector(`#lead-note-${noteId} div:first-child`);
-        if (!existingEl) {
-            console.error('Existing note element not found');
-            return;
-        }
-
-        const existing = existingEl.innerText;
-        const updated = prompt("Edit note:", existing);
-        if (updated === null) return;
-
-        fetch(`/leads/${contactId}/notes/${noteId}`, {
-            method: 'PUT',
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify({ body: updated })
-        })
-        .then(async (res) => {
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error('Error updating note:', txt);
-                alert("Error updating note. Check /debug-laravel-log.");
-                return;
-            }
-            // Reload right-hand panel only
-            loadPanel(`/leads/${contactId}`);
-        })
-        .catch(err => {
-            console.error(err);
-            alert("Network error updating note.");
-        });
-    };
-
-    window.deleteLeadNote = function (contactId, noteId) {
-        if (!confirm("Delete this note?")) return;
-
-        fetch(`/leads/${contactId}/notes/${noteId}`, {
-            method: 'DELETE',
-            headers: {
-                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                "Accept": "application/json"
-            }
-        })
-        .then(async (res) => {
-            if (!res.ok) {
-                const txt = await res.text();
-                console.error('Error deleting note:', txt);
-                alert("Error deleting note. Check /debug-laravel-log.");
-                return;
-            }
-            // Reload right-hand panel only
-            loadPanel(`/leads/${contactId}`);
-        })
-        .catch(err => {
-            console.error(err);
-            alert("Network error deleting note.");
-        });
-    };
-
+    {{-- Optional: auto-load selected lead if controller passes $selected --}}
+    @if(!empty($selected))
+        loadPanel("{{ route('leads.show', $selected) }}");
+    @endif
 });
 </script>
 @endpush
