@@ -3,7 +3,6 @@
 @section('content')
 
 <style>
-    /* Same card/layout styling used on Leads/Contacts */
     .contacts-card {
         background: #ffffff;
         border-radius: 18px;
@@ -63,7 +62,7 @@
         background: #c9a227;
         color: #111827;
         border: none;
-        padding: 6px 10px;   /* smaller buttons */
+        padding: 6px 10px;
         font-weight: 600;
         border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
@@ -103,17 +102,18 @@
         background: transparent !important;
     }
 
-    /* NEW: urgent service contact styling */
     .urgent-contact {
-        color: #b91c1c; /* red */
+        color: #b91c1c;
         font-weight: 700;
     }
 
-    /* NUCLEAR OVERRIDE:
-       Force EVERYTHING in the Book details panel to be left aligned. */
     #book-details-container,
     #book-details-container * {
         text-align: left !important;
+    }
+
+    .flash-wrap {
+        margin-bottom: 14px;
     }
 </style>
 
@@ -126,9 +126,35 @@
 
                 <div class="contacts-header">Book of Business</div>
 
+                {{-- ✅ FLASH MESSAGES (you were missing these) --}}
+                <div class="flash-wrap">
+                    @if (session('import_success'))
+                        <div class="alert alert-success py-2 mb-2">
+                            {{ session('import_success') }}
+                        </div>
+                    @endif
+
+                    @if (session('import_error'))
+                        <div class="alert alert-danger py-2 mb-2">
+                            {{ session('import_error') }}
+                        </div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger py-2 mb-2">
+                            <div><strong>Upload error:</strong></div>
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $err)
+                                    <li>{{ $err }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                </div>
+
                 <!-- Search (client-side only) -->
                 <div class="contacts-search-wrapper">
-                    <input 
+                    <input
                         type="text"
                         id="book-search"
                         class="contacts-search-input"
@@ -139,7 +165,7 @@
 
                 <!-- Add Client + Upload -->
                 <div class="button-row">
-                    <button 
+                    <button
                         id="add-book-client-btn"
                         class="btn-gold"
                         data-create-url="{{ route('book.create.panel') }}"
@@ -147,7 +173,7 @@
                         Add
                     </button>
 
-                    <button 
+                    <button
                         class="btn-gold"
                         data-bs-toggle="modal"
                         data-bs-target="#uploadBookModal"
@@ -160,19 +186,18 @@
                 <div id="book-list">
                     @forelse ($clients as $client)
                         @php
-                            // Urgent if this is a service contact with an open service (not archived yet)
                             $isServiceUrgent = $client->contact_type === 'service' && is_null($client->service_archived_at);
                             $name = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
                         @endphp
 
-                        <div 
+                        <div
                             class="contact-list-item js-book-row
                                    {{ (isset($selected) && $selected == $client->id) ? 'active-contact-row' : '' }}
                                    {{ $isServiceUrgent ? 'urgent-contact' : '' }}"
                             data-id="{{ $client->id }}"
                             data-show-url="{{ route('book.show', $client->id) }}"
                         >
-                            {{ $name }}
+                            {{ $name ?: '(No Name)' }}
 
                             @if($isServiceUrgent)
                                 <span class="badge bg-danger ms-1">Service</span>
@@ -203,9 +228,9 @@
 <!-- UPLOAD BOOK MODAL -->
 <div class="modal fade" id="uploadBookModal" tabindex="-1">
     <div class="modal-dialog">
-        <form 
-            action="{{ route('book.import') }}" 
-            method="POST" 
+        <form
+            action="{{ route('book.import') }}"
+            method="POST"
             enctype="multipart/form-data"
             class="modal-content"
         >
@@ -218,13 +243,16 @@
 
             <div class="modal-body">
                 <label class="form-label">Choose CSV or Excel file</label>
-                <input 
+                <input
                     type="file"
                     name="file"
                     class="form-control"
                     accept=".csv, .xlsx, .xls"
                     required
                 >
+                <small class="text-muted d-block mt-2">
+                    Tip: Header row should include fields like First Name / Last Name / Email / Phone, but blanks are allowed.
+                </small>
             </div>
 
             <div class="modal-footer">
@@ -237,18 +265,12 @@
 
 @endsection
 
-
-
-{{-- ============================================================
-     JAVASCRIPT — GLOBAL BEC HANDLERS
-     ============================================================ --}}
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
     const container = document.getElementById('book-details-container');
 
-    // Loads right panel via AJAX
     window.loadBookPanel = function (url) {
         container.innerHTML = `
             <div style="padding:40px;">
@@ -273,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    /* CLICK A CLIENT */
     document.querySelectorAll('.js-book-row').forEach(row => {
         row.addEventListener('click', () => {
 
@@ -286,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    /* ADD CLIENT */
     const addBtn = document.getElementById('add-book-client-btn');
     if (addBtn) {
         addBtn.addEventListener('click', function () {
@@ -294,7 +314,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* CLIENT SIDE SEARCH */
     document.getElementById('book-search').addEventListener('keyup', function () {
         const term = this.value.toLowerCase();
         document.querySelectorAll('#book-list .js-book-row')
@@ -305,9 +324,14 @@ document.addEventListener('DOMContentLoaded', () => {
             );
     });
 
-    // Auto-load selected client
     @if(!empty($selected))
         loadBookPanel("{{ route('book.show', $selected) }}");
+    @endif
+
+    {{-- ✅ If upload had errors, reopen modal so user sees it --}}
+    @if(session('import_error') || $errors->any())
+        const modalEl = document.getElementById('uploadBookModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
     @endif
 });
 
@@ -316,7 +340,6 @@ document.addEventListener('DOMContentLoaded', () => {
    BEC SECTION — MOVED HERE SO AJAX PARTIALS CAN USE IT
    ------------------------------------------------------ */
 
-/* ---------- ADD BENEFICIARY ---------- */
 function openAddBeneficiary(clientId) {
     document.getElementById('beneficiaryModalTitle').innerText = "Add Beneficiary";
     document.getElementById('beneficiary_id').value = "";
@@ -330,7 +353,6 @@ function openAddBeneficiary(clientId) {
     new bootstrap.Modal(document.getElementById('beneficiaryModal')).show();
 }
 
-/* ---------- EDIT BENEFICIARY ---------- */
 function editBeneficiary(id) {
     fetch(`/api/beneficiaries/${id}`)
         .then(r => r.json())
@@ -349,7 +371,6 @@ function editBeneficiary(id) {
         });
 }
 
-/* ---------- SAVE BENEFICIARY ---------- */
 document.addEventListener("submit", function (e) {
     if (e.target.id !== "beneficiaryForm") return;
     e.preventDefault();
@@ -383,7 +404,6 @@ document.addEventListener("submit", function (e) {
     });
 });
 
-/* ---------- DELETE BENEFICIARY ---------- */
 function deleteBeneficiary(clientId, id) {
     if (!confirm("Delete beneficiary?")) return;
 
@@ -395,9 +415,6 @@ function deleteBeneficiary(clientId, id) {
     .then(() => loadBookPanel(`/book/${clientId}`));
 }
 
-
-
-/* ---------- ADD EMERGENCY CONTACT ---------- */
 function openAddEmergency(clientId) {
     document.getElementById('emergencyModalTitle').innerText = "Add Emergency Contact";
     document.getElementById('emergency_id').value = "";
@@ -411,7 +428,6 @@ function openAddEmergency(clientId) {
     new bootstrap.Modal(document.getElementById('emergencyModal')).show();
 }
 
-/* ---------- EDIT EMERGENCY ---------- */
 function editEmergency(id) {
     fetch(`/api/emergency/${id}`)
         .then(r => r.json())
@@ -430,7 +446,6 @@ function editEmergency(id) {
         });
 }
 
-/* ---------- SAVE EMERGENCY ---------- */
 document.addEventListener("submit", function (e) {
     if (e.target.id !== "emergencyForm") return;
     e.preventDefault();
@@ -464,7 +479,6 @@ document.addEventListener("submit", function (e) {
     });
 });
 
-/* ---------- DELETE EMERGENCY ---------- */
 function deleteEmergency(clientId, id) {
     if (!confirm("Delete emergency contact?")) return;
 
@@ -476,14 +490,9 @@ function deleteEmergency(clientId, id) {
     .then(() => loadBookPanel(`/book/${clientId}`));
 }
 
-
-/* ---------- NOTES: ADD ---------- */
 function saveNote(clientId) {
     const textarea = document.getElementById('new_note_body');
-    if (!textarea) {
-        console.warn('new_note_body textarea not found');
-        return;
-    }
+    if (!textarea) return;
 
     const body = textarea.value.trim();
     if (!body) {
@@ -508,23 +517,16 @@ function saveNote(clientId) {
         textarea.value = '';
         loadBookPanel(`/book/${clientId}`);
     })
-    .catch(err => {
-        console.error(err);
-        alert('Error saving note.');
-    });
+    .catch(() => alert('Error saving note.'));
 }
 
-/* ---------- NOTES: EDIT ---------- */
 function editNote(clientId, noteId) {
     const noteEl = document.querySelector(`#note-${noteId} .note-body`);
-    if (!noteEl) {
-        console.warn('note body element not found');
-        return;
-    }
+    if (!noteEl) return;
 
     const existing = noteEl.innerText.trim();
     const updated = prompt("Edit note:", existing);
-    if (updated === null) return; // user cancelled
+    if (updated === null) return;
 
     fetch(`/book/${clientId}/notes/${noteId}`, {
         method: 'PUT',
@@ -540,13 +542,9 @@ function editNote(clientId, noteId) {
         return r.json();
     })
     .then(() => loadBookPanel(`/book/${clientId}`))
-    .catch(err => {
-        console.error(err);
-        alert('Error updating note.');
-    });
+    .catch(() => alert('Error updating note.'));
 }
 
-/* ---------- NOTES: DELETE ---------- */
 function deleteNote(clientId, noteId) {
     if (!confirm("Delete this note?")) return;
 
@@ -562,10 +560,7 @@ function deleteNote(clientId, noteId) {
         return r.json();
     })
     .then(() => loadBookPanel(`/book/${clientId}`))
-    .catch(err => {
-        console.error(err);
-        alert('Error deleting note.');
-    });
+    .catch(() => alert('Error deleting note.'));
 }
 
 </script>
