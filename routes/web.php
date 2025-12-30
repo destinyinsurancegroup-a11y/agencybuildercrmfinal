@@ -81,9 +81,6 @@ Route::get('/debug-contact-columns', function () {
  * Remove this route after validation.
  */
 Route::get('/gideon-test', function (GideonLlmClient $client) {
-    // Optional: you can guard behind config if you want:
-    // if (! config('gideon.enabled')) abort(404);
-
     return $client->testPing();
 });
 
@@ -91,9 +88,6 @@ Route::get('/gideon-test', function (GideonLlmClient $client) {
 |--------------------------------------------------------------------------
 | AUTHENTICATED APPLICATION ROUTES
 |--------------------------------------------------------------------------
-|
-| All core CRM functionality is behind auth. After login, users hit these.
-|
 */
 Route::middleware('auth')->group(function () {
 
@@ -140,31 +134,26 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/leads',          [LeadController::class, 'index'])->name('leads.index');
-    Route::get('/leads/archived', [LeadController::class, 'archived'])->name('leads.archived'); // ⭐ Archived leads
+    Route::get('/leads/archived', [LeadController::class, 'archived'])->name('leads.archived');
     Route::get('/leads/create',   [LeadController::class, 'create'])->name('leads.create');
 
-    // ✅ NEW: BULK UPLOAD LEADS → creates lead contact cards (one per row)
     Route::post('/leads/import', [LeadController::class, 'import'])
         ->name('leads.import');
 
-    // ✅ NEW (optional): Download template for bulk lead upload
     Route::get('/leads/import/template', [LeadController::class, 'downloadTemplate'])
         ->name('leads.import.template');
 
-    // Keep {id} route AFTER the explicit /import routes
     Route::get('/leads/{id}',     [LeadController::class, 'show'])->name('leads.show');
 
-    /* ⭐ CONVERT LEAD TO CLIENT ⭐ */
     Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
         ->name('leads.sold');
 
-    /* ⭐ ARCHIVE LEAD AS NOT INTERESTED ⭐ */
     Route::post('/leads/{contact}/archive', [LeadController::class, 'archive'])
         ->name('leads.archive');
 
     /*
     |--------------------------------------------------------------------------
-    | LEAD NOTES  ⭐ (reuse BookController note logic)
+    | LEAD NOTES  (reuse BookController note logic)
     |--------------------------------------------------------------------------
     */
     Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
@@ -178,7 +167,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | BOOK OF BUSINESS (MASTER-DETAIL AJAX)
+    | BOOK OF BUSINESS
     |--------------------------------------------------------------------------
     */
     Route::prefix('book')->group(function () {
@@ -190,20 +179,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])->name('book.edit.panel');
         Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
 
-        // NOTES FOR BOOK CLIENTS
         Route::post('/{client}/notes', [BookController::class, 'storeNote'])
             ->name('book.notes.store');
 
         Route::put('/{client}/notes/{note}', [BookController::class, 'updateNote'])
             ->name('book.notes.update');
 
-        // DELETE NOTE FOR BOOK CLIENT
         Route::delete('/{client}/notes/{note}', [BookController::class, 'destroyNote'])
             ->name('book.notes.destroy');
 
         Route::post('/import', [BookController::class, 'import'])->name('book.import');
 
-        // Send existing Book client into Service using the same contact record
         Route::post('/{client}/send-to-service', [BookController::class, 'sendToService'])
             ->name('book.send-to-service');
     });
@@ -215,46 +201,39 @@ Route::middleware('auth')->group(function () {
     */
     Route::prefix('service')->group(function () {
 
-        // Index + create/store
         Route::get('/', [ServiceController::class, 'index'])->name('service.index');
         Route::get('/create-panel', [ServiceController::class, 'createPanel'])->name('service.create.panel');
         Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
-        // ARCHIVE VIEWS (must come before /{client} so they aren't swallowed)
+        // ✅ IMPORTANT: keep /import BEFORE /{client}
+        Route::post('/import', [ServiceController::class, 'import'])
+            ->name('service.import');
+
         Route::get('/archive', [ServiceController::class, 'archive'])
             ->name('service.archive');
 
         Route::get('/archive/not-saved', [ServiceController::class, 'notSavedArchive'])
             ->name('service.archive.not-saved');
 
-        // ✅ NEW: BULK UPLOAD SERVICE CLIENTS (must come before /{client})
-        Route::post('/import', [ServiceController::class, 'import'])
-            ->name('service.import');
-
-        // ROUTES OPERATING ON A SPECIFIC CLIENT/SERVICE RECORD
         Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
         Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
         Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
 
-        // Follow Up (opens calendar pre-filled from service record)
         Route::get('/{client}/follow-up', [ServiceController::class, 'followUp'])
             ->name('service.follow-up');
 
-        // Outcomes that KEEP / PUT client on books (and archive service)
         Route::post('/{client}/saved', [ServiceController::class, 'markSaved'])
             ->name('service.saved');
 
         Route::post('/{client}/back-on-books', [ServiceController::class, 'markBackOnBooks'])
             ->name('service.back-on-books');
 
-        // Outcomes that mark business as NOT SAVED (and may remove from book)
         Route::post('/{client}/not-interested', [ServiceController::class, 'markNotInterested'])
             ->name('service.not-interested');
 
         Route::post('/{client}/cancelled', [ServiceController::class, 'markCancelled'])
             ->name('service.cancelled');
 
-        // Generic archive action for a single service record
         Route::post('/{client}/archive', [ServiceController::class, 'archiveSingle'])
             ->name('service.archive-single');
     });
@@ -270,7 +249,6 @@ Route::middleware('auth')->group(function () {
     Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
         ->name('service.notes.update');
 
-    // DELETE NOTE FOR SERVICE CLIENT
     Route::delete('/service/{client}/notes/{note}', [BookController::class, 'destroyNote'])
         ->name('service.notes.destroy');
 
@@ -308,18 +286,11 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/calendar', fn () => view('calendar.index'));
 
-    /*
-    |--------------------------------------------------------------------------
-    | CALENDAR API
-    |--------------------------------------------------------------------------
-    | Uses Event model, which is TenantScoped, so it auto-filters by agency_id.
-    */
     Route::get('/calendar/events', function (Request $request) {
-        return Event::all(); // TenantScoped ensures only current agency's events
+        return Event::all();
     });
 
     Route::post('/calendar/events', function (Request $request) {
-
         $data = $request->validate([
             'title'      => 'required|string|max:255',
             'start'      => 'required|string',
@@ -333,14 +304,12 @@ Route::middleware('auth')->group(function () {
             'end'        => $data['start'],
             'location'   => $data['location'] ?? null,
             'contact_id' => $data['contact_id'] ?? null,
-            // agency_id is auto-set by TenantScoped
         ]);
 
         return response()->json($event, 201);
     });
 
     Route::put('/calendar/events/{id}', function (Request $request, $id) {
-
         $data = $request->validate([
             'title'      => 'required|string|max:255',
             'start'      => 'required|string',
@@ -368,46 +337,24 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | GIDEON OPPORTUNITIES INDEX (JSON for now)
+    | GIDEON
     |--------------------------------------------------------------------------
     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
-    /*
-    |--------------------------------------------------------------------------
-    | ✅ NEW: GIDEON SCAN ENDPOINTS (REAL SCAN LOGIC)
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('gideon')->group(function () {
         Route::post('/scan', [GideonScanController::class, 'scan'])->name('gideon.scan');
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
         Route::get('/top', [GideonScanController::class, 'top'])->name('gideon.top');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | GIDEON SECOND BRAIN PAGE
-    |--------------------------------------------------------------------------
-    */
     Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
         ->name('gideon.second_brain');
 
-    /*
-    |--------------------------------------------------------------------------
-    | SPARRING PARTNER PAGE
-    |--------------------------------------------------------------------------
-    | Uses GideonSparringController@index to render gideon.sparring view
-    | with scenario data.
-    */
     Route::get('/sparring-partner', [GideonSparringController::class, 'index'])
         ->name('gideon.sparring');
 
-    /*
-    |--------------------------------------------------------------------------
-    | GIDEON DEBUG: CREATE A SAMPLE OPPORTUNITY
-    |--------------------------------------------------------------------------
-    */
     Route::get('/debug-gideon-create-opportunity', function () {
         $user = auth()->user();
         $agencyId = $user->agency_id ?? 1;
@@ -431,30 +378,21 @@ Route::middleware('auth')->group(function () {
         return response()->json($opp);
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | GIDEON: RUN OPPORTUNITY SCAN (PLACEHOLDER)
-    |--------------------------------------------------------------------------
-    | Manual trigger so you can click a button in the UI later.
-    |--------------------------------------------------------------------------
-    */
     Route::get('/gideon/run-opportunity-scan', function (OpportunityScanner $scanner) {
         $user = auth()->user();
         $result = $scanner->runForUser($user);
-
         return response()->json($result);
     });
 
     /*
     |--------------------------------------------------------------------------
-    | MAINTENANCE UTILITIES  (still here, but now require auth)
+    | MAINTENANCE
     |--------------------------------------------------------------------------
     */
     Route::get('/migrate', function () {
         try {
             Artisan::call('migrate', ['--force' => true]);
             $output = Artisan::output();
-
             return nl2br(e("MIGRATE OUTPUT:\n\n" . $output));
         } catch (\Throwable $e) {
             return nl2br(e(
@@ -465,7 +403,6 @@ Route::middleware('auth')->group(function () {
         }
     });
 
-    // Check if Gideon tables exist
     Route::get('/debug-gideon-schema', function () {
         return Schema::hasTable('gideon_opportunities')
             ? 'gideon_opportunities table EXISTS'
