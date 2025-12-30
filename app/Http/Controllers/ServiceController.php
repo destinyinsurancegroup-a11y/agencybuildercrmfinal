@@ -16,55 +16,69 @@ class ServiceController extends Controller
 {
     /*
     |--------------------------------------------------------------------------
-    | TENANT / AGENCY SCOPING (AUTO-DETECT)
+    | TENANT/AGENCY HELPERS
     |--------------------------------------------------------------------------
-    | Your app has used tenant_id in some places and agency_id in others.
-    | We auto-detect which column exists on contacts, and scope everything
-    | consistently so imports/listing match.
+    | Your app appears to sometimes use tenant_id and sometimes agency_id.
+    | We will scope using agency_id if it exists; otherwise tenant_id.
     */
 
-    private function scopeColumn(): ?string
+    /**
+     * Returns the scoping column name: agency_id if present, else tenant_id.
+     */
+    protected function scopeColumn(): string
     {
-        if (Schema::hasColumn('contacts', 'tenant_id')) return 'tenant_id';
-        if (Schema::hasColumn('contacts', 'agency_id')) return 'agency_id';
-        return null;
+        try {
+            if (Schema::hasColumn('contacts', 'agency_id')) return 'agency_id';
+        } catch (\Throwable $e) {
+            // ignore
+        }
+        return 'tenant_id';
     }
 
-    private function currentScopeValue()
+    /**
+     * Returns the current user's scope value (agency_id or tenant_id) with fallback.
+     */
+    protected function scopeValue()
     {
         $user = auth()->user();
+        $col = $this->scopeColumn();
+
         if (!$user) return null;
 
-        $col = $this->scopeColumn();
-        if (!$col) return null;
+        if ($col === 'agency_id') {
+            return $user->agency_id ?? 1;
+        }
 
-        // Prefer exact property if present, else fallback to 1 to avoid "created but not visible"
-        $val = $user->{$col} ?? null;
-        return $val ?? 1;
+        return $user->tenant_id ?? 1;
     }
 
+    /**
+     * Extra safety: ensure this contact belongs to the same scope as the user.
+     */
     protected function assertTenant(Contact $client): void
     {
         $user = auth()->user();
         if (!$user) return;
 
         $col = $this->scopeColumn();
-        if (!$col) return;
+        $val = $this->scopeValue();
 
-        $expected = $this->currentScopeValue();
-        if ($expected === null) return;
-
-        if ((string)($client->{$col} ?? '') !== (string)$expected) {
+        // If the column exists but client doesn't have a value yet, treat as mismatch
+        if (!isset($client->{$col}) || $client->{$col} != $val) {
             abort(403, 'Unauthorized');
         }
     }
 
     /*
     |--------------------------------------------------------------------------
-    | BOOK HELPERS
+    | BOOK-OF-BUSINESS HELPERS
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * Ensure the contact is marked as in Book of Business.
+     * Called when a serviced policy is Saved / Back on Books.
+     */
     protected function ensureInBookOfBusinessForContact(Contact $client): void
     {
         if (Schema::hasColumn('contacts', 'in_book_of_business')) {
@@ -75,6 +89,9 @@ class ServiceController extends Controller
         }
     }
 
+    /**
+     * Remove contact from Book of Business when business could not be saved.
+     */
     protected function removeFromBookOfBusinessForContact(Contact $client): void
     {
         if (Schema::hasColumn('contacts', 'in_book_of_business')) {
@@ -87,85 +104,41 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | SERVICE FLAG HELPERS
+    | INDEX – LEFT LIST + RIGHT PANEL
     |--------------------------------------------------------------------------
-    */
-
-    private function markAsActiveService(Contact $c): void
-    {
-        // Service record should show in Service tab
-        if (Schema::hasColumn('contacts', 'service_status')) {
-            $c->service_status = $c->service_status ?: 'Needs Service';
-        }
-
-        if (Schema::hasColumn('contacts', 'service_archived_at')) {
-            $c->service_archived_at = null;
-        }
-
-        // Optional: for Book ordering "move to top" if you later add this column
-        if (Schema::hasColumn('contacts', 'service_flagged_at')) {
-            $c->service_flagged_at = now();
-        }
-
-        // DO NOT force into book here (new service-only contacts should NOT appear in book)
-        $c->save();
-    }
-
-    private function serviceBaseQuery()
-    {
-        $q = Contact::query();
-
-        // Scope by tenant/agency if possible
-        $col = $this->scopeColumn();
-        $scopeVal = $this->currentScopeValue();
-        if ($col && $scopeVal !== null) {
-            $q->where($col, $scopeVal);
-        }
-
-        // IMPORTANT:
-        // Service tab should show:
-        //  - Contacts created as contact_type='service'
-        //  - OR Contacts that were in Book but got flagged for service (service_status set)
-        $q->where(function ($qq) {
-            $qq->where('contact_type', 'service');
-
-            if (Schema::hasColumn('contacts', 'service_status')) {
-                $qq->orWhereNotNull('service_status');
-            }
-        });
-
-        return $q;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | INDEX
-    |--------------------------------------------------------------------------
+    | IMPORTANT CHANGE:
+    | Service list should include:
+    |  - contacts created as service (contact_type='service')
+    |  - book contacts that are flagged for service (service_status set, not archived)
     */
     public function index(Request $request)
     {
-        $query = $this->serviceBaseQuery();
+        $user = auth()->user();
+        $col  = $this->scopeColumn();
+        $val  = $this->scopeValue();
 
-        // Only ACTIVE service cases
-        if (Schema::hasColumn('contacts', 'service_archived_at')) {
-            $query->whereNull('service_archived_at');
-        }
+        $query = Contact::query()
+            ->whereNull('service_archived_at')
+            ->where(function ($q) {
+                $q->where('contact_type', 'service')
+                  ->orWhereNotNull('service_status'); // flagged book contacts also show
+            })
+            ->when($user, function ($q) use ($col, $val) {
+                $q->where($col, $val);
+            });
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
-        // Ordering: flagged-at first if you have it; otherwise alphabetical
-        if (Schema::hasColumn('contacts', 'service_flagged_at')) {
-            $query->orderByDesc('service_flagged_at');
-        }
-
+        // Put "flagged service" (Needs Service etc.) at top
         $clients = $query
+            ->orderByRaw("CASE WHEN service_status IS NULL OR service_status='' THEN 1 ELSE 0 END ASC")
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
@@ -177,7 +150,7 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | CREATE PANEL
+    | CREATE PANEL (AJAX)
     |--------------------------------------------------------------------------
     */
     public function createPanel()
@@ -187,8 +160,12 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | STORE (DEDUPES - DOES NOT CREATE BOOK DUPLICATES)
+    | STORE – NEW SERVICE CLIENT
     |--------------------------------------------------------------------------
+    | IMPORTANT CHANGE:
+    | - Creating a contact in Service should NOT automatically create a Book duplicate.
+    | - So we DO NOT set in_book_of_business=true here.
+    | - If a matching Book contact exists (email/phone), we flag it for service instead.
     */
     public function store(Request $request)
     {
@@ -222,59 +199,68 @@ class ServiceController extends Controller
         if (!$user) abort(403);
 
         $col = $this->scopeColumn();
-        $scopeVal = $this->currentScopeValue();
+        $val = $this->scopeValue();
 
-        // Find existing contact in same tenant/agency (prevent duplicates in Book)
+        // 1) If a matching contact already exists in THIS scope, flag it for service
         $existing = null;
         if (!empty($validated['email'])) {
             $existing = Contact::query()
-                ->when($col && $scopeVal !== null, fn ($q) => $q->where($col, $scopeVal))
+                ->where($col, $val)
                 ->where('email', $validated['email'])
                 ->first();
         }
-
         if (!$existing && !empty($validated['phone'])) {
             $existing = Contact::query()
-                ->when($col && $scopeVal !== null, fn ($q) => $q->where($col, $scopeVal))
+                ->where($col, $val)
                 ->where('phone', $validated['phone'])
                 ->first();
         }
 
         if ($existing) {
-            // Update existing, DO NOT change book-ness, DO NOT create duplicates
             $this->assertTenant($existing);
 
-            $existing->fill(array_filter($validated, fn ($v) => $v !== null && $v !== ''));
-            $this->markAsActiveService($existing);
+            $existing->service_status      = 'Needs Service';
+            $existing->service_archived_at = null;
+            $existing->save();
 
-            return redirect()->route('service.index', ['selected' => $existing->id]);
+            return redirect()->route('service.index', ['selected' => $existing->id])
+                ->with('status', 'Existing contact found. Flagged for Service (no duplicate created).');
         }
 
-        // Create brand-new service-only contact
-        $payload = $validated;
-        $payload['contact_type'] = 'service';
-        $payload['created_by']   = $user->id;
+        // 2) Otherwise create a NEW service-only contact (NOT in book by default)
+        $validated['contact_type'] = 'service';
+        $validated['created_by']   = $user->id ?? 1;
 
-        if ($col && Schema::hasColumn('contacts', $col)) {
-            $payload[$col] = $scopeVal ?? 1;
+        // scope columns
+        if (Schema::hasColumn('contacts', $col)) {
+            $validated[$col] = $val;
         }
 
-        // DO NOT force into Book for service-only contacts
+        // Create the service client
+        $client = Contact::create($validated);
+
+        // Service flags
+        $client->service_status      = 'Needs Service';
+        $client->service_archived_at = null;
+
+        // IMPORTANT: do NOT add to book automatically
         if (Schema::hasColumn('contacts', 'in_book_of_business')) {
-            $payload['in_book_of_business'] = false;
+            $client->in_book_of_business = false;
         }
 
-        $client = Contact::create($payload);
-
-        $this->markAsActiveService($client);
+        $client->save();
 
         return redirect()->route('service.index', ['selected' => $client->id]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | BULK IMPORT – SERVICE (NO BOOK DUPLICATES)
+    | BULK IMPORT – SERVICE
     |--------------------------------------------------------------------------
+    | IMPORTANT CHANGE:
+    | - If email/phone matches an existing contact in scope:
+    |     DO NOT create duplicate; flag existing for service.
+    | - New service contacts are NOT added to book automatically.
     */
     public function import(Request $request)
     {
@@ -299,7 +285,7 @@ class ServiceController extends Controller
         if (count($rows) === 0) {
             return redirect()
                 ->route('service.index')
-                ->with('import_error', 'Upload worked, but no rows were found in the file. Confirm there is a header row and at least one contact row.');
+                ->with('import_error', 'Upload worked, but no rows were found in the file.');
         }
 
         $created = 0;
@@ -308,7 +294,7 @@ class ServiceController extends Controller
         $firstId = null;
 
         $col = $this->scopeColumn();
-        $scopeVal = $this->currentScopeValue();
+        $val = $this->scopeValue();
 
         DB::beginTransaction();
         try {
@@ -324,24 +310,25 @@ class ServiceController extends Controller
                 }
 
                 $payload = [
-                    'first_name' => $this->cleanStr($first),
-                    'last_name'  => $this->cleanStr($last),
-                    'city'       => $this->cleanStr($this->getRowVal($row, ['city'])),
-                    'state'      => $this->cleanStr($this->getRowVal($row, ['state'])),
-                    'phone'      => $this->cleanStr($phone),
-                    'email'      => $this->cleanStr($email),
-
-                    // Service-only by default
+                    'first_name'   => $this->cleanStr($first),
+                    'last_name'    => $this->cleanStr($last),
+                    'city'         => $this->cleanStr($this->getRowVal($row, ['city'])),
+                    'state'        => $this->cleanStr($this->getRowVal($row, ['state'])),
+                    'phone'        => $this->cleanStr($phone),
+                    'email'        => $this->cleanStr($email),
                     'contact_type' => 'service',
                     'created_by'   => $user->id,
                 ];
 
-                // Scope value always set (prevents “created but not visible”)
-                if ($col && Schema::hasColumn('contacts', $col)) {
-                    $payload[$col] = $scopeVal ?? 1;
+                if (Schema::hasColumn('contacts', $col)) {
+                    $payload[$col] = $val;
                 }
 
-                // IMPORTANT: do NOT force into Book for new service-only contacts
+                // Service flags
+                $payload['service_status']      = 'Needs Service';
+                $payload['service_archived_at'] = null;
+
+                // IMPORTANT: New service-only contacts are NOT in book by default
                 if (Schema::hasColumn('contacts', 'in_book_of_business')) {
                     $payload['in_book_of_business'] = false;
                 }
@@ -351,57 +338,76 @@ class ServiceController extends Controller
                     if ($v === '' || $v === null) unset($payload[$k]);
                 }
 
-                // Dedupe inside tenant/agency: email first, else phone
-                $client = null;
+                // Find existing contact by email/phone within same scope
+                $existing = null;
                 if (!empty($payload['email'])) {
-                    $client = Contact::query()
-                        ->when($col && $scopeVal !== null, fn ($q) => $q->where($col, $scopeVal))
+                    $existing = Contact::query()
+                        ->where($col, $val)
                         ->where('email', $payload['email'])
                         ->first();
                 }
-
-                if (!$client && !empty($payload['phone'])) {
-                    $client = Contact::query()
-                        ->when($col && $scopeVal !== null, fn ($q) => $q->where($col, $scopeVal))
+                if (!$existing && !empty($payload['phone'])) {
+                    $existing = Contact::query()
+                        ->where($col, $val)
                         ->where('phone', $payload['phone'])
                         ->first();
                 }
 
-                if ($client) {
-                    // Match existing (likely Book contact) => FLAG for service, NO DUPLICATE
-                    $this->assertTenant($client);
+                if ($existing) {
+                    // Flag existing (book OR service) contact for service — NO DUPLICATE
+                    $this->assertTenant($existing);
 
-                    $client->fill($payload);
-
-                    // Do NOT override in_book_of_business if they already were in book
-                    // Do NOT force contact_type if they were book (keep original)
-                    // but if it was blank/unknown, it can remain as-is.
-                    $this->markAsActiveService($client);
+                    $existing->service_status      = 'Needs Service';
+                    $existing->service_archived_at = null;
+                    $existing->save();
 
                     $matchedExisting++;
-                } else {
-                    $client = Contact::create($payload);
-                    $this->markAsActiveService($client);
-                    $created++;
-                }
 
-                if (!$firstId) $firstId = $client->id;
+                    if (!$firstId) $firstId = $existing->id;
 
-                // Optional notes from sheet
-                $noteText = $this->getRowVal($row, ['notes', 'note']);
-                if ($noteText) {
-                    $tenantId = null;
-                    if ($col && Schema::hasColumn('notes', $col)) {
-                        $tenantId = $scopeVal ?? 1;
+                    // Optional note
+                    $noteText = $this->getRowVal($row, ['notes', 'note']);
+                    if ($noteText) {
+                        $tenantId = $existing->tenant_id ?? ($user->tenant_id ?? 1);
+                        Note::create([
+                            'contact_id' => $existing->id,
+                            'note'       => trim((string) $noteText),
+                            'created_by' => $user->id,
+                            'tenant_id'  => $tenantId,
+                        ]);
                     }
 
-                    Note::create(array_filter([
+                    continue;
+                }
+
+                // Create a new service-only contact
+                $client = Contact::create($payload);
+
+                // Ensure flags persisted even if fillable blocks
+                $client->contact_type        = 'service';
+                $client->service_status      = 'Needs Service';
+                $client->service_archived_at = null;
+                if (Schema::hasColumn('contacts', 'in_book_of_business')) {
+                    $client->in_book_of_business = false;
+                }
+                if (Schema::hasColumn('contacts', $col)) {
+                    $client->{$col} = $val;
+                }
+                $client->save();
+
+                $created++;
+                if (!$firstId) $firstId = $client->id;
+
+                // Optional note
+                $noteText = $this->getRowVal($row, ['notes', 'note']);
+                if ($noteText) {
+                    $tenantId = $client->tenant_id ?? ($user->tenant_id ?? 1);
+                    Note::create([
                         'contact_id' => $client->id,
                         'note'       => trim((string) $noteText),
                         'created_by' => $user->id,
-                        // only set if that column exists on notes
-                        $col ? $col : null => $tenantId,
-                    ], fn ($v, $k) => $k !== null && $v !== null, ARRAY_FILTER_USE_BOTH));
+                        'tenant_id'  => $tenantId,
+                    ]);
                 }
             }
 
@@ -414,10 +420,11 @@ class ServiceController extends Controller
         }
 
         $processed = $created + $matchedExisting;
+
         if ($processed === 0) {
             return redirect()
                 ->route('service.index')
-                ->with('import_error', "Upload worked, but 0 contacts were created/matched. Skipped {$skipped} empty rows.");
+                ->with('import_error', "Upload worked, but 0 contacts were created/flagged. Skipped {$skipped} empty rows.");
         }
 
         return redirect()
@@ -427,7 +434,7 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | SHOW / EDIT / UPDATE
+    | SHOW PANEL (AJAX ONLY)
     |--------------------------------------------------------------------------
     */
     public function show(Contact $client)
@@ -441,6 +448,11 @@ class ServiceController extends Controller
         abort(404);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | EDIT PANEL (AJAX)
+    |--------------------------------------------------------------------------
+    */
     public function editPanel(Contact $client)
     {
         $this->assertTenant($client);
@@ -448,6 +460,11 @@ class ServiceController extends Controller
         return view('service.partials.edit', compact('client'));
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | FULL PAGE EDIT (OPTIONAL)
+    |--------------------------------------------------------------------------
+    */
     public function edit(Contact $client)
     {
         $this->assertTenant($client);
@@ -455,6 +472,11 @@ class ServiceController extends Controller
         return view('service.edit', compact('client'));
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE – Keep record in service flow, but DO NOT force book duplication
+    |--------------------------------------------------------------------------
+    */
     public function update(Request $request, Contact $client)
     {
         $this->assertTenant($client);
@@ -483,12 +505,25 @@ class ServiceController extends Controller
             'premium_due_text'  => 'nullable|string|max:255',
         ]);
 
-        $client->fill(array_filter($validated, fn ($v) => $v !== null && $v !== ''));
+        foreach ($validated as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $client->{$key} = $value;
+            }
+        }
 
-        // Ensure it remains active service (does not force into book)
-        $this->markAsActiveService($client);
+        // Ensure it remains in service workflow
+        $client->service_status      = $client->service_status ?: 'Needs Service';
+        $client->service_archived_at = null;
 
-        // Beneficiaries / emergency contacts (unchanged)
+        // If this record is service-only, keep contact_type=service
+        // If it is a book contact flagged for service, do NOT force contact_type.
+        if ($client->contact_type === 'service') {
+            $client->contact_type = 'service';
+        }
+
+        $client->save();
+
+        // Beneficiaries/emergency contacts unchanged (kept from your version)
         if ($request->has('beneficiaries')) {
             foreach ($request->beneficiaries as $row) {
                 if (!isset($row['name']) || $row['name'] === '') continue;
@@ -550,7 +585,7 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | FOLLOW-UP
+    | FOLLOW-UP – OPEN CALENDAR PRE-FILLED
     |--------------------------------------------------------------------------
     */
     public function followUp(Contact $client)
@@ -572,7 +607,7 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | OUTCOMES
+    | SERVICE OUTCOMES
     |--------------------------------------------------------------------------
     */
     public function markSaved(Contact $client)
@@ -580,19 +615,15 @@ class ServiceController extends Controller
         $this->assertTenant($client);
 
         DB::transaction(function () use ($client) {
-            if (Schema::hasColumn('contacts', 'service_status')) {
-                $client->service_status = 'Saved';
-            }
-            if (Schema::hasColumn('contacts', 'service_archived_at')) {
-                $client->service_archived_at = now();
-            }
+            $client->service_status      = 'Saved';
+            $client->service_archived_at = now();
             $client->save();
 
-            // Saved remains on books (your original logic)
+            // Saved means they should be in book
             $this->ensureInBookOfBusinessForContact($client);
         });
 
-        return back()->with('status', 'Service marked Saved and archived. Client remains in Book of Business.');
+        return back()->with('status', 'Service marked Saved and archived. Client remains/added to Book of Business.');
     }
 
     public function markBackOnBooks(Contact $client)
@@ -600,12 +631,8 @@ class ServiceController extends Controller
         $this->assertTenant($client);
 
         DB::transaction(function () use ($client) {
-            if (Schema::hasColumn('contacts', 'service_status')) {
-                $client->service_status = 'Back on Books';
-            }
-            if (Schema::hasColumn('contacts', 'service_archived_at')) {
-                $client->service_archived_at = now();
-            }
+            $client->service_status      = 'Back on Books';
+            $client->service_archived_at = now();
             $client->save();
 
             $this->ensureInBookOfBusinessForContact($client);
@@ -619,12 +646,8 @@ class ServiceController extends Controller
         $this->assertTenant($client);
 
         DB::transaction(function () use ($client) {
-            if (Schema::hasColumn('contacts', 'service_status')) {
-                $client->service_status = 'Not Interested';
-            }
-            if (Schema::hasColumn('contacts', 'service_archived_at')) {
-                $client->service_archived_at = now();
-            }
+            $client->service_status      = 'Not Interested';
+            $client->service_archived_at = now();
             $client->save();
 
             $this->removeFromBookOfBusinessForContact($client);
@@ -638,12 +661,8 @@ class ServiceController extends Controller
         $this->assertTenant($client);
 
         DB::transaction(function () use ($client) {
-            if (Schema::hasColumn('contacts', 'service_status')) {
-                $client->service_status = 'Cancelled';
-            }
-            if (Schema::hasColumn('contacts', 'service_archived_at')) {
-                $client->service_archived_at = now();
-            }
+            $client->service_status      = 'Cancelled';
+            $client->service_archived_at = now();
             $client->save();
 
             $this->removeFromBookOfBusinessForContact($client);
@@ -656,7 +675,7 @@ class ServiceController extends Controller
     {
         $this->assertTenant($client);
 
-        if (Schema::hasColumn('contacts', 'service_archived_at') && is_null($client->service_archived_at)) {
+        if (is_null($client->service_archived_at)) {
             $client->service_archived_at = now();
             $client->save();
         }
@@ -666,19 +685,26 @@ class ServiceController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | ARCHIVE VIEWS
+    | SERVICE ARCHIVE VIEWS
     |--------------------------------------------------------------------------
     */
     public function archive(Request $request)
     {
-        $query = $this->serviceBaseQuery();
+        $user = auth()->user();
+        $col  = $this->scopeColumn();
+        $val  = $this->scopeValue();
 
-        if (Schema::hasColumn('contacts', 'service_archived_at')) {
-            $query->whereNotNull('service_archived_at')
-                ->orderByDesc('service_archived_at');
-        }
-
-        $clients = $query->paginate(25);
+        $clients = Contact::query()
+            ->whereNotNull('service_archived_at')
+            ->where(function ($q) {
+                $q->where('contact_type', 'service')
+                  ->orWhereNotNull('service_status');
+            })
+            ->when($user, function ($q) use ($col, $val) {
+                $q->where($col, $val);
+            })
+            ->orderByDesc('service_archived_at')
+            ->paginate(25);
 
         return view('service.archive', [
             'clients' => $clients,
@@ -688,21 +714,18 @@ class ServiceController extends Controller
 
     public function notSavedArchive(Request $request)
     {
-        $query = $this->serviceBaseQuery();
+        $user = auth()->user();
+        $col  = $this->scopeColumn();
+        $val  = $this->scopeValue();
 
-        if (Schema::hasColumn('contacts', 'service_archived_at')) {
-            $query->whereNotNull('service_archived_at');
-        }
-
-        if (Schema::hasColumn('contacts', 'service_status')) {
-            $query->whereIn('service_status', ['Not Interested', 'Cancelled']);
-        }
-
-        if (Schema::hasColumn('contacts', 'service_archived_at')) {
-            $query->orderByDesc('service_archived_at');
-        }
-
-        $clients = $query->paginate(25);
+        $clients = Contact::query()
+            ->whereNotNull('service_archived_at')
+            ->whereIn('service_status', ['Not Interested', 'Cancelled'])
+            ->when($user, function ($q) use ($col, $val) {
+                $q->where($col, $val);
+            })
+            ->orderByDesc('service_archived_at')
+            ->paginate(25);
 
         return view('service.archive', [
             'clients' => $clients,
