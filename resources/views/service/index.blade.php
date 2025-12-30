@@ -289,12 +289,10 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ===== CLICK A CLIENT ===== */
     document.querySelectorAll('.js-service-row').forEach(row => {
         row.addEventListener('click', () => {
-
             document.querySelectorAll('.js-service-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
 
             row.classList.add('active-contact-row');
-
             loadServicePanel(row.dataset.showUrl);
         });
     });
@@ -313,23 +311,31 @@ document.addEventListener('DOMContentLoaded', () => {
         searchEl.addEventListener('keyup', function () {
             const term = this.value.toLowerCase();
             document.querySelectorAll('#service-list .js-service-row')
-                .forEach(row =>
+                .forEach(row => {
                     row.style.display = row.textContent.toLowerCase().includes(term)
                         ? 'block'
-                        : 'none'
-                );
+                        : 'none';
+                });
         });
     }
-
-    /* ===== AUTO-LOAD SELECTED ===== */
-    @if(!empty($selected))
-        loadServicePanel("{{ route('service.show', $selected) }}");
-    @endif
 
     /* ✅ If upload had errors, reopen modal (match Book/Leads) */
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadServiceModal');
         if (modalEl) new bootstrap.Modal(modalEl).show();
+    @endif
+
+    /* ✅ AUTO-LOAD SELECTED (click-style, uses the row’s data-show-url) */
+    @if(!empty($selected))
+        const selectedRow = document.querySelector(`.js-service-row[data-id="{{ $selected }}"]`);
+        if (selectedRow) {
+            document.querySelectorAll('.js-service-row')
+                .forEach(r => r.classList.remove('active-contact-row'));
+            selectedRow.classList.add('active-contact-row');
+            loadServicePanel(selectedRow.dataset.showUrl);
+        } else {
+            loadServicePanel("{{ route('service.show', $selected) }}");
+        }
     @endif
 });
 </script>
