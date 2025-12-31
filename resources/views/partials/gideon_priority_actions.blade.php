@@ -254,25 +254,36 @@
         return 'P5';
     }
 
+    // ✅ EDIT: route Missing Beneficiaries / Missing Emergency Contact to Book of Business client card
     function ctaForItem(item) {
         const entityType = String(item.entity_type || '');
         const entityId   = item.entity_id;
+        const category   = String(item.category || '');
 
+        // These live under Book of Business (contact relationships), so open the book client page
+        if (entityId && (category === 'missing_beneficiaries' || category === 'missing_emergency_contact')) {
+            return { label: 'Open Client', url: `/book/${entityId}` };
+        }
+
+        // Lead
         if (entityType === 'lead' && entityId) {
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
-        if (String(item.category || '').includes('revive_lead') && entityId) {
+        if (category.includes('revive_lead') && entityId) {
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
 
+        // Book client (if your backend ever stores these types)
         if ((entityType === 'book' || entityType === 'client') && entityId) {
-            return { label: 'Open Book Client', url: `/book/${entityId}` };
+            return { label: 'Open Client', url: `/book/${entityId}` };
         }
 
+        // Service
         if (entityType === 'service' && entityId) {
             return { label: 'Open Service Client', url: `/service/${entityId}` };
         }
 
+        // Default fallback
         return { label: 'Open', url: '/contacts' };
     }
 
@@ -380,7 +391,7 @@
     async function loadTop() {
         try {
             const res = await fetch(ENDPOINTS.top + '?_=' + Date.now(), {
-                credentials: 'same-origin', // ✅ FIX: send session cookie
+                credentials: 'same-origin', // ✅ send session cookie
                 cache: 'no-store',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
@@ -411,7 +422,7 @@
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                credentials: 'same-origin', // ✅ FIX: send session cookie
+                credentials: 'same-origin', // ✅ send session cookie
                 headers: {
                     'X-CSRF-TOKEN': csrfToken(),
                     'X-Requested-With': 'XMLHttpRequest',
