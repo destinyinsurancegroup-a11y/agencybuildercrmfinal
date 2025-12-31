@@ -16,8 +16,10 @@ use Illuminate\Support\Facades\Schema;
  *
  * QUICK SCAN (deep=false):
  *  - Revive old leads (30+ days untouched)
- *  - Missing/insufficient Beneficiaries (needs >= 2)
- *  - Missing Emergency Contacts (needs >= 1)
+ *  - Beneficiary/Emergency Contact opportunities (Option 1: ONE opportunity per client)
+ *      - If tabs are empty (no relations) -> opportunity
+ *      - If beneficiary/emergency exists but contacted = No (0) -> opportunity
+ *      - If beneficiaries < 2 OR emergency contacts < 1 -> opportunity
  *
  * DEEP SCAN (deep=true):
  *  - Policy review opportunities (policies older than X months)
@@ -67,7 +69,7 @@ class OpportunityScanner
         }
 
         // ------------------------------------------------------------
-        // QUICK SCAN: Beneficiaries + Emergency Contacts
+        // QUICK SCAN: Beneficiaries + Emergency Contacts (Book of Business)
         // ------------------------------------------------------------
         [$countBec, $msgBec] = $this->scanBeneficiariesAndEmergencyContacts($agencyId, $userId);
         $createdCount += $countBec;
@@ -157,48 +159,51 @@ class OpportunityScanner
     }
 
     /**
-     * QUICK SCAN:
-     * - Beneficiaries: require >= 2
-     * - Emergency Contacts: require >= 1
+     * QUICK SCAN (Book of Business only) — Option 1: ONE opportunity per client.
      *
-     * Works even if your app uses either:
-     * - beneficiaries + emergency_contacts tables
-     * - beneficiaries + emergencies tables
+     * Your actual data model:
+     * - Beneficiaries/Emergency contacts live in `contact_relations`
+     * - `contact_relations.type` is 'beneficiary' or 'emergency'
+     * - `contact_relations.contacted` (0 = No / not contacted yet)
      *
-     * If none of these tables exist, this rule safely no-ops.
+     * Create ONE opportunity per Book-of-Business client when ANY is true:
+     * - No relations at all (tabs empty)
+     * - Beneficiaries < 2
+     * - Emergency contacts < 1
+     * - Any relation has contacted = 0
      */
     protected function scanBeneficiariesAndEmergencyContacts(int $agencyId, ?int $userId): array
     {
-        if (! Schema::hasTable('contacts')) {
+        if (!Schema::hasTable('contacts')) {
             return [0, 'Contacts table not found; BEC scan skipped.'];
         }
 
-        // Detect table names
-        $benefTable = Schema::hasTable('beneficiaries') ? 'beneficiaries' : null;
-
-        $emergencyTable = null;
-        if (Schema::hasTable('emergency_contacts')) $emergencyTable = 'emergency_contacts';
-        elseif (Schema::hasTable('emergencies')) $emergencyTable = 'emergencies';
-
-        if (! $benefTable && ! $emergencyTable) {
-            return [0, 'Beneficiary/Emergency tables not found; BEC scan skipped.'];
+        if (!Schema::hasTable('contact_relations')) {
+            return [0, 'contact_relations table not found; BEC scan skipped.'];
         }
 
-        // Build contacts query (prefer scoping out Lead records if contact_type exists)
+        // Required columns (safe guards)
+        foreach (['contact_id', 'type', 'contacted'] as $col) {
+            if (!Schema::hasColumn('contact_relations', $col)) {
+                return [0, "contact_relations missing required column {$col}; BEC scan skipped."];
+            }
+        }
+
+        // Book of Business contacts only
         $contactsQ = DB::table('contacts')->select(['id']);
 
         if (Schema::hasColumn('contacts', 'agency_id')) {
             $contactsQ->where('agency_id', $agencyId);
         }
 
-        // If you have contact_type, exclude leads (we want Book/Clients/Service)
-        if (Schema::hasColumn('contacts', 'contact_type')) {
-            $contactsQ->where(function ($q) {
-                $q->whereNull('contact_type')->orWhere('contact_type', '!=', 'Lead');
-            });
+        // Prefer the real flag your app uses
+        if (Schema::hasColumn('contacts', 'in_book_of_business')) {
+            $contactsQ->where('in_book_of_business', 1);
+        } elseif (Schema::hasColumn('contacts', 'contact_type')) {
+            $contactsQ->where('contact_type', 'book');
         }
 
-        // If you have an "archived" concept, skip archived
+        // Skip archived if present
         if (Schema::hasColumn('contacts', 'status')) {
             $contactsQ->where(function ($q) {
                 $q->whereNull('status')->orWhere('status', '!=', 'archived');
@@ -208,103 +213,123 @@ class OpportunityScanner
         $touched = 0;
         $scanned = 0;
 
-        $contactsQ->orderBy('id')->chunk(250, function ($rows) use (
-            $agencyId, $userId, $benefTable, $emergencyTable, &$touched, &$scanned
-        ) {
+        $contactsQ->orderBy('id')->chunk(200, function ($rows) use ($agencyId, $userId, &$touched, &$scanned) {
             foreach ($rows as $c) {
                 $scanned++;
 
-                // Beneficiaries count
-                $benefCount = null;
-                if ($benefTable) {
-                    $benefCount = DB::table($benefTable)
-                        ->where('contact_id', $c->id)
-                        ->count();
+                $relsQ = DB::table('contact_relations')
+                    ->where('contact_id', $c->id)
+                    ->whereIn('type', ['beneficiary', 'emergency']);
+
+                // Scope by agency_id if the column exists
+                if (Schema::hasColumn('contact_relations', 'agency_id')) {
+                    $relsQ->where('agency_id', $agencyId);
                 }
 
-                // Emergency contacts count
-                $emCount = null;
-                if ($emergencyTable) {
-                    // common FK is contact_id; if not, this will simply be 0 and no-op safely
-                    $emCount = DB::table($emergencyTable)
-                        ->where('contact_id', $c->id)
-                        ->count();
+                $rels = $relsQ->get(['type', 'contacted']);
+
+                $total = $rels->count();
+
+                $benefTotal = 0;
+                $emTotal = 0;
+                $benefUncontacted = 0;
+                $emUncontacted = 0;
+
+                foreach ($rels as $r) {
+                    $type = strtolower((string) ($r->type ?? ''));
+                    $contacted = (int) ($r->contacted ?? 0);
+
+                    if ($type === 'beneficiary') {
+                        $benefTotal++;
+                        if ($contacted === 0) $benefUncontacted++;
+                    } elseif ($type === 'emergency') {
+                        $emTotal++;
+                        if ($contacted === 0) $emUncontacted++;
+                    }
                 }
 
-                // Create opportunities only when there's a real gap
-                if ($benefTable && is_int($benefCount) && $benefCount < 2) {
-                    $needed = 2 - $benefCount;
+                // Your rules
+                $tabsEmpty = ($total === 0);
+                $missingBenefMin = ($benefTotal < 2);
+                $missingEmergencyMin = ($emTotal < 1);
+                $hasUncontacted = ($benefUncontacted > 0 || $emUncontacted > 0);
 
-                    $opp = GideonOpportunity::updateOrCreate(
-                        [
-                            'agency_id'   => $agencyId,
-                            'entity_type' => 'contact',
-                            'entity_id'   => $c->id,
-                            'category'    => 'missing_beneficiaries',
-                        ],
-                        [
-                            'user_id'            => $userId ?: null,
-                            'title'              => $benefCount === 0
-                                ? 'Add beneficiaries (none on file)'
-                                : 'Add more beneficiaries (need at least 2)',
-                            'short_reason'       => $benefCount === 0
-                                ? 'No beneficiaries are on file. This creates claim friction and increases lapse/cancellation risk.'
-                                : "Only {$benefCount} beneficiary on file. Minimum standard is 2 for redundancy and clarity.",
-                            'recommended_action' => $needed === 1
-                                ? 'Ask client for a second beneficiary (backup). Confirm relationship + phone.'
-                                : 'Collect 2+ beneficiaries: full name, relationship, phone, and % if applicable.',
-                            'score'              => $benefCount === 0 ? 92 : 85,
-                            'status'             => 'open',
-                            'source_snapshot'    => [
-                                'contact_id'           => $c->id,
-                                'beneficiaries_count'  => $benefCount,
-                                'target_minimum'       => 2,
-                                'why_it_matters'       => [
-                                    'Prevents claim delays/confusion',
-                                    'Improves persistency and reduces cancellations',
-                                    'Creates a natural reason for a policy review + family conversation',
-                                ],
+                // Only create if there is a REAL opportunity
+                if (!($tabsEmpty || $missingBenefMin || $missingEmergencyMin || $hasUncontacted)) {
+                    continue;
+                }
+
+                // Option 1: ONE opportunity per client (do not spam)
+                $category = 'beneficiary_emergency_opportunity';
+
+                // Score: strongest if completely missing; then missing minimums; then uncontacted follow-up
+                $score = 75;
+                if ($tabsEmpty) $score = 92;
+                elseif ($missingBenefMin || $missingEmergencyMin) $score = 88;
+                elseif ($hasUncontacted) $score = 85;
+
+                // Title + message (keep it clear, no internal labels shown to users later)
+                $title = 'Beneficiaries & emergency contacts need attention';
+
+                if ($tabsEmpty) {
+                    $shortReason = 'This client has no beneficiaries or emergency contacts on file.';
+                    $recommendedAction = 'Open the client and add at least 2 beneficiaries and 1 emergency contact (name, relationship, phone).';
+                } elseif ($missingBenefMin || $missingEmergencyMin) {
+                    $parts = [];
+                    if ($missingBenefMin) $parts[] = 'needs at least 2 beneficiaries';
+                    if ($missingEmergencyMin) $parts[] = 'needs at least 1 emergency contact';
+                    $shortReason = 'This client is missing required protection contacts: ' . implode(' and ', $parts) . '.';
+                    $recommendedAction = 'Collect missing contacts (name, relationship, phone) and save them to the client.';
+                } else {
+                    $shortReason = 'At least one listed beneficiary or emergency contact is marked “No” for contacted.';
+                    $recommendedAction = 'Call/text the listed contacts, confirm details, and mark them as contacted.';
+                }
+
+                $whyItMatters = [
+                    'Prevents claim delays/confusion',
+                    'Improves persistency and reduces cancellations',
+                    'Creates a natural reason for a policy review + referrals',
+                ];
+
+                $opp = GideonOpportunity::updateOrCreate(
+                    [
+                        'agency_id'   => $agencyId,
+                        'entity_type' => 'contact',
+                        'entity_id'   => $c->id,
+                        'category'    => $category,
+                    ],
+                    [
+                        'user_id'            => $userId ?: null,
+                        'title'              => $title,
+                        'short_reason'       => $shortReason,
+                        'recommended_action' => $recommendedAction,
+                        'score'              => $score,
+                        'status'             => 'open',
+                        'source_snapshot'    => [
+                            'contact_id' => $c->id,
+                            'counts' => [
+                                'beneficiaries_total'       => $benefTotal,
+                                'emergency_total'           => $emTotal,
+                                'beneficiaries_uncontacted' => $benefUncontacted,
+                                'emergency_uncontacted'     => $emUncontacted,
+                                'total_relations'           => $total,
                             ],
-                        ]
-                    );
-
-                    if ($opp) $touched++;
-                }
-
-                if ($emergencyTable && is_int($emCount) && $emCount < 1) {
-                    $opp = GideonOpportunity::updateOrCreate(
-                        [
-                            'agency_id'   => $agencyId,
-                            'entity_type' => 'contact',
-                            'entity_id'   => $c->id,
-                            'category'    => 'missing_emergency_contact',
-                        ],
-                        [
-                            'user_id'            => $userId ?: null,
-                            'title'              => 'Add an emergency contact (none on file)',
-                            'short_reason'       => 'No emergency contact is on file. This weakens your ability to protect persistency and support the family.',
-                            'recommended_action' => 'Collect 1 emergency contact: full name, relationship, and phone. Confirm best time to reach them.',
-                            'score'              => 90,
-                            'status'             => 'open',
-                            'source_snapshot'    => [
-                                'contact_id'            => $c->id,
-                                'emergency_count'       => $emCount,
-                                'target_minimum'        => 1,
-                                'why_it_matters'        => [
-                                    'Helps prevent lapses by reaching someone if client is unavailable',
-                                    'Creates a second relationship inside the household/family',
-                                    'Reduces chargebacks by increasing touchpoints and support',
-                                ],
+                            'rules_triggered' => [
+                                'tabs_empty'            => $tabsEmpty,
+                                'missing_benef_min_2'   => $missingBenefMin,
+                                'missing_em_min_1'      => $missingEmergencyMin,
+                                'has_uncontacted'       => $hasUncontacted,
                             ],
-                        ]
-                    );
+                            'why_it_matters' => $whyItMatters,
+                        ],
+                    ]
+                );
 
-                    if ($opp) $touched++;
-                }
+                if ($opp) $touched++;
             }
         });
 
-        return [$touched, "BEC scan executed for {$scanned} contacts."];
+        return [$touched, "BEC scan (contact_relations) executed for {$scanned} book contacts."];
     }
 
     /**
