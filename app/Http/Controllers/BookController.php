@@ -42,8 +42,13 @@ class BookController extends Controller
         ->orderBy('last_name')
         ->orderBy('first_name');
 
-        $clients  = $query->get();
+        $clients = $query->get();
+
+        // ✅ FIX: allow both ?selected= and ?contact_id= (backwards/forwards compatible)
         $selected = $request->get('selected');
+        if (!$selected) {
+            $selected = $request->get('contact_id');
+        }
 
         return view('book.index', compact('clients', 'selected'));
     }
@@ -109,11 +114,15 @@ class BookController extends Controller
 
     public function show(Contact $client)
     {
-        if (request()->ajax()) {
-            return view('book.partials.details', compact('client'));
+        // ✅ FIX: Clicking "Open Client" from Gideon should NOT 404.
+        // The Book page UI loads the right panel via AJAX, but the initial navigation is a normal request.
+        // So for non-AJAX requests, redirect to /book?selected={id} which makes the UI load that client.
+        if (!request()->ajax()) {
+            return redirect()->route('book.index', ['selected' => $client->id]);
         }
 
-        return abort(404);
+        // AJAX request: return the details partial for the right panel
+        return view('book.partials.details', compact('client'));
     }
 
     public function editPanel(Contact $client)
