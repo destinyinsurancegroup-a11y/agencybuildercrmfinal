@@ -101,11 +101,23 @@
     <!-- BOOTSTRAP JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- TIMEZONE FIX -->
+    <!-- TIME DISPLAY SUPPORT (handles both legacy and ms-based attributes safely) -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const elements = document.querySelectorAll(".local-time");
             elements.forEach(el => {
+                // Preferred (your dashboard): epoch milliseconds
+                const ms = el.getAttribute("data-server-time-ms");
+                if (ms) {
+                    const n = parseInt(ms, 10);
+                    if (!isNaN(n)) {
+                        const localDate = new Date(n);
+                        el.innerText = localDate.toLocaleString();
+                        return;
+                    }
+                }
+
+                // Legacy fallback: data-server-time string
                 const serverTime = el.getAttribute("data-server-time");
                 if (serverTime) {
                     const localDate = new Date(serverTime + " UTC");
@@ -117,22 +129,25 @@
 
     <!-- ⭐ OPEN ACTIVITY POPUP ⭐ -->
     <script>
-    function openActivityPopup() {
-        fetch("{{ route('activity.popup') }}")
-            .then(res => res.text())
-            .then(html => {
-                let wrap = document.createElement('div');
-                wrap.innerHTML = html;
-                document.body.appendChild(wrap);
+        function openActivityPopup() {
+            fetch("{{ route('activity.popup') }}", {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                cache: "no-store"
+            })
+                .then(res => res.text())
+                .then(html => {
+                    let wrap = document.createElement('div');
+                    wrap.innerHTML = html;
+                    document.body.appendChild(wrap);
 
-                let modalElement = wrap.querySelector('.modal');
-                let popup = new bootstrap.Modal(modalElement);
+                    let modalElement = wrap.querySelector('.modal');
+                    let popup = new bootstrap.Modal(modalElement);
 
-                popup.show();
+                    popup.show();
 
-                modalElement.addEventListener('hidden.bs.modal', () => wrap.remove());
-            });
-    }
+                    modalElement.addEventListener('hidden.bs.modal', () => wrap.remove());
+                });
+        }
     </script>
 
     <!-- ⭐ GLOBAL SAVE HANDLER FOR ACTIVITY POPUP ⭐ -->
@@ -149,7 +164,11 @@
 
             fetch(form.getAttribute('action'), {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
                 body: formData
             })
             .then(res => res.json())
@@ -166,9 +185,7 @@
                     bootstrap.Modal.getInstance(modalEl).hide();
                 }
 
-                // ✅ Clean separation:
-                // Do not force dashboard refresh logic here.
-                // Just broadcast "activity saved" so any page that cares can refresh itself.
+                // Broadcast "activity saved" so any page that cares can refresh itself.
                 window.dispatchEvent(new CustomEvent('activity:saved'));
             })
             .catch(() => {
@@ -177,6 +194,7 @@
         });
     </script>
 
+    {{-- ✅ REQUIRED: renders @push('scripts') from partials/pages (Gideon wiring lives here) --}}
     @stack('scripts')
 
 </body>
