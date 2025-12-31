@@ -177,9 +177,6 @@ Route::middleware('auth')->group(function () {
         /**
          * ✅ NEW: Stable deep-link helper for Gideon (and future links)
          * /book/open/285  ->  /book?open=285
-         *
-         * Why: lets the dashboard always link to a specific client while still
-         * landing inside the Book of Business page (list + right panel).
          */
         Route::get('/open/{client}', function ($client) {
             return redirect()->route('book.index', ['open' => $client]);
@@ -361,13 +358,32 @@ Route::middleware('auth')->group(function () {
     | GIDEON
     |--------------------------------------------------------------------------
     */
+
+    // ✅ List opportunities (JSON)
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
+    // ✅ NEW: Opportunity actions (snooze 7 days, unsnooze, dismiss, complete)
+    // These power the Option 4 behavior.
+    Route::prefix('gideon/opportunities')->group(function () {
+        Route::post('/{opportunity}/snooze',   [GideonOpportunitiesController::class, 'snooze'])
+            ->name('gideon.opportunities.snooze');
+
+        Route::post('/{opportunity}/unsnooze', [GideonOpportunitiesController::class, 'unsnooze'])
+            ->name('gideon.opportunities.unsnooze');
+
+        Route::post('/{opportunity}/dismiss',  [GideonOpportunitiesController::class, 'dismiss'])
+            ->name('gideon.opportunities.dismiss');
+
+        Route::post('/{opportunity}/complete', [GideonOpportunitiesController::class, 'complete'])
+            ->name('gideon.opportunities.complete');
+    });
+
+    // ✅ Scans + dashboard top list
     Route::prefix('gideon')->group(function () {
-        Route::post('/scan', [GideonScanController::class, 'scan'])->name('gideon.scan');
+        Route::post('/scan',      [GideonScanController::class, 'scan'])->name('gideon.scan');
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
-        Route::get('/top', [GideonScanController::class, 'top'])->name('gideon.top');
+        Route::get('/top',        [GideonScanController::class, 'top'])->name('gideon.top');
     });
 
     Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
