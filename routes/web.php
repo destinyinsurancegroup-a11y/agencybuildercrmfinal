@@ -173,6 +173,18 @@ Route::middleware('auth')->group(function () {
     Route::prefix('book')->group(function () {
 
         Route::get('/', [BookController::class, 'index'])->name('book.index');
+
+        /**
+         * ✅ NEW: Stable deep-link helper for Gideon (and future links)
+         * /book/open/285  ->  /book?open=285
+         *
+         * Why: lets the dashboard always link to a specific client while still
+         * landing inside the Book of Business page (list + right panel).
+         */
+        Route::get('/open/{client}', function ($client) {
+            return redirect()->route('book.index', ['open' => $client]);
+        })->name('book.open');
+
         Route::get('/create-panel', [BookController::class, 'createPanel'])->name('book.create.panel');
         Route::post('/', [BookController::class, 'store'])->name('book.store');
         Route::get('/{client}', [BookController::class, 'show'])->name('book.show');
@@ -202,6 +214,15 @@ Route::middleware('auth')->group(function () {
     Route::prefix('service')->group(function () {
 
         Route::get('/', [ServiceController::class, 'index'])->name('service.index');
+
+        /**
+         * ✅ OPTIONAL (but recommended): stable deep-link helper like Book
+         * /service/open/123 -> /service?open=123
+         */
+        Route::get('/open/{client}', function ($client) {
+            return redirect()->route('service.index', ['open' => $client]);
+        })->name('service.open');
+
         Route::get('/create-panel', [ServiceController::class, 'createPanel'])->name('service.create.panel');
         Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
