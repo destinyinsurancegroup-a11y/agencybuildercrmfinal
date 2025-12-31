@@ -127,7 +127,6 @@
                 Refresh
             </button>
 
-            {{-- Optional: link to view all opportunities (safe URL, no route dependency) --}}
             <a href="{{ url('/gideon/opportunities') }}"
                class="gideon-btn"
                style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
@@ -136,7 +135,7 @@
         </div>
     </div>
 
-    {{-- Scope chips (what Gideon is scanning) --}}
+    {{-- Scope chips --}}
     @if(count($scope) > 0)
         <div class="gideon-scope">
             Scanning:
@@ -197,12 +196,8 @@
 @push('scripts')
 <script>
 (function () {
-    // ✅ Debug marker: proves this script is actually running
     console.log("✅ Gideon priority_actions script is running");
 
-    // -----------------------------
-    // Config
-    // -----------------------------
     const ENDPOINTS = {
         quick: "{{ url('/gideon/scan') }}",
         deep:  "{{ url('/gideon/scan/deep') }}",
@@ -259,7 +254,6 @@
         return 'P5';
     }
 
-    // Best-effort CTA routing (won’t 500 if routes differ)
     function ctaForItem(item) {
         const entityType = String(item.entity_type || '');
         const entityId   = item.entity_id;
@@ -386,6 +380,7 @@
     async function loadTop() {
         try {
             const res = await fetch(ENDPOINTS.top + '?_=' + Date.now(), {
+                credentials: 'same-origin', // ✅ FIX: send session cookie
                 cache: 'no-store',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
@@ -416,6 +411,7 @@
         try {
             const res = await fetch(url, {
                 method: 'POST',
+                credentials: 'same-origin', // ✅ FIX: send session cookie
                 headers: {
                     'X-CSRF-TOKEN': csrfToken(),
                     'X-Requested-With': 'XMLHttpRequest',
@@ -457,11 +453,9 @@
         if (ref)   ref.addEventListener('click',   () => loadTop());
 
         loadTop();
-
         window.addEventListener('activity:saved', () => loadTop());
     }
 
-    // ✅ Important: if DOMContentLoaded already fired, this still wires correctly
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', wire);
     } else {
