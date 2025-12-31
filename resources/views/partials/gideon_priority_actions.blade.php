@@ -97,6 +97,7 @@
     .gideon-btn { border-radius: 10px; padding: 8px 10px; border: 1px solid #d1d5db; background: #fff; font-weight: 800; font-size: 12px; cursor:pointer; }
     .gideon-btn-primary { background: #111827; color:#fff; border-color:#111827; }
     .gideon-btn:disabled { opacity: .65; cursor: not-allowed; }
+    .gideon-bullets { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color:#6b7280; }
 </style>
 
 <div class="gideon-wrap">
@@ -115,17 +116,9 @@
         </div>
 
         <div style="display:flex; gap:8px; align-items:center;">
-            <button id="gideonQuickScanBtn" class="gideon-btn" type="button">
-                Scan
-            </button>
-
-            <button id="gideonDeepScanBtn" class="gideon-btn gideon-btn-primary" type="button">
-                Deeper Scan
-            </button>
-
-            <button id="gideonRefreshBtn" class="gideon-btn" type="button">
-                Refresh
-            </button>
+            <button id="gideonQuickScanBtn" class="gideon-btn" type="button">Scan</button>
+            <button id="gideonDeepScanBtn" class="gideon-btn gideon-btn-primary" type="button">Deeper Scan</button>
+            <button id="gideonRefreshBtn" class="gideon-btn" type="button">Refresh</button>
 
             <a href="{{ url('/gideon/opportunities') }}"
                class="gideon-btn"
@@ -196,8 +189,6 @@
 @push('scripts')
 <script>
 (function () {
-    console.log("✅ Gideon priority_actions script is running");
-
     const ENDPOINTS = {
         quick: "{{ url('/gideon/scan') }}",
         deep:  "{{ url('/gideon/scan/deep') }}",
@@ -254,16 +245,29 @@
         return 'P5';
     }
 
-    // ✅ EDIT: route Missing Beneficiaries / Missing Emergency Contact to Book of Business client card
+    // ✅ Pull a readable client name if backend provided one in source_snapshot (best-effort)
+    function clientNameFromItem(item) {
+        const snap = item && item.source_snapshot ? item.source_snapshot : null;
+        const name =
+            (snap && (snap.full_name || snap.contact_name || snap.name)) ||
+            item.full_name ||
+            item.contact_name;
+
+        if (name && String(name).trim() !== '') return String(name).trim();
+
+        // fallback: don't show blank
+        const id = item && item.entity_id ? String(item.entity_id) : '';
+        return id ? `Client #${id}` : 'Client';
+    }
+
+    // ✅ Best-effort CTA routing:
+    // - Lead → /leads/{id}
+    // - Missing beneficiaries/emergency contact → /book/{contactId}
+    // - Default → /contacts
     function ctaForItem(item) {
         const entityType = String(item.entity_type || '');
         const entityId   = item.entity_id;
         const category   = String(item.category || '');
-
-        // These live under Book of Business (contact relationships), so open the book client page
-        if (entityId && (category === 'missing_beneficiaries' || category === 'missing_emergency_contact')) {
-            return { label: 'Open Client', url: `/book/${entityId}` };
-        }
 
         // Lead
         if (entityType === 'lead' && entityId) {
@@ -273,7 +277,18 @@
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
 
-        // Book client (if your backend ever stores these types)
+        // ✅ Book-of-business opportunities stored as entity_type=contact
+        // (beneficiaries/emergency contacts live under Book of Business)
+        if (entityId && (
+            category === 'missing_beneficiaries' ||
+            category === 'missing_emergency_contact' ||
+            category.includes('beneficiar') ||
+            category.includes('emergency')
+        )) {
+            return { label: 'Open Client', url: `/book/${entityId}` };
+        }
+
+        // If backend ever sets entity_type as book/client
         if ((entityType === 'book' || entityType === 'client') && entityId) {
             return { label: 'Open Client', url: `/book/${entityId}` };
         }
@@ -283,7 +298,6 @@
             return { label: 'Open Service Client', url: `/service/${entityId}` };
         }
 
-        // Default fallback
         return { label: 'Open', url: '/contacts' };
     }
 
@@ -329,9 +343,32 @@
             const p = priorityFromScore(item.score);
             const color = COLORS[p] || COLORS.P3;
 
-            const title = String(item.title || 'Priority action');
-            const reason = String(item.short_reason || '');
-            const meta = String(item.recommended_action || '');
+            const category = String(item.category || '');
+            const clientName = clientNameFromItem(item);
+
+            // Default fields
+            let title = String(item.title || 'Priority action');
+            let reason = String(item.short_reason || '');
+            let meta = String(item.recommended_action || '');
+
+            // ✅ Improve the BEC dashboard explanation + show client name right in the title
+            const isBEC =
+                category === 'missing_beneficiaries' ||
+                category === 'missing_emergency_contact' ||
+                category.includes('beneficiar') ||
+                category.includes('emergency');
+
+            if (isBEC) {
+                title = `Beneficiaries & emergency contacts need attention — ${clientName}`;
+                // Keep backend reason if it’s good; if not, provide a clean one:
+                if (!reason || reason.trim() === '') {
+                    reason = 'Missing or not-yet-contacted beneficiary/emergency contact info is a production opportunity.';
+                }
+                // If backend didn’t provide a next step, give one:
+                if (!meta || meta.trim() === '') {
+                    meta = 'Open the client and confirm beneficiaries + emergency contacts (name, relationship, phone). Mark contacted.';
+                }
+            }
 
             const cta = ctaForItem(item);
 
@@ -357,6 +394,18 @@
                 r.className = 'gideon-action-reason';
                 r.textContent = reason;
                 mid.appendChild(r);
+            }
+
+            // ✅ Add your 3 “why this matters” points on the dashboard (only for BEC)
+            if (isBEC) {
+                const ul = document.createElement('ul');
+                ul.className = 'gideon-bullets';
+                ul.innerHTML = `
+                    <li><strong>Right thing to do:</strong> beneficiaries should know coverage exists.</li>
+                    <li><strong>Can save your deal:</strong> reduces lapses/cancellations if the client goes dark.</li>
+                    <li><strong>More premium:</strong> beneficiaries/emergency contacts can become new policies.</li>
+                `;
+                mid.appendChild(ul);
             }
 
             if (meta) {
@@ -391,7 +440,7 @@
     async function loadTop() {
         try {
             const res = await fetch(ENDPOINTS.top + '?_=' + Date.now(), {
-                credentials: 'same-origin', // ✅ send session cookie
+                credentials: 'same-origin',
                 cache: 'no-store',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
@@ -422,7 +471,7 @@
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                credentials: 'same-origin', // ✅ send session cookie
+                credentials: 'same-origin',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken(),
                     'X-Requested-With': 'XMLHttpRequest',
@@ -432,12 +481,9 @@
             });
 
             let data = null;
-            try {
-                data = await res.json();
-            } catch (_) {}
+            try { data = await res.json(); } catch (_) {}
 
             if (!res.ok || !data || data.success !== true) {
-                console.error('Gideon scan failed:', res.status, data);
                 setStatus('#DC2626', 'Scan error', null);
                 await loadTop();
                 return;
@@ -446,7 +492,6 @@
             setStatus('#22C55E', 'Scan ready', 0);
             await loadTop();
         } catch (e) {
-            console.error('Gideon scan exception:', e);
             setStatus('#DC2626', 'Scan error', null);
             await loadTop();
         } finally {
