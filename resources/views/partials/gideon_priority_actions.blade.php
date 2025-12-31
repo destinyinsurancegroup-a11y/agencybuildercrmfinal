@@ -11,8 +11,7 @@
     $minutesAgo = $scan['minutes_ago'] ?? null;
     $scope = is_array($scan['scope'] ?? null) ? $scan['scope'] : [];
 
-    // ✅ Priority color mapping (you asked for color codes earlier)
-    // These are used as inline fallback even if CSS fails to load.
+    // ✅ Priority color mapping
     $priorityColors = [
         'P1' => ['bg' => '#DC2626', 'text' => '#FFFFFF'], // red
         'P2' => ['bg' => '#F59E0B', 'text' => '#111827'], // amber
@@ -60,7 +59,7 @@
         ];
     }
 
-    // Limit to 5 actions max (your Gideon rule)
+    // Limit to 5 actions max
     $actions = array_slice($actions, 0, 5);
 
     // Human scan status label
@@ -190,7 +189,6 @@
         @endforeach
     </ul>
 
-    {{-- Footer hint (kept tight) --}}
     <div style="font-size:12px; color:#6b7280;">
         Gideon prioritizes actions most likely to increase production first.
     </div>
@@ -199,6 +197,9 @@
 @push('scripts')
 <script>
 (function () {
+    // ✅ Debug marker: proves this script is actually running
+    console.log("✅ Gideon priority_actions script is running");
+
     // -----------------------------
     // Config
     // -----------------------------
@@ -249,7 +250,6 @@
         if (ref)   ref.disabled   = disabled;
     }
 
-    // Score -> Priority (simple, deterministic)
     function priorityFromScore(score) {
         const s = Number(score || 0);
         if (s >= 90) return 'P1';
@@ -259,12 +259,11 @@
         return 'P5';
     }
 
-    // Best-effort CTA routing (won’t 500 if routes differ; worst case opens list pages)
+    // Best-effort CTA routing (won’t 500 if routes differ)
     function ctaForItem(item) {
         const entityType = String(item.entity_type || '');
         const entityId   = item.entity_id;
 
-        // Lead
         if (entityType === 'lead' && entityId) {
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
@@ -272,17 +271,14 @@
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
 
-        // Book client
         if ((entityType === 'book' || entityType === 'client') && entityId) {
             return { label: 'Open Book Client', url: `/book/${entityId}` };
         }
 
-        // Service
         if (entityType === 'service' && entityId) {
             return { label: 'Open Service Client', url: `/service/${entityId}` };
         }
 
-        // Default
         return { label: 'Open', url: '/contacts' };
     }
 
@@ -349,7 +345,6 @@
             const t = document.createElement('p');
             t.className = 'gideon-action-title';
             t.textContent = title;
-
             mid.appendChild(t);
 
             if (reason) {
@@ -390,7 +385,16 @@
 
     async function loadTop() {
         try {
-            const res = await fetch(ENDPOINTS.top + '?_=' + Date.now(), { cache: 'no-store' });
+            const res = await fetch(ENDPOINTS.top + '?_=' + Date.now(), {
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
+
+            if (!res.ok) {
+                renderTop([]);
+                return;
+            }
+
             const data = await res.json();
             if (!data || data.success !== true) {
                 renderTop([]);
@@ -417,21 +421,25 @@
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
                 },
-                body: new URLSearchParams({}) // keeps POST consistent
+                cache: 'no-store'
             });
 
-            const data = await res.json();
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (_) {}
 
-            if (!data || data.success !== true) {
+            if (!res.ok || !data || data.success !== true) {
+                console.error('Gideon scan failed:', res.status, data);
                 setStatus('#DC2626', 'Scan error', null);
                 await loadTop();
                 return;
             }
 
-            // Scan finished successfully
             setStatus('#22C55E', 'Scan ready', 0);
             await loadTop();
         } catch (e) {
+            console.error('Gideon scan exception:', e);
             setStatus('#DC2626', 'Scan error', null);
             await loadTop();
         } finally {
@@ -439,8 +447,7 @@
         }
     }
 
-    // Wire buttons
-    document.addEventListener('DOMContentLoaded', function () {
+    function wire() {
         const quick = document.getElementById('gideonQuickScanBtn');
         const deep  = document.getElementById('gideonDeepScanBtn');
         const ref   = document.getElementById('gideonRefreshBtn');
@@ -449,14 +456,17 @@
         if (deep)  deep.addEventListener('click',  () => runScan('deep'));
         if (ref)   ref.addEventListener('click',   () => loadTop());
 
-        // Auto-load top items on dashboard load
         loadTop();
 
-        // Optional: when activity is saved, refresh Gideon card (helps the feedback loop)
-        window.addEventListener('activity:saved', () => {
-            loadTop();
-        });
-    });
+        window.addEventListener('activity:saved', () => loadTop());
+    }
+
+    // ✅ Important: if DOMContentLoaded already fired, this still wires correctly
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', wire);
+    } else {
+        wire();
+    }
 })();
 </script>
 @endpush
