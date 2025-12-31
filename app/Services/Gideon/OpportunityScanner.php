@@ -171,35 +171,61 @@ class OpportunityScanner
      * - Beneficiaries < 2
      * - Emergency contacts < 1
      * - Any relation has contacted = 0
+     *
+     * IMPORTANT EDITS ADDED:
+     * - Pull the client's NAME from contacts and store it in:
+     *    - opportunity title ("... — Thomas Adams")
+     *    - source_snapshot.contact_name
+     * - Store routing hints in source_snapshot so the dashboard "Open Client" button
+     *   can reliably route to /book/{id}:
+     *    - source_snapshot.in_book_of_business
+     *    - source_snapshot.contact_type
      */
     protected function scanBeneficiariesAndEmergencyContacts(int $agencyId, ?int $userId): array
     {
-        if (!Schema::hasTable('contacts')) {
+        if (! Schema::hasTable('contacts')) {
             return [0, 'Contacts table not found; BEC scan skipped.'];
         }
 
-        if (!Schema::hasTable('contact_relations')) {
+        if (! Schema::hasTable('contact_relations')) {
             return [0, 'contact_relations table not found; BEC scan skipped.'];
         }
 
         // Required columns (safe guards)
         foreach (['contact_id', 'type', 'contacted'] as $col) {
-            if (!Schema::hasColumn('contact_relations', $col)) {
+            if (! Schema::hasColumn('contact_relations', $col)) {
                 return [0, "contact_relations missing required column {$col}; BEC scan skipped."];
             }
         }
 
+        // Build select list dynamically (so we can show client name and route to book)
+        $select = ['id'];
+
+        $hasFullName = Schema::hasColumn('contacts', 'full_name');
+        $hasFirst    = Schema::hasColumn('contacts', 'first_name');
+        $hasLast     = Schema::hasColumn('contacts', 'last_name');
+
+        if ($hasFullName) $select[] = 'full_name';
+        if ($hasFirst)    $select[] = 'first_name';
+        if ($hasLast)     $select[] = 'last_name';
+
+        $hasContactType = Schema::hasColumn('contacts', 'contact_type');
+        $hasInBoB       = Schema::hasColumn('contacts', 'in_book_of_business');
+
+        if ($hasContactType) $select[] = 'contact_type';
+        if ($hasInBoB)       $select[] = 'in_book_of_business';
+
         // Book of Business contacts only
-        $contactsQ = DB::table('contacts')->select(['id']);
+        $contactsQ = DB::table('contacts')->select($select);
 
         if (Schema::hasColumn('contacts', 'agency_id')) {
             $contactsQ->where('agency_id', $agencyId);
         }
 
         // Prefer the real flag your app uses
-        if (Schema::hasColumn('contacts', 'in_book_of_business')) {
+        if ($hasInBoB) {
             $contactsQ->where('in_book_of_business', 1);
-        } elseif (Schema::hasColumn('contacts', 'contact_type')) {
+        } elseif ($hasContactType) {
             $contactsQ->where('contact_type', 'book');
         }
 
@@ -213,9 +239,25 @@ class OpportunityScanner
         $touched = 0;
         $scanned = 0;
 
-        $contactsQ->orderBy('id')->chunk(200, function ($rows) use ($agencyId, $userId, &$touched, &$scanned) {
+        $contactsQ->orderBy('id')->chunk(200, function ($rows) use ($agencyId, $userId, $hasFullName, $hasFirst, $hasLast, $hasContactType, $hasInBoB, &$touched, &$scanned) {
             foreach ($rows as $c) {
                 $scanned++;
+
+                // Build client name for dashboard display
+                $clientName = '';
+                if ($hasFullName && ! empty($c->full_name)) {
+                    $clientName = (string) $c->full_name;
+                } else {
+                    $first = $hasFirst ? (string) ($c->first_name ?? '') : '';
+                    $last  = $hasLast  ? (string) ($c->last_name ?? '') : '';
+                    $clientName = trim($first . ' ' . $last);
+                }
+                if ($clientName === '') {
+                    $clientName = "Client #{$c->id}";
+                }
+
+                $contactType = $hasContactType ? (string) ($c->contact_type ?? '') : '';
+                $inBoB       = $hasInBoB ? (int) ($c->in_book_of_business ?? 0) : 0;
 
                 $relsQ = DB::table('contact_relations')
                     ->where('contact_id', $c->id)
@@ -255,7 +297,7 @@ class OpportunityScanner
                 $hasUncontacted = ($benefUncontacted > 0 || $emUncontacted > 0);
 
                 // Only create if there is a REAL opportunity
-                if (!($tabsEmpty || $missingBenefMin || $missingEmergencyMin || $hasUncontacted)) {
+                if (! ($tabsEmpty || $missingBenefMin || $missingEmergencyMin || $hasUncontacted)) {
                     continue;
                 }
 
@@ -268,9 +310,10 @@ class OpportunityScanner
                 elseif ($missingBenefMin || $missingEmergencyMin) $score = 88;
                 elseif ($hasUncontacted) $score = 85;
 
-                // Title + message (keep it clear, no internal labels shown to users later)
-                $title = 'Beneficiaries & emergency contacts need attention';
+                // Title should show real client name (not "Client #285")
+                $title = "Beneficiaries & emergency contacts need attention — {$clientName}";
 
+                // Clear reasons + actions
                 if ($tabsEmpty) {
                     $shortReason = 'This client has no beneficiaries or emergency contacts on file.';
                     $recommendedAction = 'Open the client and add at least 2 beneficiaries and 1 emergency contact (name, relationship, phone).';
@@ -285,10 +328,11 @@ class OpportunityScanner
                     $recommendedAction = 'Call/text the listed contacts, confirm details, and mark them as contacted.';
                 }
 
+                // Your 3 reasons (for dashboard explanation + consistency)
                 $whyItMatters = [
-                    'Prevents claim delays/confusion',
-                    'Improves persistency and reduces cancellations',
-                    'Creates a natural reason for a policy review + referrals',
+                    'Right thing to do: beneficiaries should know coverage exists.',
+                    'Can save your deal: reduces lapses/cancellations if the client goes dark.',
+                    'More premium: beneficiaries/emergency contacts can become new policies.',
                 ];
 
                 $opp = GideonOpportunity::updateOrCreate(
@@ -306,7 +350,13 @@ class OpportunityScanner
                         'score'              => $score,
                         'status'             => 'open',
                         'source_snapshot'    => [
-                            'contact_id' => $c->id,
+                            // Used by dashboard to DISPLAY the name and ROUTE correctly
+                            'contact_id'          => $c->id,
+                            'contact_name'        => $clientName,
+                            'contact_type'        => $contactType,
+                            'in_book_of_business' => $inBoB,
+
+                            // Details
                             'counts' => [
                                 'beneficiaries_total'       => $benefTotal,
                                 'emergency_total'           => $emTotal,
