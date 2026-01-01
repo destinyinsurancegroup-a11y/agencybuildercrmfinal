@@ -29,8 +29,13 @@ class GideonScanController extends Controller
     }
 
     /**
-     * For the dashboard card: return top 5 open opportunities (already scored).
+     * For the dashboard card: return top 5 opportunities (already scored).
      * GET /gideon/top
+     *
+     * ✅ Updated:
+     * - Show OPEN items
+     * - Show SNOOZED items ONLY when snoozed_until <= now() (i.e., snooze expired)
+     * - If snoozed_until column doesn't exist yet, safely falls back to OPEN only
      */
     public function top(Request $request)
     {
@@ -48,13 +53,29 @@ class GideonScanController extends Controller
             ], 422);
         }
 
+        $now = now();
+
         $query = GideonOpportunity::query()
-            ->where('agency_id', $agencyId)
-            ->where('status', 'open');
+            ->where('agency_id', $agencyId);
 
         // If your table has user_id, keep results user-specific.
         if (Schema::hasColumn('gideon_opportunities', 'user_id')) {
             $query->where('user_id', $user->id);
+        }
+
+        // ✅ Status logic with safe fallback if snoozed_until doesn't exist yet
+        if (Schema::hasColumn('gideon_opportunities', 'snoozed_until')) {
+            $query->where(function ($q) use ($now) {
+                $q->where('status', 'open')
+                  ->orWhere(function ($q2) use ($now) {
+                      $q2->where('status', 'snoozed')
+                         ->whereNotNull('snoozed_until')
+                         ->where('snoozed_until', '<=', $now);
+                  });
+            });
+        } else {
+            // Hard-safe fallback
+            $query->where('status', 'open');
         }
 
         $items = $query
@@ -94,13 +115,27 @@ class GideonScanController extends Controller
         try {
             $result = $scanner->run($agencyId, (int) $user->id, $deep);
 
-            $countQuery = GideonOpportunity::query()
-                ->where('agency_id', $agencyId)
-                ->where('status', 'open');
+            // Count "actionable" items the same way the dashboard shows them
+            $now = now();
 
-            // Keep count user-specific if user_id exists
+            $countQuery = GideonOpportunity::query()
+                ->where('agency_id', $agencyId);
+
             if (Schema::hasColumn('gideon_opportunities', 'user_id')) {
                 $countQuery->where('user_id', $user->id);
+            }
+
+            if (Schema::hasColumn('gideon_opportunities', 'snoozed_until')) {
+                $countQuery->where(function ($q) use ($now) {
+                    $q->where('status', 'open')
+                      ->orWhere(function ($q2) use ($now) {
+                          $q2->where('status', 'snoozed')
+                             ->whereNotNull('snoozed_until')
+                             ->where('snoozed_until', '<=', $now);
+                      });
+                });
+            } else {
+                $countQuery->where('status', 'open');
             }
 
             $openCount = (int) $countQuery->count();
@@ -112,7 +147,6 @@ class GideonScanController extends Controller
                 'open_count' => $openCount,
             ]);
         } catch (\Throwable $e) {
-            // Don’t leak stack traces to the UI; log the real error server-side.
             report($e);
 
             return response()->json([
