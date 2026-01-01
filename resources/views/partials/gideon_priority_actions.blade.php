@@ -193,10 +193,7 @@
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
 
-        // ✅ IMPORTANT: DO NOT use route() names here (prevents 500 if names differ/missing)
-        // These MUST hit GideonOpportunitiesController routes:
-        // POST /gideon/opportunities/{id}/complete
-        // POST /gideon/opportunities/{id}/snooze
+        // ✅ Use concrete URLs (no route() placeholder tricks)
         oppBase: "{{ url('/gideon/opportunities') }}",
     };
 
@@ -288,10 +285,11 @@
         return id ? `Client #${id}` : 'Client';
     }
 
-    // ✅ Open Client should deep-link to Book of Business and open the card
-    // Uses your stable helper route: /book/open/{id}
+    // ✅ FIX #1: Open Client must open the Book of Business panel.
+    // Your BookController currently uses ?selected=ID (not ?open=ID).
     function openClientUrl(entityId) {
-        return `/book/open/${encodeURIComponent(String(entityId))}`;
+        const id = encodeURIComponent(String(entityId));
+        return `/book?selected=${id}#contact-${id}`;
     }
 
     function ctaForItem(item) {
@@ -305,13 +303,13 @@
             return { label: 'Open Lead', url: `/leads/${encodeURIComponent(String(entityId))}` };
         }
 
-        // ✅ contacts/book/client: always go through /book/open/{id}
+        // ✅ contacts/book/client: go to Book of Business using selected param
         if ((entityType === 'contact' || entityType === 'book' || entityType === 'client') && entityId) {
             return { label: 'Open Client', url: openClientUrl(entityId) };
         }
 
         if (entityType === 'service' && entityId) {
-            return { label: 'Open Service Client', url: `/service/open/${encodeURIComponent(String(entityId))}` };
+            return { label: 'Open Service Client', url: `/service?open=${encodeURIComponent(String(entityId))}` };
         }
 
         return { label: 'Open', url: '/contacts' };
@@ -334,12 +332,13 @@
         list.appendChild(li);
     }
 
-    function oppActionUrl(oppId, action) {
-        // action: 'complete' | 'snooze'
-        return `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/${action}`;
-    }
+    // ✅ FIX #2: Make POSTs Laravel-friendly (form-encoded), and on success remove card.
+    async function postForm(url, dataObj) {
+        const body = new URLSearchParams();
+        if (dataObj && typeof dataObj === 'object') {
+            Object.entries(dataObj).forEach(([k, v]) => body.append(k, String(v)));
+        }
 
-    async function postJson(url, bodyObj) {
         const res = await fetch(url, {
             method: 'POST',
             credentials: 'same-origin',
@@ -347,58 +346,50 @@
                 'X-CSRF-TOKEN': csrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
             },
-            body: JSON.stringify(bodyObj || {}),
+            body: body.toString(),
             cache: 'no-store',
         });
 
-        let data = null;
-        try { data = await res.json(); } catch (_) {}
-        return { ok: res.ok, status: res.status, data };
-    }
-
-    function safeCssEscape(v) {
-        try {
-            if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(v));
-        } catch (_) {}
-        return String(v).replace(/"/g, '\\"');
+        let json = null;
+        try { json = await res.json(); } catch (_) {}
+        return { ok: res.ok, status: res.status, json };
     }
 
     function removeCardByOppId(oppId) {
-        const sel = `[data-gideon-opp-id="${safeCssEscape(oppId)}"]`;
-        const el = document.querySelector(sel);
+        const el = document.querySelector(`[data-gideon-opp-id="${String(oppId)}"]`);
         if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
     async function handleDone(oppId) {
-        // ✅ optimistic UI
+        const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/complete`;
+
+        // optimistic remove
         removeCardByOppId(oppId);
 
-        const url = oppActionUrl(oppId, 'complete');
-        const { ok, data } = await postJson(url, {});
-        if (!ok || !data || data.success !== true) {
+        const { ok, json } = await postForm(url, {});
+        if (!ok || !json || json.success !== true) {
             alert('Could not mark as done. Check laravel.log.');
-            await loadTop(); // restore
-            return;
         }
 
-        await loadTop(); // refresh top list
+        // Always refresh list to stay consistent
+        await loadTop();
     }
 
     async function handleSnooze(oppId, days) {
-        // ✅ optimistic UI
+        const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/snooze`;
+
+        // optimistic remove
         removeCardByOppId(oppId);
 
-        const url = oppActionUrl(oppId, 'snooze');
-        const { ok, data } = await postJson(url, { days: days || 7 });
-        if (!ok || !data || data.success !== true) {
+        const { ok, json } = await postForm(url, { days: days || 7 });
+        if (!ok || !json || json.success !== true) {
             alert('Could not snooze. Check laravel.log.');
-            await loadTop(); // restore
-            return;
         }
 
-        await loadTop(); // refresh top list
+        // Always refresh list
+        await loadTop();
     }
 
     function renderTop(items) {
@@ -423,7 +414,7 @@
         }
 
         items.slice(0, 5).forEach(item => {
-            const oppId = item.id; // ✅ opportunity id (NOT contact id)
+            const oppId = item.id; // ✅ use opportunity ID for Done/Snooze
             const p = priorityFromScore(item.score);
             const color = COLORS[p] || COLORS.P3;
 
@@ -486,7 +477,7 @@
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
-            // ✅ Open Client (must navigate to Book of Business + open the card)
+            // ✅ Open Client (now uses ?selected=ID)
             const a = document.createElement('a');
             a.className = 'gideon-btn';
             a.style.textDecoration = 'none';
@@ -494,7 +485,7 @@
             a.textContent = cta.label + ' →';
             right.appendChild(a);
 
-            // ✅ Done / Snooze (only if we have an opportunity id)
+            // ✅ Done + Snooze
             if (oppId) {
                 const doneBtn = document.createElement('button');
                 doneBtn.type = 'button';
@@ -502,7 +493,6 @@
                 doneBtn.textContent = 'Done';
                 doneBtn.addEventListener('click', async (e) => {
                     e.preventDefault();
-                    e.stopPropagation();
                     doneBtn.disabled = true;
                     try { await handleDone(oppId); } finally { doneBtn.disabled = false; }
                 });
@@ -514,7 +504,6 @@
                 snoozeBtn.textContent = 'Snooze 7 days';
                 snoozeBtn.addEventListener('click', async (e) => {
                     e.preventDefault();
-                    e.stopPropagation();
                     snoozeBtn.disabled = true;
                     try { await handleSnooze(oppId, 7); } finally { snoozeBtn.disabled = false; }
                 });
