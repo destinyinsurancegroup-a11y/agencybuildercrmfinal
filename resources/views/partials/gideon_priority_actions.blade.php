@@ -193,8 +193,8 @@
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
 
-        // ✅ IMPORTANT: call these directly to avoid route-template issues
-        oppBase: "{{ url('/gideon/opportunities') }}", // POST /{id}/complete, /{id}/snooze
+        // ✅ Use concrete URLs (no route() placeholder tricks)
+        oppBase: "{{ url('/gideon/opportunities') }}",
     };
 
     const COLORS = {
@@ -285,9 +285,11 @@
         return id ? `Client #${id}` : 'Client';
     }
 
-    // ✅ Open Client should deep-link to Book of Business and open the card
+    // ✅ FIX #1: Open Client must open the Book of Business panel.
+    // Your BookController currently uses ?selected=ID (not ?open=ID).
     function openClientUrl(entityId) {
-        return `/book/open/${encodeURIComponent(entityId)}`;
+        const id = encodeURIComponent(String(entityId));
+        return `/book?selected=${id}#contact-${id}`;
     }
 
     function ctaForItem(item) {
@@ -295,24 +297,48 @@
         const entityId   = item.entity_id;
 
         if (entityType === 'lead' && entityId) {
-            return { label: 'Open Lead', url: `/leads/${entityId}` };
+            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(String(entityId))}` };
         }
         if (String(item.category || '').includes('revive_lead') && entityId) {
-            return { label: 'Open Lead', url: `/leads/${entityId}` };
+            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(String(entityId))}` };
         }
 
+        // ✅ contacts/book/client: go to Book of Business using selected param
         if ((entityType === 'contact' || entityType === 'book' || entityType === 'client') && entityId) {
             return { label: 'Open Client', url: openClientUrl(entityId) };
         }
 
         if (entityType === 'service' && entityId) {
-            return { label: 'Open Service Client', url: `/service/open/${encodeURIComponent(entityId)}` };
+            return { label: 'Open Service Client', url: `/service?open=${encodeURIComponent(String(entityId))}` };
         }
 
         return { label: 'Open', url: '/contacts' };
     }
 
-    async function postJson(url, bodyObj) {
+    function clearListToLoading() {
+        const list = document.getElementById('gideonList');
+        if (!list) return;
+
+        list.innerHTML = '';
+        const li = document.createElement('li');
+        li.className = 'gideon-action';
+        li.innerHTML = `
+            <span class="gideon-pill" style="background:#9CA3AF;color:#fff;">…</span>
+            <div style="min-width:0;">
+                <p class="gideon-action-title">Loading priorities…</p>
+                <p class="gideon-action-reason">Fetching Gideon results.</p>
+            </div>
+        `;
+        list.appendChild(li);
+    }
+
+    // ✅ FIX #2: Make POSTs Laravel-friendly (form-encoded), and on success remove card.
+    async function postForm(url, dataObj) {
+        const body = new URLSearchParams();
+        if (dataObj && typeof dataObj === 'object') {
+            Object.entries(dataObj).forEach(([k, v]) => body.append(k, String(v)));
+        }
+
         const res = await fetch(url, {
             method: 'POST',
             credentials: 'same-origin',
@@ -320,48 +346,50 @@
                 'X-CSRF-TOKEN': csrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
             },
-            body: JSON.stringify(bodyObj || {}),
+            body: body.toString(),
             cache: 'no-store',
         });
 
-        let data = null;
-        try { data = await res.json(); } catch (_) {}
-        return { ok: res.ok, status: res.status, data };
+        let json = null;
+        try { json = await res.json(); } catch (_) {}
+        return { ok: res.ok, status: res.status, json };
     }
 
     function removeCardByOppId(oppId) {
-        const el = document.querySelector(`[data-gideon-opp-id="${CSS.escape(String(oppId))}"]`);
+        const el = document.querySelector(`[data-gideon-opp-id="${String(oppId)}"]`);
         if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
     async function handleDone(oppId) {
         const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/complete`;
 
-        // optimistic UI
+        // optimistic remove
         removeCardByOppId(oppId);
 
-        const { ok, data, status } = await postJson(url, {});
-        if (!ok || !data || data.success !== true) {
-            console.error('Done failed:', status, data);
+        const { ok, json } = await postForm(url, {});
+        if (!ok || !json || json.success !== true) {
             alert('Could not mark as done. Check laravel.log.');
         }
-        await loadTop(); // always reconcile
+
+        // Always refresh list to stay consistent
+        await loadTop();
     }
 
     async function handleSnooze(oppId, days) {
         const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/snooze`;
 
-        // optimistic UI
+        // optimistic remove
         removeCardByOppId(oppId);
 
-        const { ok, data, status } = await postJson(url, { days: days || 7 });
-        if (!ok || !data || data.success !== true) {
-            console.error('Snooze failed:', status, data);
+        const { ok, json } = await postForm(url, { days: days || 7 });
+        if (!ok || !json || json.success !== true) {
             alert('Could not snooze. Check laravel.log.');
         }
-        await loadTop(); // always reconcile
+
+        // Always refresh list
+        await loadTop();
     }
 
     function renderTop(items) {
@@ -386,7 +414,7 @@
         }
 
         items.slice(0, 5).forEach(item => {
-            const oppId = item.id; // ✅ opportunity ID for Done/Snooze
+            const oppId = item.id; // ✅ use opportunity ID for Done/Snooze
             const p = priorityFromScore(item.score);
             const color = COLORS[p] || COLORS.P3;
 
@@ -449,7 +477,7 @@
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
-            // Open Client
+            // ✅ Open Client (now uses ?selected=ID)
             const a = document.createElement('a');
             a.className = 'gideon-btn';
             a.style.textDecoration = 'none';
@@ -457,7 +485,7 @@
             a.textContent = cta.label + ' →';
             right.appendChild(a);
 
-            // Done + Snooze
+            // ✅ Done + Snooze
             if (oppId) {
                 const doneBtn = document.createElement('button');
                 doneBtn.type = 'button';
@@ -519,6 +547,7 @@
 
         setButtonsDisabled(true);
         setStatus('#F59E0B', (mode === 'deep') ? 'Deep scan running…' : 'Scanning…', null);
+        clearListToLoading();
 
         try {
             const res = await fetch(url, {
