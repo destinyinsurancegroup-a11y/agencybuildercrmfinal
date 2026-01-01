@@ -29,7 +29,7 @@ use App\Http\Controllers\Gideon\GideonInsightsController;
 // ✅ NEW: GIDEON SPARRING CONTROLLER (for Sparring Partner page)
 use App\Http\Controllers\Gideon\GideonSparringController;
 
-// ✅ NEW: GIDEON SCAN CONTROLLER (scan + deep scan + top)
+// ✅ NEW: GIDEON SCAN CONTROLLER (scan + deep scan + top + snooze/done)
 use App\Http\Controllers\GideonScanController;
 
 /*
@@ -175,7 +175,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [BookController::class, 'index'])->name('book.index');
 
         /**
-         * ✅ NEW: Stable deep-link helper for Gideon (and future links)
+         * ✅ Stable deep-link helper for Gideon (and future links)
          * /book/open/285  ->  /book?open=285
          */
         Route::get('/open/{client}', function ($client) {
@@ -213,7 +213,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ServiceController::class, 'index'])->name('service.index');
 
         /**
-         * ✅ OPTIONAL (but recommended): stable deep-link helper like Book
+         * ✅ Stable deep-link helper like Book
          * /service/open/123 -> /service?open=123
          */
         Route::get('/open/{client}', function ($client) {
@@ -363,27 +363,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
-    // ✅ NEW: Opportunity actions (snooze 7 days, unsnooze, dismiss, complete)
-    // These power the Option 4 behavior.
-    Route::prefix('gideon/opportunities')->group(function () {
-        Route::post('/{opportunity}/snooze',   [GideonOpportunitiesController::class, 'snooze'])
-            ->name('gideon.opportunities.snooze');
-
-        Route::post('/{opportunity}/unsnooze', [GideonOpportunitiesController::class, 'unsnooze'])
-            ->name('gideon.opportunities.unsnooze');
-
-        Route::post('/{opportunity}/dismiss',  [GideonOpportunitiesController::class, 'dismiss'])
-            ->name('gideon.opportunities.dismiss');
-
-        Route::post('/{opportunity}/complete', [GideonOpportunitiesController::class, 'complete'])
-            ->name('gideon.opportunities.complete');
-    });
-
-    // ✅ Scans + dashboard top list
+    // ✅ Scans + dashboard top list + (IMPORTANT) snooze/done actions
     Route::prefix('gideon')->group(function () {
+
+        // Scan endpoints
         Route::post('/scan',      [GideonScanController::class, 'scan'])->name('gideon.scan');
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
         Route::get('/top',        [GideonScanController::class, 'top'])->name('gideon.top');
+
+        // ✅ Option 4 Actions
+        // POST /gideon/opportunities/{id}/snooze   (snooze 7 days)
+        // POST /gideon/opportunities/{id}/done     (mark completed)
+        Route::post('/opportunities/{opportunity}/snooze', [GideonScanController::class, 'snooze'])
+            ->name('gideon.opportunities.snooze');
+
+        Route::post('/opportunities/{opportunity}/done', [GideonScanController::class, 'markDone'])
+            ->name('gideon.opportunities.done');
     });
 
     Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
