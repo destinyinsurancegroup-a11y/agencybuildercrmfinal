@@ -21,7 +21,6 @@
     ];
 
     // ✅ If no actions yet, show helpful “starter” items (front-end only)
-    // NOTE: Once JS loads /gideon/top, these will be replaced automatically.
     if (count($actions) === 0) {
         $actions = [
             [
@@ -62,7 +61,6 @@
     // Limit to 5 actions max
     $actions = array_slice($actions, 0, 5);
 
-    // Human scan status label
     $scanLabel = match ($scanStatus) {
         'scanning' => 'Scanning…',
         'ready'    => 'Scan ready',
@@ -70,16 +68,14 @@
         default    => 'Idle',
     };
 
-    // Small status dot color
     $statusDot = match ($scanStatus) {
-        'scanning' => '#F59E0B', // amber
-        'ready'    => '#22C55E', // green
-        'error'    => '#DC2626', // red
-        default    => '#9CA3AF', // gray
+        'scanning' => '#F59E0B',
+        'ready'    => '#22C55E',
+        'error'    => '#DC2626',
+        default    => '#9CA3AF',
     };
 @endphp
 
-{{-- ✅ Minimal fallback styles (keeps it clean even if CSS file isn’t present) --}}
 <style>
     .gideon-wrap { display: flex; flex-direction: column; gap: 12px; }
     .gideon-toprow { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap: wrap; }
@@ -98,20 +94,16 @@
     .gideon-btn-primary { background: #111827; color:#fff; border-color:#111827; }
     .gideon-btn:disabled { opacity: .65; cursor: not-allowed; }
 
-    /* Secondary buttons */
     .gideon-btn-muted { background:#f9fafb; border-color:#e5e7eb; color:#111827; }
     .gideon-btn-danger { background:#111827; color:#fff; border-color:#111827; }
     .gideon-btn-snooze { background:#fff; border-color:#d1d5db; color:#111827; }
 
-    /* Small bullets for the “why this matters” section */
     .gideon-bullets { margin: 6px 0 6px 18px; padding:0; font-size:12px; color:#6b7280; }
     .gideon-bullets li { margin: 2px 0; }
     .gideon-bullets strong { color:#111827; }
 </style>
 
 <div class="gideon-wrap">
-
-    {{-- Top row: status + scan controls --}}
     <div class="gideon-toprow">
         <div class="gideon-status">
             <span id="gideonStatusDot" class="gideon-dot" style="background: {{ $statusDot }};"></span>
@@ -125,17 +117,9 @@
         </div>
 
         <div style="display:flex; gap:8px; align-items:center;">
-            <button id="gideonQuickScanBtn" class="gideon-btn" type="button">
-                Scan
-            </button>
-
-            <button id="gideonDeepScanBtn" class="gideon-btn gideon-btn-primary" type="button">
-                Deeper Scan
-            </button>
-
-            <button id="gideonRefreshBtn" class="gideon-btn" type="button">
-                Refresh
-            </button>
+            <button id="gideonQuickScanBtn" class="gideon-btn" type="button">Scan</button>
+            <button id="gideonDeepScanBtn" class="gideon-btn gideon-btn-primary" type="button">Deeper Scan</button>
+            <button id="gideonRefreshBtn" class="gideon-btn" type="button">Refresh</button>
 
             <a href="{{ url('/gideon/opportunities') }}"
                class="gideon-btn"
@@ -145,7 +129,6 @@
         </div>
     </div>
 
-    {{-- Scope chips --}}
     @if(count($scope) > 0)
         <div class="gideon-scope">
             Scanning:
@@ -157,7 +140,6 @@
         </div>
     @endif
 
-    {{-- Priority Actions list --}}
     <ul id="gideonList" class="gideon-actions">
         @foreach($actions as $a)
             @php
@@ -175,18 +157,12 @@
             @endphp
 
             <li class="gideon-action">
-                <span class="gideon-pill" style="background: {{ $bg }}; color: {{ $tx }};">
-                    {{ $priority }}
-                </span>
+                <span class="gideon-pill" style="background: {{ $bg }}; color: {{ $tx }};">{{ $priority }}</span>
 
                 <div style="min-width: 0;">
                     <p class="gideon-action-title">{{ $title }}</p>
-                    @if($reason !== '')
-                        <p class="gideon-action-reason">{{ $reason }}</p>
-                    @endif
-                    @if($meta !== '')
-                        <p class="gideon-action-meta"><strong>Next step:</strong> {{ $meta }}</p>
-                    @endif
+                    @if($reason !== '') <p class="gideon-action-reason">{{ $reason }}</p> @endif
+                    @if($meta !== '') <p class="gideon-action-meta"><strong>Next step:</strong> {{ $meta }}</p> @endif
                 </div>
 
                 <div class="gideon-action-cta">
@@ -206,16 +182,12 @@
 @push('scripts')
 <script>
 (function () {
-    console.log("✅ Gideon priority_actions script is running");
-
     const ENDPOINTS = {
         quick: "{{ url('/gideon/scan') }}",
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
-
-        // ✅ Option 4 actions (wired in web.php)
-        doneBase:   "{{ url('/gideon/opportunities') }}", // + /{id}/done
-        snoozeBase: "{{ url('/gideon/opportunities') }}", // + /{id}/snooze
+        doneBase:   "{{ url('/gideon/opportunities') }}", // /{id}/done
+        snoozeBase: "{{ url('/gideon/opportunities') }}", // /{id}/snooze
     };
 
     const COLORS = {
@@ -275,7 +247,7 @@
             cat.includes('missing_emerg') ||
             cat.includes('benefici') ||
             cat.includes('emergency_contact') ||
-            cat.includes('beneficiary_emergency') // your merged category
+            cat.includes('beneficiary_emergency')
         );
     }
 
@@ -306,28 +278,29 @@
         return id ? `Client #${id}` : 'Client';
     }
 
+    // ✅ FIX: Open Client must deep-link using ?selected=ID (your Book page already supports this)
     function ctaForItem(item) {
         const entityType = String(item.entity_type || '');
         const entityId   = item.entity_id;
 
         if (entityType === 'lead' && entityId) {
-            return { label: 'Open Lead', url: `/leads/${entityId}` };
-        }
-        if (String(item.category || '').includes('revive_lead') && entityId) {
-            return { label: 'Open Lead', url: `/leads/${entityId}` };
+            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(entityId)}` };
         }
 
-        // ✅ Use stable deep-link helper you added: /book/open/{id}
+        if (String(item.category || '').includes('revive_lead') && entityId) {
+            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(entityId)}` };
+        }
+
         if (entityType === 'contact' && entityId && looksLikeBeneficiaryEmergencyOpportunity(item)) {
-            return { label: 'Open Client', url: `/book/open/${encodeURIComponent(entityId)}` };
+            return { label: 'Open Client', url: `/book?selected=${encodeURIComponent(entityId)}` };
         }
 
         if ((entityType === 'book' || entityType === 'client') && entityId) {
-            return { label: 'Open Client', url: `/book/open/${encodeURIComponent(entityId)}` };
+            return { label: 'Open Client', url: `/book?selected=${encodeURIComponent(entityId)}` };
         }
 
         if (entityType === 'service' && entityId) {
-            return { label: 'Open Service Client', url: `/service/open/${encodeURIComponent(entityId)}` };
+            return { label: 'Open Service Client', url: `/service?selected=${encodeURIComponent(entityId)}` };
         }
 
         return { label: 'Open', url: '/contacts' };
@@ -372,9 +345,9 @@
         return { ok: true, data };
     }
 
-    function actionButtonsForItem(item) {
+    function actionButtonsForItem(item, rowEl) {
         const id = item && item.id ? item.id : null;
-        if (!id) return null; // starter items won't have id
+        if (!id) return null;
 
         const wrap = document.createElement('div');
         wrap.style.display = 'flex';
@@ -392,7 +365,6 @@
         snoozeBtn.type = 'button';
         snoozeBtn.textContent = 'Snooze 7 days';
 
-        // Disable both while posting
         async function withDisable(fn) {
             doneBtn.disabled = true;
             snoozeBtn.disabled = true;
@@ -403,10 +375,12 @@
             }
         }
 
+        // ✅ FIX: remove from card immediately on success
         doneBtn.addEventListener('click', () => withDisable(async () => {
             const url = `${ENDPOINTS.doneBase}/${encodeURIComponent(id)}/done`;
             const out = await postAction(url);
             if (out.ok) {
+                if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
                 await loadTop();
             } else {
                 alert('Could not mark as done. Check laravel.log.');
@@ -417,6 +391,7 @@
             const url = `${ENDPOINTS.snoozeBase}/${encodeURIComponent(id)}/snooze`;
             const out = await postAction(url);
             if (out.ok) {
+                if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
                 await loadTop();
             } else {
                 alert('Could not snooze. Check laravel.log.');
@@ -523,7 +498,6 @@
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
-            // Open link
             const a = document.createElement('a');
             a.className = 'gideon-btn gideon-btn-muted';
             a.style.textDecoration = 'none';
@@ -531,9 +505,8 @@
             a.textContent = cta.label + ' →';
             right.appendChild(a);
 
-            // ✅ Done + Snooze (only for real DB items that have an id)
-            const actionBtns = actionButtonsForItem(item);
-            if (actionBtns) right.appendChild(actionBtns);
+            const btns = actionButtonsForItem(item, li);
+            if (btns) right.appendChild(btns);
 
             li.appendChild(pill);
             li.appendChild(mid);
@@ -551,16 +524,11 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
 
-            if (!res.ok) {
-                renderTop([]);
-                return;
-            }
+            if (!res.ok) { renderTop([]); return; }
 
             const data = await res.json();
-            if (!data || data.success !== true) {
-                renderTop([]);
-                return;
-            }
+            if (!data || data.success !== true) { renderTop([]); return; }
+
             renderTop(data.items || []);
         } catch (e) {
             renderTop([]);
@@ -590,7 +558,6 @@
             try { data = await res.json(); } catch (_) {}
 
             if (!res.ok || !data || data.success !== true) {
-                console.error('Gideon scan failed:', res.status, data);
                 setStatus('#DC2626', 'Scan error', null);
                 await loadTop();
                 return;
@@ -599,7 +566,6 @@
             setStatus('#22C55E', 'Scan ready', 0);
             await loadTop();
         } catch (e) {
-            console.error('Gideon scan exception:', e);
             setStatus('#DC2626', 'Scan error', null);
             await loadTop();
         } finally {
