@@ -1,23 +1,26 @@
 {{-- resources/views/partials/gideon_priority_actions.blade.php --}}
 
 @php
+    // ✅ Hard-safe defaults so this partial can NEVER 500
     $gideon = is_array($gideon ?? null) ? $gideon : [];
 
     $scan = is_array($gideon['scan'] ?? null) ? $gideon['scan'] : [];
     $actions = is_array($gideon['actions'] ?? null) ? $gideon['actions'] : [];
 
-    $scanStatus = (string)($scan['status'] ?? 'idle');
+    $scanStatus = (string)($scan['status'] ?? 'idle'); // idle | scanning | ready | error
     $minutesAgo = $scan['minutes_ago'] ?? null;
     $scope = is_array($scan['scope'] ?? null) ? $scan['scope'] : [];
 
+    // ✅ Priority color mapping
     $priorityColors = [
-        'P1' => ['bg' => '#DC2626', 'text' => '#FFFFFF'],
-        'P2' => ['bg' => '#F59E0B', 'text' => '#111827'],
-        'P3' => ['bg' => '#22C55E', 'text' => '#111827'],
-        'P4' => ['bg' => '#3B82F6', 'text' => '#FFFFFF'],
-        'P5' => ['bg' => '#6B7280', 'text' => '#FFFFFF'],
+        'P1' => ['bg' => '#DC2626', 'text' => '#FFFFFF'], // red
+        'P2' => ['bg' => '#F59E0B', 'text' => '#111827'], // amber
+        'P3' => ['bg' => '#22C55E', 'text' => '#111827'], // green
+        'P4' => ['bg' => '#3B82F6', 'text' => '#FFFFFF'], // blue
+        'P5' => ['bg' => '#6B7280', 'text' => '#FFFFFF'], // gray
     ];
 
+    // ✅ If no actions yet, show helpful “starter” items (front-end only)
     if (count($actions) === 0) {
         $actions = [
             [
@@ -55,8 +58,10 @@
         ];
     }
 
+    // Limit to 5 actions max
     $actions = array_slice($actions, 0, 5);
 
+    // Human scan status label
     $scanLabel = match ($scanStatus) {
         'scanning' => 'Scanning…',
         'ready'    => 'Scan ready',
@@ -64,6 +69,7 @@
         default    => 'Idle',
     };
 
+    // Small status dot color
     $statusDot = match ($scanStatus) {
         'scanning' => '#F59E0B',
         'ready'    => '#22C55E',
@@ -96,7 +102,6 @@
 </style>
 
 <div class="gideon-wrap">
-
     <div class="gideon-toprow">
         <div class="gideon-status">
             <span id="gideonStatusDot" class="gideon-dot" style="background: {{ $statusDot }};"></span>
@@ -150,16 +155,24 @@
             @endphp
 
             <li class="gideon-action">
-                <span class="gideon-pill" style="background: {{ $bg }}; color: {{ $tx }};">{{ $priority }}</span>
+                <span class="gideon-pill" style="background: {{ $bg }}; color: {{ $tx }};">
+                    {{ $priority }}
+                </span>
 
                 <div style="min-width: 0;">
                     <p class="gideon-action-title">{{ $title }}</p>
-                    @if($reason !== '') <p class="gideon-action-reason">{{ $reason }}</p> @endif
-                    @if($meta !== '') <p class="gideon-action-meta"><strong>Next step:</strong> {{ $meta }}</p> @endif
+                    @if($reason !== '')
+                        <p class="gideon-action-reason">{{ $reason }}</p>
+                    @endif
+                    @if($meta !== '')
+                        <p class="gideon-action-meta"><strong>Next step:</strong> {{ $meta }}</p>
+                    @endif
                 </div>
 
                 <div class="gideon-action-cta">
-                    <a href="{{ $ctaUrl }}" class="gideon-btn" style="text-decoration:none;">{{ $ctaLabel }} →</a>
+                    <a href="{{ $ctaUrl }}" class="gideon-btn" style="text-decoration:none;">
+                        {{ $ctaLabel }} →
+                    </a>
                 </div>
             </li>
         @endforeach
@@ -180,9 +193,9 @@
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
 
-        // ✅ IMPORTANT: Opportunity action endpoints (NOT GideonScanController)
-        oppBase: "{{ url('/gideon/opportunities') }}", // /gideon/opportunities/{id}/...
-        bookOpenBase: "{{ url('/book/open') }}",       // /book/open/{client}
+        // ✅ IMPORTANT: these MUST hit GideonOpportunitiesController routes (not GideonScanController)
+        completeTpl: "{{ route('gideon.opportunities.complete', ['opportunity' => '__ID__']) }}",
+        snoozeTpl:   "{{ route('gideon.opportunities.snooze',   ['opportunity' => '__ID__']) }}",
     };
 
     const COLORS = {
@@ -253,7 +266,8 @@
 
         const snap = item ? item.source_snapshot : null;
         if (snap && typeof snap === 'object') {
-            for (const k of ['contact_name', 'full_name', 'contact_full_name', 'name']) {
+            const keys = ['contact_name', 'full_name', 'contact_full_name', 'name'];
+            for (const k of keys) {
                 if (typeof snap[k] === 'string' && snap[k].trim() !== '') return snap[k].trim();
             }
         }
@@ -261,7 +275,8 @@
         if (snap && typeof snap === 'string') {
             try {
                 const obj = JSON.parse(snap);
-                for (const k of ['contact_name', 'full_name', 'contact_full_name', 'name']) {
+                const keys = ['contact_name', 'full_name', 'contact_full_name', 'name'];
+                for (const k of keys) {
                     if (typeof obj[k] === 'string' && obj[k].trim() !== '') return obj[k].trim();
                 }
             } catch (_) {}
@@ -271,9 +286,10 @@
         return id ? `Client #${id}` : 'Client';
     }
 
-    // ✅ FIX: Open Client must use /book/open/{id} so Book of Business opens the right panel
+    // ✅ Open Client should deep-link to Book of Business and open the card
+    // Use the stable helper route you already added: /book/open/{id}
     function openClientUrl(entityId) {
-        return `${ENDPOINTS.bookOpenBase}/${encodeURIComponent(entityId)}`;
+        return `/book/open/${encodeURIComponent(entityId)}`;
     }
 
     function ctaForItem(item) {
@@ -287,6 +303,7 @@
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
 
+        // ✅ contacts/book/client: always go through /book/open/{id}
         if ((entityType === 'contact' || entityType === 'book' || entityType === 'client') && entityId) {
             return { label: 'Open Client', url: openClientUrl(entityId) };
         }
@@ -315,7 +332,11 @@
         list.appendChild(li);
     }
 
-    async function postJson(url, payload) {
+    function endpointFromTemplate(tpl, id) {
+        return String(tpl).replace('__ID__', encodeURIComponent(String(id)));
+    }
+
+    async function postJson(url, bodyObj) {
         const res = await fetch(url, {
             method: 'POST',
             credentials: 'same-origin',
@@ -323,20 +344,51 @@
                 'X-CSRF-TOKEN': csrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: payload ? JSON.stringify(payload) : JSON.stringify({}),
+            body: bodyObj ? JSON.stringify(bodyObj) : '{}',
             cache: 'no-store',
         });
 
         let data = null;
         try { data = await res.json(); } catch (_) {}
-
         return { ok: res.ok, status: res.status, data };
     }
 
-    function removeCard(liEl) {
-        if (liEl && liEl.parentNode) liEl.parentNode.removeChild(liEl);
+    function removeCardByOppId(oppId) {
+        const el = document.querySelector(`[data-gideon-opp-id="${CSS.escape(String(oppId))}"]`);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    async function handleDone(oppId) {
+        const url = endpointFromTemplate(ENDPOINTS.completeTpl, oppId);
+
+        // optimistic UI
+        removeCardByOppId(oppId);
+
+        const { ok, data } = await postJson(url, null);
+        if (!ok || !data || data.success !== true) {
+            // restore by reloading list if server rejected
+            alert('Could not mark as done. Check laravel.log.');
+            await loadTop();
+        } else {
+            await loadTop();
+        }
+    }
+
+    async function handleSnooze(oppId, days) {
+        const url = endpointFromTemplate(ENDPOINTS.snoozeTpl, oppId);
+
+        // optimistic UI
+        removeCardByOppId(oppId);
+
+        const { ok, data } = await postJson(url, { days: days || 7 });
+        if (!ok || !data || data.success !== true) {
+            alert('Could not snooze. Check laravel.log.');
+            await loadTop();
+        } else {
+            await loadTop();
+        }
     }
 
     function renderTop(items) {
@@ -354,12 +406,14 @@
                     <p class="gideon-action-title">No Gideon opportunities yet</p>
                     <p class="gideon-action-reason">Run a scan to generate priority actions.</p>
                 </div>
+                <div class="gideon-action-cta"></div>
             `;
             list.appendChild(li);
             return;
         }
 
         items.slice(0, 5).forEach(item => {
+            const oppId = item.id; // ✅ IMPORTANT: use opportunity ID for actions
             const p = priorityFromScore(item.score);
             const color = COLORS[p] || COLORS.P3;
 
@@ -378,7 +432,7 @@
 
             const li = document.createElement('li');
             li.className = 'gideon-action';
-            li.dataset.oppId = String(item.id || '');
+            li.setAttribute('data-gideon-opp-id', String(oppId));
 
             const pill = document.createElement('span');
             pill.className = 'gideon-pill';
@@ -422,65 +476,38 @@
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
-            // Open Client (link)
-            const openA = document.createElement('a');
-            openA.className = 'gideon-btn';
-            openA.style.textDecoration = 'none';
-            openA.href = cta.url;
-            openA.textContent = cta.label + ' →';
-            right.appendChild(openA);
+            // ✅ Open Client
+            const a = document.createElement('a');
+            a.className = 'gideon-btn';
+            a.style.textDecoration = 'none';
+            a.href = cta.url;
+            a.textContent = cta.label + ' →';
+            right.appendChild(a);
 
-            // Done button
-            const doneBtn = document.createElement('button');
-            doneBtn.className = 'gideon-btn gideon-btn-primary';
-            doneBtn.type = 'button';
-            doneBtn.textContent = 'Done';
-            doneBtn.addEventListener('click', async () => {
-                const id = item.id;
-                if (!id) return;
+            // ✅ Done button (uses opportunity ID)
+            if (oppId) {
+                const doneBtn = document.createElement('button');
+                doneBtn.type = 'button';
+                doneBtn.className = 'gideon-btn gideon-btn-primary';
+                doneBtn.textContent = 'Done';
+                doneBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    doneBtn.disabled = true;
+                    try { await handleDone(oppId); } finally { doneBtn.disabled = false; }
+                });
+                right.appendChild(doneBtn);
 
-                doneBtn.disabled = true;
-
-                const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(id)}/complete`;
-                const resp = await postJson(url, {});
-                if (!resp.ok || !resp.data || resp.data.success !== true) {
-                    console.error('Complete failed:', resp.status, resp.data);
-                    alert('Could not mark done. Check laravel.log.');
-                    doneBtn.disabled = false;
-                    return;
-                }
-
-                // ✅ Remove immediately, then refresh list
-                removeCard(li);
-                await loadTop();
-            });
-            right.appendChild(doneBtn);
-
-            // Snooze 7 days button
-            const snoozeBtn = document.createElement('button');
-            snoozeBtn.className = 'gideon-btn';
-            snoozeBtn.type = 'button';
-            snoozeBtn.textContent = 'Snooze 7 days';
-            snoozeBtn.addEventListener('click', async () => {
-                const id = item.id;
-                if (!id) return;
-
-                snoozeBtn.disabled = true;
-
-                const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(id)}/snooze`;
-                const resp = await postJson(url, { days: 7 });
-                if (!resp.ok || !resp.data || resp.data.success !== true) {
-                    console.error('Snooze failed:', resp.status, resp.data);
-                    alert('Could not snooze. Check laravel.log.');
-                    snoozeBtn.disabled = false;
-                    return;
-                }
-
-                // ✅ Remove immediately, then refresh list
-                removeCard(li);
-                await loadTop();
-            });
-            right.appendChild(snoozeBtn);
+                const snoozeBtn = document.createElement('button');
+                snoozeBtn.type = 'button';
+                snoozeBtn.className = 'gideon-btn';
+                snoozeBtn.textContent = 'Snooze 7 days';
+                snoozeBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    snoozeBtn.disabled = true;
+                    try { await handleSnooze(oppId, 7); } finally { snoozeBtn.disabled = false; }
+                });
+                right.appendChild(snoozeBtn);
+            }
 
             li.appendChild(pill);
             li.appendChild(mid);
@@ -508,10 +535,8 @@
                 renderTop([]);
                 return;
             }
-
             renderTop(data.items || []);
         } catch (e) {
-            console.error(e);
             renderTop([]);
         }
     }
