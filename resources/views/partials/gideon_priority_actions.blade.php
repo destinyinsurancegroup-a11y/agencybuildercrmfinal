@@ -193,9 +193,11 @@
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
 
-        // ✅ IMPORTANT: these MUST hit GideonOpportunitiesController routes (not GideonScanController)
-        completeTpl: "{{ route('gideon.opportunities.complete', ['opportunity' => '__ID__']) }}",
-        snoozeTpl:   "{{ route('gideon.opportunities.snooze',   ['opportunity' => '__ID__']) }}",
+        // ✅ IMPORTANT: DO NOT use route() names here (prevents 500 if names differ/missing)
+        // These MUST hit GideonOpportunitiesController routes:
+        // POST /gideon/opportunities/{id}/complete
+        // POST /gideon/opportunities/{id}/snooze
+        oppBase: "{{ url('/gideon/opportunities') }}",
     };
 
     const COLORS = {
@@ -287,9 +289,9 @@
     }
 
     // ✅ Open Client should deep-link to Book of Business and open the card
-    // Use the stable helper route you already added: /book/open/{id}
+    // Uses your stable helper route: /book/open/{id}
     function openClientUrl(entityId) {
-        return `/book/open/${encodeURIComponent(entityId)}`;
+        return `/book/open/${encodeURIComponent(String(entityId))}`;
     }
 
     function ctaForItem(item) {
@@ -297,10 +299,10 @@
         const entityId   = item.entity_id;
 
         if (entityType === 'lead' && entityId) {
-            return { label: 'Open Lead', url: `/leads/${entityId}` };
+            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(String(entityId))}` };
         }
         if (String(item.category || '').includes('revive_lead') && entityId) {
-            return { label: 'Open Lead', url: `/leads/${entityId}` };
+            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(String(entityId))}` };
         }
 
         // ✅ contacts/book/client: always go through /book/open/{id}
@@ -309,7 +311,7 @@
         }
 
         if (entityType === 'service' && entityId) {
-            return { label: 'Open Service Client', url: `/service/open/${encodeURIComponent(entityId)}` };
+            return { label: 'Open Service Client', url: `/service/open/${encodeURIComponent(String(entityId))}` };
         }
 
         return { label: 'Open', url: '/contacts' };
@@ -332,8 +334,9 @@
         list.appendChild(li);
     }
 
-    function endpointFromTemplate(tpl, id) {
-        return String(tpl).replace('__ID__', encodeURIComponent(String(id)));
+    function oppActionUrl(oppId, action) {
+        // action: 'complete' | 'snooze'
+        return `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/${action}`;
     }
 
     async function postJson(url, bodyObj) {
@@ -346,7 +349,7 @@
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
             },
-            body: bodyObj ? JSON.stringify(bodyObj) : '{}',
+            body: JSON.stringify(bodyObj || {}),
             cache: 'no-store',
         });
 
@@ -355,40 +358,47 @@
         return { ok: res.ok, status: res.status, data };
     }
 
+    function safeCssEscape(v) {
+        try {
+            if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(v));
+        } catch (_) {}
+        return String(v).replace(/"/g, '\\"');
+    }
+
     function removeCardByOppId(oppId) {
-        const el = document.querySelector(`[data-gideon-opp-id="${CSS.escape(String(oppId))}"]`);
+        const sel = `[data-gideon-opp-id="${safeCssEscape(oppId)}"]`;
+        const el = document.querySelector(sel);
         if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
     async function handleDone(oppId) {
-        const url = endpointFromTemplate(ENDPOINTS.completeTpl, oppId);
-
-        // optimistic UI
+        // ✅ optimistic UI
         removeCardByOppId(oppId);
 
-        const { ok, data } = await postJson(url, null);
+        const url = oppActionUrl(oppId, 'complete');
+        const { ok, data } = await postJson(url, {});
         if (!ok || !data || data.success !== true) {
-            // restore by reloading list if server rejected
             alert('Could not mark as done. Check laravel.log.');
-            await loadTop();
-        } else {
-            await loadTop();
+            await loadTop(); // restore
+            return;
         }
+
+        await loadTop(); // refresh top list
     }
 
     async function handleSnooze(oppId, days) {
-        const url = endpointFromTemplate(ENDPOINTS.snoozeTpl, oppId);
-
-        // optimistic UI
+        // ✅ optimistic UI
         removeCardByOppId(oppId);
 
+        const url = oppActionUrl(oppId, 'snooze');
         const { ok, data } = await postJson(url, { days: days || 7 });
         if (!ok || !data || data.success !== true) {
             alert('Could not snooze. Check laravel.log.');
-            await loadTop();
-        } else {
-            await loadTop();
+            await loadTop(); // restore
+            return;
         }
+
+        await loadTop(); // refresh top list
     }
 
     function renderTop(items) {
@@ -413,7 +423,7 @@
         }
 
         items.slice(0, 5).forEach(item => {
-            const oppId = item.id; // ✅ IMPORTANT: use opportunity ID for actions
+            const oppId = item.id; // ✅ opportunity id (NOT contact id)
             const p = priorityFromScore(item.score);
             const color = COLORS[p] || COLORS.P3;
 
@@ -476,7 +486,7 @@
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
-            // ✅ Open Client
+            // ✅ Open Client (must navigate to Book of Business + open the card)
             const a = document.createElement('a');
             a.className = 'gideon-btn';
             a.style.textDecoration = 'none';
@@ -484,7 +494,7 @@
             a.textContent = cta.label + ' →';
             right.appendChild(a);
 
-            // ✅ Done button (uses opportunity ID)
+            // ✅ Done / Snooze (only if we have an opportunity id)
             if (oppId) {
                 const doneBtn = document.createElement('button');
                 doneBtn.type = 'button';
@@ -492,6 +502,7 @@
                 doneBtn.textContent = 'Done';
                 doneBtn.addEventListener('click', async (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     doneBtn.disabled = true;
                     try { await handleDone(oppId); } finally { doneBtn.disabled = false; }
                 });
@@ -503,6 +514,7 @@
                 snoozeBtn.textContent = 'Snooze 7 days';
                 snoozeBtn.addEventListener('click', async (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     snoozeBtn.disabled = true;
                     try { await handleSnooze(oppId, 7); } finally { snoozeBtn.disabled = false; }
                 });
