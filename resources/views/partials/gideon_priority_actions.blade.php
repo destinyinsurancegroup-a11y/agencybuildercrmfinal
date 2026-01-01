@@ -11,16 +11,14 @@
     $minutesAgo = $scan['minutes_ago'] ?? null;
     $scope = is_array($scan['scope'] ?? null) ? $scan['scope'] : [];
 
-    // ✅ Priority color mapping
     $priorityColors = [
-        'P1' => ['bg' => '#DC2626', 'text' => '#FFFFFF'], // red
-        'P2' => ['bg' => '#F59E0B', 'text' => '#111827'], // amber
-        'P3' => ['bg' => '#22C55E', 'text' => '#111827'], // green
-        'P4' => ['bg' => '#3B82F6', 'text' => '#FFFFFF'], // blue
-        'P5' => ['bg' => '#6B7280', 'text' => '#FFFFFF'], // gray
+        'P1' => ['bg' => '#DC2626', 'text' => '#FFFFFF'],
+        'P2' => ['bg' => '#F59E0B', 'text' => '#111827'],
+        'P3' => ['bg' => '#22C55E', 'text' => '#111827'],
+        'P4' => ['bg' => '#3B82F6', 'text' => '#FFFFFF'],
+        'P5' => ['bg' => '#6B7280', 'text' => '#FFFFFF'],
     ];
 
-    // ✅ If no actions yet, show helpful “starter” items (front-end only)
     if (count($actions) === 0) {
         $actions = [
             [
@@ -58,7 +56,6 @@
         ];
     }
 
-    // Limit to 5 actions max
     $actions = array_slice($actions, 0, 5);
 
     $scanLabel = match ($scanStatus) {
@@ -93,11 +90,6 @@
     .gideon-btn { border-radius: 10px; padding: 8px 10px; border: 1px solid #d1d5db; background: #fff; font-weight: 800; font-size: 12px; cursor:pointer; }
     .gideon-btn-primary { background: #111827; color:#fff; border-color:#111827; }
     .gideon-btn:disabled { opacity: .65; cursor: not-allowed; }
-
-    .gideon-btn-muted { background:#f9fafb; border-color:#e5e7eb; color:#111827; }
-    .gideon-btn-danger { background:#111827; color:#fff; border-color:#111827; }
-    .gideon-btn-snooze { background:#fff; border-color:#d1d5db; color:#111827; }
-
     .gideon-bullets { margin: 6px 0 6px 18px; padding:0; font-size:12px; color:#6b7280; }
     .gideon-bullets li { margin: 2px 0; }
     .gideon-bullets strong { color:#111827; }
@@ -166,9 +158,7 @@
                 </div>
 
                 <div class="gideon-action-cta">
-                    <a href="{{ $ctaUrl }}" class="gideon-btn" style="text-decoration:none;">
-                        {{ $ctaLabel }} →
-                    </a>
+                    <a href="{{ $ctaUrl }}" class="gideon-btn" style="text-decoration:none;">{{ $ctaLabel }} →</a>
                 </div>
             </li>
         @endforeach
@@ -186,8 +176,11 @@
         quick: "{{ url('/gideon/scan') }}",
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
-        doneBase:   "{{ url('/gideon/opportunities') }}", // /{id}/done
-        snoozeBase: "{{ url('/gideon/opportunities') }}", // /{id}/snooze
+
+        // ✅ IMPORTANT: action endpoints must hit GideonOpportunitiesController routes
+        complete: "{{ url('/gideon/opportunities') }}/", // + {id}/complete
+        snooze:   "{{ url('/gideon/opportunities') }}/", // + {id}/snooze
+        dismiss:  "{{ url('/gideon/opportunities') }}/", // + {id}/dismiss (optional)
     };
 
     const COLORS = {
@@ -278,30 +271,19 @@
         return id ? `Client #${id}` : 'Client';
     }
 
-    // ✅ FIX: Open Client must deep-link using ?selected=ID (your Book page already supports this)
+    // ✅ FIX: Open Client must deep-link using your stable helper route: /book/open/{id}
     function ctaForItem(item) {
         const entityType = String(item.entity_type || '');
         const entityId   = item.entity_id;
 
-        if (entityType === 'lead' && entityId) {
-            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(entityId)}` };
+        if (entityType === 'lead' && entityId) return { label: 'Open Lead', url: `/leads/${entityId}` };
+        if (String(item.category || '').includes('revive_lead') && entityId) return { label: 'Open Lead', url: `/leads/${entityId}` };
+
+        if (entityId && (entityType === 'contact' || entityType === 'book' || entityType === 'client')) {
+            return { label: 'Open Client', url: `/book/open/${encodeURIComponent(entityId)}` };
         }
 
-        if (String(item.category || '').includes('revive_lead') && entityId) {
-            return { label: 'Open Lead', url: `/leads/${encodeURIComponent(entityId)}` };
-        }
-
-        if (entityType === 'contact' && entityId && looksLikeBeneficiaryEmergencyOpportunity(item)) {
-            return { label: 'Open Client', url: `/book?selected=${encodeURIComponent(entityId)}` };
-        }
-
-        if ((entityType === 'book' || entityType === 'client') && entityId) {
-            return { label: 'Open Client', url: `/book?selected=${encodeURIComponent(entityId)}` };
-        }
-
-        if (entityType === 'service' && entityId) {
-            return { label: 'Open Service Client', url: `/service?selected=${encodeURIComponent(entityId)}` };
-        }
+        if (entityType === 'service' && entityId) return { label: 'Open Service Client', url: `/service/open/${encodeURIComponent(entityId)}` };
 
         return { label: 'Open', url: '/contacts' };
     }
@@ -323,84 +305,29 @@
         list.appendChild(li);
     }
 
-    async function postAction(url) {
+    // ✅ POST helper (used by Done/Snooze)
+    async function postJson(url, payload) {
         const res = await fetch(url, {
             method: 'POST',
             credentials: 'same-origin',
-            cache: 'no-store',
             headers: {
                 'X-CSRF-TOKEN': csrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept': 'application/json',
+                'Content-Type': 'application/json',
             },
+            body: payload ? JSON.stringify(payload) : JSON.stringify({}),
+            cache: 'no-store',
         });
 
         let data = null;
         try { data = await res.json(); } catch (_) {}
-
-        if (!res.ok || !data || data.success !== true) {
-            console.error('Gideon action failed:', res.status, data);
-            return { ok: false, data };
-        }
-        return { ok: true, data };
+        return { ok: res.ok, data };
     }
 
-    function actionButtonsForItem(item, rowEl) {
-        const id = item && item.id ? item.id : null;
-        if (!id) return null;
-
-        const wrap = document.createElement('div');
-        wrap.style.display = 'flex';
-        wrap.style.flexDirection = 'column';
-        wrap.style.gap = '6px';
-        wrap.style.alignItems = 'flex-end';
-
-        const doneBtn = document.createElement('button');
-        doneBtn.className = 'gideon-btn gideon-btn-danger';
-        doneBtn.type = 'button';
-        doneBtn.textContent = 'Done';
-
-        const snoozeBtn = document.createElement('button');
-        snoozeBtn.className = 'gideon-btn gideon-btn-snooze';
-        snoozeBtn.type = 'button';
-        snoozeBtn.textContent = 'Snooze 7 days';
-
-        async function withDisable(fn) {
-            doneBtn.disabled = true;
-            snoozeBtn.disabled = true;
-            try { await fn(); }
-            finally {
-                doneBtn.disabled = false;
-                snoozeBtn.disabled = false;
-            }
-        }
-
-        // ✅ FIX: remove from card immediately on success
-        doneBtn.addEventListener('click', () => withDisable(async () => {
-            const url = `${ENDPOINTS.doneBase}/${encodeURIComponent(id)}/done`;
-            const out = await postAction(url);
-            if (out.ok) {
-                if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
-                await loadTop();
-            } else {
-                alert('Could not mark as done. Check laravel.log.');
-            }
-        }));
-
-        snoozeBtn.addEventListener('click', () => withDisable(async () => {
-            const url = `${ENDPOINTS.snoozeBase}/${encodeURIComponent(id)}/snooze`;
-            const out = await postAction(url);
-            if (out.ok) {
-                if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
-                await loadTop();
-            } else {
-                alert('Could not snooze. Check laravel.log.');
-            }
-        }));
-
-        wrap.appendChild(doneBtn);
-        wrap.appendChild(snoozeBtn);
-        return wrap;
+    // ✅ removes the card instantly from the UI
+    function removeCard(liEl) {
+        if (liEl && liEl.parentNode) liEl.parentNode.removeChild(liEl);
     }
 
     function renderTop(items) {
@@ -418,7 +345,6 @@
                     <p class="gideon-action-title">No Gideon opportunities yet</p>
                     <p class="gideon-action-reason">Run a scan to generate priority actions.</p>
                 </div>
-                <div class="gideon-action-cta"></div>
             `;
             list.appendChild(li);
             return;
@@ -435,14 +361,13 @@
             const reason = String(item.short_reason || '');
             const meta = String(item.recommended_action || '');
 
-            if (isBEC) {
-                title = `Beneficiaries & emergency contacts need attention — ${contactName}`;
-            }
+            if (isBEC) title = `Beneficiaries & emergency contacts need attention — ${contactName}`;
 
             const cta = ctaForItem(item);
 
             const li = document.createElement('li');
             li.className = 'gideon-action';
+            li.dataset.oppId = String(item.id || '');
 
             const pill = document.createElement('span');
             pill.className = 'gideon-pill';
@@ -468,45 +393,77 @@
             if (isBEC) {
                 const ul = document.createElement('ul');
                 ul.className = 'gideon-bullets';
-
-                const li1 = document.createElement('li');
-                li1.innerHTML = `<strong>Right thing to do:</strong> beneficiaries should know coverage exists.`;
-
-                const li2 = document.createElement('li');
-                li2.innerHTML = `<strong>Can save your deal:</strong> reduces lapses/cancellations if the client goes dark.`;
-
-                const li3 = document.createElement('li');
-                li3.innerHTML = `<strong>More premium:</strong> beneficiaries/emergency contacts can become new policies.`;
-
-                ul.appendChild(li1);
-                ul.appendChild(li2);
-                ul.appendChild(li3);
-
+                ul.innerHTML = `
+                    <li><strong>Right thing to do:</strong> beneficiaries should know coverage exists.</li>
+                    <li><strong>Can save your deal:</strong> reduces lapses/cancellations if the client goes dark.</li>
+                    <li><strong>More premium:</strong> beneficiaries/emergency contacts can become new policies.</li>
+                `;
                 mid.appendChild(ul);
             }
 
             if (meta) {
                 const m = document.createElement('p');
                 m.className = 'gideon-action-meta';
-                const strong = document.createElement('strong');
-                strong.textContent = 'Next step: ';
-                m.appendChild(strong);
-                m.appendChild(document.createTextNode(meta));
+                m.innerHTML = `<strong>Next step:</strong> ${meta}`;
                 mid.appendChild(m);
             }
 
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
+            // Open button
             const a = document.createElement('a');
-            a.className = 'gideon-btn gideon-btn-muted';
+            a.className = 'gideon-btn';
             a.style.textDecoration = 'none';
             a.href = cta.url;
             a.textContent = cta.label + ' →';
             right.appendChild(a);
 
-            const btns = actionButtonsForItem(item, li);
-            if (btns) right.appendChild(btns);
+            // ✅ Done button
+            if (item.id) {
+                const doneBtn = document.createElement('button');
+                doneBtn.className = 'gideon-btn gideon-btn-primary';
+                doneBtn.type = 'button';
+                doneBtn.textContent = 'Done';
+                doneBtn.addEventListener('click', async () => {
+                    doneBtn.disabled = true;
+                    const url = ENDPOINTS.complete + encodeURIComponent(item.id) + '/complete';
+                    const { ok, data } = await postJson(url, null);
+
+                    if (!ok || !data || data.success !== true) {
+                        doneBtn.disabled = false;
+                        alert((data && data.message) ? data.message : 'Could not complete. Check laravel.log.');
+                        return;
+                    }
+
+                    // ✅ remove from card immediately + refresh list
+                    removeCard(li);
+                    await loadTop();
+                });
+                right.appendChild(doneBtn);
+
+                // ✅ Snooze 7 days button
+                const snoozeBtn = document.createElement('button');
+                snoozeBtn.className = 'gideon-btn';
+                snoozeBtn.type = 'button';
+                snoozeBtn.textContent = 'Snooze 7 days';
+                snoozeBtn.addEventListener('click', async () => {
+                    snoozeBtn.disabled = true;
+                    const url = ENDPOINTS.snooze + encodeURIComponent(item.id) + '/snooze';
+                    const { ok, data } = await postJson(url, { days: 7 });
+
+                    if (!ok || !data || data.success !== true) {
+                        snoozeBtn.disabled = false;
+                        alert((data && data.message) ? data.message : 'Could not snooze. Check laravel.log.');
+                        return;
+                    }
+
+                    // ✅ remove from card immediately + refresh list
+                    removeCard(li);
+                    await loadTop();
+                });
+                right.appendChild(snoozeBtn);
+            }
 
             li.appendChild(pill);
             li.appendChild(mid);
@@ -524,11 +481,9 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
 
-            if (!res.ok) { renderTop([]); return; }
-
+            if (!res.ok) return renderTop([]);
             const data = await res.json();
-            if (!data || data.success !== true) { renderTop([]); return; }
-
+            if (!data || data.success !== true) return renderTop([]);
             renderTop(data.items || []);
         } catch (e) {
             renderTop([]);
@@ -586,11 +541,8 @@
         window.addEventListener('activity:saved', () => loadTop());
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', wire);
-    } else {
-        wire();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
 })();
 </script>
 @endpush
