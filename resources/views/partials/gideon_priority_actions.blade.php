@@ -98,6 +98,11 @@
     .gideon-btn-primary { background: #111827; color:#fff; border-color:#111827; }
     .gideon-btn:disabled { opacity: .65; cursor: not-allowed; }
 
+    /* Secondary buttons */
+    .gideon-btn-muted { background:#f9fafb; border-color:#e5e7eb; color:#111827; }
+    .gideon-btn-danger { background:#111827; color:#fff; border-color:#111827; }
+    .gideon-btn-snooze { background:#fff; border-color:#d1d5db; color:#111827; }
+
     /* Small bullets for the “why this matters” section */
     .gideon-bullets { margin: 6px 0 6px 18px; padding:0; font-size:12px; color:#6b7280; }
     .gideon-bullets li { margin: 2px 0; }
@@ -207,6 +212,10 @@
         quick: "{{ url('/gideon/scan') }}",
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
+
+        // ✅ Option 4 actions (wired in web.php)
+        doneBase:   "{{ url('/gideon/opportunities') }}", // + /{id}/done
+        snoozeBase: "{{ url('/gideon/opportunities') }}", // + /{id}/snooze
     };
 
     const COLORS = {
@@ -265,13 +274,12 @@
             cat.includes('missing_benef') ||
             cat.includes('missing_emerg') ||
             cat.includes('benefici') ||
-            cat.includes('emergency_contact')
+            cat.includes('emergency_contact') ||
+            cat.includes('beneficiary_emergency') // your merged category
         );
     }
 
     function getContactDisplayName(item) {
-        // Best effort: use whatever the API returned
-        // (We’ll ALSO show the ID as a fallback so it never breaks.)
         if (item && typeof item.contact_name === 'string' && item.contact_name.trim() !== '') {
             return item.contact_name.trim();
         }
@@ -284,7 +292,6 @@
             }
         }
 
-        // Sometimes Laravel returns JSON strings; try parse once
         if (snap && typeof snap === 'string') {
             try {
                 const obj = JSON.parse(snap);
@@ -295,18 +302,14 @@
             } catch (_) {}
         }
 
-        // Final fallback
         const id = item && item.entity_id ? item.entity_id : '';
         return id ? `Client #${id}` : 'Client';
     }
 
-    // ✅ FIX #1: For beneficiary/emergency opportunities, Open should go to Book of Business,
-    // and it should open the specific contact (via query param).
     function ctaForItem(item) {
         const entityType = String(item.entity_type || '');
         const entityId   = item.entity_id;
 
-        // Lead
         if (entityType === 'lead' && entityId) {
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
@@ -314,23 +317,19 @@
             return { label: 'Open Lead', url: `/leads/${entityId}` };
         }
 
-        // Book client routes (some apps have /book/{id}, some don’t)
-        // ✅ Recommended: /book?contact_id=ID so you don't get 404s
+        // ✅ Use stable deep-link helper you added: /book/open/{id}
         if (entityType === 'contact' && entityId && looksLikeBeneficiaryEmergencyOpportunity(item)) {
-            return { label: 'Open Client', url: `/book?contact_id=${encodeURIComponent(entityId)}#contact-${encodeURIComponent(entityId)}` };
+            return { label: 'Open Client', url: `/book/open/${encodeURIComponent(entityId)}` };
         }
 
-        // If your DB stores entity_type as book/client
         if ((entityType === 'book' || entityType === 'client') && entityId) {
-            return { label: 'Open Client', url: `/book?contact_id=${encodeURIComponent(entityId)}#contact-${encodeURIComponent(entityId)}` };
+            return { label: 'Open Client', url: `/book/open/${encodeURIComponent(entityId)}` };
         }
 
-        // Service
         if (entityType === 'service' && entityId) {
-            return { label: 'Open Service Client', url: `/service/${entityId}` };
+            return { label: 'Open Service Client', url: `/service/open/${encodeURIComponent(entityId)}` };
         }
 
-        // Default
         return { label: 'Open', url: '/contacts' };
     }
 
@@ -351,8 +350,84 @@
         list.appendChild(li);
     }
 
-    // ✅ FIX #2: For beneficiary/emergency opportunities, show the “why it matters”
-    // and display the client name (if available) instead of just “Client #ID”.
+    async function postAction(url) {
+        const res = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+        });
+
+        let data = null;
+        try { data = await res.json(); } catch (_) {}
+
+        if (!res.ok || !data || data.success !== true) {
+            console.error('Gideon action failed:', res.status, data);
+            return { ok: false, data };
+        }
+        return { ok: true, data };
+    }
+
+    function actionButtonsForItem(item) {
+        const id = item && item.id ? item.id : null;
+        if (!id) return null; // starter items won't have id
+
+        const wrap = document.createElement('div');
+        wrap.style.display = 'flex';
+        wrap.style.flexDirection = 'column';
+        wrap.style.gap = '6px';
+        wrap.style.alignItems = 'flex-end';
+
+        const doneBtn = document.createElement('button');
+        doneBtn.className = 'gideon-btn gideon-btn-danger';
+        doneBtn.type = 'button';
+        doneBtn.textContent = 'Done';
+
+        const snoozeBtn = document.createElement('button');
+        snoozeBtn.className = 'gideon-btn gideon-btn-snooze';
+        snoozeBtn.type = 'button';
+        snoozeBtn.textContent = 'Snooze 7 days';
+
+        // Disable both while posting
+        async function withDisable(fn) {
+            doneBtn.disabled = true;
+            snoozeBtn.disabled = true;
+            try { await fn(); }
+            finally {
+                doneBtn.disabled = false;
+                snoozeBtn.disabled = false;
+            }
+        }
+
+        doneBtn.addEventListener('click', () => withDisable(async () => {
+            const url = `${ENDPOINTS.doneBase}/${encodeURIComponent(id)}/done`;
+            const out = await postAction(url);
+            if (out.ok) {
+                await loadTop();
+            } else {
+                alert('Could not mark as done. Check laravel.log.');
+            }
+        }));
+
+        snoozeBtn.addEventListener('click', () => withDisable(async () => {
+            const url = `${ENDPOINTS.snoozeBase}/${encodeURIComponent(id)}/snooze`;
+            const out = await postAction(url);
+            if (out.ok) {
+                await loadTop();
+            } else {
+                alert('Could not snooze. Check laravel.log.');
+            }
+        }));
+
+        wrap.appendChild(doneBtn);
+        wrap.appendChild(snoozeBtn);
+        return wrap;
+    }
+
     function renderTop(items) {
         const list = document.getElementById('gideonList');
         if (!list) return;
@@ -381,12 +456,10 @@
             const isBEC = looksLikeBeneficiaryEmergencyOpportunity(item);
             const contactName = isBEC ? getContactDisplayName(item) : '';
 
-            // Title / reason / meta from API
             let title = String(item.title || 'Priority action');
             const reason = String(item.short_reason || '');
             const meta = String(item.recommended_action || '');
 
-            // If it's a BEC opportunity, force the title format to include the client name
             if (isBEC) {
                 title = `Beneficiaries & emergency contacts need attention — ${contactName}`;
             }
@@ -417,7 +490,6 @@
                 mid.appendChild(r);
             }
 
-            // ✅ The 3 reasons (only for this opportunity type)
             if (isBEC) {
                 const ul = document.createElement('ul');
                 ul.className = 'gideon-bullets';
@@ -451,13 +523,17 @@
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
+            // Open link
             const a = document.createElement('a');
-            a.className = 'gideon-btn';
+            a.className = 'gideon-btn gideon-btn-muted';
             a.style.textDecoration = 'none';
             a.href = cta.url;
             a.textContent = cta.label + ' →';
-
             right.appendChild(a);
+
+            // ✅ Done + Snooze (only for real DB items that have an id)
+            const actionBtns = actionButtonsForItem(item);
+            if (actionBtns) right.appendChild(actionBtns);
 
             li.appendChild(pill);
             li.appendChild(mid);
@@ -470,7 +546,7 @@
     async function loadTop() {
         try {
             const res = await fetch(ENDPOINTS.top + '?_=' + Date.now(), {
-                credentials: 'same-origin', // ✅ send session cookie
+                credentials: 'same-origin',
                 cache: 'no-store',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
@@ -501,7 +577,7 @@
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                credentials: 'same-origin', // ✅ send session cookie
+                credentials: 'same-origin',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken(),
                     'X-Requested-With': 'XMLHttpRequest',
