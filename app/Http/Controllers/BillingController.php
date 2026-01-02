@@ -6,14 +6,24 @@ use Illuminate\Http\Request;
 
 class BillingController extends Controller
 {
+    /**
+     * Billing landing page.
+     *
+     * For now, we show a placeholder until Stripe billing is implemented.
+     * When ready, flip FEATURE_BILLING=true and replace the view with the real page.
+     */
     public function index(Request $request)
     {
-        // If billing isn't enabled yet, show the placeholder.
-        if (!config('features.billing')) {
+        // Feature flag (recommended). If you don't have config/features.php yet,
+        // this will default to false.
+        $enabled = (bool) config('features.billing', false);
+
+        if (! $enabled) {
             return view('billing.placeholder');
         }
 
-        // Later: when you implement Stripe, you’ll replace this with the real billing page.
-        return view('billing.index');
+        // Future: real billing management page (Stripe + customer portal).
+        // For now, fall back to placeholder to avoid 500s.
+        return view('billing.placeholder');
     }
 }
