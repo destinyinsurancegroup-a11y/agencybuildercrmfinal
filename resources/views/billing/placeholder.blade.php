@@ -3,23 +3,10 @@
 @section('content')
 <div class="ab-billing">
 
-    {{-- Header Row --}}
+    {{-- Header Row (ONLY title now; search/bell/agent removed) --}}
     <div class="ab-billing__top">
         <div class="ab-billing__title-wrap">
             <h1 class="ab-billing__title">Billing</h1>
-        </div>
-
-        <div class="ab-billing__search">
-            <span class="ab-billing__search-icon">🔍</span>
-            <input type="text" class="ab-billing__search-input" placeholder="Search contacts, leads, or clients..." disabled>
-        </div>
-
-        <div class="ab-billing__icons">
-            <button class="ab-billing__icon-btn" type="button" disabled title="Notifications">🔔</button>
-            <div class="ab-billing__user-pill">
-                <span class="ab-billing__user-badge">A</span>
-                <span class="ab-billing__user-text">Agent</span>
-            </div>
         </div>
     </div>
 
@@ -189,75 +176,6 @@
     font-weight: 800;
     color:#111827;
     letter-spacing: -0.02em;
-}
-
-.ab-billing__search{
-    flex: 1;
-    display:flex;
-    align-items:center;
-    background: rgba(255,255,255,0.75);
-    border: 1px solid rgba(0,0,0,0.10);
-    border-radius: 999px;
-    padding: 10px 12px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
-}
-
-.ab-billing__search-icon{
-    opacity: .55;
-    margin-right: 8px;
-}
-
-.ab-billing__search-input{
-    border: 0;
-    outline: none;
-    width: 100%;
-    background: transparent;
-    color: #6b7280;
-    font-size: 14px;
-}
-
-.ab-billing__icons{
-    display:flex;
-    align-items:center;
-    gap:10px;
-}
-
-.ab-billing__icon-btn{
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    border: 1px solid rgba(0,0,0,0.12);
-    background: rgba(255,255,255,0.70);
-    cursor: not-allowed;
-    opacity: .9;
-}
-
-.ab-billing__user-pill{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding: 8px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(0,0,0,0.12);
-    background: rgba(255,255,255,0.70);
-}
-
-.ab-billing__user-badge{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width: 26px;
-    height: 26px;
-    border-radius: 10px;
-    background: #111827;
-    color: #f4efe6;
-    font-weight: 800;
-    font-size: 13px;
-}
-
-.ab-billing__user-text{
-    font-weight: 700;
-    color: #111827;
 }
 
 /* ====== Plan bar ====== */
@@ -532,7 +450,6 @@
 /* ====== Responsive ====== */
 @media (max-width: 980px){
     .ab-grid-2{ grid-template-columns: 1fr; }
-    .ab-billing__top{ flex-wrap: wrap; }
 }
 </style>
 @endsection
