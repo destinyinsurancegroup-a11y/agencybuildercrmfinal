@@ -190,10 +190,12 @@ Route::middleware('auth')->group(function () {
 
         /**
          * ✅ Stable deep-link helper for Gideon (and future links)
-         * /book/open/285  ->  /book?open=285
+         * /book/open/285  ->  /book?selected=285
+         *
+         * IMPORTANT: Book auto-loader expects `selected` (not `open`)
          */
         Route::get('/open/{client}', function ($client) {
-            return redirect()->route('book.index', ['open' => $client]);
+            return redirect()->route('book.index', ['selected' => $client]);
         })->name('book.open');
 
         Route::get('/create-panel', [BookController::class, 'createPanel'])->name('book.create.panel');
@@ -407,9 +409,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
         ->name('gideon.second_brain');
-
-    // ✅ Removed Sparring Partner route (tabled for now)
-    // Route::get('/sparring-partner', [GideonSparringController::class, 'index'])->name('gideon.sparring');
 
     Route::get('/debug-gideon-create-opportunity', function () {
         $user = auth()->user();
