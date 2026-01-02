@@ -193,8 +193,11 @@
         deep:  "{{ url('/gideon/scan/deep') }}",
         top:   "{{ url('/gideon/top') }}",
 
-        // ✅ Use concrete URLs (no route() placeholder tricks)
+        // ✅ Base for POST routes (Step 1)
         oppBase: "{{ url('/gideon/opportunities') }}",
+
+        // ✅ Use deep-link helper (server decides query param / JS doesn't guess)
+        bookOpenBase: "{{ url('/book/open') }}",
     };
 
     const COLORS = {
@@ -285,11 +288,13 @@
         return id ? `Client #${id}` : 'Client';
     }
 
-    // ✅ FIX #1: Open Client must open the Book of Business panel.
-    // Your BookController currently uses ?selected=ID (not ?open=ID).
+    /**
+     * ✅ Open Client must be 100% reliable.
+     * Use the server deep-link helper: /book/open/{id} -> redirects to the correct param.
+     */
     function openClientUrl(entityId) {
         const id = encodeURIComponent(String(entityId));
-        return `/book?selected=${id}#contact-${id}`;
+        return `${ENDPOINTS.bookOpenBase}/${id}`;
     }
 
     function ctaForItem(item) {
@@ -303,12 +308,13 @@
             return { label: 'Open Lead', url: `/leads/${encodeURIComponent(String(entityId))}` };
         }
 
-        // ✅ contacts/book/client: go to Book of Business using selected param
+        // ✅ contacts/book/client: go to Book deep-link helper
         if ((entityType === 'contact' || entityType === 'book' || entityType === 'client') && entityId) {
             return { label: 'Open Client', url: openClientUrl(entityId) };
         }
 
         if (entityType === 'service' && entityId) {
+            // You already have /service/open/{client} helper too, but Step 2 is client-side only.
             return { label: 'Open Service Client', url: `/service?open=${encodeURIComponent(String(entityId))}` };
         }
 
@@ -332,7 +338,11 @@
         list.appendChild(li);
     }
 
-    // ✅ FIX #2: Make POSTs Laravel-friendly (form-encoded), and on success remove card.
+    /**
+     * ✅ POST helper
+     * - sends CSRF
+     * - expects JSON but tolerates non-JSON responses safely
+     */
     async function postForm(url, dataObj) {
         const body = new URLSearchParams();
         if (dataObj && typeof dataObj === 'object') {
@@ -354,7 +364,12 @@
 
         let json = null;
         try { json = await res.json(); } catch (_) {}
-        return { ok: res.ok, status: res.status, json };
+
+        return {
+            ok: res.ok,
+            status: res.status,
+            json,
+        };
     }
 
     function removeCardByOppId(oppId) {
@@ -362,33 +377,43 @@
         if (el && el.parentNode) el.parentNode.removeChild(el);
     }
 
+    function isSuccessPayload(payload) {
+        // Accept either {success:true} or {ok:true} depending on controller implementation
+        if (!payload || typeof payload !== 'object') return false;
+        return payload.success === true || payload.ok === true;
+    }
+
+    /**
+     * ✅ Done/Snooze:
+     * - call the Step 1 routes
+     * - remove card ONLY AFTER success
+     * - then refresh top list to pull in the next opportunity
+     */
     async function handleDone(oppId) {
         const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/complete`;
+        const { ok, json, status } = await postForm(url, {});
 
-        // optimistic remove
-        removeCardByOppId(oppId);
-
-        const { ok, json } = await postForm(url, {});
-        if (!ok || !json || json.success !== true) {
-            alert('Could not mark as done. Check laravel.log.');
+        if (!ok || !isSuccessPayload(json)) {
+            console.error('Done failed:', { oppId, status, json });
+            alert('Could not mark as done. Check browser console + laravel.log.');
+            return;
         }
 
-        // Always refresh list to stay consistent
+        removeCardByOppId(oppId);
         await loadTop();
     }
 
     async function handleSnooze(oppId, days) {
         const url = `${ENDPOINTS.oppBase}/${encodeURIComponent(String(oppId))}/snooze`;
+        const { ok, json, status } = await postForm(url, { days: days || 7 });
 
-        // optimistic remove
-        removeCardByOppId(oppId);
-
-        const { ok, json } = await postForm(url, { days: days || 7 });
-        if (!ok || !json || json.success !== true) {
-            alert('Could not snooze. Check laravel.log.');
+        if (!ok || !isSuccessPayload(json)) {
+            console.error('Snooze failed:', { oppId, status, json });
+            alert('Could not snooze. Check browser console + laravel.log.');
+            return;
         }
 
-        // Always refresh list
+        removeCardByOppId(oppId);
         await loadTop();
     }
 
@@ -414,7 +439,7 @@
         }
 
         items.slice(0, 5).forEach(item => {
-            const oppId = item.id; // ✅ use opportunity ID for Done/Snooze
+            const oppId = item.id; // ✅ opportunity ID for Done/Snooze
             const p = priorityFromScore(item.score);
             const color = COLORS[p] || COLORS.P3;
 
@@ -477,7 +502,7 @@
             const right = document.createElement('div');
             right.className = 'gideon-action-cta';
 
-            // ✅ Open Client (now uses ?selected=ID)
+            // ✅ Open Client (server deep-link helper)
             const a = document.createElement('a');
             a.className = 'gideon-btn';
             a.style.textDecoration = 'none';
@@ -485,7 +510,7 @@
             a.textContent = cta.label + ' →';
             right.appendChild(a);
 
-            // ✅ Done + Snooze
+            // ✅ Done + Snooze (only if oppId exists)
             if (oppId) {
                 const doneBtn = document.createElement('button');
                 doneBtn.type = 'button';
@@ -536,6 +561,7 @@
                 renderTop([]);
                 return;
             }
+
             renderTop(data.items || []);
         } catch (e) {
             renderTop([]);
