@@ -33,7 +33,7 @@ use App\Http\Controllers\Gideon\GideonOpportunitiesController;
 // ✅ NEW: GIDEON SECOND BRAIN CONTROLLER
 use App\Http\Controllers\Gideon\GideonInsightsController;
 
-// ✅ NEW: GIDEON SCAN CONTROLLER (scan + deep scan + top + snooze/done)
+// ✅ NEW: GIDEON SCAN CONTROLLER (scan + deep scan + top)
 use App\Http\Controllers\GideonScanController;
 
 // ✅ NEW: BILLING CONTROLLER (placeholder to stop 404)
@@ -377,7 +377,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
-    // ✅ Scans + dashboard top list + snooze/done actions
+    /**
+     * ✅ ACTION ROUTES (Done / Snooze)
+     * These MUST point to GideonOpportunitiesController (NOT GideonScanController)
+     */
+    Route::prefix('gideon/opportunities')->group(function () {
+        Route::post('/{opportunity}/complete', [GideonOpportunitiesController::class, 'complete'])
+            ->name('gideon.opportunities.complete');
+
+        Route::post('/{opportunity}/snooze', [GideonOpportunitiesController::class, 'snooze'])
+            ->name('gideon.opportunities.snooze');
+    });
+
+    // ✅ Scans + dashboard top list
     Route::prefix('gideon')->group(function () {
 
         // Scan endpoints
@@ -385,12 +397,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
         Route::get('/top',        [GideonScanController::class, 'top'])->name('gideon.top');
 
-        // Snooze/Done
-        Route::post('/opportunities/{opportunity}/snooze', [GideonScanController::class, 'snooze'])
-            ->name('gideon.opportunities.snooze');
-
-        Route::post('/opportunities/{opportunity}/done', [GideonScanController::class, 'markDone'])
-            ->name('gideon.opportunities.done');
+        // ❌ REMOVED: these were causing the mismatch/404/500 (wrong controller + wrong method names)
+        // Route::post('/opportunities/{opportunity}/snooze', [GideonScanController::class, 'snooze'])
+        //     ->name('gideon.opportunities.snooze');
+        //
+        // Route::post('/opportunities/{opportunity}/done', [GideonScanController::class, 'markDone'])
+        //     ->name('gideon.opportunities.done');
     });
 
     Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
