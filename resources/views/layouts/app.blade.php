@@ -47,6 +47,7 @@
             display: block;
             border-bottom: 1px solid rgba(212,175,55,0.25);
             text-align: left;
+            background: transparent;
         }
 
         .nav-item:hover {
@@ -57,6 +58,14 @@
         .main-content {
             margin-left: 250px;
             padding: 25px;
+        }
+
+        /* Logout button styled like nav links */
+        .nav-button {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            text-align: left;
         }
     </style>
 </head>
@@ -82,13 +91,19 @@
 
         <a class="nav-item" href="/calendar">Calendar</a>
 
-        <!-- ⭐ NEW LINKS ⭐ -->
-        <a class="nav-item" href="{{ route('gideon.sparring') }}">Sparring Partner</a>
+        <!-- Gideon -->
         <a class="nav-item" href="{{ route('gideon.second_brain') }}">Gideon Second Brain</a>
 
         <a class="nav-item" href="/settings">Settings</a>
-        <a class="nav-item" href="/billing">Billing</a>
-        <a class="nav-item" href="/logout">Logout</a>
+
+        <!-- ✅ Billing now uses a real named route (stops 404) -->
+        <a class="nav-item" href="{{ route('billing') }}">Billing</a>
+
+        <!-- ✅ Logout must be POST (secure + matches web.php) -->
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit" class="nav-item nav-button">Logout</button>
+        </form>
     </div>
 
     <!-- MAIN CONTENT -->
