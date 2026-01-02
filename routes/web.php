@@ -11,26 +11,33 @@ use App\Models\GideonOpportunity;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\NoteController;
+
 // NEW CONTROLLERS FOR LEADS / BOOK / SERVICE
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\ServiceController;
+
 // NEW ACTIVITY CONTROLLER
 use App\Http\Controllers\ActivityController;
+
 // AUTH CONTROLLER
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+
 // GIDEON SERVICES
 use App\Services\Gideon\GideonLlmClient;
 use App\Services\Gideon\OpportunityScanner;
+
 // ✅ GIDEON OPPORTUNITIES API CONTROLLER (under App\Http\Controllers\Gideon)
 use App\Http\Controllers\Gideon\GideonOpportunitiesController;
+
 // ✅ NEW: GIDEON SECOND BRAIN CONTROLLER
 use App\Http\Controllers\Gideon\GideonInsightsController;
-// ✅ NEW: GIDEON SPARRING CONTROLLER (for Sparring Partner page)
-use App\Http\Controllers\Gideon\GideonSparringController;
 
 // ✅ NEW: GIDEON SCAN CONTROLLER (scan + deep scan + top + snooze/done)
 use App\Http\Controllers\GideonScanController;
+
+// ✅ NEW: BILLING CONTROLLER (placeholder to stop 404)
+use App\Http\Controllers\BillingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -98,6 +105,13 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    /*
+    |--------------------------------------------------------------------------
+    | BILLING (Placeholder)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/billing', [BillingController::class, 'index'])->name('billing');
 
     /*
     |--------------------------------------------------------------------------
@@ -363,7 +377,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
-    // ✅ Scans + dashboard top list + (IMPORTANT) snooze/done actions
+    // ✅ Scans + dashboard top list + snooze/done actions
     Route::prefix('gideon')->group(function () {
 
         // Scan endpoints
@@ -371,9 +385,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
         Route::get('/top',        [GideonScanController::class, 'top'])->name('gideon.top');
 
-        // ✅ Option 4 Actions
-        // POST /gideon/opportunities/{id}/snooze   (snooze 7 days)
-        // POST /gideon/opportunities/{id}/done     (mark completed)
+        // Snooze/Done
         Route::post('/opportunities/{opportunity}/snooze', [GideonScanController::class, 'snooze'])
             ->name('gideon.opportunities.snooze');
 
@@ -384,8 +396,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
         ->name('gideon.second_brain');
 
-    Route::get('/sparring-partner', [GideonSparringController::class, 'index'])
-        ->name('gideon.sparring');
+    // ✅ Removed Sparring Partner route (tabled for now)
+    // Route::get('/sparring-partner', [GideonSparringController::class, 'index'])->name('gideon.sparring');
 
     Route::get('/debug-gideon-create-opportunity', function () {
         $user = auth()->user();
