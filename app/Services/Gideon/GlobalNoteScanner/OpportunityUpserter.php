@@ -6,21 +6,17 @@ use Illuminate\Support\Facades\DB;
 
 class OpportunityUpserter
 {
-    /**
-     * Create or update an opportunity (idempotent).
-     * Dedupe key: tenant_id + entity_type + entity_id + rule_code + note_id
-     */
     public function upsertFromCandidate(Candidate $c): void
     {
         DB::transaction(function () use ($c) {
             $now = now();
 
             $existing = DB::table('gideon_opportunities')
-                ->where('tenant_id', $c->tenantId)
+                ->where('agency_id', $c->agencyId)
                 ->where('entity_type', $c->entityType)
                 ->where('entity_id', $c->entityId)
                 ->where('rule_code', $c->ruleCode)
-                ->where('source_type', 'note')
+                ->where('source_type', 'note_index')
                 ->where('source_id', $c->noteId)
                 ->first();
 
@@ -28,12 +24,21 @@ class OpportunityUpserter
                 DB::table('gideon_opportunities')
                     ->where('id', $existing->id)
                     ->update([
+                        'user_id' => $c->userId,
+
+                        'category' => $c->ruleGroup,
+                        'title' => $c->title,
+                        'short_reason' => $c->shortReason,
+                        'recommended_action' => $c->recommendedAction,
+
                         'status' => 'open',
                         'due_at' => $c->dueAt,
-                        'title' => $c->title,
-                        'why_it_matters' => $c->whyItMatters,
-                        'next_step' => $c->nextStep,
-                        'evidence' => json_encode($c->evidence),
+
+                        'source_snapshot' => json_encode($c->sourceSnapshot),
+
+                        // Keep your existing scoring model simple for now
+                        'score' => max((int)($existing->score ?? 0), 50),
+
                         'last_detected_at' => $now,
                         'updated_at' => $now,
                     ]);
@@ -41,26 +46,27 @@ class OpportunityUpserter
             }
 
             DB::table('gideon_opportunities')->insert([
-                'tenant_id' => $c->tenantId,
+                'agency_id' => $c->agencyId,
+                'user_id' => $c->userId,
+
                 'entity_type' => $c->entityType,
                 'entity_id' => $c->entityId,
 
-                'rule_code' => $c->ruleCode,
-                'source_type' => 'note',
-                'source_id' => $c->noteId,
+                'category' => $c->ruleGroup,
 
-                'status' => 'open',
+                'rule_code' => $c->ruleCode,
+                'source_type' => 'note_index',
+                'source_id' => $c->noteId,
                 'due_at' => $c->dueAt,
 
                 'title' => $c->title,
-                'why_it_matters' => $c->whyItMatters,
-                'next_step' => $c->nextStep,
+                'short_reason' => $c->shortReason,
+                'recommended_action' => $c->recommendedAction,
 
-                'evidence' => json_encode($c->evidence),
+                'score' => 50,
+                'status' => 'open',
 
-                // Hook later into your priority hierarchy
-                'priority_score' => 0,
-                'severity' => 'high',
+                'source_snapshot' => json_encode($c->sourceSnapshot),
 
                 'first_detected_at' => $now,
                 'last_detected_at' => $now,
@@ -71,36 +77,30 @@ class OpportunityUpserter
         });
     }
 
-    /**
-     * Resolve all open opportunities for an entity (used when a future follow-up exists, or hard exclusion).
-     */
-    public function resolveAllOpenForEntity(string $tenantId, string $entityType, int $entityId, string $reason): void
+    public function resolveAllOpenForEntity(int $agencyId, string $entityType, ?int $entityId, string $reason): void
     {
         DB::table('gideon_opportunities')
-            ->where('tenant_id', $tenantId)
+            ->where('agency_id', $agencyId)
             ->where('entity_type', $entityType)
             ->where('entity_id', $entityId)
             ->where('status', 'open')
             ->update([
-                'status' => 'resolved',
+                'status' => 'completed',
+                'resolved_at' => now(),
+                'outcome_reason' => $reason,
                 'updated_at' => now(),
             ]);
-
-        // (Optional) You can also append resolution reason into evidence_json later.
     }
 
-    /**
-     * If you enforce "one open opportunity per entity at a time", this resolves others.
-     */
     public function resolveOtherOpenForEntity(
-        string $tenantId,
+        int $agencyId,
         string $entityType,
-        int $entityId,
+        ?int $entityId,
         string $keepRuleCode,
         int $keepSourceId
     ): void {
         DB::table('gideon_opportunities')
-            ->where('tenant_id', $tenantId)
+            ->where('agency_id', $agencyId)
             ->where('entity_type', $entityType)
             ->where('entity_id', $entityId)
             ->where('status', 'open')
@@ -109,7 +109,9 @@ class OpportunityUpserter
                   ->orWhere('source_id', '!=', $keepSourceId);
             })
             ->update([
-                'status' => 'resolved',
+                'status' => 'completed',
+                'resolved_at' => now(),
+                'outcome_reason' => 'replaced_by_higher_precedence',
                 'updated_at' => now(),
             ]);
     }
