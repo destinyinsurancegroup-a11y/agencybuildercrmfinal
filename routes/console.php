@@ -14,6 +14,29 @@ use Illuminate\Support\Facades\Artisan;
 |
 */
 
+/**
+ * Default Laravel example command
+ */
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+
+/**
+ * Gideon: Global Note Deep Scan
+ *
+ * Dispatches the background job that scans all notes
+ * for missed or forgotten opportunities.
+ */
+Artisan::command('gideon:deep-scan:global-notes {--tenant=} {--since=}', function () {
+    $tenant = $this->option('tenant');
+    $since  = $this->option('since');
+
+    $this->call(
+        \App\Console\Commands\GideonDeepScanGlobalNotesCommand::class,
+        [
+            '--tenant' => $tenant,
+            '--since'  => $since,
+        ]
+    );
+})->purpose('Run Gideon global note deep scan');
