@@ -10,9 +10,6 @@ class RuleMatcher
         private readonly DueTimeParser $dueTimeParser
     ) {}
 
-    /**
-     * If any "hard exclusion" phrase exists, Gideon must not surface opportunities.
-     */
     public function isHardExcluded(string $normalizedText): bool
     {
         foreach (RuleLibrary::hardExclusions() as $rx) {
@@ -23,14 +20,11 @@ class RuleMatcher
         return false;
     }
 
-    /**
-     * Look at ONE note and produce zero or more Candidates.
-     * We keep it deterministic: pattern match only.
-     */
     public function matchCandidates(
-        string $tenantId,
+        int $agencyId,
+        ?int $userId,
         string $entityType,
-        int $entityId,
+        ?int $entityId,
         int $noteId,
         Carbon $noteCreatedAt,
         string $originalText,
@@ -44,15 +38,16 @@ class RuleMatcher
                     continue;
                 }
 
-                $dueAt = null;
                 $requiresDueAt = (bool) ($rule['requiresDueAt'] ?? false);
+                $dueAt = null;
 
                 if ($requiresDueAt) {
                     $dueAt = $this->dueTimeParser->parseDueAt($normalizedText, $noteCreatedAt);
                 }
 
                 $candidates[] = new Candidate(
-                    tenantId: $tenantId,
+                    agencyId: $agencyId,
+                    userId: $userId,
                     entityType: $entityType,
                     entityId: $entityId,
 
@@ -67,10 +62,11 @@ class RuleMatcher
                     requiresDueAt: $requiresDueAt,
 
                     title: $rule['title'],
-                    whyItMatters: $rule['why'],
-                    nextStep: $rule['next'],
+                    shortReason: $rule['why'],
+                    recommendedAction: $rule['next'],
 
-                    evidence: [
+                    sourceSnapshot: [
+                        'source_type' => 'note_index',
                         'note_id' => $noteId,
                         'note_created_at' => $noteCreatedAt->toIso8601String(),
                         'matched_rule' => $rule['ruleCode'],
@@ -78,7 +74,6 @@ class RuleMatcher
                     ]
                 );
 
-                // Stop after first match inside this rule (keeps output stable)
                 break;
             }
         }
