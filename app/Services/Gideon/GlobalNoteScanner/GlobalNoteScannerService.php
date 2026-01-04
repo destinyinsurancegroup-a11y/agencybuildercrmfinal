@@ -19,17 +19,20 @@ class GlobalNoteScannerService
     /**
      * Deep Scan: scans notes (all modules) for missed opportunities.
      *
-     * @param string|null $tenantId scan only one tenant if provided
-     * @param Carbon|null $since scan only notes changed since time if provided
+     * @param int|null    $agencyId scan only one agency if provided
+     * @param Carbon|null $since    scan only notes changed since time if provided
      */
-    public function runDeepScan(?string $tenantId = null, ?Carbon $since = null): void
+    public function runDeepScan(?int $agencyId = null, ?Carbon $since = null): void
     {
         $cursor = null;
         $batchSize = 500;
 
         do {
+            // NOTE: NoteIndexRepository currently filters by tenantId in your earlier version.
+            // If you already updated it to filter by agency_id, pass $agencyId here.
+            // For now, we pass null and filter per-row below (safe + correct).
             $batch = $this->notes->fetchBatch(
-                tenantId: $tenantId,
+                tenantId: null,
                 since: $since,
                 cursor: $cursor,
                 limit: $batchSize
@@ -43,14 +46,27 @@ class GlobalNoteScannerService
                     continue;
                 }
 
-                $tenant = (string) $noteRow->tenant_id;
+                // Read agency_id from note index row (LOCKED for this phase)
+                $rowAgencyId = (int) ($noteRow->agency_id ?? 0);
+                if ($rowAgencyId <= 0) {
+                    // Safety: if note is not tied to an agency, ignore it
+                    continue;
+                }
+
+                // If scanning for a specific agency, ignore others
+                if ($agencyId !== null && $rowAgencyId !== $agencyId) {
+                    continue;
+                }
+
+                $userId = isset($noteRow->author_user_id) ? (int) $noteRow->author_user_id : null;
+
                 $entityType = (string) $noteRow->entity_type;
-                $entityId = (int) $noteRow->entity_id;
+                $entityId = isset($noteRow->entity_id) ? (int) $noteRow->entity_id : null;
 
                 // 1) If follow-up is already scheduled, Gideon stays quiet
-                if ($this->followUps->hasFutureFollowUp($tenant, $entityType, $entityId)) {
+                if ($this->followUps->hasFutureFollowUp($rowAgencyId, $entityType, (int) $entityId)) {
                     $this->upserter->resolveAllOpenForEntity(
-                        tenantId: $tenant,
+                        agencyId: $rowAgencyId,
                         entityType: $entityType,
                         entityId: $entityId,
                         reason: 'future_followup_exists'
@@ -69,7 +85,7 @@ class GlobalNoteScannerService
                 // 3) Hard exclusions shut Gideon up
                 if ($this->matcher->isHardExcluded($normalized)) {
                     $this->upserter->resolveAllOpenForEntity(
-                        tenantId: $tenant,
+                        agencyId: $rowAgencyId,
                         entityType: $entityType,
                         entityId: $entityId,
                         reason: 'hard_exclusion_note'
@@ -81,7 +97,8 @@ class GlobalNoteScannerService
                 $noteCreatedAt = Carbon::parse($noteRow->note_created_at);
 
                 $candidates = $this->matcher->matchCandidates(
-                    tenantId: $tenant,
+                    agencyId: $rowAgencyId,
+                    userId: $userId,
                     entityType: $entityType,
                     entityId: $entityId,
                     noteId: (int) $noteRow->note_id,
@@ -114,7 +131,7 @@ class GlobalNoteScannerService
 
                 // 8) Optional: enforce "one open opportunity per entity"
                 $this->upserter->resolveOtherOpenForEntity(
-                    tenantId: $tenant,
+                    agencyId: $rowAgencyId,
                     entityType: $entityType,
                     entityId: $entityId,
                     keepRuleCode: $best->ruleCode,
@@ -125,7 +142,7 @@ class GlobalNoteScannerService
         } while ($batch->hasMore);
 
         Log::info('Gideon Global Note Deep Scan finished', [
-            'tenantId' => $tenantId,
+            'agencyId' => $agencyId,
             'since' => $since?->toIso8601String(),
         ]);
     }
