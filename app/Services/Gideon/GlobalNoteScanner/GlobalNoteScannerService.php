@@ -28,11 +28,9 @@ class GlobalNoteScannerService
         $batchSize = 500;
 
         do {
-            // NOTE: NoteIndexRepository currently filters by tenantId in your earlier version.
-            // If you already updated it to filter by agency_id, pass $agencyId here.
-            // For now, we pass null and filter per-row below (safe + correct).
+            // Fetch only notes for this agency (if provided)
             $batch = $this->notes->fetchBatch(
-                tenantId: null,
+                agencyId: $agencyId,
                 since: $since,
                 cursor: $cursor,
                 limit: $batchSize
@@ -46,15 +44,9 @@ class GlobalNoteScannerService
                     continue;
                 }
 
-                // Read agency_id from note index row (LOCKED for this phase)
+                // Safety: note must be tied to an agency
                 $rowAgencyId = (int) ($noteRow->agency_id ?? 0);
                 if ($rowAgencyId <= 0) {
-                    // Safety: if note is not tied to an agency, ignore it
-                    continue;
-                }
-
-                // If scanning for a specific agency, ignore others
-                if ($agencyId !== null && $rowAgencyId !== $agencyId) {
                     continue;
                 }
 
@@ -117,12 +109,10 @@ class GlobalNoteScannerService
                 // 6) Follow-up rules only surface when due/overdue
                 if ($best->requiresDueAt) {
                     if ($best->dueAt === null) {
-                        // If we can't calculate a due date, we stay silent (v1)
-                        continue;
+                        continue; // can't compute due date => silent
                     }
                     if (now()->lt($best->dueAt)) {
-                        // Not due yet, stay silent
-                        continue;
+                        continue; // not due yet => silent
                     }
                 }
 
