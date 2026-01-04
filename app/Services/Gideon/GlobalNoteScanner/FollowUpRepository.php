@@ -7,30 +7,36 @@ use Illuminate\Support\Facades\DB;
 class FollowUpRepository
 {
     /**
-     * IMPORTANT: This is a stub.
+     * Check if there is already a future follow-up scheduled
+     * for this entity. If yes, Gideon stays quiet.
      *
-     * Replace the query with your real calendar/tasks tables.
+     * NOTE: This is intentionally a stub for this phase.
+     * It will be wired to the real calendar/events table later.
      *
-     * For now it assumes you have (or will create) a generic follow_ups table:
-     * - tenant_id
-     * - entity_type (lead|client|contact|service_case)
+     * Expected eventual fields (example):
+     * - agency_id
+     * - entity_type (lead|contact|policy|service|etc)
      * - entity_id
      * - scheduled_for (timestamp)
      * - status (scheduled|confirmed|cancelled|done)
      */
-    public function hasFutureFollowUp(string $tenantId, string $entityType, int $entityId): bool
+    public function hasFutureFollowUp(int $agencyId, string $entityType, int $entityId): bool
     {
-        // If you don't have this table yet, you can temporarily return false
-        // so Gideon doesn't suppress everything:
+        // TEMPORARY SAFE DEFAULT:
+        // Until calendar wiring is done, always return false
+        // so Gideon does not suppress legitimate opportunities.
         //
-        // return false;
+        // When ready, remove the line below and wire to real table.
+        return false;
 
+        /*
         return DB::table('follow_ups')
-            ->where('tenant_id', $tenantId)
+            ->where('agency_id', $agencyId)
             ->where('entity_type', $entityType)
             ->where('entity_id', $entityId)
             ->where('scheduled_for', '>', now())
             ->whereIn('status', ['scheduled', 'confirmed'])
             ->exists();
+        */
     }
 }
