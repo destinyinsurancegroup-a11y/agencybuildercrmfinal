@@ -17,14 +17,15 @@ class NoteIndexRepository
 {
     /**
      * Fetch notes from gideon_note_index in ID order.
-     * We use cursor pagination so it scales.
+     * Cursor pagination keeps it scalable.
      */
-    public function fetchBatch(?string $tenantId, ?Carbon $since, ?int $cursor, int $limit): NoteBatch
+    public function fetchBatch(?int $agencyId, ?Carbon $since, ?int $cursor, int $limit): NoteBatch
     {
         $q = DB::table('gideon_note_index')
             ->select([
                 'id',
-                'tenant_id',
+                'agency_id',
+                'author_user_id',
                 'entity_type',
                 'entity_id',
                 'note_id',
@@ -36,8 +37,8 @@ class NoteIndexRepository
             ->orderBy('id')
             ->limit($limit);
 
-        if ($tenantId) {
-            $q->where('tenant_id', $tenantId);
+        if ($agencyId !== null) {
+            $q->where('agency_id', $agencyId);
         }
 
         if ($since) {
@@ -55,7 +56,6 @@ class NoteIndexRepository
         $items = [];
 
         foreach ($rows as $r) {
-            // attach cursor for the scanner to continue
             $r->cursor = (int) $r->id;
             $items[] = $r;
         }
