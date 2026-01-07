@@ -28,14 +28,14 @@ Artisan::command('inspire', function () {
  * Dispatches the background job that scans all notes
  * for missed or forgotten opportunities.
  */
-Artisan::command('gideon:deep-scan:global-notes {--tenant=} {--since=}', function () {
-    $tenant = $this->option('tenant');
+Artisan::command('gideon:deep-scan:global-notes {--agency=} {--since=}', function () {
+    $agency = $this->option('agency');
     $since  = $this->option('since');
 
     $this->call(
         \App\Console\Commands\GideonDeepScanGlobalNotesCommand::class,
         [
-            '--tenant' => $tenant,
+            '--agency' => $agency,
             '--since'  => $since,
         ]
     );
