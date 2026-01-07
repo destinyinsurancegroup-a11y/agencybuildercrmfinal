@@ -375,13 +375,27 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    // ✅ List opportunities (JSON)
+    /**
+     * ✅ IMPORTANT:
+     * /gideon/opportunities now supports:
+     * - HTML (browser navigation) -> Blade view (fixes "View all shows JSON")
+     * - JSON (AJAX/API) -> JSON list
+     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
     /**
-     * ✅ ACTION ROUTES (Done / Snooze)
-     * These MUST point to GideonOpportunitiesController (NOT GideonScanController)
+     * ✅ NEW (Step 3A): grouped endpoints for the dashboard UI
+     */
+    Route::get('/gideon/opportunities/groups', [GideonOpportunitiesController::class, 'groups'])
+        ->name('gideon.opportunities.groups');
+
+    Route::get('/gideon/opportunities/group-items', [GideonOpportunitiesController::class, 'groupItems'])
+        ->name('gideon.opportunities.groupItems');
+
+    /**
+     * ✅ ACTION ROUTES (Done / Snooze / Unsnooze / Dismiss)
+     * These MUST point to GideonOpportunitiesController.
      */
     Route::prefix('gideon/opportunities')->group(function () {
         Route::post('/{opportunity}/complete', [GideonOpportunitiesController::class, 'complete'])
@@ -389,6 +403,12 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/{opportunity}/snooze', [GideonOpportunitiesController::class, 'snooze'])
             ->name('gideon.opportunities.snooze');
+
+        Route::post('/{opportunity}/unsnooze', [GideonOpportunitiesController::class, 'unsnooze'])
+            ->name('gideon.opportunities.unsnooze');
+
+        Route::post('/{opportunity}/dismiss', [GideonOpportunitiesController::class, 'dismiss'])
+            ->name('gideon.opportunities.dismiss');
     });
 
     // ✅ Scans + dashboard top list
