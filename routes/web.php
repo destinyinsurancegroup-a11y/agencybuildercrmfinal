@@ -157,7 +157,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/import/template', [LeadController::class, 'downloadTemplate'])
         ->name('leads.import.template');
 
-    Route::get('/leads/{id}', [LeadController::class, 'show'])->name('leads.show');
+    Route::get('/leads/{id}',     [LeadController::class, 'show'])->name('leads.show');
 
     Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
         ->name('leads.sold');
@@ -170,7 +170,7 @@ Route::middleware('auth')->group(function () {
     | LEAD NOTES  (reuse BookController note logic)
     |--------------------------------------------------------------------------
     */
-    Route::post('/leads/{client}/notes', [BookController::class, 'storeNote'])
+    Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
         ->name('leads.notes.store');
 
     Route::put('/leads/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -249,9 +249,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/archive/not-saved', [ServiceController::class, 'notSavedArchive'])
             ->name('service.archive.not-saved');
 
-        Route::get('/{client}', [ServiceController::class, 'show'])->name('service.show');
+        Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
         Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
-        Route::put('/{client}', [ServiceController::class, 'update'])->name('service.update');
+        Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
 
         Route::get('/{client}/follow-up', [ServiceController::class, 'followUp'])
             ->name('service.follow-up');
@@ -277,7 +277,7 @@ Route::middleware('auth')->group(function () {
     | SERVICE NOTES
     |--------------------------------------------------------------------------
     */
-    Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])
+    Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])
         ->name('service.notes.store');
 
     Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -376,23 +376,15 @@ Route::middleware('auth')->group(function () {
     */
 
     /**
-     * ✅ FIX for "View all shows JSON":
-     * This route is now the HUMAN page.
-     * (Your dashboard "View all" should point here.)
+     * ✅ IMPORTANT:
+     * /gideon/opportunities is handled ONLY by the controller.
+     * DO NOT add any Route::view() or closure returning view('gideon.opportunities')
      */
-    Route::get('/gideon/opportunities', function () {
-        return view('gideon.opportunities');
-    })->name('gideon.opportunities.index');
+    Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
+        ->name('gideon.opportunities.index');
 
     /**
-     * ✅ API: JSON list endpoint (used by fetch/AJAX if needed)
-     * IMPORTANT: This is what shows raw JSON in the browser if visited directly.
-     */
-    Route::get('/api/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
-        ->name('gideon.opportunities.api');
-
-    /**
-     * ✅ Grouped endpoints for the dashboard UI
+     * Grouped endpoints for the dashboard UI
      */
     Route::get('/gideon/opportunities/groups', [GideonOpportunitiesController::class, 'groups'])
         ->name('gideon.opportunities.groups');
@@ -401,8 +393,7 @@ Route::middleware('auth')->group(function () {
         ->name('gideon.opportunities.groupItems');
 
     /**
-     * ✅ ACTION ROUTES (Done / Snooze / Unsnooze / Dismiss)
-     * These MUST point to GideonOpportunitiesController.
+     * Actions
      */
     Route::prefix('gideon/opportunities')->group(function () {
         Route::post('/{opportunity}/complete', [GideonOpportunitiesController::class, 'complete'])
@@ -418,7 +409,9 @@ Route::middleware('auth')->group(function () {
             ->name('gideon.opportunities.dismiss');
     });
 
-    // ✅ Scans + dashboard top list
+    /**
+     * Scans + dashboard top list
+     */
     Route::prefix('gideon')->group(function () {
         Route::post('/scan',      [GideonScanController::class, 'scan'])->name('gideon.scan');
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
