@@ -77,6 +77,25 @@
             .replaceAll("'","&#039;");
     }
 
+    /**
+     * Prefer real client/contact name.
+     * Works for:
+     * - Note opportunities (entity_label)
+     * - BEC group items (often name already)
+     * - Fallback to "Contact #306"
+     */
+    function displayName(item) {
+        const label = item?.entity_label ?? item?.name ?? null;
+
+        if (label && String(label).trim() !== '') {
+            return String(label).trim();
+        }
+
+        const type = (item?.entity_type ?? 'Item').toString();
+        const id = item?.entity_id ?? item?.id ?? '';
+        return `${type} #${id}`;
+    }
+
     function renderGroups(groups) {
         cardsEl.innerHTML = '';
 
@@ -171,14 +190,17 @@
             const row = document.createElement('div');
             row.className = 'p-3 rounded-lg border flex items-start justify-between gap-3';
 
+            const openUrl = item.open_url ? String(item.open_url) : '#';
+            const name = displayName(item);
+
             row.innerHTML = `
                 <div class="flex-1">
-                    <div class="text-sm font-semibold">${escapeHtml(item.name)}</div>
+                    <div class="text-sm font-semibold">${escapeHtml(name)}</div>
                     <div class="text-xs text-gray-600 mt-1">${escapeHtml(item.title || '')}</div>
                     <div class="text-xs text-gray-700 mt-1"><span class="font-semibold">Next:</span> ${escapeHtml(item.recommended_action || '')}</div>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <a href="${escapeHtml(item.open_url)}" class="px-3 py-2 rounded-lg border text-sm text-center">
+                    <a href="${escapeHtml(openUrl)}" class="px-3 py-2 rounded-lg border text-sm text-center ${openUrl === '#' ? 'pointer-events-none opacity-50' : ''}">
                         Open
                     </a>
                     <button class="px-3 py-2 rounded-lg border text-sm gideon-done" data-id="${item.id}">
