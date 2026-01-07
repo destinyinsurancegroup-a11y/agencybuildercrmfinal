@@ -15,11 +15,11 @@ class DeepScanGlobalNotesJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
-     * @param string|null $tenantId If set, only scan one tenant.
-     * @param Carbon|null $since If set, only scan notes changed since this time.
+     * @param int|null    $agencyId If set, only scan one agency.
+     * @param Carbon|null $since    If set, only scan notes changed since this time.
      */
     public function __construct(
-        public readonly ?string $tenantId = null,
+        public readonly ?int $agencyId = null,
         public readonly ?Carbon $since = null
     ) {
         $this->onQueue('gideon');
@@ -28,7 +28,7 @@ class DeepScanGlobalNotesJob implements ShouldQueue
     public function handle(GlobalNoteScannerService $scanner): void
     {
         $scanner->runDeepScan(
-            tenantId: $this->tenantId,
+            agencyId: $this->agencyId,
             since: $this->since
         );
     }
