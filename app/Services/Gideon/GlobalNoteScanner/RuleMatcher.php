@@ -38,12 +38,22 @@ class RuleMatcher
                     continue;
                 }
 
-                $requiresDueAt = (bool) ($rule['requiresDueAt'] ?? false);
-                $dueAt = null;
+                /**
+                 * OPTION B (LOCKED):
+                 * - If the note text contains time intent (e.g., "next week"),
+                 *   we set dueAt + requiresDueAt automatically, even if the rule
+                 *   does not explicitly require a due date.
+                 *
+                 * - If the rule explicitly requires a due date but we cannot parse one,
+                 *   dueAt stays null and requiresDueAt stays true (scanner will stay silent).
+                 */
+                $ruleRequiresDueAt = (bool) ($rule['requiresDueAt'] ?? false);
 
-                if ($requiresDueAt) {
-                    $dueAt = $this->dueTimeParser->parseDueAt($normalizedText, $noteCreatedAt);
-                }
+                // Always attempt to parse a due date from the note text
+                $parsedDueAt = $this->dueTimeParser->parseDueAt($normalizedText, $noteCreatedAt);
+
+                $requiresDueAt = $ruleRequiresDueAt || ($parsedDueAt !== null);
+                $dueAt = $parsedDueAt; // may be null
 
                 $candidates[] = new Candidate(
                     agencyId: $agencyId,
@@ -71,9 +81,12 @@ class RuleMatcher
                         'note_created_at' => $noteCreatedAt->toIso8601String(),
                         'matched_rule' => $rule['ruleCode'],
                         'matched_excerpt' => $this->excerpt($originalText),
+                        'due_at' => $dueAt?->toIso8601String(),
+                        'requires_due_at' => $requiresDueAt,
                     ]
                 );
 
+                // One candidate per rule
                 break;
             }
         }
