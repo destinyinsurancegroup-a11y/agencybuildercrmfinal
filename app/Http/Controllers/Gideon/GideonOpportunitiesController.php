@@ -6,77 +6,31 @@ use App\Http\Controllers\Controller;
 use App\Models\GideonOpportunity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class GideonOpportunitiesController extends Controller
 {
     /**
-     * IMPORTANT BEHAVIOR:
-     * - If the request expects JSON (AJAX/API), return JSON opportunities (existing behavior).
-     * - If the request expects HTML (browser), return a real Blade view.
-     *
-     * This fixes the "View all shows JSON" problem.
+     * If the request is a browser navigation (not AJAX), return HTML.
+     * If it's fetch() / Accept: application/json, return JSON.
      */
     public function index(Request $request)
     {
         $user = $request->user();
 
         if (! $user || ! $user->agency_id) {
-            // If HTML request, redirect; if JSON request, return JSON.
-            if (! $request->expectsJson()) {
-                abort(403, 'Unauthorized or user has no agency scope.');
-            }
-
-            return response()->json([
-                'message' => 'Unauthorized or user has no agency scope.',
-            ], 403);
+            abort(403, 'Unauthorized or user has no agency scope.');
         }
 
-        // If this is a browser navigation (HTML), return a real page.
+        // If user clicked "View all" in browser, they expect a page, not raw JSON.
         if (! $request->expectsJson()) {
-            // We pass only minimal data here; the page can fetch groups/items via endpoints below.
-            return view('gideon.opportunities.index', [
-                'agencyId' => (int) $user->agency_id,
-            ]);
-        }
-
-        // Otherwise, keep the existing JSON listing behavior (but improved with actionable filtering by default).
-        return $this->listJson($request);
-    }
-
-    /**
-     * JSON list endpoint (existing behavior, improved):
-     * - Defaults to actionable items only (open + not snoozed + due if due_at exists)
-     * - Optional query params:
-     *   - status (open|completed|dismissed|snoozed)
-     *   - category
-     *   - include_future_due=1  (if you ever want to see future due items)
-     */
-    public function listJson(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        if (! $user || ! $user->agency_id) {
-            return response()->json([
-                'message' => 'Unauthorized or user has no agency scope.',
-            ], 403);
+            return view('gideon.opportunities.index');
         }
 
         $query = GideonOpportunity::query()
             ->where('agency_id', $user->agency_id);
 
-        // Default status to "open" unless explicitly set
-        $status = $request->query('status', 'open');
-        if ($status) {
-            $query->where('status', $status);
-        }
-
-        if ($category = $request->query('category')) {
-            $query->where('category', $category);
-        }
-
-        // If snoozed_until exists, treat expired snoozes as visible again
+        // Treat expired snoozes as visible again
         if (Schema::hasColumn('gideon_opportunities', 'snoozed_until')) {
             $query->where(function ($q) {
                 $q->whereNull('snoozed_until')
@@ -84,30 +38,28 @@ class GideonOpportunitiesController extends Controller
             });
         }
 
-        // Option B support: only show due/overdue items unless include_future_due=1
-        $includeFuture = (bool) $request->query('include_future_due', false);
-        if (! $includeFuture && Schema::hasColumn('gideon_opportunities', 'due_at')) {
-            $query->where(function ($q) {
-                $q->whereNull('due_at')
-                  ->orWhere('due_at', '<=', now());
-            });
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($category = $request->query('category')) {
+            $query->where('category', $category);
         }
 
         $opportunities = $query
             ->orderByDesc('score')
             ->orderByDesc('id')
-            ->limit(200)
+            ->limit(100)
             ->get();
 
         return response()->json($opportunities);
     }
 
     /**
-     * GROUPED SUMMARY endpoint:
-     * Returns "one card per group" data.
-     *
-     * Example output group:
-     * - key, pill, title, explanation, why, next, total, category, source_type
+     * STEP 3B: Returns grouped cards for dashboard.
+     * Example:
+     * - P1 — 15 Beneficiary & Emergency Contact fixes
+     * - P1 — 3 Follow-ups found in notes
      */
     public function groups(Request $request): JsonResponse
     {
@@ -117,64 +69,62 @@ class GideonOpportunitiesController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $agencyId = (int) $user->agency_id;
-
-        // Actionable filter: open + not snoozed + due (Option B)
-        $base = DB::table('gideon_opportunities')
-            ->where('agency_id', $agencyId)
+        $query = GideonOpportunity::query()
+            ->where('agency_id', $user->agency_id)
             ->where('status', 'open');
 
         if (Schema::hasColumn('gideon_opportunities', 'snoozed_until')) {
-            $base->where(function ($q) {
+            $query->where(function ($q) {
                 $q->whereNull('snoozed_until')
                   ->orWhere('snoozed_until', '<=', now());
             });
         }
 
-        if (Schema::hasColumn('gideon_opportunities', 'due_at')) {
-            $base->where(function ($q) {
-                $q->whereNull('due_at')
-                  ->orWhere('due_at', '<=', now());
-            });
+        $all = $query->orderByDesc('score')->orderByDesc('id')->get();
+
+        // Grouping rules (LOCKED design):
+        // - BEC is a grouped bucket
+        // - Note-based opportunities grouped by rule_code bucket (or one bucket)
+        $groups = [];
+
+        foreach ($all as $opp) {
+            $bucket = $this->bucketKey($opp);
+
+            if (!isset($groups[$bucket])) {
+                $meta = $this->bucketMeta($bucket);
+
+                $groups[$bucket] = [
+                    'bucket' => $bucket,
+                    'priority' => $meta['priority'],
+                    'title' => $meta['title'],
+                    'why' => $meta['why'],
+                    'next' => $meta['next'],
+                    'count' => 0,
+                    'score_max' => 0,
+                ];
+            }
+
+            $groups[$bucket]['count']++;
+            $groups[$bucket]['score_max'] = max($groups[$bucket]['score_max'], (int)($opp->score ?? 0));
         }
 
-        $rows = $base
-            ->select([
-                'category',
-                'source_type',
-                DB::raw('COUNT(*) as total'),
-                DB::raw('MAX(score) as max_score'),
-            ])
-            ->groupBy('category', 'source_type')
-            ->orderByDesc('max_score')
-            ->get();
-
-        $groups = $rows->map(function ($r) {
-            $meta = $this->groupMeta((string) $r->category, (string) ($r->source_type ?? ''));
-
-            return [
-                'key' => $meta['key'],
-                'pill' => $meta['pill'],
-                'title' => $meta['title'],
-                'explanation' => $meta['explanation'],
-                'why' => $meta['why'],
-                'next' => $meta['next'],
-                'total' => (int) $r->total,
-                'category' => (string) $r->category,
-                'source_type' => (string) ($r->source_type ?? ''),
-            ];
-        })->values();
+        // Sort: P1 first, then by score_max desc, then count desc
+        $groups = array_values($groups);
+        usort($groups, function ($a, $b) {
+            if ($a['priority'] !== $b['priority']) {
+                return $a['priority'] <=> $b['priority']; // P1 before P2, etc.
+            }
+            if ($a['score_max'] !== $b['score_max']) {
+                return $b['score_max'] <=> $a['score_max'];
+            }
+            return $b['count'] <=> $a['count'];
+        });
 
         return response()->json($groups);
     }
 
     /**
-     * GROUP ITEMS endpoint:
-     * Given (category, source_type), return the list of names + proof excerpt (for notes).
-     *
-     * Query params:
-     * - category (required)
-     * - source_type (optional)
+     * STEP 3B: Returns the list of items inside a group (names + open links).
      */
     public function groupItems(Request $request): JsonResponse
     {
@@ -184,79 +134,54 @@ class GideonOpportunitiesController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $category = (string) $request->query('category', '');
-        $sourceType = (string) $request->query('source_type', '');
-
-        if ($category === '') {
-            return response()->json(['message' => 'category is required'], 422);
+        $bucket = (string) $request->query('bucket', '');
+        if ($bucket === '') {
+            return response()->json(['message' => 'Missing bucket.'], 422);
         }
 
-        $agencyId = (int) $user->agency_id;
-
-        $q = DB::table('gideon_opportunities')
-            ->leftJoin('contacts', function ($join) {
-                $join->on('contacts.id', '=', 'gideon_opportunities.entity_id');
-            })
-            ->where('gideon_opportunities.agency_id', $agencyId)
-            ->where('gideon_opportunities.status', 'open')
-            ->where('gideon_opportunities.category', $category);
-
-        if ($sourceType !== '') {
-            $q->where('gideon_opportunities.source_type', $sourceType);
-        }
+        $query = GideonOpportunity::query()
+            ->where('agency_id', $user->agency_id)
+            ->where('status', 'open');
 
         if (Schema::hasColumn('gideon_opportunities', 'snoozed_until')) {
-            $q->where(function ($sub) {
-                $sub->whereNull('gideon_opportunities.snoozed_until')
-                    ->orWhere('gideon_opportunities.snoozed_until', '<=', now());
+            $query->where(function ($q) {
+                $q->whereNull('snoozed_until')
+                  ->orWhere('snoozed_until', '<=', now());
             });
         }
 
-        if (Schema::hasColumn('gideon_opportunities', 'due_at')) {
-            $q->where(function ($sub) {
-                $sub->whereNull('gideon_opportunities.due_at')
-                    ->orWhere('gideon_opportunities.due_at', '<=', now());
-            });
-        }
+        $items = $query->orderByDesc('score')->orderByDesc('id')->get()
+            ->filter(fn($opp) => $this->bucketKey($opp) === $bucket)
+            ->values()
+            ->map(function ($opp) {
+                $snapshot = is_array($opp->source_snapshot) ? $opp->source_snapshot : (json_decode($opp->source_snapshot ?? '[]', true) ?: []);
 
-        $items = $q->select([
-                'gideon_opportunities.id',
-                'gideon_opportunities.entity_type',
-                'gideon_opportunities.entity_id',
-                'gideon_opportunities.title',
-                'gideon_opportunities.short_reason',
-                'gideon_opportunities.recommended_action',
-                'gideon_opportunities.source_snapshot',
-                'gideon_opportunities.score',
-                'contacts.first_name',
-                'contacts.last_name',
-            ])
-            ->orderByDesc('gideon_opportunities.score')
-            ->orderByDesc('gideon_opportunities.id')
-            ->limit(300)
-            ->get()
-            ->map(function ($row) {
-                $name = trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? ''));
-                if ($name === '') {
-                    $name = (string) ($row->title ?? 'Opportunity');
-                }
-
-                $snapshot = $row->source_snapshot ? json_decode($row->source_snapshot, true) : null;
-                $excerpt = is_array($snapshot) ? ($snapshot['matched_excerpt'] ?? null) : null;
+                // Prefer snapshot name if present
+                $name = $snapshot['contact_name'] ?? $snapshot['lead_name'] ?? $snapshot['client_name'] ?? ('#' . ($opp->entity_id ?? $opp->id));
 
                 return [
-                    'id' => (int) $row->id,
+                    'id' => $opp->id,
+                    'entity_type' => $opp->entity_type,
+                    'entity_id' => $opp->entity_id,
                     'name' => $name,
-                    'entity_type' => (string) $row->entity_type,
-                    'entity_id' => $row->entity_id,
-                    'short_reason' => $row->short_reason,
-                    'recommended_action' => $row->recommended_action,
-                    'matched_excerpt' => $excerpt,
+                    'title' => $opp->title,
+                    'short_reason' => $opp->short_reason,
+                    'recommended_action' => $opp->recommended_action,
+                    'score' => (int)($opp->score ?? 0),
+                    'open_url' => $this->openUrlFor($opp, $snapshot),
                 ];
-            })
-            ->values();
+            });
 
-        return response()->json($items);
+        $meta = $this->bucketMeta($bucket);
+
+        return response()->json([
+            'bucket' => $bucket,
+            'priority' => $meta['priority'],
+            'title' => $meta['title'],
+            'why' => $meta['why'],
+            'next' => $meta['next'],
+            'items' => $items,
+        ]);
     }
 
     /**
@@ -313,9 +238,6 @@ class GideonOpportunitiesController extends Controller
         }
     }
 
-    /**
-     * Unsnooze an opportunity immediately.
-     */
     public function unsnooze(Request $request, GideonOpportunity $opportunity): JsonResponse
     {
         try {
@@ -338,9 +260,6 @@ class GideonOpportunitiesController extends Controller
         }
     }
 
-    /**
-     * Dismiss an opportunity.
-     */
     public function dismiss(Request $request, GideonOpportunity $opportunity): JsonResponse
     {
         try {
@@ -380,43 +299,73 @@ class GideonOpportunitiesController extends Controller
     }
 
     /**
-     * Manager-style grouped card copy (NO tab names).
-     * You can refine these strings later in the Blade layer, but this keeps behavior consistent.
+     * Bucket grouping logic (BEC grouped + NOTE grouped).
      */
-    private function groupMeta(string $category, string $sourceType): array
+    private function bucketKey($opp): string
     {
-        // BEC group
-        if ($category === 'beneficiary_emergency_opportunity') {
-            return [
-                'key' => 'bec',
-                'pill' => 'P1',
-                'title' => 'Beneficiaries & emergency contacts opportunities available',
-                'explanation' => 'These clients are missing key protection details.',
-                'why' => 'Fixing this reduces ghosting risk and often opens upsell conversations.',
-                'next' => 'Click to see names. Open each client and add at least 2 beneficiaries and 1 emergency contact.',
-            ];
+        // BEC bucket
+        if (($opp->category ?? '') === 'beneficiary_emergency_opportunity') {
+            return 'P1_BEC';
         }
 
-        // Notes-based follow-ups group (only shows when due)
-        if ($sourceType === 'note_index') {
-            return [
-                'key' => 'note_followups',
-                'pill' => 'P1',
-                'title' => 'Follow-ups due from notes',
-                'explanation' => 'These are real follow-ups found inside notes that are due now.',
-                'why' => 'This protects revenue by catching opportunities you wrote down but didn’t schedule.',
-                'next' => 'Click to see names and the note excerpt. Contact them and complete the follow-up.',
-            ];
+        // Note opportunities bucket
+        if (($opp->source_type ?? '') === 'note_index') {
+            return 'P1_NOTE';
         }
 
-        // Fallback
-        return [
-            'key' => $category . ':' . $sourceType,
-            'pill' => 'P2',
-            'title' => 'Opportunities available',
-            'explanation' => 'Gideon found actionable items that need attention.',
-            'why' => 'These are ranked by business impact.',
-            'next' => 'Click to review items and take action.',
-        ];
+        // fallback (still grouped so you never spam cards)
+        return 'OTHER';
+    }
+
+    private function bucketMeta(string $bucket): array
+    {
+        return match ($bucket) {
+            'P1_BEC' => [
+                'priority' => 1,
+                'title' => 'P1 — Beneficiary & Emergency Contact fixes',
+                'why' => 'This prevents claims chaos and reduces cancellations when clients go dark.',
+                'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
+            ],
+            'P1_NOTE' => [
+                'priority' => 1,
+                'title' => 'P1 — Follow-ups found in notes',
+                'why' => 'These are “forgotten” buying signals and service saves hiding in written notes.',
+                'next' => 'Open each item and execute the follow-up.',
+            ],
+            default => [
+                'priority' => 9,
+                'title' => 'Other opportunities',
+                'why' => 'Items Gideon found that may matter.',
+                'next' => 'Review and take action.',
+            ],
+        };
+    }
+
+    private function openUrlFor($opp, array $snapshot): string
+    {
+        $entityType = (string) ($opp->entity_type ?? '');
+        $entityId   = (int) ($opp->entity_id ?? 0);
+
+        // If snapshot tells us book/service context, prefer that
+        $contactType = (string) ($snapshot['contact_type'] ?? '');
+
+        if ($entityType === 'contact' || $contactType === 'book') {
+            return url("/book/open/{$entityId}");
+        }
+
+        if ($contactType === 'service' || $entityType === 'service') {
+            return url("/service/open/{$entityId}");
+        }
+
+        if ($entityType === 'lead') {
+            return url("/leads/{$entityId}");
+        }
+
+        // Fallback: contacts show page
+        if ($entityType === 'contact') {
+            return url("/contacts/{$entityId}");
+        }
+
+        return url('/dashboard');
     }
 }
