@@ -8,19 +8,20 @@ use Illuminate\Support\Carbon;
 
 class GideonDeepScanGlobalNotesCommand extends Command
 {
-    protected $signature = 'gideon:deep-scan:global-notes {--tenant=} {--since=}';
+    protected $signature = 'gideon:deep-scan:global-notes {--agency=} {--since=}';
     protected $description = 'Dispatch Gideon Global Note Deep Scan (queue job).';
 
     public function handle(): int
     {
-        $tenantId = $this->option('tenant') ?: null;
-        $sinceOpt = $this->option('since') ?: null;
+        $agencyOpt = $this->option('agency');
+        $sinceOpt  = $this->option('since');
 
+        $agencyId = $agencyOpt !== null && $agencyOpt !== '' ? (int) $agencyOpt : null;
         $since = $sinceOpt ? Carbon::parse($sinceOpt) : null;
 
-        DeepScanGlobalNotesJob::dispatch($tenantId, $since);
+        DeepScanGlobalNotesJob::dispatch($agencyId, $since);
 
-        $this->info('Dispatched DeepScanGlobalNotesJob' . ($tenantId ? " for tenant {$tenantId}" : ''));
+        $this->info('Dispatched DeepScanGlobalNotesJob' . ($agencyId ? " for agency {$agencyId}" : ''));
 
         return self::SUCCESS;
     }
