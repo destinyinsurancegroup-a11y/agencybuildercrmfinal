@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agency Builder CRM</title>
+
+    <title>@yield('title', 'Agency Builder CRM')</title>
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -55,6 +56,13 @@
             cursor: pointer;
         }
 
+        /* Active nav highlight */
+        .nav-item.active {
+            background-color: #111;
+            border-left: 4px solid #D4AF37;
+            padding-left: 21px; /* compensate for border-left */
+        }
+
         .main-content {
             margin-left: 250px;
             padding: 25px;
@@ -68,6 +76,9 @@
             text-align: left;
         }
     </style>
+
+    {{-- ✅ OPTIONAL: page/partial CSS hooks --}}
+    @stack('styles')
 </head>
 
 <body>
@@ -78,26 +89,29 @@
             <img src="/images/agency-builder-logo.png" alt="Agency Builder CRM Logo">
         </div>
 
-        <a class="nav-item" href="{{ route('dashboard') }}">Dashboard</a>
-        <a class="nav-item" href="{{ route('contacts.index') }}">All Contacts</a>
-        <a class="nav-item" href="{{ route('book.index') }}">Book of Business</a>
-        <a class="nav-item" href="{{ route('leads.index') }}">Leads</a>
-        <a class="nav-item" href="{{ route('service.index') }}">Service</a>
+        <a class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">Dashboard</a>
+        <a class="nav-item {{ request()->routeIs('contacts.*') ? 'active' : '' }}" href="{{ route('contacts.index') }}">All Contacts</a>
+        <a class="nav-item {{ request()->routeIs('book.*') ? 'active' : '' }}" href="{{ route('book.index') }}">Book of Business</a>
+        <a class="nav-item {{ request()->routeIs('leads.*') ? 'active' : '' }}" href="{{ route('leads.index') }}">Leads</a>
+        <a class="nav-item {{ request()->routeIs('service.*') ? 'active' : '' }}" href="{{ route('service.index') }}">Service</a>
 
         {{-- ✅ Activity removed from sidebar.
             Activity logging still exists and is accessed via the "Log Production" button on the dashboard.
             Do NOT delete backend routes or popup view.
         --}}
 
-        <a class="nav-item" href="/calendar">Calendar</a>
+        <a class="nav-item {{ request()->is('calendar') ? 'active' : '' }}" href="/calendar">Calendar</a>
 
         <!-- Gideon -->
-        <a class="nav-item" href="{{ route('gideon.second_brain') }}">Gideon Second Brain</a>
+        <a class="nav-item {{ request()->routeIs('gideon.second_brain') ? 'active' : '' }}" href="{{ route('gideon.second_brain') }}">Gideon Second Brain</a>
 
-        <a class="nav-item" href="/settings">Settings</a>
+        {{-- ✅ NEW: Gideon Opportunities "View all" home --}}
+        <a class="nav-item {{ request()->routeIs('gideon.opportunities.index') ? 'active' : '' }}" href="{{ route('gideon.opportunities.index') }}">Gideon Opportunities</a>
+
+        <a class="nav-item {{ request()->is('settings') ? 'active' : '' }}" href="/settings">Settings</a>
 
         <!-- ✅ Billing now uses a real named route (stops 404) -->
-        <a class="nav-item" href="{{ route('billing') }}">Billing</a>
+        <a class="nav-item {{ request()->routeIs('billing') ? 'active' : '' }}" href="{{ route('billing') }}">Billing</a>
 
         <!-- ✅ Logout must be POST (secure + matches web.php) -->
         <form method="POST" action="{{ route('logout') }}">
