@@ -1,48 +1,53 @@
-<div class="space-y-4" id="gideonGroupsRoot">
-    <div class="flex items-center justify-between">
-        <div class="text-sm text-gray-500">
+<div class="d-flex flex-column gap-3" id="gideonGroupsRoot">
+
+    <div class="d-flex align-items-center justify-content-between">
+        <div class="text-muted" style="font-size: 13px;">
             Gideon Scan: <span id="gideonScanStatus">Ready</span>
         </div>
 
-        <div class="flex gap-2">
-            <button id="gideonQuickScanBtn" class="px-3 py-2 rounded-lg border text-sm">Scan</button>
-            <button id="gideonDeepScanBtn" class="px-3 py-2 rounded-lg bg-black text-white text-sm">Deeper Scan</button>
-            <button id="gideonRefreshBtn" class="px-3 py-2 rounded-lg border text-sm">Refresh</button>
-            <a href="{{ route('gideon.opportunities.index') }}" class="px-3 py-2 rounded-lg border text-sm">View all</a>
+        <div class="d-flex gap-2">
+            <button id="gideonQuickScanBtn" class="btn btn-outline-dark btn-sm">Scan</button>
+            <button id="gideonDeepScanBtn" class="btn btn-dark btn-sm">Deeper Scan</button>
+            <button id="gideonRefreshBtn" class="btn btn-outline-secondary btn-sm">Refresh</button>
+            {{-- IMPORTANT: You said you do NOT want this under "View all", so no link here. --}}
         </div>
     </div>
 
-    <!-- Group cards render here -->
-    <div id="gideonGroupCards" class="space-y-3"></div>
+    <div id="gideonGroupCards" class="d-flex flex-column gap-3"></div>
 </div>
 
 <!-- Modal -->
-<div id="gideonGroupModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 z-50">
-    <div class="bg-white w-full max-w-3xl rounded-xl shadow-lg overflow-hidden">
-        <div class="p-4 border-b flex items-start justify-between">
-            <div>
-                <div class="text-sm font-semibold" id="gideonModalTitle">Loading…</div>
-                <div class="text-xs text-gray-600 mt-1" id="gideonModalWhy"></div>
-                <div class="text-xs text-gray-600 mt-1"><span class="font-semibold">Next step:</span> <span id="gideonModalNext"></span></div>
+<div id="gideonGroupModal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+            <div class="modal-title fw-bold" id="gideonModalTitle">Loading…</div>
+            <div class="text-muted" style="font-size: 13px;" id="gideonModalWhy"></div>
+            <div class="text-muted" style="font-size: 13px;">
+                <span class="fw-semibold">Next step:</span> <span id="gideonModalNext"></span>
             </div>
-            <button id="gideonModalClose" class="px-3 py-2 rounded-lg border text-sm">Close</button>
         </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
 
-        <div class="p-4">
-            <div class="text-xs text-gray-500 mb-3" id="gideonModalCount"></div>
-
-            <div class="space-y-2 max-h-[60vh] overflow-auto" id="gideonModalItems"></div>
-        </div>
+      <div class="modal-body">
+        <div class="text-muted mb-2" style="font-size: 13px;" id="gideonModalCount"></div>
+        <div id="gideonModalItems" class="d-flex flex-column gap-2"></div>
+      </div>
     </div>
+  </div>
 </div>
 
+@push('scripts')
 <script>
 (function () {
     const cardsEl = document.getElementById('gideonGroupCards');
     const statusEl = document.getElementById('gideonScanStatus');
 
     const modalEl = document.getElementById('gideonGroupModal');
-    const modalCloseEl = document.getElementById('gideonModalClose');
+    const modal = new bootstrap.Modal(modalEl);
+
     const modalTitleEl = document.getElementById('gideonModalTitle');
     const modalWhyEl = document.getElementById('gideonModalWhy');
     const modalNextEl = document.getElementById('gideonModalNext');
@@ -53,21 +58,6 @@
     const deepBtn  = document.getElementById('gideonDeepScanBtn');
     const refreshBtn = document.getElementById('gideonRefreshBtn');
 
-    async function fetchGroups() {
-        const res = await fetch("{{ route('gideon.opportunities.groups') }}", {
-            headers: { 'Accept': 'application/json' }
-        });
-        return res.json();
-    }
-
-    async function fetchGroupItems(bucket) {
-        const url = new URL("{{ route('gideon.opportunities.groupItems') }}", window.location.origin);
-        url.searchParams.set('bucket', bucket);
-
-        const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' }});
-        return res.json();
-    }
-
     function escapeHtml(str) {
         return String(str ?? '')
             .replaceAll('&','&amp;')
@@ -77,165 +67,7 @@
             .replaceAll("'","&#039;");
     }
 
-    /**
-     * Prefer real client/contact name.
-     * Works for:
-     * - Note opportunities (entity_label)
-     * - BEC group items (often name already)
-     * - Fallback to "Contact #306"
-     */
-    function displayName(item) {
-        const label = item?.entity_label ?? item?.name ?? null;
-
-        if (label && String(label).trim() !== '') {
-            return String(label).trim();
-        }
-
-        const type = (item?.entity_type ?? 'Item').toString();
-        const id = item?.entity_id ?? item?.id ?? '';
-        return `${type} #${id}`;
-    }
-
-    function renderGroups(groups) {
-        cardsEl.innerHTML = '';
-
-        if (!groups || groups.length === 0) {
-            cardsEl.innerHTML = `
-                <div class="p-4 rounded-xl border bg-white text-sm text-gray-600">
-                    No opportunities found right now.
-                </div>
-            `;
-            return;
-        }
-
-        groups.forEach(g => {
-            const badge = g.priority === 1 ? 'P1' : 'P' + g.priority;
-            const count = Number(g.count || 0);
-
-            const card = document.createElement('div');
-            card.className = 'p-4 rounded-xl border bg-white flex items-start justify-between gap-4';
-
-            card.innerHTML = `
-                <div class="flex-1">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-600 text-white">${badge}</span>
-                        <div class="text-sm font-semibold">${escapeHtml(g.title)}</div>
-                        <div class="text-xs text-gray-500">(${count})</div>
-                    </div>
-
-                    <div class="text-xs text-gray-700 mt-2">
-                        <span class="font-semibold">Why it matters:</span> ${escapeHtml(g.why)}
-                    </div>
-                    <div class="text-xs text-gray-700 mt-1">
-                        <span class="font-semibold">Next step:</span> ${escapeHtml(g.next)}
-                    </div>
-                </div>
-
-                <div class="flex flex-col gap-2">
-                    <button class="px-3 py-2 rounded-lg bg-black text-white text-sm gideon-open-group" data-bucket="${escapeHtml(g.bucket)}">
-                        View list
-                    </button>
-                </div>
-            `;
-
-            cardsEl.appendChild(card);
-        });
-
-        document.querySelectorAll('.gideon-open-group').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const bucket = btn.getAttribute('data-bucket');
-                await openModal(bucket);
-            });
-        });
-    }
-
-    function openModalUI() {
-        modalEl.classList.remove('hidden');
-        modalEl.classList.add('flex');
-    }
-
-    function closeModalUI() {
-        modalEl.classList.add('hidden');
-        modalEl.classList.remove('flex');
-    }
-
-    async function openModal(bucket) {
-        openModalUI();
-
-        modalTitleEl.textContent = 'Loading…';
-        modalWhyEl.textContent = '';
-        modalNextEl.textContent = '';
-        modalCountEl.textContent = '';
-        modalItemsEl.innerHTML = '';
-
-        const payload = await fetchGroupItems(bucket);
-
-        modalTitleEl.textContent = payload.title || 'Opportunities';
-        modalWhyEl.textContent = payload.why || '';
-        modalNextEl.textContent = payload.next || '';
-
-        const items = payload.items || [];
-        modalCountEl.textContent = `${items.length} items`;
-
-        if (items.length === 0) {
-            modalItemsEl.innerHTML = `
-                <div class="p-3 rounded-lg border text-sm text-gray-600">
-                    No items found in this group.
-                </div>
-            `;
-            return;
-        }
-
-        items.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'p-3 rounded-lg border flex items-start justify-between gap-3';
-
-            const openUrl = item.open_url ? String(item.open_url) : '#';
-            const name = displayName(item);
-
-            row.innerHTML = `
-                <div class="flex-1">
-                    <div class="text-sm font-semibold">${escapeHtml(name)}</div>
-                    <div class="text-xs text-gray-600 mt-1">${escapeHtml(item.title || '')}</div>
-                    <div class="text-xs text-gray-700 mt-1"><span class="font-semibold">Next:</span> ${escapeHtml(item.recommended_action || '')}</div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <a href="${escapeHtml(openUrl)}" class="px-3 py-2 rounded-lg border text-sm text-center ${openUrl === '#' ? 'pointer-events-none opacity-50' : ''}">
-                        Open
-                    </a>
-                    <button class="px-3 py-2 rounded-lg border text-sm gideon-done" data-id="${item.id}">
-                        Done
-                    </button>
-                    <button class="px-3 py-2 rounded-lg border text-sm gideon-snooze" data-id="${item.id}">
-                        Snooze 7 days
-                    </button>
-                </div>
-            `;
-
-            modalItemsEl.appendChild(row);
-        });
-
-        // Wire Done/Snooze inside modal
-        modalItemsEl.querySelectorAll('.gideon-done').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const id = btn.getAttribute('data-id');
-                await postAction(`/gideon/opportunities/${id}/complete`, {});
-                await refresh();
-                closeModalUI();
-            });
-        });
-
-        modalItemsEl.querySelectorAll('.gideon-snooze').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const id = btn.getAttribute('data-id');
-                await postAction(`/gideon/opportunities/${id}/snooze`, { days: 7 });
-                await refresh();
-                closeModalUI();
-            });
-        });
-    }
-
-    async function postAction(url, body) {
+    async function postJson(url, body) {
         const res = await fetch(url, {
             method: 'POST',
             headers: {
@@ -248,6 +80,162 @@
         return res.json();
     }
 
+    async function fetchGroups() {
+        const res = await fetch("{{ route('gideon.opportunities.groups') }}", {
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
+        });
+        return res.json();
+    }
+
+    async function fetchGroupItems(bucket) {
+        const url = new URL("{{ route('gideon.opportunities.groupItems') }}", window.location.origin);
+        url.searchParams.set('bucket', bucket);
+
+        const res = await fetch(url.toString(), {
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
+        });
+        return res.json();
+    }
+
+    function renderGroups(groups) {
+        cardsEl.innerHTML = '';
+
+        if (!groups || groups.length === 0) {
+            cardsEl.innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <div class="text-muted">No opportunities found right now.</div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        groups.forEach(g => {
+            const badge = g.priority === 1 ? 'P1' : ('P' + g.priority);
+            const count = Number(g.count || 0);
+
+            const card = document.createElement('div');
+            card.className = 'card';
+
+            card.innerHTML = `
+                <div class="card-body d-flex align-items-start justify-content-between gap-3">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-danger">${escapeHtml(badge)}</span>
+                            <div class="fw-semibold">${escapeHtml(g.title)}</div>
+                            <div class="text-muted" style="font-size: 13px;">(${count})</div>
+                        </div>
+
+                        <div class="mt-2" style="font-size: 14px;">
+                            <span class="fw-semibold">Why it matters:</span>
+                            <span class="text-muted">${escapeHtml(g.why)}</span>
+                        </div>
+
+                        <div class="mt-1" style="font-size: 14px;">
+                            <span class="fw-semibold">Next step:</span>
+                            <span class="text-muted">${escapeHtml(g.next)}</span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-column gap-2">
+                        <button class="btn btn-dark btn-sm gideon-open-group" data-bucket="${escapeHtml(g.bucket)}">
+                            View list
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            cardsEl.appendChild(card);
+        });
+
+        cardsEl.querySelectorAll('.gideon-open-group').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const bucket = btn.getAttribute('data-bucket');
+                await openModal(bucket);
+            });
+        });
+    }
+
+    async function openModal(bucket) {
+        modalTitleEl.textContent = 'Loading…';
+        modalWhyEl.textContent = '';
+        modalNextEl.textContent = '';
+        modalCountEl.textContent = '';
+        modalItemsEl.innerHTML = '';
+
+        modal.show();
+
+        const payload = await fetchGroupItems(bucket);
+
+        modalTitleEl.textContent = payload.title || 'Opportunities';
+        modalWhyEl.textContent = payload.why || '';
+        modalNextEl.textContent = payload.next || '';
+
+        const items = payload.items || [];
+        modalCountEl.textContent = `${items.length} items`;
+
+        if (items.length === 0) {
+            modalItemsEl.innerHTML = `
+                <div class="border rounded p-3 text-muted">
+                    No items found in this group.
+                </div>
+            `;
+            return;
+        }
+
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'border rounded p-3 d-flex align-items-start justify-content-between gap-3';
+
+            const excerptHtml = item.matched_excerpt
+                ? `<div class="text-muted mt-1" style="font-size: 13px;"><span class="fw-semibold">Proof:</span> “${escapeHtml(item.matched_excerpt)}”</div>`
+                : '';
+
+            row.innerHTML = `
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">${escapeHtml(item.name || '')}</div>
+                    <div class="text-muted" style="font-size: 13px;">${escapeHtml(item.title || '')}</div>
+                    ${excerptHtml}
+                    <div class="mt-2" style="font-size: 14px;">
+                        <span class="fw-semibold">Next:</span>
+                        <span class="text-muted">${escapeHtml(item.recommended_action || '')}</span>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-column gap-2" style="min-width: 150px;">
+                    <a href="${escapeHtml(item.open_url || '#')}" class="btn btn-outline-dark btn-sm ${(!item.open_url || item.open_url === '#') ? 'disabled' : ''}">
+                        Open
+                    </a>
+                    <button class="btn btn-outline-success btn-sm gideon-done" data-id="${item.id}">Done</button>
+                    <button class="btn btn-outline-secondary btn-sm gideon-snooze" data-id="${item.id}">Snooze 7 days</button>
+                </div>
+            `;
+
+            modalItemsEl.appendChild(row);
+        });
+
+        modalItemsEl.querySelectorAll('.gideon-done').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                await postJson(`/gideon/opportunities/${id}/complete`, {});
+                await refresh();
+                modal.hide();
+            });
+        });
+
+        modalItemsEl.querySelectorAll('.gideon-snooze').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                await postJson(`/gideon/opportunities/${id}/snooze`, { days: 7 });
+                await refresh();
+                modal.hide();
+            });
+        });
+    }
+
     async function refresh() {
         statusEl.textContent = 'Refreshing…';
         const groups = await fetchGroups();
@@ -255,16 +243,15 @@
         statusEl.textContent = 'Ready';
     }
 
-    // Buttons
     quickBtn?.addEventListener('click', async () => {
         statusEl.textContent = 'Scanning…';
-        await postAction("{{ route('gideon.scan') }}", {});
+        await postJson("{{ route('gideon.scan') }}", {});
         await refresh();
     });
 
     deepBtn?.addEventListener('click', async () => {
         statusEl.textContent = 'Deep scanning…';
-        await postAction("{{ route('gideon.scan.deep') }}", {});
+        await postJson("{{ route('gideon.scan.deep') }}", {});
         await refresh();
     });
 
@@ -272,12 +259,7 @@
         await refresh();
     });
 
-    modalCloseEl.addEventListener('click', closeModalUI);
-    modalEl.addEventListener('click', (e) => {
-        if (e.target === modalEl) closeModalUI();
-    });
-
-    // Initial load
     refresh();
 })();
 </script>
+@endpush
