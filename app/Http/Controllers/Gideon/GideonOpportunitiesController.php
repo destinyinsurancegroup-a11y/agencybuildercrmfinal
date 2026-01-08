@@ -103,6 +103,7 @@ class GideonOpportunitiesController extends Controller
                     return (string) ($row->category ?? '') === 'beneficiary_emergency_opportunity';
                 },
             ],
+
             'p1_notes_followup' => [
                 'priority' => 1,
                 'title' => 'Follow-ups found in notes',
@@ -120,6 +121,24 @@ class GideonOpportunitiesController extends Controller
 
                     $rule = (string) ($row->rule_code ?? '');
                     return $rule !== '' && str_contains($rule, 'NOTE');
+                },
+            ],
+
+            // ✅ NEW: Leads needing disposition (P1) — dashboard-only bucket
+            // This bucket assumes the scanner persists opportunities into gideon_opportunities
+            // with category = "lead_disposition_opportunity" (recommended).
+            'p1_leads_disposition' => [
+                'priority' => 1,
+                'title' => 'Leads need disposition',
+                'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
+                'next' => 'Review each lead and set a final disposition — sold, not interested, nurture, invalid, or reassign if needed.',
+                'match' => function ($row) {
+                    $cat = (string) ($row->category ?? '');
+                    if ($cat === 'lead_disposition_opportunity') return true;
+
+                    // Soft fallback if you use rule_code conventions
+                    $rule = (string) ($row->rule_code ?? '');
+                    return $rule !== '' && str_contains($rule, 'LEAD_DISPOSITION');
                 },
             ],
         ];
@@ -187,6 +206,7 @@ class GideonOpportunitiesController extends Controller
                     $q->where('category', 'beneficiary_emergency_opportunity');
                 },
             ],
+
             'p1_notes_followup' => [
                 'priority' => 1,
                 'title' => 'Follow-ups found in notes',
@@ -195,6 +215,20 @@ class GideonOpportunitiesController extends Controller
                 'filter' => function ($q) {
                     // ✅ This is the stable marker for note-derived opportunities
                     $q->where('source_type', 'note_index');
+                },
+            ],
+
+            // ✅ NEW: Leads needing disposition (P1)
+            'p1_leads_disposition' => [
+                'priority' => 1,
+                'title' => 'Leads need disposition',
+                'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
+                'next' => 'Review each lead and set a final disposition — sold, not interested, nurture, invalid, or reassign if needed.',
+                'filter' => function ($q) {
+                    $q->where(function ($qq) {
+                        $qq->where('category', 'lead_disposition_opportunity')
+                           ->orWhere('rule_code', 'LIKE', '%LEAD_DISPOSITION%');
+                    });
                 },
             ],
         ];
@@ -452,6 +486,9 @@ class GideonOpportunitiesController extends Controller
                 if ($snapContactType === 'service' && Route::has('service.open')) {
                     return route('service.open', $snapContactId);
                 }
+                if ($snapContactType === 'lead' && Route::has('leads.show')) {
+                    return route('leads.show', $snapContactId);
+                }
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -463,7 +500,7 @@ class GideonOpportunitiesController extends Controller
         if (! $entityId) return '#';
 
         try {
-            // If your contact IDs are your "book" clients most of the time, prefer book.open when available.
+            // Prefer book.open when available for contacts.
             if ($entityType === 'contact' && Route::has('book.open')) {
                 return route('book.open', $entityId);
             }
