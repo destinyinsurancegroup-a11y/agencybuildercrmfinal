@@ -40,3 +40,28 @@ Artisan::command('gideon:deep-scan:global-notes {--agency=} {--since=}', functio
         ]
     );
 })->purpose('Run Gideon global note deep scan');
+
+
+/**
+ * Gideon: Leads Needing Disposition (P1)
+ *
+ * Scans Leads (contacts.contact_type = "Lead") that are 14+ days old
+ * and still in New/blank status (i.e., no disposition set).
+ *
+ * Dispositions:
+ * - Sold (final) -> excluded
+ * - Not Interested (final) -> excluded
+ * - Follow Up (non-final but explicit) -> excluded from "needs disposition"
+ */
+Artisan::command('gideon:scan:lead-disposition {--agency=} {--dry-run}', function () {
+    $agency = $this->option('agency');
+    $dryRun = (bool) $this->option('dry-run');
+
+    $this->call(
+        \App\Console\Commands\GideonScanLeadsNeedingDispositionCommand::class,
+        [
+            '--agency' => $agency,
+            '--dry-run' => $dryRun,
+        ]
+    );
+})->purpose('Run Gideon lead disposition scan (14+ days still New/blank)');
