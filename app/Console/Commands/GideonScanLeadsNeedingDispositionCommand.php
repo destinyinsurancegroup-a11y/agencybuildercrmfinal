@@ -25,11 +25,10 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
     private const RULE_CODE = 'LEAD_DISPOSITION_14_DAYS_NEW';
 
     /**
-     * TEMP ONLY: force fire for verification.
-     * After you confirm the dashboard card + modal + actions work,
-     * set this back to 14 (or your chosen production threshold).
+     * Production threshold (reverted from TEMP verification value).
+     * Leads must be 14+ days old and still "New"/blank to qualify.
      */
-    private const AGE_DAYS  = 0; // TEMP: force fire for verification
+    private const AGE_DAYS  = 14;
 
     // Final / explicit dispositions (do NOT flag)
     // NOTE: In your data, lead statuses include "New" and "Not Interested".
@@ -88,15 +87,12 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
         /**
          * "Needs disposition" means: still effectively NEW.
          *
-         * You confirmed disposition options are:
+         * Disposition options:
          * - Sold (final)
          * - Follow Up (explicit, not final but it IS a disposition)
          * - Not Interested (final)
          *
-         * So this scanner should ONLY flag leads that are still New/blank.
-         *
-         * With AGE_DAYS = 0 (TEMP), this will flag "New" leads immediately
-         * so you can verify dashboard behavior.
+         * This scanner flags leads that are still New/blank AFTER 14+ days.
          */
         $leadQuery->where(function ($q) {
             // Normalize whitespace/case; cover NULL/empty just in case.
