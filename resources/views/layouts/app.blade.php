@@ -105,8 +105,10 @@
         <!-- Gideon -->
         <a class="nav-item {{ request()->routeIs('gideon.second_brain') ? 'active' : '' }}" href="{{ route('gideon.second_brain') }}">Gideon Second Brain</a>
 
-        {{-- ✅ NEW: Gideon Opportunities "View all" home --}}
-        <a class="nav-item {{ request()->routeIs('gideon.opportunities.index') ? 'active' : '' }}" href="{{ route('gideon.opportunities.index') }}">Gideon Opportunities</a>
+        {{-- ❌ REMOVED: Gideon Opportunities should NOT be a sidebar tab.
+            All opportunity groups (BEC + Notes) should display in the Gideon Opportunities card on the dashboard.
+            The /gideon/opportunities page can still exist, but it is not linked in the sidebar.
+        --}}
 
         <a class="nav-item {{ request()->is('settings') ? 'active' : '' }}" href="/settings">Settings</a>
 
