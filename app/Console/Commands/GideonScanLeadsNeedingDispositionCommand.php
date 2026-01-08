@@ -21,14 +21,16 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
 
     protected $description = 'Gideon scanner: Leads needing disposition (14+ days still New/blank).';
 
-    private const CATEGORY = 'lead_disposition_opportunity';
+    private const CATEGORY  = 'lead_disposition_opportunity';
     private const RULE_CODE = 'LEAD_DISPOSITION_14_DAYS_NEW';
-    private const AGE_DAYS = 14;
+    private const AGE_DAYS  = 14;
 
     // Final / explicit dispositions (do NOT flag)
-    private const DISPOSITION_SOLD = 'Sold';
+    // NOTE: In your data, lead statuses include "New" and "Not Interested".
+    // The UI also supports "Sold" and "Follow Up".
+    private const DISPOSITION_SOLD          = 'Sold';
     private const DISPOSITION_NOT_INTERESTED = 'Not Interested';
-    private const DISPOSITION_FOLLOW_UP = 'Follow Up';
+    private const DISPOSITION_FOLLOW_UP     = 'Follow Up';
 
     public function handle(): int
     {
@@ -61,8 +63,9 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
         $cutoff = now()->subDays(self::AGE_DAYS);
 
         // Build base lead query
+        // ✅ FIX: your contact_type values are lowercase ("lead"), so match case-insensitively.
         $leadQuery = DB::table('contacts')
-            ->where('contact_type', 'Lead')
+            ->whereRaw('LOWER(contact_type) = ?', ['lead'])
             ->where('created_at', '<=', $cutoff);
 
         // Optional agency scoping if contacts has agency_id
@@ -71,18 +74,34 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
                 $leadQuery->where('agency_id', (int) $agencyOpt);
             }
         } else {
-            // Your system already uses agency_id, but if not, fail safely.
+            // Fail safely if no agency_id (multi-tenant safety).
             $this->error('contacts.agency_id not found; cannot scope multi-tenant safely.');
             return self::FAILURE;
         }
 
-        // "Needs disposition" means: status is null/empty/"New"
-        // and NOT one of the explicit disposition states.
+        /**
+         * "Needs disposition" means: still effectively NEW.
+         *
+         * You confirmed disposition options are:
+         * - Sold (final)
+         * - Follow Up (explicit, not final but it IS a disposition)
+         * - Not Interested (final)
+         *
+         * So this scanner should ONLY flag leads that are still New/blank after 14+ days.
+         */
         $leadQuery->where(function ($q) {
+            // Normalize whitespace/case; cover NULL/empty just in case.
             $q->whereNull('status')
-              ->orWhere('status', '')
-              ->orWhere('status', 'New');
+              ->orWhereRaw('TRIM(status) = ""')
+              ->orWhereRaw('LOWER(TRIM(status)) = ?', ['new']);
         });
+
+        // Defensive: ensure we never flag explicitly dispositioned leads, even if data gets messy.
+        $leadQuery->whereNotIn('status', [
+            self::DISPOSITION_SOLD,
+            self::DISPOSITION_NOT_INTERESTED,
+            self::DISPOSITION_FOLLOW_UP,
+        ]);
 
         // Pull minimal columns for naming/snapshot
         $select = ['id', 'agency_id', 'created_at', 'status', 'first_name', 'last_name', 'full_name'];
@@ -97,8 +116,6 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
         }
 
         $now = now();
-
-        // Upsert opportunities for each qualifying lead
         $upserts = 0;
 
         DB::beginTransaction();
@@ -106,10 +123,9 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
         try {
             foreach ($leads as $lead) {
                 $contactId = (int) $lead->id;
-                $agencyId = (int) $lead->agency_id;
+                $agencyId  = (int) $lead->agency_id;
 
                 $name = $this->buildContactName($lead);
-
                 $openUrl = $this->buildLeadOpenUrl($contactId);
 
                 $snapshot = [
@@ -135,7 +151,6 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
 
                 // Respect completed/dismissed items (agent intentionally hid it)
                 if ($existing && in_array($existing->status, ['completed', 'dismissed'], true)) {
-                    // If you later want enforcement to resurface, this is the line to change.
                     continue;
                 }
 
@@ -176,13 +191,12 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
                 }
 
                 if ($hasOppRecommendedAction) {
-                    $payload['recommended_action'] = 'Set disposition: Sold, Follow Up, or Not Interested.';
+                    $payload['recommended_action'] = 'Review and set disposition: Sold, Follow Up, or Not Interested.';
                 }
 
                 if ($hasOppScore) {
-                    // Score can be simple: older leads slightly higher
                     $ageDays = (int) ($snapshot['age_days'] ?? self::AGE_DAYS);
-                    $payload['score'] = min(100, 50 + $ageDays); // bounded
+                    $payload['score'] = min(100, 50 + $ageDays);
                 }
 
                 if ($hasOppSourceSnapshot) {
@@ -208,11 +222,6 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
 
         $this->info('Opportunities upserted: ' . $upserts);
 
-        // Optional cleanup:
-        // We do NOT auto-close old opps here because it depends on how you want history handled.
-        // If you want cleanup (e.g., mark as completed when lead is Sold/Not Interested),
-        // say so and I’ll add a safe, scoped closure pass.
-
         return self::SUCCESS;
     }
 
@@ -222,7 +231,7 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
         if ($full !== '') return $full;
 
         $first = trim((string) ($lead->first_name ?? ''));
-        $last = trim((string) ($lead->last_name ?? ''));
+        $last  = trim((string) ($lead->last_name ?? ''));
 
         $name = trim($first . ' ' . $last);
         return $name !== '' ? $name : 'Unnamed Lead';
@@ -230,20 +239,17 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
 
     /**
      * Build a deep-link to open the lead record if the named route exists.
-     * We keep this optional to avoid hard failures in environments without the route.
+     * Optional to avoid hard failures in environments without the route.
      */
     private function buildLeadOpenUrl(int $contactId): ?string
     {
         try {
-            // Your controller already uses leads.show in places; prefer it if it exists
             if (Route::has('leads.show')) {
                 return route('leads.show', $contactId);
             }
-            // Fallback if leads are opened via contacts.show
             if (Route::has('contacts.show')) {
                 return route('contacts.show', $contactId);
             }
-            // Or book.open if your "book" view is your primary contact view
             if (Route::has('book.open')) {
                 return route('book.open', $contactId);
             }
