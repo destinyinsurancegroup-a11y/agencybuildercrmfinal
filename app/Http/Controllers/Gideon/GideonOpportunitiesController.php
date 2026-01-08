@@ -24,7 +24,6 @@ class GideonOpportunitiesController extends Controller
         $user = $request->user();
 
         if (! $user || ! $user->agency_id) {
-            // If browser, show 403 page; if json, return json
             if (! $request->expectsJson()) {
                 abort(403, 'Unauthorized or user has no agency scope.');
             }
@@ -34,16 +33,14 @@ class GideonOpportunitiesController extends Controller
             ], 403);
         }
 
-        // ✅ If this is a normal browser page load, return the Blade view
+        // ✅ Normal browser page load -> Blade view
         if (! $request->expectsJson() && ! $request->wantsJson()) {
-            // This is your existing file: resources/views/gideon/opportunities/index.blade.php
             return view('gideon.opportunities.index');
         }
 
-        // ✅ Otherwise return JSON list
+        // ✅ JSON list
         $query = $this->baseQueryForAgency((int) $user->agency_id);
 
-        // Optional filters
         if ($status = $request->query('status')) {
             $query->where('status', $status);
         }
@@ -90,45 +87,43 @@ class GideonOpportunitiesController extends Controller
         // Only open opportunities should show in groups
         $base = $this->baseQueryForAgency($agencyId)->where('status', 'open');
 
-        // Load a small set of fields for grouping fast
-        $rows = $base->select(['id', 'category', 'score', 'source_snapshot'])->get();
+        // IMPORTANT:
+        // Do NOT rely on JSON operators for source_snapshot here (it may be TEXT in MySQL).
+        // Use stable columns we know exist: category, source_type, rule_code.
+        $rows = $base->select(['id', 'category', 'source_type', 'rule_code'])->get();
 
-        // Define buckets (P1 first). We detect based on category + snapshot.
         $buckets = [
             'p1_bec' => [
                 'priority' => 1,
                 'title' => 'Beneficiary & Emergency Contact fixes',
-                'why' => 'Missing or incomplete beneficiary / emergency contact setup causes claim delays and lost retention.',
-                'next' => 'Fix the missing info for each person below.',
+                'why' => 'This prevents claims chaos and reduces cancellations when clients go dark.',
+                'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
                 'match' => function ($row) {
-                    $cat = (string) ($row->category ?? '');
-                    if (in_array($cat, ['beneficiary', 'emergency_contact', 'bec'], true)) return true;
-
-                    $snap = is_array($row->source_snapshot) ? $row->source_snapshot : (json_decode($row->source_snapshot ?? 'null', true) ?: []);
-                    $rule = (string) ($snap['matched_rule'] ?? '');
-                    return str_contains($rule, 'BEC');
+                    // ✅ Your DB rows show: category = "beneficiary_emergency_opportunity"
+                    return (string) ($row->category ?? '') === 'beneficiary_emergency_opportunity';
                 },
             ],
             'p1_notes_followup' => [
                 'priority' => 1,
                 'title' => 'Follow-ups found in notes',
-                'why' => 'These are revenue opportunities mentioned in notes that were not placed on the calendar.',
-                'next' => 'Open each record and complete the follow-up.',
+                'why' => 'These are “forgotten” buying signals and service saves hiding in written notes.',
+                'next' => 'Open each item and execute the follow-up.',
                 'match' => function ($row) {
-                    $snap = is_array($row->source_snapshot) ? $row->source_snapshot : (json_decode($row->source_snapshot ?? 'null', true) ?: []);
-                    $sourceType = (string) ($snap['source_type'] ?? '');
-                    if ($sourceType === 'note_index') return true;
+                    // ✅ Your note opportunities show: source_type = "note_index"
+                    if ((string) ($row->source_type ?? '') === 'note_index') {
+                        return true;
+                    }
 
+                    // Fallbacks if source_type wasn’t set for some reason
                     $cat = (string) ($row->category ?? '');
-                    if (in_array($cat, ['follow_up', 'note_followup', 'note_opportunity'], true)) return true;
+                    if (str_starts_with($cat, 'note_')) return true;
 
-                    $rule = (string) ($snap['matched_rule'] ?? '');
-                    return str_contains($rule, 'NOTE');
+                    $rule = (string) ($row->rule_code ?? '');
+                    return $rule !== '' && str_contains($rule, 'NOTE');
                 },
             ],
         ];
 
-        // Count matches
         $counts = array_fill_keys(array_keys($buckets), 0);
 
         foreach ($rows as $row) {
@@ -140,7 +135,6 @@ class GideonOpportunitiesController extends Controller
             }
         }
 
-        // Build response (only non-zero)
         $out = [];
         foreach ($buckets as $key => $def) {
             $count = (int) ($counts[$key] ?? 0);
@@ -156,7 +150,6 @@ class GideonOpportunitiesController extends Controller
             ];
         }
 
-        // Sort: priority asc, count desc
         usort($out, function ($a, $b) {
             if ($a['priority'] !== $b['priority']) return $a['priority'] <=> $b['priority'];
             return ($b['count'] ?? 0) <=> ($a['count'] ?? 0);
@@ -167,12 +160,6 @@ class GideonOpportunitiesController extends Controller
 
     /**
      * Return items for a specific bucket.
-     *
-     * Output shape:
-     * {
-     *   bucket, title, why, next,
-     *   items: [{ id, name, entity_type, entity_id, title, recommended_action, matched_excerpt, open_url }]
-     * }
      */
     public function groupItems(Request $request): JsonResponse
     {
@@ -193,21 +180,21 @@ class GideonOpportunitiesController extends Controller
             'p1_bec' => [
                 'priority' => 1,
                 'title' => 'Beneficiary & Emergency Contact fixes',
-                'why' => 'Missing or incomplete beneficiary / emergency contact setup causes claim delays and lost retention.',
-                'next' => 'Fix the missing info for each person below.',
+                'why' => 'This prevents claims chaos and reduces cancellations when clients go dark.',
+                'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
                 'filter' => function ($q) {
-                    $q->whereIn('category', ['beneficiary', 'emergency_contact', 'bec'])
-                      ->orWhereJsonContains('source_snapshot->matched_rule', 'BEC'); // safe if json, ignored if not
+                    // ✅ This is the actual category shown in your JSON
+                    $q->where('category', 'beneficiary_emergency_opportunity');
                 },
             ],
             'p1_notes_followup' => [
                 'priority' => 1,
                 'title' => 'Follow-ups found in notes',
-                'why' => 'These are revenue opportunities mentioned in notes that were not placed on the calendar.',
-                'next' => 'Open each record and complete the follow-up.',
+                'why' => 'These are “forgotten” buying signals and service saves hiding in written notes.',
+                'next' => 'Open each item and execute the follow-up.',
                 'filter' => function ($q) {
-                    $q->whereIn('category', ['follow_up', 'note_followup', 'note_opportunity'])
-                      ->orWhereJsonContains('source_snapshot->source_type', 'note_index'); // safe if json, ignored if not
+                    // ✅ This is the stable marker for note-derived opportunities
+                    $q->where('source_type', 'note_index');
                 },
             ],
         ];
@@ -216,8 +203,7 @@ class GideonOpportunitiesController extends Controller
             return response()->json(['message' => 'Unknown bucket'], 422);
         }
 
-        $query = $this->baseQueryForAgency($agencyId)
-            ->where('status', 'open');
+        $query = $this->baseQueryForAgency($agencyId)->where('status', 'open');
 
         // Apply bucket filter
         ($defs[$bucket]['filter'])($query);
@@ -231,24 +217,21 @@ class GideonOpportunitiesController extends Controller
         $opps = $this->hydrateEntityLabels($opps);
 
         $items = $opps->map(function ($opp) {
-            $snap = is_array($opp->source_snapshot) ? $opp->source_snapshot : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
-            $excerpt = (string) ($snap['matched_excerpt'] ?? '');
+            $snap = is_array($opp->source_snapshot)
+                ? $opp->source_snapshot
+                : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
 
+            $excerpt = (string) ($snap['matched_excerpt'] ?? '');
             $openUrl = $this->buildOpenUrl($opp, $snap);
 
             return [
                 'id' => (int) $opp->id,
-
-                // ✅ IMPORTANT: UI expects "name" — we provide real label here
                 'name' => (string) ($opp->entity_label ?: $this->fallbackEntityName($opp)),
-
                 'entity_type' => (string) ($opp->entity_type ?? ''),
                 'entity_id' => $opp->entity_id ? (int) $opp->entity_id : null,
-
                 'title' => (string) ($opp->title ?? ''),
                 'recommended_action' => (string) ($opp->recommended_action ?? ''),
                 'matched_excerpt' => $excerpt,
-
                 'open_url' => $openUrl,
             ];
         })->values();
@@ -262,9 +245,6 @@ class GideonOpportunitiesController extends Controller
         ]);
     }
 
-    /**
-     * Mark an opportunity as completed ("Done").
-     */
     public function complete(Request $request, GideonOpportunity $opportunity): JsonResponse
     {
         try {
@@ -287,9 +267,6 @@ class GideonOpportunitiesController extends Controller
         }
     }
 
-    /**
-     * Snooze an opportunity for N days (default 7).
-     */
     public function snooze(Request $request, GideonOpportunity $opportunity): JsonResponse
     {
         try {
@@ -316,9 +293,6 @@ class GideonOpportunitiesController extends Controller
         }
     }
 
-    /**
-     * Unsnooze an opportunity immediately (optional).
-     */
     public function unsnooze(Request $request, GideonOpportunity $opportunity): JsonResponse
     {
         try {
@@ -341,9 +315,6 @@ class GideonOpportunitiesController extends Controller
         }
     }
 
-    /**
-     * Dismiss an opportunity (optional).
-     */
     public function dismiss(Request $request, GideonOpportunity $opportunity): JsonResponse
     {
         try {
@@ -366,9 +337,6 @@ class GideonOpportunitiesController extends Controller
         }
     }
 
-    /**
-     * Shared authorization check (agency scope).
-     */
     protected function authorizeOpportunity($user, GideonOpportunity $opportunity)
     {
         if (! $user || ! $user->agency_id) {
@@ -382,14 +350,11 @@ class GideonOpportunitiesController extends Controller
         return true;
     }
 
-    /**
-     * Base query with agency scope + snooze visibility rules.
-     */
     private function baseQueryForAgency(int $agencyId)
     {
-        $query = GideonOpportunity::query()
-            ->where('agency_id', $agencyId);
+        $query = GideonOpportunity::query()->where('agency_id', $agencyId);
 
+        // Hide currently-snoozed items; show expired snoozes again
         if (Schema::hasColumn('gideon_opportunities', 'snoozed_until')) {
             $query->where(function ($q) {
                 $q->whereNull('snoozed_until')
@@ -400,9 +365,6 @@ class GideonOpportunitiesController extends Controller
         return $query;
     }
 
-    /**
-     * Add entity_label for contacts (and fallback from snapshot contact_name).
-     */
     private function hydrateEntityLabels(Collection $opportunities): Collection
     {
         $contactIds = $opportunities
@@ -458,8 +420,11 @@ class GideonOpportunitiesController extends Controller
                 $opp->entity_label = $contactNamesById->get((int) $opp->entity_id);
             }
 
-            $snap = is_array($opp->source_snapshot) ? $opp->source_snapshot : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
+            $snap = is_array($opp->source_snapshot)
+                ? $opp->source_snapshot
+                : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
 
+            // ✅ BEC snapshots already contain contact_name; use that as fallback
             if (! $opp->entity_label && is_array($snap)) {
                 $opp->entity_label = $snap['contact_name'] ?? null;
             }
@@ -468,10 +433,6 @@ class GideonOpportunitiesController extends Controller
         });
     }
 
-    /**
-     * Build the "Open" link without exposing tab names.
-     * Uses snapshot-provided open_url if present; otherwise safe route guesses.
-     */
     private function buildOpenUrl($opp, array $snap): string
     {
         // If scanner stored a link, use it.
@@ -479,13 +440,34 @@ class GideonOpportunitiesController extends Controller
             return $snap['open_url'];
         }
 
+        // BEC snapshots typically store contact_type + contact_id
+        $snapContactId = ! empty($snap['contact_id']) ? (int) $snap['contact_id'] : null;
+        $snapContactType = ! empty($snap['contact_type']) ? (string) $snap['contact_type'] : null;
+
+        if ($snapContactId && $snapContactType) {
+            try {
+                if ($snapContactType === 'book' && Route::has('book.open')) {
+                    return route('book.open', $snapContactId);
+                }
+                if ($snapContactType === 'service' && Route::has('service.open')) {
+                    return route('service.open', $snapContactId);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         $entityType = (string) ($opp->entity_type ?? '');
         $entityId = $opp->entity_id ? (int) $opp->entity_id : null;
 
         if (! $entityId) return '#';
 
-        // Try common routes safely
         try {
+            // If your contact IDs are your "book" clients most of the time, prefer book.open when available.
+            if ($entityType === 'contact' && Route::has('book.open')) {
+                return route('book.open', $entityId);
+            }
+
             if ($entityType === 'contact' && Route::has('contacts.show')) {
                 return route('contacts.show', $entityId);
             }
@@ -493,17 +475,7 @@ class GideonOpportunitiesController extends Controller
             if ($entityType === 'lead' && Route::has('leads.show')) {
                 return route('leads.show', $entityId);
             }
-
-            // Book/service deep-link helpers exist in your web.php
-            if (in_array($entityType, ['client', 'book'], true) && Route::has('book.open')) {
-                return route('book.open', $entityId);
-            }
-
-            if (in_array($entityType, ['service', 'service_case'], true) && Route::has('service.open')) {
-                return route('service.open', $entityId);
-            }
         } catch (\Throwable $e) {
-            // Never crash UI for link building.
             report($e);
         }
 
