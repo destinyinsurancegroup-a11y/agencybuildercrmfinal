@@ -23,7 +23,7 @@ class GideonScanLeadsNeedingDispositionCommand extends Command
 
     private const CATEGORY  = 'lead_disposition_opportunity';
     private const RULE_CODE = 'LEAD_DISPOSITION_14_DAYS_NEW';
-    private const AGE_DAYS  = 14;
+    private const AGE_DAYS  = 0; // TEMP: force fire for verification
 
     // Final / explicit dispositions (do NOT flag)
     // NOTE: In your data, lead statuses include "New" and "Not Interested".
