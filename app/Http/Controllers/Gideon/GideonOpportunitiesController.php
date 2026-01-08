@@ -73,6 +73,11 @@ class GideonOpportunitiesController extends Controller
      * [
      *   { bucket, priority, title, why, next, count }
      * ]
+     *
+     * ✅ UPDATED:
+     * - Combine all P1 buckets into a single bucket "p1_all"
+     * - "p1_all" count = total of all underlying P1 buckets
+     * - Underlying buckets still exist for modal item retrieval and action handling
      */
     public function groups(Request $request): JsonResponse
     {
@@ -92,6 +97,7 @@ class GideonOpportunitiesController extends Controller
         // Use stable columns we know exist: category, source_type, rule_code.
         $rows = $base->select(['id', 'category', 'source_type', 'rule_code'])->get();
 
+        // Define P1 buckets (unchanged), but we'll present them as one "p1_all" group.
         $buckets = [
             'p1_bec' => [
                 'priority' => 1,
@@ -99,8 +105,21 @@ class GideonOpportunitiesController extends Controller
                 'why' => 'This prevents claims chaos and reduces cancellations when clients go dark.',
                 'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
                 'match' => function ($row) {
-                    // ✅ Your DB rows show: category = "beneficiary_emergency_opportunity"
                     return (string) ($row->category ?? '') === 'beneficiary_emergency_opportunity';
+                },
+            ],
+
+            'p1_leads_disposition' => [
+                'priority' => 1,
+                'title' => 'Leads need disposition',
+                'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
+                'next' => 'Review each lead and set a final disposition — sold, follow up, or not interested.',
+                'match' => function ($row) {
+                    $cat = (string) ($row->category ?? '');
+                    if ($cat === 'lead_disposition_opportunity') return true;
+
+                    $rule = (string) ($row->rule_code ?? '');
+                    return $rule !== '' && str_contains($rule, 'LEAD_DISPOSITION');
                 },
             ],
 
@@ -110,35 +129,15 @@ class GideonOpportunitiesController extends Controller
                 'why' => 'These are “forgotten” buying signals and service saves hiding in written notes.',
                 'next' => 'Open each item and execute the follow-up.',
                 'match' => function ($row) {
-                    // ✅ Your note opportunities show: source_type = "note_index"
                     if ((string) ($row->source_type ?? '') === 'note_index') {
                         return true;
                     }
 
-                    // Fallbacks if source_type wasn’t set for some reason
                     $cat = (string) ($row->category ?? '');
                     if (str_starts_with($cat, 'note_')) return true;
 
                     $rule = (string) ($row->rule_code ?? '');
                     return $rule !== '' && str_contains($rule, 'NOTE');
-                },
-            ],
-
-            // ✅ NEW: Leads needing disposition (P1) — dashboard-only bucket
-            // This bucket assumes the scanner persists opportunities into gideon_opportunities
-            // with category = "lead_disposition_opportunity" (recommended).
-            'p1_leads_disposition' => [
-                'priority' => 1,
-                'title' => 'Leads need disposition',
-                'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
-                'next' => 'Review each lead and set a final disposition — sold, not interested, nurture, invalid, or reassign if needed.',
-                'match' => function ($row) {
-                    $cat = (string) ($row->category ?? '');
-                    if ($cat === 'lead_disposition_opportunity') return true;
-
-                    // Soft fallback if you use rule_code conventions
-                    $rule = (string) ($row->rule_code ?? '');
-                    return $rule !== '' && str_contains($rule, 'LEAD_DISPOSITION');
                 },
             ],
         ];
@@ -154,12 +153,17 @@ class GideonOpportunitiesController extends Controller
             }
         }
 
-        $out = [];
+        // Build child bucket metadata for P1
+        $p1Children = [];
+        $p1Total = 0;
+
         foreach ($buckets as $key => $def) {
             $count = (int) ($counts[$key] ?? 0);
             if ($count <= 0) continue;
 
-            $out[] = [
+            $p1Total += $count;
+
+            $p1Children[] = [
                 'bucket' => $key,
                 'priority' => (int) $def['priority'],
                 'title' => $def['title'],
@@ -169,16 +173,41 @@ class GideonOpportunitiesController extends Controller
             ];
         }
 
-        usort($out, function ($a, $b) {
-            if ($a['priority'] !== $b['priority']) return $a['priority'] <=> $b['priority'];
-            return ($b['count'] ?? 0) <=> ($a['count'] ?? 0);
-        });
+        // Output only one row for P1 (dashboard stays clean)
+        $out = [];
+
+        if ($p1Total > 0) {
+            $out[] = [
+                'bucket' => 'p1_all',
+                'priority' => 1,
+                'title' => 'P1 Critical Actions',
+                'why' => 'These are urgent revenue, retention, or service risks that should be handled first.',
+                'next' => 'Click “View list” to review the P1 sections and take action.',
+                'count' => $p1Total,
+
+                // Optional: allows UI to show sub-counts without extra calls (safe to ignore).
+                'children' => array_map(function ($c) {
+                    return [
+                        'bucket' => $c['bucket'],
+                        'title' => $c['title'],
+                        'count' => (int) $c['count'],
+                    ];
+                }, $p1Children),
+            ];
+        }
+
+        // (Future) Add P2/P3/P4 groups here in the same condensed style.
 
         return response()->json($out);
     }
 
     /**
      * Return items for a specific bucket.
+     *
+     * ✅ UPDATED:
+     * - Supports "p1_all" bucket, returning sections:
+     *   { bucket, title, why, next, sections: [ {title, why, next, count, items: [...]}, ... ] }
+     * - Existing per-bucket behavior remains unchanged for p1_bec, p1_leads_disposition, p1_notes_followup
      */
     public function groupItems(Request $request): JsonResponse
     {
@@ -202,7 +231,6 @@ class GideonOpportunitiesController extends Controller
                 'why' => 'This prevents claims chaos and reduces cancellations when clients go dark.',
                 'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
                 'filter' => function ($q) {
-                    // ✅ This is the actual category shown in your JSON
                     $q->where('category', 'beneficiary_emergency_opportunity');
                 },
             ],
@@ -213,17 +241,15 @@ class GideonOpportunitiesController extends Controller
                 'why' => 'These are “forgotten” buying signals and service saves hiding in written notes.',
                 'next' => 'Open each item and execute the follow-up.',
                 'filter' => function ($q) {
-                    // ✅ This is the stable marker for note-derived opportunities
                     $q->where('source_type', 'note_index');
                 },
             ],
 
-            // ✅ NEW: Leads needing disposition (P1)
             'p1_leads_disposition' => [
                 'priority' => 1,
                 'title' => 'Leads need disposition',
                 'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
-                'next' => 'Review each lead and set a final disposition — sold, not interested, nurture, invalid, or reassign if needed.',
+                'next' => 'Review each lead and set a final disposition — sold, follow up, or not interested.',
                 'filter' => function ($q) {
                     $q->where(function ($qq) {
                         $qq->where('category', 'lead_disposition_opportunity')
@@ -233,13 +259,62 @@ class GideonOpportunitiesController extends Controller
             ],
         ];
 
+        /**
+         * ✅ NEW: Combined P1 bucket
+         * Returns sections so the UI can render the same three blocks you have today,
+         * but under one "P1 Critical Actions" header.
+         */
+        if ($bucket === 'p1_all') {
+            $sectionOrder = ['p1_bec', 'p1_leads_disposition', 'p1_notes_followup'];
+
+            $sections = [];
+
+            foreach ($sectionOrder as $key) {
+                if (! isset($defs[$key])) continue;
+
+                $query = $this->baseQueryForAgency($agencyId)->where('status', 'open');
+                ($defs[$key]['filter'])($query);
+
+                $opps = $query
+                    ->orderByDesc('score')
+                    ->orderByDesc('id')
+                    ->limit(200)
+                    ->get();
+
+                if ($opps->isEmpty()) {
+                    continue;
+                }
+
+                $opps = $this->hydrateEntityLabels($opps);
+
+                $items = $this->mapOppItems($opps);
+
+                $sections[] = [
+                    'bucket' => $key,
+                    'priority' => (int) $defs[$key]['priority'],
+                    'title' => $defs[$key]['title'],
+                    'why' => $defs[$key]['why'],
+                    'next' => $defs[$key]['next'],
+                    'count' => $items->count(),
+                    'items' => $items,
+                ];
+            }
+
+            return response()->json([
+                'bucket' => 'p1_all',
+                'title' => 'P1 Critical Actions',
+                'why' => 'These are urgent revenue, retention, or service risks that should be handled first.',
+                'next' => 'Review each section and take action.',
+                'sections' => $sections,
+            ]);
+        }
+
+        // Existing behavior for single buckets
         if (! isset($defs[$bucket])) {
             return response()->json(['message' => 'Unknown bucket'], 422);
         }
 
         $query = $this->baseQueryForAgency($agencyId)->where('status', 'open');
-
-        // Apply bucket filter
         ($defs[$bucket]['filter'])($query);
 
         $opps = $query
@@ -250,25 +325,7 @@ class GideonOpportunitiesController extends Controller
 
         $opps = $this->hydrateEntityLabels($opps);
 
-        $items = $opps->map(function ($opp) {
-            $snap = is_array($opp->source_snapshot)
-                ? $opp->source_snapshot
-                : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
-
-            $excerpt = (string) ($snap['matched_excerpt'] ?? '');
-            $openUrl = $this->buildOpenUrl($opp, $snap);
-
-            return [
-                'id' => (int) $opp->id,
-                'name' => (string) ($opp->entity_label ?: $this->fallbackEntityName($opp)),
-                'entity_type' => (string) ($opp->entity_type ?? ''),
-                'entity_id' => $opp->entity_id ? (int) $opp->entity_id : null,
-                'title' => (string) ($opp->title ?? ''),
-                'recommended_action' => (string) ($opp->recommended_action ?? ''),
-                'matched_excerpt' => $excerpt,
-                'open_url' => $openUrl,
-            ];
-        })->values();
+        $items = $this->mapOppItems($opps);
 
         return response()->json([
             'bucket' => $bucket,
@@ -465,6 +522,29 @@ class GideonOpportunitiesController extends Controller
 
             return $opp;
         });
+    }
+
+    private function mapOppItems(Collection $opps): Collection
+    {
+        return $opps->map(function ($opp) {
+            $snap = is_array($opp->source_snapshot)
+                ? $opp->source_snapshot
+                : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
+
+            $excerpt = (string) ($snap['matched_excerpt'] ?? '');
+            $openUrl = $this->buildOpenUrl($opp, $snap);
+
+            return [
+                'id' => (int) $opp->id,
+                'name' => (string) ($opp->entity_label ?: $this->fallbackEntityName($opp)),
+                'entity_type' => (string) ($opp->entity_type ?? ''),
+                'entity_id' => $opp->entity_id ? (int) $opp->entity_id : null,
+                'title' => (string) ($opp->title ?? ''),
+                'recommended_action' => (string) ($opp->recommended_action ?? ''),
+                'matched_excerpt' => $excerpt,
+                'open_url' => $openUrl,
+            ];
+        })->values();
     }
 
     private function buildOpenUrl($opp, array $snap): string
