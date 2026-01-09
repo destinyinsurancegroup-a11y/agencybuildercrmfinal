@@ -276,7 +276,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
             .then(res => res.text())
-            .then(html => container.innerHTML = html)
+            .then(html => {
+                // Insert the partial HTML
+                container.innerHTML = html;
+
+                // ✅ IMPORTANT FIX:
+                // When HTML is injected via innerHTML, inline <script> tags may not execute.
+                // This re-inserts scripts so the browser executes them (enables Service notes JS).
+                const scripts = container.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+
+                    // Copy attributes (type, etc.)
+                    for (const attr of oldScript.attributes) {
+                        newScript.setAttribute(attr.name, attr.value);
+                    }
+
+                    // Copy inline JS
+                    newScript.text = oldScript.textContent;
+
+                    // Replace so it executes
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+            })
             .catch(() => {
                 container.innerHTML = `
                     <div style="padding:40px; text-align:center; color:red;">
