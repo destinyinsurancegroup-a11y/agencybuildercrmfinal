@@ -17,17 +17,16 @@ use Illuminate\Support\Facades\Schema;
  * QUICK SCAN (deep=false):
  *  - Revive old leads (30+ days untouched)
  *  - Beneficiary/Emergency Contact opportunities (Option 1: ONE opportunity per client)
- *      - If tabs are empty (no relations) -> opportunity
- *      - If beneficiary/emergency exists but contacted = No (0) -> opportunity
- *      - If beneficiaries < 2 OR emergency contacts < 1 -> opportunity
  *
  * DEEP SCAN (deep=true):
  *  - Policy review opportunities (policies older than X months)
  *  - Referral request opportunities (heuristic)
  *
- * P4-D (always runs; DRY-RUN first):
- *  - Archived Service Recovery (policy salvage) scanning archived/not-interested service files
- *    for "cheaper/better/covered/misled" signals in notes.
+ * P4-D (runs in BOTH quick + deep; DRY-RUN first):
+ *  - Archived Service Recovery (policy salvage) scanning contacts where:
+ *      - contacts.service_status = 'Not Interested' (optionally include 'Cancelled' later)
+ *      - contacts.service_archived_at older than 120 days
+ *    Then scans notes corpus for "cheaper/better/covered/misled" signals.
  */
 class OpportunityScanner
 {
@@ -81,8 +80,9 @@ class OpportunityScanner
 
         // ------------------------------------------------------------
         // P4-D: Archived Service Recovery (MONTHLY, DRY-RUN FIRST)
-        // NOTE: dry-run returns created=0 by design (log-only).
-        // Flip $dryRun to false when you're ready to go live.
+        // Uses contacts.service_status + contacts.service_archived_at (authoritative).
+        //
+        // DRY-RUN returns created=0 by design (log-only). Flip to false when ready.
         // ------------------------------------------------------------
         $dryRunP4d = true;
         [$countP4d, $msgP4d] = $this->scanArchivedServiceRecovery($agencyId, $userId, $dryRunP4d);
@@ -185,15 +185,6 @@ class OpportunityScanner
      * - Beneficiaries < 2
      * - Emergency contacts < 1
      * - Any relation has contacted = 0
-     *
-     * IMPORTANT EDITS ADDED:
-     * - Pull the client's NAME from contacts and store it in:
-     *    - opportunity title ("... — Thomas Adams")
-     *    - source_snapshot.contact_name
-     * - Store routing hints in source_snapshot so the dashboard "Open Client" button
-     *   can reliably route to /book/{id}:
-     *    - source_snapshot.in_book_of_business
-     *    - source_snapshot.contact_type
      */
     protected function scanBeneficiariesAndEmergencyContacts(int $agencyId, ?int $userId): array
     {
@@ -221,7 +212,7 @@ class OpportunityScanner
 
         if ($hasFullName) $select[] = 'full_name';
         if ($hasFirst)    $select[] = 'first_name';
-        if ($hasLast)     $select[] = 'last_name';
+        if ($hasLast)     = $select[] = 'last_name';
 
         $hasContactType = Schema::hasColumn('contacts', 'contact_type');
         $hasInBoB       = Schema::hasColumn('contacts', 'in_book_of_business');
@@ -324,7 +315,7 @@ class OpportunityScanner
                 elseif ($missingBenefMin || $missingEmergencyMin) $score = 88;
                 elseif ($hasUncontacted) $score = 85;
 
-                // Title should show real client name (not "Client #285")
+                // Title should show real client name
                 $title = "Beneficiaries & emergency contacts need attention — {$clientName}";
 
                 // Clear reasons + actions
@@ -342,7 +333,6 @@ class OpportunityScanner
                     $recommendedAction = 'Call/text the listed contacts, confirm details, and mark them as contacted.';
                 }
 
-                // Your 3 reasons (for dashboard explanation + consistency)
                 $whyItMatters = [
                     'Right thing to do: beneficiaries should know coverage exists.',
                     'Can save your deal: reduces lapses/cancellations if the client goes dark.',
@@ -364,13 +354,10 @@ class OpportunityScanner
                         'score'              => $score,
                         'status'             => 'open',
                         'source_snapshot'    => [
-                            // Used by dashboard to DISPLAY the name and ROUTE correctly
                             'contact_id'          => $c->id,
                             'contact_name'        => $clientName,
                             'contact_type'        => $contactType,
                             'in_book_of_business' => $inBoB,
-
-                            // Details
                             'counts' => [
                                 'beneficiaries_total'       => $benefTotal,
                                 'emergency_total'           => $emTotal,
@@ -399,20 +386,18 @@ class OpportunityScanner
     /**
      * P4-D: Archived Service Recovery (Policy Salvage) — MONTHLY, DRY-RUN FIRST.
      *
-     * Behavior:
-     * - Scans archived/not-interested service_events older than MIN days
-     * - Looks for "cheaper/better/covered/misled" signals in notes
-     * - Creates at most MONTHLY_CAP opportunities per month per agency
-     * - DRY-RUN logs matches and returns created=0 (no writes)
-     *
-     * IMPORTANT:
-     * - This method is defensive: if it can't safely identify archive state, it skips.
+     * Authoritative archive source:
+     * - contacts.service_status
+     * - contacts.service_archived_at
      */
     protected function scanArchivedServiceRecovery(int $agencyId, ?int $userId, bool $dryRun = true): array
     {
         $category = 'archived_service_recovery';
         $minArchiveDays = 120;
         $monthlyCap = 2;
+
+        // Start SAFE: only "Not Interested". You can add "Cancelled" later if desired.
+        $serviceArchiveStatuses = ['Not Interested', 'not interested', 'not_interested'];
 
         $allowlist = [
             'found something cheaper',
@@ -468,20 +453,16 @@ class OpportunityScanner
             'threatened',
         ];
 
-        if (! Schema::hasTable('service_events')) {
-            return [0, 'service_events table not found; P4-D scan skipped.'];
-        }
         if (! Schema::hasTable('contacts')) {
-            return [0, 'contacts table not found; P4-D scan skipped.'];
+            return [0, 'Contacts table not found; P4-D scan skipped.'];
         }
 
-        foreach (['agency_id', 'contact_id'] as $col) {
-            if (! Schema::hasColumn('service_events', $col)) {
-                return [0, "service_events missing required column {$col}; P4-D scan skipped."];
-            }
+        // Must have service archive fields
+        if (! Schema::hasColumn('contacts', 'service_status') || ! Schema::hasColumn('contacts', 'service_archived_at')) {
+            return [0, 'contacts missing service_status/service_archived_at; P4-D scan skipped for safety.'];
         }
 
-        // Monthly cap based on created_at (if present).
+        // Monthly cap (if created_at exists)
         $createdThisMonth = 0;
         if (Schema::hasTable('gideon_opportunities') && Schema::hasColumn('gideon_opportunities', 'created_at')) {
             $createdThisMonth = GideonOpportunity::query()
@@ -498,87 +479,97 @@ class OpportunityScanner
         $remaining = max(1, $monthlyCap - $createdThisMonth);
         $cutoff = now()->subDays($minArchiveDays);
 
-        // Archive detection (must be deterministic; abort if we cannot detect safely)
-        $hasArchivedAt  = Schema::hasColumn('service_events', 'archived_at');
-        $hasStatus      = Schema::hasColumn('service_events', 'status');
-        $hasDisposition = Schema::hasColumn('service_events', 'disposition');
-        $hasOutcome     = Schema::hasColumn('service_events', 'outcome');
-        $hasUpdatedAt   = Schema::hasColumn('service_events', 'updated_at');
-        $hasCreatedAt   = Schema::hasColumn('service_events', 'created_at');
+        $contactsQ = DB::table('contacts')->select(['id']);
 
-        if (! $hasArchivedAt && ! $hasStatus) {
-            return [0, 'service_events has no archived_at or status column; P4-D scan skipped for safety.'];
+        if (Schema::hasColumn('contacts', 'agency_id')) {
+            $contactsQ->where('agency_id', $agencyId);
         }
 
-        $q = DB::table('service_events')
-            ->where('agency_id', $agencyId);
-
-        // Determine "archived/not interested" rows
-        if ($hasArchivedAt) {
-            $q->whereNotNull('archived_at')
-              ->where('archived_at', '<=', $cutoff)
-              ->orderBy('archived_at', 'asc');
-        } else {
-            // Best-effort (align to your actual values once confirmed)
-            $q->whereIn('status', ['archived', 'not_interested', 'Not Interested']);
-
-            $timeCol = $hasUpdatedAt ? 'updated_at' : ($hasCreatedAt ? 'created_at' : null);
-            if (! $timeCol) {
-                return [0, 'service_events has no usable date column for age gating; P4-D scan skipped for safety.'];
-            }
-            $q->where($timeCol, '<=', $cutoff)->orderBy($timeCol, 'asc');
+        // Optional: only book-of-business
+        if (Schema::hasColumn('contacts', 'in_book_of_business')) {
+            $contactsQ->where('in_book_of_business', 1);
         }
 
-        // Tighten to "Not Interested" when represented separately
-        if ($hasDisposition) {
-            $q->whereIn('disposition', ['not_interested', 'not interested', 'Not Interested']);
-        } elseif ($hasOutcome) {
-            $q->whereIn('outcome', ['not_interested', 'not interested', 'Not Interested']);
+        // Deterministic archive definition
+        $contactsQ->whereIn('service_status', $serviceArchiveStatuses)
+            ->whereNotNull('service_archived_at')
+            ->where('service_archived_at', '<=', $cutoff)
+            ->orderBy('service_archived_at', 'asc');
+
+        // Optional: skip fully archived contacts
+        if (Schema::hasColumn('contacts', 'status')) {
+            $contactsQ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'archived');
+            });
         }
 
-        // Pull more than remaining because keyword filtering will eliminate many.
-        $rows = $q->select(['id', 'contact_id'])
-            ->limit($remaining * 50)
-            ->get();
+        // Pull extra because keyword filtering drops many
+        $rows = $contactsQ->limit($remaining * 50)->get();
 
         $scanned = $rows->count();
         $matched = 0;
         $created = 0;
 
-        foreach ($rows as $r) {
-            $contactId = (int) $r->contact_id;
+        foreach ($rows as $c) {
+            $contactId = (int) $c->id;
 
-            $corpus = $this->buildContactNotesCorpus($agencyId, $contactId);
-            if (! $corpus) {
+            // Avoid duplicates
+            $alreadyExists = GideonOpportunity::query()
+                ->where('agency_id', $agencyId)
+                ->where('entity_type', 'contact')
+                ->where('entity_id', $contactId)
+                ->where('category', $category)
+                ->exists();
+
+            if ($alreadyExists) {
                 continue;
             }
 
-            // Hard stops first
+            $corpus = $this->buildContactNotesCorpus($agencyId, $contactId) ?? '';
+
+            // Add contacts.notes if it exists
+            if (Schema::hasColumn('contacts', 'notes')) {
+                $cn = DB::table('contacts')->where('id', $contactId)
+                    ->when(Schema::hasColumn('contacts', 'agency_id'), fn ($q) => $q->where('agency_id', $agencyId))
+                    ->value('notes');
+                if ($cn) $corpus = trim($corpus . ' ' . strtolower((string) $cn));
+            }
+
+            // Add service_events.notes (safe: only after selecting contact within agency)
+            if (Schema::hasTable('service_events') && Schema::hasColumn('service_events', 'contact_id') && Schema::hasColumn('service_events', 'notes')) {
+                $sevNotes = DB::table('service_events')
+                    ->where('contact_id', $contactId)
+                    ->pluck('notes')
+                    ->filter()
+                    ->all();
+
+                if (! empty($sevNotes)) {
+                    $corpus = trim($corpus . ' ' . strtolower(implode(' ', $sevNotes)));
+                }
+            }
+
+            if ($corpus === '') {
+                continue;
+            }
+
             if ($this->textContainsAny($corpus, $blocklist)) {
                 continue;
             }
 
-            // Must have at least one positive signal
             if (! $this->textContainsAny($corpus, $allowlist)) {
                 continue;
             }
 
             $matched++;
 
-            // Respect monthly cap in output
             if ($matched > $remaining) {
                 break;
             }
 
             $clientName = $this->fetchContactName($agencyId, $contactId);
 
-            $title = "Archived service recovery candidate — {$clientName}";
-            $shortReason = 'Client previously fell off the books; notes indicate cheaper/better/covered/misled signals. Optional recovery check-in.';
-            $recommendedAction = 'Quick check-in: confirm current coverage and whether they were underinsured or misled. Re-quote if appropriate.';
-            $score = 35; // intentionally low; salvage layer
-
             if ($dryRun) {
-                \Log::info("[GIDEON:P4-D][DRY] agency_id={$agencyId} service_event_id={$r->id} contact_id={$contactId} matched");
+                \Log::info("[GIDEON:P4-D][DRY] agency_id={$agencyId} contact_id={$contactId} matched");
                 continue;
             }
 
@@ -591,15 +582,14 @@ class OpportunityScanner
                 ],
                 [
                     'user_id'            => $userId ?: null,
-                    'title'              => $title,
-                    'short_reason'       => $shortReason,
-                    'recommended_action' => $recommendedAction,
-                    'score'              => $score,
+                    'title'              => "Archived service recovery candidate — {$clientName}",
+                    'short_reason'       => 'Client previously moved to Service Archive (Not Interested). Notes indicate cheaper/better/covered/misled signals.',
+                    'recommended_action' => 'Check-in: confirm what coverage they have now and whether it’s truly better/cheaper. Re-quote if underinsured or misled.',
+                    'score'              => 35,
                     'status'             => 'open',
                     'source_snapshot'    => [
                         'contact_id'       => $contactId,
                         'contact_name'     => $clientName,
-                        'service_event_id' => $r->id,
                         'min_archive_days' => $minArchiveDays,
                         'signals'          => 'cheaper|better|covered|misled',
                     ],
@@ -610,15 +600,14 @@ class OpportunityScanner
         }
 
         $mode = $dryRun ? 'DRY-RUN' : 'LIVE';
-        $msg = "P4-D ({$mode}) scanned {$scanned} archived service records; matched {$matched}; created {$created}.";
+        $msg = "P4-D ({$mode}) scanned {$scanned} archived service contacts; matched {$matched}; created {$created}.";
 
-        // During dry-run, return 0 created by design so it doesn't inflate totals.
         return [$dryRun ? 0 : $created, $msg];
     }
 
     /**
      * Build a text corpus of notes for keyword scanning.
-     * Uses whatever notes storage is available (gideon_note_index / notes / contact_notes).
+     * Uses whichever storage exists: gideon_note_index / notes / contact_notes.
      *
      * Returns null if no safe source exists.
      */
@@ -640,7 +629,7 @@ class OpportunityScanner
             }
         }
 
-        // notes table (your app uses entity_type/entity_id in referral scan)
+        // notes table (entity_type/entity_id per your referral scan)
         if (Schema::hasTable('notes')) {
             $cols = Schema::getColumnListing('notes');
 
@@ -692,7 +681,7 @@ class OpportunityScanner
     }
 
     /**
-     * Safe name lookup similar to your other logic.
+     * Safe name lookup for a contact (best-effort).
      */
     protected function fetchContactName(int $agencyId, int $contactId): string
     {
@@ -734,10 +723,6 @@ class OpportunityScanner
     /**
      * DEEP SCAN:
      * Policy review opportunities.
-     *
-     * Heuristic:
-     * - If policies table exists:
-     *   - policy_issue_date older than 11 months (or created_at older than 11 months) AND status is active-ish
      */
     protected function scanPolicyReviewOpportunities(int $agencyId, ?int $userId): array
     {
@@ -765,7 +750,6 @@ class OpportunityScanner
         if (Schema::hasColumn('policies', 'agency_id')) {
             $q->where('agency_id', $agencyId);
         } elseif (Schema::hasColumn('policies', 'tenant_id')) {
-            // some earlier specs used tenant_id
             $q->where('tenant_id', $agencyId);
         }
 
@@ -830,11 +814,6 @@ class OpportunityScanner
     /**
      * DEEP SCAN:
      * Referral request opportunities.
-     *
-     * Heuristic (safe + simple):
-     * - Needs policies table
-     * - For each contact with at least 1 active policy older than 45 days,
-     *   if notes table exists we avoid duplicates if a recent "referral" note exists.
      */
     protected function scanReferralRequestOpportunities(int $agencyId, ?int $userId): array
     {
@@ -844,7 +823,6 @@ class OpportunityScanner
 
         $notesTable = Schema::hasTable('notes') ? 'notes' : null;
 
-        // Determine a reasonable "policy age" check
         $dateCol = Schema::hasColumn('policies', 'policy_issue_date')
             ? 'policy_issue_date'
             : (Schema::hasColumn('policies', 'created_at') ? 'created_at' : null);
@@ -856,7 +834,6 @@ class OpportunityScanner
         $threshold = now()->subDays(45);
         $recentReferralWindow = now()->subDays(60);
 
-        // Get distinct contact_ids with policies older than threshold
         $q = DB::table('policies')->select('contact_id')
             ->whereNotNull('contact_id')
             ->groupBy('contact_id');
@@ -891,7 +868,6 @@ class OpportunityScanner
 
                 $contactId = $row->contact_id;
 
-                // If we have notes, skip if a recent referral note exists (prevents spam)
                 if ($notesTable && Schema::hasColumn($notesTable, 'entity_type') && Schema::hasColumn($notesTable, 'entity_id')) {
                     $recentReferralNoteExists = DB::table($notesTable)
                         ->where('entity_type', 'contact')
