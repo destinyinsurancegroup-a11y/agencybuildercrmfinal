@@ -293,7 +293,8 @@
                 'X-CSRF-TOKEN': csrfToken,
                 'X-Requested-With': 'XMLHttpRequest',
             },
-            body: JSON.stringify({ body: bodyText })
+            // ✅ SAFE TWEAK: send both keys to match Leads/backend expectations
+            body: JSON.stringify({ note: bodyText, body: bodyText })
         })
         .then(function (response) {
             if (!response.ok) throw new Error('Network error');
