@@ -145,10 +145,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong> 
+                <p><strong>Face Amount:</strong>
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong> 
+                <p><strong>Monthly Premium:</strong>
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
@@ -234,6 +234,7 @@
         <div id="notes-list" class="mt-3">
             @php
                 $notes = $client->allNotes ?? $client->notes ?? collect();
+                if (is_string($notes)) { $notes = collect(); } // safety if contacts.notes is a string column
                 $notes = $notes->sortByDesc('created_at');
             @endphp
 
@@ -272,36 +273,56 @@
 <script>
 (function () {
     const csrfToken = "{{ csrf_token() }}";
-    const clientId  = {{ $client->id }};
+    const clientId  = {{ (int) $client->id }};
     const storeUrl  = "{{ route('service.notes.store', $client) }}"; // POST /service/{client}/notes
     const baseUrl   = "{{ url('/service/'.$client->id.'/notes') }}"; // /service/{client}/notes
     const notesList = document.getElementById('notes-list');
     const textarea  = document.getElementById('new_note_body');
 
+    async function parseJsonSafe(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) return response.json();
+        const text = await response.text();
+        return { success: false, message: text };
+    }
+
+    function showHttpError(prefix, response, data) {
+        const msg = data && (data.message || data.error) ? (data.message || data.error) : '';
+        alert(`${prefix} (HTTP ${response.status}). ${msg}`.trim());
+        console.error(prefix, { status: response.status, data });
+    }
+
     // CREATE
-    window.saveServiceNote = function (clickedClientId) {
+    window.saveServiceNote = async function () {
         if (!textarea) return;
 
         const bodyText = textarea.value.trim();
         if (!bodyText) return;
 
-        fetch(storeUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: JSON.stringify({ body: bodyText })
-        })
-        .then(function (response) {
-            if (!response.ok) throw new Error('Network error');
-            return response.json();
-        })
-        .then(function (data) {
+        try {
+            const response = await fetch(storeUrl, {
+                method: 'POST',
+                credentials: 'same-origin', // ✅ send session cookie
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                // ✅ send both keys to match controller validation
+                body: JSON.stringify({ body: bodyText, note: bodyText })
+            });
+
+            const data = await parseJsonSafe(response);
+
+            if (!response.ok) {
+                showHttpError('Error saving note', response, data);
+                return;
+            }
+
             if (!data || !data.success || !data.note) {
                 alert('Error saving note.');
+                console.error('Unexpected response:', data);
                 return;
             }
 
@@ -322,13 +343,13 @@
                 }
             }
 
+            const noteText = (note.note || note.body || '');
+
             wrapper.innerHTML = `
                 <div class="small text-muted mb-1 note-time">
                     ${createdAtText}
                 </div>
-                <div class="note-body mb-1">
-                    ${note.note || note.body || ''}
-                </div>
+                <div class="note-body mb-1"></div>
                 <div class="mt-1">
                     <button type="button"
                             class="btn btn-sm btn-outline-secondary me-1"
@@ -343,7 +364,13 @@
                 </div>
             `;
 
+            // prevent HTML injection
+            wrapper.querySelector('.note-body').textContent = noteText;
+
             // Prepend newest note
+            const emptyPlaceholder = notesList.querySelector('p.text-muted');
+            if (emptyPlaceholder) emptyPlaceholder.remove();
+
             if (notesList.firstChild) {
                 notesList.insertBefore(wrapper, notesList.firstChild);
             } else {
@@ -351,14 +378,14 @@
             }
 
             textarea.value = '';
-        })
-        .catch(function () {
+        } catch (err) {
             alert('Error saving note.');
-        });
+            console.error(err);
+        }
     };
 
     // EDIT
-    window.editServiceNote = function (clickedClientId, noteId) {
+    window.editServiceNote = async function (_clickedClientId, noteId) {
         const noteEl  = document.getElementById('note-' + noteId);
         if (!noteEl) return;
 
@@ -368,35 +395,41 @@
         const currentText = bodyDiv.textContent.trim();
         const updated     = prompt('Edit note:', currentText);
 
-        if (updated === null) return;           // user cancelled
+        if (updated === null) return; // cancelled
         const trimmed = updated.trim();
         if (!trimmed) {
             alert('Note cannot be empty.');
             return;
         }
 
-        fetch(`${baseUrl}/${noteId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: JSON.stringify({ body: trimmed })
-        })
-        .then(function (response) {
-            if (!response.ok) throw new Error('Network error');
-            return response.json();
-        })
-        .then(function (data) {
+        try {
+            const response = await fetch(`${baseUrl}/${noteId}`, {
+                method: 'PUT',
+                credentials: 'same-origin', // ✅ send session cookie
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ body: trimmed, note: trimmed }) // ✅ both keys
+            });
+
+            const data = await parseJsonSafe(response);
+
+            if (!response.ok) {
+                showHttpError('Error updating note', response, data);
+                return;
+            }
+
             if (!data || !data.success || !data.note) {
                 alert('Error updating note.');
+                console.error('Unexpected response:', data);
                 return;
             }
 
             const note = data.note;
-            bodyDiv.textContent = note.note || note.body || '';
+            bodyDiv.textContent = (note.note || note.body || '');
 
             const timeDiv = noteEl.querySelector('.note-time');
             if (timeDiv && note.created_at) {
@@ -408,31 +441,37 @@
                 }
                 timeDiv.textContent = createdAtText;
             }
-        })
-        .catch(function () {
+        } catch (err) {
             alert('Error updating note.');
-        });
+            console.error(err);
+        }
     };
 
     // DELETE
-    window.deleteServiceNote = function (clickedClientId, noteId) {
+    window.deleteServiceNote = async function (_clickedClientId, noteId) {
         if (!confirm('Delete this note?')) return;
 
-        fetch(`${baseUrl}/${noteId}`, {
-            method: 'DELETE',
-            headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest',
+        try {
+            const response = await fetch(`${baseUrl}/${noteId}`, {
+                method: 'DELETE',
+                credentials: 'same-origin', // ✅ send session cookie
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            const data = await parseJsonSafe(response);
+
+            if (!response.ok) {
+                showHttpError('Error deleting note', response, data);
+                return;
             }
-        })
-        .then(function (response) {
-            if (!response.ok) throw new Error('Network error');
-            return response.json();
-        })
-        .then(function (data) {
+
             if (!data || !data.success) {
                 alert('Error deleting note.');
+                console.error('Unexpected response:', data);
                 return;
             }
 
@@ -447,10 +486,10 @@
                 empty.textContent = 'No notes yet.';
                 notesList.appendChild(empty);
             }
-        })
-        .catch(function () {
+        } catch (err) {
             alert('Error deleting note.');
-        });
+            console.error(err);
+        }
     };
 
 })();
