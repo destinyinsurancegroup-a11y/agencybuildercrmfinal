@@ -94,7 +94,7 @@ class GideonOpportunitiesController extends Controller
 
         $buckets = [
             // =========================
-            // P1 BUCKETS
+            // P1 Buckets (existing)
             // =========================
             'p1_bec' => [
                 'priority' => 1,
@@ -103,6 +103,20 @@ class GideonOpportunitiesController extends Controller
                 'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
                 'match' => function ($row) {
                     return (string) ($row->category ?? '') === 'beneficiary_emergency_opportunity';
+                },
+            ],
+
+            'p1_leads_disposition' => [
+                'priority' => 1,
+                'title' => 'Leads need disposition',
+                'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
+                'next' => 'Review each lead and set a final disposition — sold, not interested, follow up.',
+                'match' => function ($row) {
+                    $cat = (string) ($row->category ?? '');
+                    if ($cat === 'lead_disposition_opportunity') return true;
+
+                    $rule = (string) ($row->rule_code ?? '');
+                    return $rule !== '' && str_contains($rule, 'LEAD_DISPOSITION');
                 },
             ],
 
@@ -117,41 +131,35 @@ class GideonOpportunitiesController extends Controller
                     }
 
                     $cat = (string) ($row->category ?? '');
-                    if (str_starts_with($cat, 'note_')) return true;
+                    if ($cat !== '' && str_starts_with($cat, 'note_')) return true;
 
                     $rule = (string) ($row->rule_code ?? '');
                     return $rule !== '' && str_contains($rule, 'NOTE');
                 },
             ],
 
-            'p1_leads_disposition' => [
-                'priority' => 1,
-                'title' => 'Leads need disposition',
-                'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
-                'next' => 'Review each lead and set a final disposition — sold, not interested, nurture, invalid, or reassign if needed.',
-                'match' => function ($row) {
-                    $cat = (string) ($row->category ?? '');
-                    if ($cat === 'lead_disposition_opportunity') return true;
-
-                    $rule = (string) ($row->rule_code ?? '');
-                    return $rule !== '' && str_contains($rule, 'LEAD_DISPOSITION');
-                },
-            ],
-
             // =========================
-            // ✅ P2 BUCKET: Policy Reviews Due (6 months)
+            // ✅ P2 Bucket (NEW)
+            // Policy Reviews Due (6-month touch)
             // =========================
-            'p2_policy_review_due' => [
+            'p2_policy_reviews' => [
                 'priority' => 2,
-                'title' => 'Policy reviews due (6 months)',
-                'why' => 'Regular reviews keep client data current and create natural moments for retention and referrals.',
-                'next' => 'Open each client and complete a 6-month policy review.',
+                'title' => 'Policy reviews due (6-month touch)',
+                'why' => 'Keeps clients protected as life changes, reduces lapse/cancellation risk, and creates natural referral opportunities.',
+                'next' => 'Open each client and complete a quick policy review. Log a note/task so Gideon knows it’s been handled.',
                 'match' => function ($row) {
-                    $cat = (string) ($row->category ?? '');
-                    if ($cat === 'policy_review_due_opportunity') return true;
+                    $cat  = strtoupper((string) ($row->category ?? ''));
+                    $rule = strtoupper((string) ($row->rule_code ?? ''));
 
-                    $rule = (string) ($row->rule_code ?? '');
-                    return $rule !== '' && str_contains($rule, 'POLICY_REVIEW');
+                    // Flexible matching so it works even if your command used a different naming convention.
+                    if ($cat === 'POLICY_REVIEW_DUE_OPPORTUNITY') return true;
+                    if ($cat === 'POLICY_REVIEW_OPPORTUNITY') return true;
+                    if ($cat === 'POLICY_REVIEW_DUE') return true;
+
+                    if ($rule !== '' && str_contains($rule, 'POLICY_REVIEW')) return true;
+                    if ($rule !== '' && str_contains($rule, 'REVIEW_DUE')) return true;
+
+                    return false;
                 },
             ],
         ];
@@ -210,7 +218,7 @@ class GideonOpportunitiesController extends Controller
 
         $defs = [
             // =========================
-            // P1 BUCKETS
+            // P1 Buckets (existing)
             // =========================
             'p1_bec' => [
                 'priority' => 1,
@@ -236,7 +244,7 @@ class GideonOpportunitiesController extends Controller
                 'priority' => 1,
                 'title' => 'Leads need disposition',
                 'why' => 'These leads have been sitting in your CRM for 14+ days without a final outcome. Undispositioned leads slow follow-up, distort pipeline reports, and cause real opportunities to slip through the cracks.',
-                'next' => 'Review each lead and set a final disposition — sold, not interested, nurture, invalid, or reassign if needed.',
+                'next' => 'Review each lead and set a final disposition — sold, not interested, follow up.',
                 'filter' => function ($q) {
                     $q->where(function ($qq) {
                         $qq->where('category', 'lead_disposition_opportunity')
@@ -246,17 +254,21 @@ class GideonOpportunitiesController extends Controller
             ],
 
             // =========================
-            // ✅ P2 BUCKET
+            // ✅ P2 Bucket (NEW)
             // =========================
-            'p2_policy_review_due' => [
+            'p2_policy_reviews' => [
                 'priority' => 2,
-                'title' => 'Policy reviews due (6 months)',
-                'why' => 'Regular reviews keep client data current and create natural moments for retention and referrals.',
-                'next' => 'Open each client and complete a 6-month policy review.',
+                'title' => 'Policy reviews due (6-month touch)',
+                'why' => 'Keeps clients protected as life changes, reduces lapse/cancellation risk, and creates natural referral opportunities.',
+                'next' => 'Open each client and complete a quick policy review. Log a note/task so Gideon knows it’s been handled.',
                 'filter' => function ($q) {
                     $q->where(function ($qq) {
-                        $qq->where('category', 'policy_review_due_opportunity')
-                           ->orWhere('rule_code', 'LIKE', '%POLICY_REVIEW%');
+                        $qq->whereIn('category', [
+                            'policy_review_due_opportunity',
+                            'policy_review_opportunity',
+                            'policy_review_due',
+                        ])->orWhere('rule_code', 'LIKE', '%POLICY_REVIEW%')
+                          ->orWhere('rule_code', 'LIKE', '%REVIEW_DUE%');
                     });
                 },
             ],
@@ -487,6 +499,7 @@ class GideonOpportunitiesController extends Controller
                 ? $opp->source_snapshot
                 : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
 
+            // ✅ snapshots may contain contact_name; use that as fallback
             if (! $opp->entity_label && is_array($snap)) {
                 $opp->entity_label = $snap['contact_name'] ?? null;
             }
@@ -497,10 +510,12 @@ class GideonOpportunitiesController extends Controller
 
     private function buildOpenUrl($opp, array $snap): string
     {
+        // If scanner stored a link, use it.
         if (! empty($snap['open_url']) && is_string($snap['open_url'])) {
             return $snap['open_url'];
         }
 
+        // snapshots typically store contact_type + contact_id
         $snapContactId = ! empty($snap['contact_id']) ? (int) $snap['contact_id'] : null;
         $snapContactType = ! empty($snap['contact_type']) ? (string) $snap['contact_type'] : null;
 
@@ -515,6 +530,9 @@ class GideonOpportunitiesController extends Controller
                 if ($snapContactType === 'lead' && Route::has('leads.show')) {
                     return route('leads.show', $snapContactId);
                 }
+                if ($snapContactType === 'client' && Route::has('book.open')) {
+                    return route('book.open', $snapContactId);
+                }
             } catch (\Throwable $e) {
                 report($e);
             }
@@ -526,6 +544,7 @@ class GideonOpportunitiesController extends Controller
         if (! $entityId) return '#';
 
         try {
+            // Prefer book.open when available for contacts.
             if ($entityType === 'contact' && Route::has('book.open')) {
                 return route('book.open', $entityId);
             }
