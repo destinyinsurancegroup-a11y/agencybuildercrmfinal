@@ -93,13 +93,15 @@ class GideonOpportunitiesController extends Controller
         $rows = $base->select(['id', 'category', 'source_type', 'rule_code'])->get();
 
         $buckets = [
+            // =========================
+            // P1 BUCKETS
+            // =========================
             'p1_bec' => [
                 'priority' => 1,
                 'title' => 'Beneficiary & Emergency Contact fixes',
                 'why' => 'This prevents claims chaos and reduces cancellations when clients go dark.',
                 'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
                 'match' => function ($row) {
-                    // ✅ Your DB rows show: category = "beneficiary_emergency_opportunity"
                     return (string) ($row->category ?? '') === 'beneficiary_emergency_opportunity';
                 },
             ],
@@ -110,12 +112,10 @@ class GideonOpportunitiesController extends Controller
                 'why' => 'These are “forgotten” buying signals and service saves hiding in written notes.',
                 'next' => 'Open each item and execute the follow-up.',
                 'match' => function ($row) {
-                    // ✅ Your note opportunities show: source_type = "note_index"
                     if ((string) ($row->source_type ?? '') === 'note_index') {
                         return true;
                     }
 
-                    // Fallbacks if source_type wasn’t set for some reason
                     $cat = (string) ($row->category ?? '');
                     if (str_starts_with($cat, 'note_')) return true;
 
@@ -124,9 +124,6 @@ class GideonOpportunitiesController extends Controller
                 },
             ],
 
-            // ✅ NEW: Leads needing disposition (P1) — dashboard-only bucket
-            // This bucket assumes the scanner persists opportunities into gideon_opportunities
-            // with category = "lead_disposition_opportunity" (recommended).
             'p1_leads_disposition' => [
                 'priority' => 1,
                 'title' => 'Leads need disposition',
@@ -136,9 +133,25 @@ class GideonOpportunitiesController extends Controller
                     $cat = (string) ($row->category ?? '');
                     if ($cat === 'lead_disposition_opportunity') return true;
 
-                    // Soft fallback if you use rule_code conventions
                     $rule = (string) ($row->rule_code ?? '');
                     return $rule !== '' && str_contains($rule, 'LEAD_DISPOSITION');
+                },
+            ],
+
+            // =========================
+            // ✅ P2 BUCKET: Policy Reviews Due (6 months)
+            // =========================
+            'p2_policy_review_due' => [
+                'priority' => 2,
+                'title' => 'Policy reviews due (6 months)',
+                'why' => 'Regular reviews keep client data current and create natural moments for retention and referrals.',
+                'next' => 'Open each client and complete a 6-month policy review.',
+                'match' => function ($row) {
+                    $cat = (string) ($row->category ?? '');
+                    if ($cat === 'policy_review_due_opportunity') return true;
+
+                    $rule = (string) ($row->rule_code ?? '');
+                    return $rule !== '' && str_contains($rule, 'POLICY_REVIEW');
                 },
             ],
         ];
@@ -196,13 +209,15 @@ class GideonOpportunitiesController extends Controller
         }
 
         $defs = [
+            // =========================
+            // P1 BUCKETS
+            // =========================
             'p1_bec' => [
                 'priority' => 1,
                 'title' => 'Beneficiary & Emergency Contact fixes',
                 'why' => 'This prevents claims chaos and reduces cancellations when clients go dark.',
                 'next' => 'Open each client and add/fix beneficiaries and emergency contacts.',
                 'filter' => function ($q) {
-                    // ✅ This is the actual category shown in your JSON
                     $q->where('category', 'beneficiary_emergency_opportunity');
                 },
             ],
@@ -213,12 +228,10 @@ class GideonOpportunitiesController extends Controller
                 'why' => 'These are “forgotten” buying signals and service saves hiding in written notes.',
                 'next' => 'Open each item and execute the follow-up.',
                 'filter' => function ($q) {
-                    // ✅ This is the stable marker for note-derived opportunities
                     $q->where('source_type', 'note_index');
                 },
             ],
 
-            // ✅ NEW: Leads needing disposition (P1)
             'p1_leads_disposition' => [
                 'priority' => 1,
                 'title' => 'Leads need disposition',
@@ -228,6 +241,22 @@ class GideonOpportunitiesController extends Controller
                     $q->where(function ($qq) {
                         $qq->where('category', 'lead_disposition_opportunity')
                            ->orWhere('rule_code', 'LIKE', '%LEAD_DISPOSITION%');
+                    });
+                },
+            ],
+
+            // =========================
+            // ✅ P2 BUCKET
+            // =========================
+            'p2_policy_review_due' => [
+                'priority' => 2,
+                'title' => 'Policy reviews due (6 months)',
+                'why' => 'Regular reviews keep client data current and create natural moments for retention and referrals.',
+                'next' => 'Open each client and complete a 6-month policy review.',
+                'filter' => function ($q) {
+                    $q->where(function ($qq) {
+                        $qq->where('category', 'policy_review_due_opportunity')
+                           ->orWhere('rule_code', 'LIKE', '%POLICY_REVIEW%');
                     });
                 },
             ],
@@ -458,7 +487,6 @@ class GideonOpportunitiesController extends Controller
                 ? $opp->source_snapshot
                 : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
 
-            // ✅ BEC snapshots already contain contact_name; use that as fallback
             if (! $opp->entity_label && is_array($snap)) {
                 $opp->entity_label = $snap['contact_name'] ?? null;
             }
@@ -469,12 +497,10 @@ class GideonOpportunitiesController extends Controller
 
     private function buildOpenUrl($opp, array $snap): string
     {
-        // If scanner stored a link, use it.
         if (! empty($snap['open_url']) && is_string($snap['open_url'])) {
             return $snap['open_url'];
         }
 
-        // BEC snapshots typically store contact_type + contact_id
         $snapContactId = ! empty($snap['contact_id']) ? (int) $snap['contact_id'] : null;
         $snapContactType = ! empty($snap['contact_type']) ? (string) $snap['contact_type'] : null;
 
@@ -500,7 +526,6 @@ class GideonOpportunitiesController extends Controller
         if (! $entityId) return '#';
 
         try {
-            // Prefer book.open when available for contacts.
             if ($entityType === 'contact' && Route::has('book.open')) {
                 return route('book.open', $entityId);
             }
