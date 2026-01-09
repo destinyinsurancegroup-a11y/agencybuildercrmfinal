@@ -27,8 +27,30 @@ class GideonScanPolicyReviewsDueCommand extends Command
     // Trigger threshold
     private const DUE_MONTHS = 6;
 
-    // Disqualify if touched recently (notes present AND updated_at within N days)
+    // Disqualify if touched recently
     private const RECENT_TOUCH_DAYS = 45;
+
+    /**
+     * Notes keywords that imply an agent actually contacted / reviewed recently.
+     * (We only disqualify on recent updated_at IF notes contain one of these)
+     */
+    private const TOUCH_KEYWORDS = [
+        'policy review',
+        'review completed',
+        'annual review',
+        'semi-annual',
+        '6 month',
+        'six month',
+        'reached out',
+        'spoke with',
+        'called',
+        'texted',
+        'emailed',
+        'follow up',
+        'follow-up',
+        'appointment',
+        'met with',
+    ];
 
     public function handle(): int
     {
@@ -62,6 +84,8 @@ class GideonScanPolicyReviewsDueCommand extends Command
         $hasNotes = in_array('notes', $contactsCols, true);
         $hasServiceStatus = in_array('service_status', $contactsCols, true);
         $hasServiceArchivedAt = in_array('service_archived_at', $contactsCols, true);
+        $hasUpdatedAt = in_array('updated_at', $contactsCols, true);
+        $hasContactType = in_array('contact_type', $contactsCols, true);
 
         if (! $hasPolicyIssue) {
             $this->error('contacts.policy_issue_date not found; cannot run P2 review logic.');
@@ -79,11 +103,12 @@ class GideonScanPolicyReviewsDueCommand extends Command
         $dueCutoff = now()->subMonthsNoOverflow(self::DUE_MONTHS)->startOfDay();
         $recentTouchCutoff = now()->subDays(self::RECENT_TOUCH_DAYS);
 
-        // Base query: contacts scoped to agency + book-of-business
+        // Base query: policy issue date older than 6 months
         $q = DB::table('contacts')
             ->whereNotNull('policy_issue_date')
             ->where('policy_issue_date', '<=', $dueCutoff);
 
+        // Optional agency filter
         if ($agencyOpt !== null && $agencyOpt !== '') {
             $q->where('agency_id', (int) $agencyOpt);
         }
@@ -92,32 +117,61 @@ class GideonScanPolicyReviewsDueCommand extends Command
         // Use in_book_of_business when available; otherwise fall back to contact_type = book/client
         if ($hasInBoB) {
             $q->where(function ($qq) {
-                // Supports tinyint(1), boolean-ish, or stringy values
                 $qq->where('in_book_of_business', 1)
                    ->orWhere('in_book_of_business', true)
                    ->orWhere('in_book_of_business', '1');
             });
         } else {
-            $q->where(function ($qq) {
-                $qq->whereRaw('LOWER(contact_type) = ?', ['book'])
-                   ->orWhereRaw('LOWER(contact_type) = ?', ['client']);
-            });
+            if ($hasContactType) {
+                $q->where(function ($qq) {
+                    $qq->whereRaw('LOWER(contact_type) = ?', ['book'])
+                       ->orWhereRaw('LOWER(contact_type) = ?', ['client']);
+                });
+            } else {
+                // If we can't prove BoB in any way, fail safe.
+                $this->error('No in_book_of_business and no contact_type column; cannot scope book-of-business safely.');
+                return self::FAILURE;
+            }
         }
 
-        // Disqualifier A: "recent touch" inferred from notes + updated_at
-        if ($hasNotes && in_array('updated_at', $contactsCols, true)) {
-            $q->where(function ($qq) use ($recentTouchCutoff) {
-                // qualify if either:
-                // - notes empty/null, OR
-                // - updated_at older than cutoff
-                $qq->whereNull('notes')
+        /**
+         * Disqualifier A (FIXED):
+         * We only treat a client as "recently touched" if:
+         * - updated_at is recent AND
+         * - notes exist AND
+         * - notes contain contact/review-like keywords
+         *
+         * This avoids suppressing P2 alerts just because the record was edited recently.
+         */
+        if ($hasNotes && $hasUpdatedAt) {
+            $keywords = self::TOUCH_KEYWORDS;
+
+            $q->where(function ($qq) use ($recentTouchCutoff, $keywords) {
+                // QUALIFY if updated_at is old
+                $qq->where('updated_at', '<=', $recentTouchCutoff)
+
+                   // OR notes empty (no evidence of touch)
+                   ->orWhereNull('notes')
                    ->orWhereRaw('TRIM(notes) = ""')
-                   ->orWhere('updated_at', '<=', $recentTouchCutoff);
+
+                   // OR notes do NOT look like a contact/review note
+                   ->orWhere(function ($qqq) use ($keywords) {
+                       $qqq->whereNotNull('notes')
+                           ->whereRaw('TRIM(notes) <> ""')
+                           ->where(function ($kw) use ($keywords) {
+                               // Build: LOWER(notes) NOT LIKE '%keyword%'
+                               foreach ($keywords as $word) {
+                                   $kw->whereRaw('LOWER(notes) NOT LIKE ?', ['%' . strtolower($word) . '%']);
+                               }
+                           });
+                   });
             });
         }
 
-        // Disqualifier B: active service work
-        // If service_archived_at exists and is NULL, and service_status has content => treat as active (skip)
+        /**
+         * Disqualifier B: active service work
+         * If service_archived_at exists and is NULL, and service_status has content => treat as active (skip)
+         */
         if ($hasServiceArchivedAt && $hasServiceStatus) {
             $q->where(function ($qq) {
                 $qq->whereNotNull('service_archived_at')
@@ -127,7 +181,18 @@ class GideonScanPolicyReviewsDueCommand extends Command
         }
 
         // Minimal select
-        $select = ['id', 'agency_id', 'created_at', 'updated_at', 'contact_type', 'first_name', 'last_name', 'full_name', 'policy_issue_date'];
+        $select = [
+            'id',
+            'agency_id',
+            'created_at',
+            'policy_issue_date',
+        ];
+
+        if ($hasUpdatedAt) $select[] = 'updated_at';
+        if ($hasContactType) $select[] = 'contact_type';
+        if (in_array('first_name', $contactsCols, true)) $select[] = 'first_name';
+        if (in_array('last_name', $contactsCols, true)) $select[] = 'last_name';
+        if (in_array('full_name', $contactsCols, true)) $select[] = 'full_name';
         if ($hasTenantId) $select[] = 'tenant_id';
         if ($hasInBoB) $select[] = 'in_book_of_business';
         if ($hasNotes) $select[] = 'notes';
@@ -154,10 +219,15 @@ class GideonScanPolicyReviewsDueCommand extends Command
 
                 $name = $this->buildContactName($c);
 
-                $policyIssue = Carbon::parse($c->policy_issue_date);
+                try {
+                    $policyIssue = Carbon::parse($c->policy_issue_date);
+                } catch (\Throwable $e) {
+                    // Skip invalid date rows safely
+                    continue;
+                }
+
                 $ageMonths = $policyIssue->diffInMonths($now);
 
-                // open_url: prefer book.open for book-of-business contacts
                 $openUrl = $this->buildOpenUrlForContact($contactId);
 
                 $snapshot = [
@@ -166,8 +236,9 @@ class GideonScanPolicyReviewsDueCommand extends Command
                     'contact_name' => $name,
                     'policy_issue_date' => $policyIssue->toDateString(),
                     'policy_age_months' => $ageMonths,
-                    'last_record_update_at' => !empty($c->updated_at) ? Carbon::parse($c->updated_at)->toDateTimeString() : null,
+                    'due_months_threshold' => self::DUE_MONTHS,
                     'recent_touch_days_threshold' => self::RECENT_TOUCH_DAYS,
+                    'last_record_update_at' => !empty($c->updated_at) ? Carbon::parse($c->updated_at)->toDateTimeString() : null,
                 ];
 
                 if ($openUrl) $snapshot['open_url'] = $openUrl;
@@ -190,7 +261,6 @@ class GideonScanPolicyReviewsDueCommand extends Command
                 if ($existing && $hasOppSnoozedUntil && $existing->status === 'snoozed' && $existing->snoozed_until) {
                     $until = Carbon::parse($existing->snoozed_until);
                     if ($until->isFuture()) {
-                        // Update snapshot but keep snooze
                         if ($hasOppSourceSnapshot) {
                             GideonOpportunity::query()->whereKey($existing->id)->update([
                                 'source_snapshot' => json_encode($snapshot),
