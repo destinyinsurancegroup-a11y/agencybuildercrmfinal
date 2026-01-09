@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Schema;
  * DEEP SCAN (deep=true):
  *  - Policy review opportunities (policies older than X months)
  *  - Referral request opportunities (heuristic)
- *  - P4: Service Archive note scan (Not Interested + archived 120–365 days ago + keyword signals)
+ *  - P4: Service Archive note scan (Not Interested + archived 90+ days ago; prioritize 90–180 first, then older)
  */
 class OpportunityScanner
 {
@@ -85,8 +85,9 @@ class OpportunityScanner
             $createdCount += $countRef;
             $messages[] = $msgRef;
 
-            // P4: Service Archive notes scan (ONLY Service Archive, ONLY notes)
-            [$countP4, $msgP4] = $this->scanServiceArchiveNotes($agencyId, $userId, 120, 365);
+            // ✅ P4: Service Archive notes scan
+            // Start with 90–180 days, then scan older than 180.
+            [$countP4, $msgP4] = $this->scanServiceArchiveNotes($agencyId, $userId, 90, 180);
             $createdCount += $countP4;
             $messages[] = $msgP4;
         }
@@ -371,28 +372,56 @@ class OpportunityScanner
     }
 
     /**
-     * P4 — Service Archive notes scan (ONLY Service Archive, ONLY notes)
+     * ✅ P4 — Service Archive notes scan (ONLY Service Archive, ONLY notes table)
+     *
+     * This version matches your reality:
+     * - Notes are stored in `notes` table with `contact_id` + text column (`note` or `body`)
+     * - We DO NOT depend on contacts.notes
+     *
+     * Behavior:
+     * - Prioritize contacts archived 90–180 days (first pass)
+     * - Then scan older than 180 days (second pass)
      *
      * Criteria:
-     * - contacts.service_status = 'Not Interested'
-     * - contacts.service_archived_at is between (now - $maxDays) and (now - $minDays)
-     * - contacts.notes contains one or more recovery keywords
-     * - contacts.notes does NOT contain any hard DNC/legal keywords
+     * - contacts.contact_type = 'service' (if column exists)
+     * - contacts.service_status = 'Not Interested' (case/format tolerant)
+     * - contacts.service_archived_at <= now - 90 days
+     * - notes text contains allowlist and NOT blocklist
      */
-    protected function scanServiceArchiveNotes(int $agencyId, ?int $userId, int $minDays = 120, int $maxDays = 365): array
+    protected function scanServiceArchiveNotes(int $agencyId, ?int $userId, int $minDays = 90, int $pivotDays = 180): array
     {
         if (! Schema::hasTable('contacts')) {
             return [0, 'Contacts table not found; P4 scan skipped.'];
         }
 
-        foreach (['service_status', 'service_archived_at', 'notes'] as $col) {
+        // Must have these service archive fields
+        foreach (['service_status', 'service_archived_at'] as $col) {
             if (! Schema::hasColumn('contacts', $col)) {
                 return [0, "contacts missing {$col}; P4 scan skipped."];
             }
         }
 
-        $category = 'service_archive_recovery';
+        // Notes table must exist and be keyed to contacts
+        if (! Schema::hasTable('notes') || ! Schema::hasColumn('notes', 'contact_id')) {
+            return [0, 'notes table (with contact_id) not found; P4 scan skipped.'];
+        }
 
+        // Find the note text column
+        $noteCols = Schema::getColumnListing('notes');
+        $noteTextCol = null;
+        foreach (['note', 'body', 'content', 'text'] as $candidate) {
+            if (in_array($candidate, $noteCols, true)) {
+                $noteTextCol = $candidate;
+                break;
+            }
+        }
+        if (! $noteTextCol) {
+            return [0, 'notes table has no recognizable text column (note/body/content/text); P4 scan skipped.'];
+        }
+
+        $category = 'p4_service_recovery';
+
+        // allow/block keywords
         $allowlist = [
             'found something cheaper',
             'cheaper',
@@ -401,6 +430,7 @@ class OpportunityScanner
             "couldn't afford",
             'cannot afford',
             'price too high',
+            'premium too high',
 
             'got something better',
             'something better',
@@ -418,6 +448,14 @@ class OpportunityScanner
             'not what i thought',
             'inferior coverage',
             'inferor coverage',
+
+            'call back',
+            'follow up',
+            'down the road',
+            'revisit',
+            'might come back',
+            'might be interested',
+            'later',
         ];
 
         $blocklist = [
@@ -437,69 +475,177 @@ class OpportunityScanner
         ];
 
         $now = now();
-        $olderThan = $now->copy()->subDays($minDays); // archived <= this means at least minDays old
-        $newerThan = $now->copy()->subDays($maxDays); // archived >= this means not older than maxDays
+        $minCutoff   = $now->copy()->subDays($minDays);    // must be <= this (at least minDays old)
+        $pivotCutoff = $now->copy()->subDays($pivotDays);  // 180 days cutoff
 
-        $q = DB::table('contacts')
-            ->select(['id', 'notes', 'service_archived_at'])
-            ->where('agency_id', $agencyId)
-            ->where('service_status', 'Not Interested')
-            ->whereNotNull('service_archived_at')
-            ->whereBetween('service_archived_at', [$newerThan, $olderThan])
-            ->whereNotNull('notes');
+        $serviceArchiveStatuses = ['not interested', 'not_interested', 'Not Interested'];
 
         $touched = 0;
         $scanned = 0;
 
-        $q->orderBy('id')->chunk(200, function ($rows) use ($agencyId, $userId, $category, $allowlist, $blocklist, $minDays, $maxDays, &$touched, &$scanned) {
-            foreach ($rows as $row) {
-                $scanned++;
+        // ------------------------------------------------------------
+        // PASS 1: 90–180 days old (priority window)
+        // archived_at between (now-180) and (now-90)
+        // ------------------------------------------------------------
+        $q1 = DB::table('contacts')->select(['id', 'service_archived_at', 'service_status']);
 
-                $notes = strtolower((string) ($row->notes ?? ''));
-                if ($notes === '') {
-                    continue;
-                }
+        if (Schema::hasColumn('contacts', 'agency_id')) {
+            $q1->where('agency_id', $agencyId);
+        }
 
-                // Disqualifiers first
-                if ($this->textContainsAny($notes, $blocklist)) {
-                    continue;
-                }
+        if (Schema::hasColumn('contacts', 'contact_type')) {
+            $q1->where('contact_type', 'service');
+        }
 
-                // Must have at least one recovery keyword
-                $matchedSignal = $this->firstMatchedNeedle($notes, $allowlist);
-                if (! $matchedSignal) {
-                    continue;
-                }
+        $q1->whereNotNull('service_archived_at')
+            ->whereBetween('service_archived_at', [$pivotCutoff, $minCutoff])
+            ->whereIn('service_status', $serviceArchiveStatuses);
 
-                $opp = GideonOpportunity::updateOrCreate(
-                    [
-                        'agency_id'   => $agencyId,
-                        'entity_type' => 'contact',
-                        'entity_id'   => (int) $row->id,
-                        'category'    => $category,
-                    ],
-                    [
-                        'user_id'            => $userId ?: null,
-                        'title'              => 'Service Archive: possible recovery opportunity',
-                        'short_reason'       => 'Service Archive notes suggest price/coverage switch or confusion (may be worth a re-check-in).',
-                        'recommended_action' => 'Review prior quote vs current options and do a soft check-in.',
-                        'score'              => 60,
-                        'status'             => 'open',
-                        'source_snapshot'    => [
-                            'service_status'      => 'Not Interested',
-                            'service_archived_at' => (string) ($row->service_archived_at ?? null),
-                            'window_days'         => "{$minDays}-{$maxDays}",
-                            'matched_signal'      => $matchedSignal,
-                            'signal_source'       => 'contacts.notes',
+        $q1->orderBy('service_archived_at', 'asc')
+            ->chunk(200, function ($rows) use (
+                $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $minDays, $pivotDays,
+                &$touched, &$scanned
+            ) {
+                foreach ($rows as $row) {
+                    $scanned++;
+
+                    $contactId = (int) $row->id;
+
+                    // skip duplicates
+                    $exists = GideonOpportunity::query()
+                        ->where('agency_id', $agencyId)
+                        ->where('entity_type', 'contact')
+                        ->where('entity_id', $contactId)
+                        ->where('category', $category)
+                        ->exists();
+
+                    if ($exists) continue;
+
+                    // Build corpus from notes table
+                    $parts = DB::table('notes')
+                        ->where('contact_id', $contactId)
+                        ->pluck($noteTextCol)
+                        ->filter()
+                        ->all();
+
+                    if (empty($parts)) continue;
+
+                    $corpus = strtolower(implode(' ', $parts));
+
+                    if ($this->textContainsAny($corpus, $blocklist)) continue;
+
+                    $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
+                    if (! $matchedSignal) continue;
+
+                    $opp = GideonOpportunity::updateOrCreate(
+                        [
+                            'agency_id'   => $agencyId,
+                            'entity_type' => 'contact',
+                            'entity_id'   => $contactId,
+                            'category'    => $category,
                         ],
-                    ]
-                );
+                        [
+                            'user_id'            => $userId ?: null,
+                            'title'              => 'P4: Archived service re-engagement',
+                            'short_reason'       => 'Archived service notes show price/coverage hesitation—client may be open to reconsidering.',
+                            'recommended_action' => 'Soft check-in: ask what they chose, verify if it’s truly better/cheaper, re-quote if gaps exist.',
+                            'score'              => 35,
+                            'status'             => 'open',
+                            'source_snapshot'    => [
+                                'service_status'      => (string) ($row->service_status ?? ''),
+                                'service_archived_at' => (string) ($row->service_archived_at ?? null),
+                                'priority_window'     => "{$minDays}-{$pivotDays}",
+                                'matched_signal'      => $matchedSignal,
+                                'signal_source'       => "notes.{$noteTextCol}",
+                            ],
+                        ]
+                    );
 
-                if ($opp) $touched++;
-            }
-        });
+                    if ($opp) $touched++;
+                }
+            });
 
-        return [$touched, "P4 service archive notes scan executed for {$scanned} archived contacts ({$minDays}-{$maxDays} days)."];
+        // ------------------------------------------------------------
+        // PASS 2: older than 180 days
+        // archived_at <= (now-180)
+        // ------------------------------------------------------------
+        $q2 = DB::table('contacts')->select(['id', 'service_archived_at', 'service_status']);
+
+        if (Schema::hasColumn('contacts', 'agency_id')) {
+            $q2->where('agency_id', $agencyId);
+        }
+
+        if (Schema::hasColumn('contacts', 'contact_type')) {
+            $q2->where('contact_type', 'service');
+        }
+
+        $q2->whereNotNull('service_archived_at')
+            ->where('service_archived_at', '<=', $pivotCutoff)
+            ->whereIn('service_status', $serviceArchiveStatuses);
+
+        $q2->orderBy('service_archived_at', 'asc')
+            ->chunk(200, function ($rows) use (
+                $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $pivotDays,
+                &$touched, &$scanned
+            ) {
+                foreach ($rows as $row) {
+                    $scanned++;
+
+                    $contactId = (int) $row->id;
+
+                    $exists = GideonOpportunity::query()
+                        ->where('agency_id', $agencyId)
+                        ->where('entity_type', 'contact')
+                        ->where('entity_id', $contactId)
+                        ->where('category', $category)
+                        ->exists();
+
+                    if ($exists) continue;
+
+                    $parts = DB::table('notes')
+                        ->where('contact_id', $contactId)
+                        ->pluck($noteTextCol)
+                        ->filter()
+                        ->all();
+
+                    if (empty($parts)) continue;
+
+                    $corpus = strtolower(implode(' ', $parts));
+
+                    if ($this->textContainsAny($corpus, $blocklist)) continue;
+
+                    $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
+                    if (! $matchedSignal) continue;
+
+                    $opp = GideonOpportunity::updateOrCreate(
+                        [
+                            'agency_id'   => $agencyId,
+                            'entity_type' => 'contact',
+                            'entity_id'   => $contactId,
+                            'category'    => $category,
+                        ],
+                        [
+                            'user_id'            => $userId ?: null,
+                            'title'              => 'P4: Archived service re-engagement',
+                            'short_reason'       => 'Archived service notes show price/coverage hesitation—client may be open to reconsidering.',
+                            'recommended_action' => 'Soft check-in: ask what they chose, verify if it’s truly better/cheaper, re-quote if gaps exist.',
+                            'score'              => 35,
+                            'status'             => 'open',
+                            'source_snapshot'    => [
+                                'service_status'      => (string) ($row->service_status ?? ''),
+                                'service_archived_at' => (string) ($row->service_archived_at ?? null),
+                                'priority_window'     => ">{$pivotDays}",
+                                'matched_signal'      => $matchedSignal,
+                                'signal_source'       => "notes.{$noteTextCol}",
+                            ],
+                        ]
+                    );
+
+                    if ($opp) $touched++;
+                }
+            });
+
+        return [$touched, "P4 service archive notes scan executed for {$scanned} archived service contacts (priority {$minDays}-{$pivotDays}, then older)."];
     }
 
     protected function textContainsAny(string $haystack, array $needles): bool
