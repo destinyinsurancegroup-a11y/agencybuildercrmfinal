@@ -478,7 +478,8 @@ class OpportunityScanner
         $minCutoff   = $now->copy()->subDays($minDays);    // must be <= this (at least minDays old)
         $pivotCutoff = $now->copy()->subDays($pivotDays);  // 180 days cutoff
 
-        $serviceArchiveStatuses = ['not interested', 'not_interested', 'Not Interested'];
+        // tolerate variations (your DB shows "Not Interested")
+        $serviceArchiveStatuses = ['Not Interested', 'not interested', 'not_interested', 'NOT INTERESTED'];
 
         $touched = 0;
         $scanned = 0;
@@ -518,10 +519,9 @@ class OpportunityScanner
                         ->where('entity_id', $contactId)
                         ->where('category', $category)
                         ->exists();
-
                     if ($exists) continue;
 
-                    // Build corpus from notes table
+                    // Build corpus from notes table (all notes for this contact)
                     $parts = DB::table('notes')
                         ->where('contact_id', $contactId)
                         ->pluck($noteTextCol)
@@ -599,7 +599,6 @@ class OpportunityScanner
                         ->where('entity_id', $contactId)
                         ->where('category', $category)
                         ->exists();
-
                     if ($exists) continue;
 
                     $parts = DB::table('notes')
@@ -820,6 +819,7 @@ class OpportunityScanner
 
                 $contactId = $row->contact_id;
 
+                // Only attempt this if your notes table actually supports entity_type/entity_id
                 if ($notesTable && Schema::hasColumn($notesTable, 'entity_type') && Schema::hasColumn($notesTable, 'entity_id')) {
                     $recentReferralNoteExists = DB::table($notesTable)
                         ->where('entity_type', 'contact')
