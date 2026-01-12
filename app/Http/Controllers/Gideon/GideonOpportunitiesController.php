@@ -139,8 +139,7 @@ class GideonOpportunitiesController extends Controller
             ],
 
             // =========================
-            // ✅ P2 Bucket (NEW)
-            // Policy Reviews Due (6-month touch)
+            // ✅ P2 Bucket (existing)
             // =========================
             'p2_policy_reviews' => [
                 'priority' => 2,
@@ -151,7 +150,6 @@ class GideonOpportunitiesController extends Controller
                     $cat  = strtoupper((string) ($row->category ?? ''));
                     $rule = strtoupper((string) ($row->rule_code ?? ''));
 
-                    // Flexible matching so it works even if your command used a different naming convention.
                     if ($cat === 'POLICY_REVIEW_DUE_OPPORTUNITY') return true;
                     if ($cat === 'POLICY_REVIEW_OPPORTUNITY') return true;
                     if ($cat === 'POLICY_REVIEW_DUE') return true;
@@ -160,6 +158,19 @@ class GideonOpportunitiesController extends Controller
                     if ($rule !== '' && str_contains($rule, 'REVIEW_DUE')) return true;
 
                     return false;
+                },
+            ],
+
+            // =========================
+            // ✅ P4 Bucket (NEW) — Service Archive recovery from notes
+            // =========================
+            'p4_service_recovery' => [
+                'priority' => 4,
+                'title' => 'Service Archive: possible re-engagements (P4)',
+                'why' => 'These archived “Not Interested” clients had price/coverage hesitation in notes — they may be open to re-checking options now.',
+                'next' => 'Open each contact, review the notes, and do a soft check-in + quick re-quote if appropriate.',
+                'match' => function ($row) {
+                    return (string) ($row->category ?? '') === 'p4_service_recovery';
                 },
             ],
         ];
@@ -254,7 +265,7 @@ class GideonOpportunitiesController extends Controller
             ],
 
             // =========================
-            // ✅ P2 Bucket (NEW)
+            // P2 Bucket (existing)
             // =========================
             'p2_policy_reviews' => [
                 'priority' => 2,
@@ -270,6 +281,19 @@ class GideonOpportunitiesController extends Controller
                         ])->orWhere('rule_code', 'LIKE', '%POLICY_REVIEW%')
                           ->orWhere('rule_code', 'LIKE', '%REVIEW_DUE%');
                     });
+                },
+            ],
+
+            // =========================
+            // ✅ P4 Bucket (NEW)
+            // =========================
+            'p4_service_recovery' => [
+                'priority' => 4,
+                'title' => 'Service Archive: possible re-engagements (P4)',
+                'why' => 'These archived “Not Interested” clients had price/coverage hesitation in notes — they may be open to re-checking options now.',
+                'next' => 'Open each contact, review the notes, and do a soft check-in + quick re-quote if appropriate.',
+                'filter' => function ($q) {
+                    $q->where('category', 'p4_service_recovery');
                 },
             ],
         ];
@@ -521,17 +545,25 @@ class GideonOpportunitiesController extends Controller
 
         if ($snapContactId && $snapContactType) {
             try {
-                if ($snapContactType === 'book' && Route::has('book.open')) {
-                    return route('book.open', $snapContactId);
+                if ($snapContactType === 'book') {
+                    // Prefer "book.open", otherwise fall back to book.index?selected=
+                    if (Route::has('book.open')) return route('book.open', $snapContactId);
+                    if (Route::has('book.index')) return route('book.index', ['selected' => $snapContactId]);
                 }
-                if ($snapContactType === 'service' && Route::has('service.open')) {
-                    return route('service.open', $snapContactId);
+
+                if ($snapContactType === 'service') {
+                    // Prefer "service.open", otherwise fall back to service.index?selected=
+                    if (Route::has('service.open')) return route('service.open', $snapContactId);
+                    if (Route::has('service.index')) return route('service.index', ['selected' => $snapContactId]);
                 }
+
                 if ($snapContactType === 'lead' && Route::has('leads.show')) {
                     return route('leads.show', $snapContactId);
                 }
-                if ($snapContactType === 'client' && Route::has('book.open')) {
-                    return route('book.open', $snapContactId);
+
+                if ($snapContactType === 'client') {
+                    if (Route::has('book.open')) return route('book.open', $snapContactId);
+                    if (Route::has('book.index')) return route('book.index', ['selected' => $snapContactId]);
                 }
             } catch (\Throwable $e) {
                 report($e);
@@ -544,13 +576,15 @@ class GideonOpportunitiesController extends Controller
         if (! $entityId) return '#';
 
         try {
-            // Prefer book.open when available for contacts.
-            if ($entityType === 'contact' && Route::has('book.open')) {
-                return route('book.open', $entityId);
-            }
+            // Contacts: prefer Book if that's your primary "open"
+            if ($entityType === 'contact') {
+                if (Route::has('book.open')) return route('book.open', $entityId);
+                if (Route::has('book.index')) return route('book.index', ['selected' => $entityId]);
 
-            if ($entityType === 'contact' && Route::has('contacts.show')) {
-                return route('contacts.show', $entityId);
+                // If contact is actually service-based, at least support service.index selection
+                if (Route::has('service.index')) return route('service.index', ['selected' => $entityId]);
+
+                if (Route::has('contacts.show')) return route('contacts.show', $entityId);
             }
 
             if ($entityType === 'lead' && Route::has('leads.show')) {
