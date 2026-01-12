@@ -478,9 +478,6 @@ class OpportunityScanner
         $minCutoff   = $now->copy()->subDays($minDays);    // must be <= this (at least minDays old)
         $pivotCutoff = $now->copy()->subDays($pivotDays);  // 180 days cutoff
 
-        // tolerate variations (your DB shows "Not Interested")
-        $serviceArchiveStatuses = ['Not Interested', 'not interested', 'not_interested', 'NOT INTERESTED'];
-
         $touched = 0;
         $scanned = 0;
 
@@ -500,7 +497,8 @@ class OpportunityScanner
 
         $q1->whereNotNull('service_archived_at')
             ->whereBetween('service_archived_at', [$pivotCutoff, $minCutoff])
-            ->whereIn('service_status', $serviceArchiveStatuses);
+            // ✅ EDIT #1: normalize service_status comparison so variations match
+            ->whereRaw("LOWER(TRIM(REPLACE(service_status, '_', ' '))) = ?", ['not interested']);
 
         $q1->orderBy('service_archived_at', 'asc')
             ->chunk(200, function ($rows) use (
@@ -581,7 +579,8 @@ class OpportunityScanner
 
         $q2->whereNotNull('service_archived_at')
             ->where('service_archived_at', '<=', $pivotCutoff)
-            ->whereIn('service_status', $serviceArchiveStatuses);
+            // ✅ EDIT #1: normalize service_status comparison so variations match
+            ->whereRaw("LOWER(TRIM(REPLACE(service_status, '_', ' '))) = ?", ['not interested']);
 
         $q2->orderBy('service_archived_at', 'asc')
             ->chunk(200, function ($rows) use (
