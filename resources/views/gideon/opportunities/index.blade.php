@@ -86,7 +86,13 @@
             },
             body: JSON.stringify(body || {})
         });
-        return res.json();
+
+        // don't throw on non-2xx; still try to read JSON (helps debugging)
+        try {
+            return await res.json();
+        } catch (e) {
+            return { success: false, message: 'Non-JSON response', status: res.status };
+        }
     }
 
     async function fetchGroups() {
@@ -108,6 +114,29 @@
         return res.json();
     }
 
+    // ✅ Map buckets -> badge label. This is what "wires P4 to UI" visually.
+    // Even if priority is 4, we force the badge to show P4 for the P4 bucket.
+    function badgeForGroup(g) {
+        const bucket = String(g?.bucket ?? '');
+        if (bucket === 'p4_service_recovery') return 'P4';
+        const p = Number(g?.priority || 0);
+        if (p === 1) return 'P1';
+        if (p >= 2) return 'P' + p;
+        return 'P?';
+    }
+
+    // ✅ Optional: badge color by priority
+    function badgeClassForGroup(g) {
+        const bucket = String(g?.bucket ?? '');
+        if (bucket === 'p4_service_recovery') return 'bg-warning text-dark'; // P4 stands out
+        const p = Number(g?.priority || 0);
+        if (p === 1) return 'bg-danger';
+        if (p === 2) return 'bg-primary';
+        if (p === 3) return 'bg-info text-dark';
+        if (p >= 4) return 'bg-warning text-dark';
+        return 'bg-secondary';
+    }
+
     function renderGroups(groups) {
         cardsEl.innerHTML = '';
 
@@ -123,7 +152,8 @@
         }
 
         groups.forEach(g => {
-            const badge = g.priority === 1 ? 'P1' : ('P' + g.priority);
+            const badge = badgeForGroup(g);
+            const badgeClass = badgeClassForGroup(g);
             const count = Number(g.count || 0);
 
             const card = document.createElement('div');
@@ -133,7 +163,7 @@
                 <div class="card-body d-flex align-items-start justify-content-between gap-3">
                     <div class="flex-grow-1">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-danger">${escapeHtml(badge)}</span>
+                            <span class="badge ${badgeClass}">${escapeHtml(badge)}</span>
                             <div class="fw-semibold">${escapeHtml(g.title)}</div>
                             <div class="text-muted" style="font-size: 13px;">(${count})</div>
                         </div>
