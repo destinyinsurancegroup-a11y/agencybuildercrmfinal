@@ -125,11 +125,12 @@
         }
     }
 
-    // ✅ Map buckets -> badge label. This is what "wires P4 to UI" visually.
-    // Even if priority is 4, we force the badge to show P4 for the P4 bucket.
+    // ✅ Map buckets -> badge label.
+    // P3 is "p3_recovery" (includes archived service + archived leads).
+    // No-regression: if any old P4 bucket name ever appears, still show it as P3.
     function badgeForGroup(g) {
         const bucket = String(g?.bucket ?? '');
-        if (bucket === 'p4_service_recovery') return 'P4';
+        if (bucket === 'p3_recovery' || bucket === 'p4_service_recovery') return 'P3';
         const p = Number(g?.priority || 0);
         if (p === 1) return 'P1';
         if (p >= 2) return 'P' + p;
@@ -137,9 +138,10 @@
     }
 
     // ✅ Optional: badge color by priority
+    // Make P3 distinct; no-regression: old p4_service_recovery also uses P3 styling.
     function badgeClassForGroup(g) {
         const bucket = String(g?.bucket ?? '');
-        if (bucket === 'p4_service_recovery') return 'bg-warning text-dark'; // P4 stands out
+        if (bucket === 'p3_recovery' || bucket === 'p4_service_recovery') return 'bg-info text-dark'; // P3 stands out
         const p = Number(g?.priority || 0);
         if (p === 1) return 'bg-danger';
         if (p === 2) return 'bg-primary';
