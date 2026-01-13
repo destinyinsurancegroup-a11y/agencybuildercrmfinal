@@ -464,6 +464,12 @@ class GideonOpportunitiesController extends Controller
         return $query;
     }
 
+    /**
+     * Hydrate entity labels for UI display.
+     *
+     * ✅ Edit: supports contacts.full_name in addition to name/first_name/last_name
+     * (no regression: still works if full_name does not exist)
+     */
     private function hydrateEntityLabels(Collection $opportunities): Collection
     {
         $contactIds = $opportunities
@@ -478,12 +484,14 @@ class GideonOpportunitiesController extends Controller
         if ($contactIds->isNotEmpty() && Schema::hasTable('contacts')) {
             $columns = Schema::getColumnListing('contacts');
 
-            $hasFirst = in_array('first_name', $columns, true);
-            $hasLast  = in_array('last_name', $columns, true);
-            $hasName  = in_array('name', $columns, true);
+            $hasFullName = in_array('full_name', $columns, true);
+            $hasName     = in_array('name', $columns, true);
+            $hasFirst    = in_array('first_name', $columns, true);
+            $hasLast     = in_array('last_name', $columns, true);
 
             $select = array_values(array_filter([
                 'id',
+                $hasFullName ? 'full_name' : null,
                 $hasName ? 'name' : null,
                 $hasFirst ? 'first_name' : null,
                 $hasLast ? 'last_name' : null,
@@ -494,10 +502,12 @@ class GideonOpportunitiesController extends Controller
                 ->select($select)
                 ->get();
 
-            $contactNamesById = $rows->mapWithKeys(function ($r) use ($hasName, $hasFirst, $hasLast) {
+            $contactNamesById = $rows->mapWithKeys(function ($r) use ($hasFullName, $hasName, $hasFirst, $hasLast) {
                 $label = null;
 
-                if ($hasName && ! empty($r->name)) {
+                if ($hasFullName && ! empty($r->full_name)) {
+                    $label = trim((string) $r->full_name);
+                } elseif ($hasName && ! empty($r->name)) {
                     $label = trim((string) $r->name);
                 } else {
                     $parts = [];
@@ -532,6 +542,10 @@ class GideonOpportunitiesController extends Controller
         });
     }
 
+    /**
+     * ✅ Edit: Make P4 "Open" reliably go to Service UI even if the snapshot
+     * doesn't include contact_type/contact_id (no regressions; only adds fallback).
+     */
     private function buildOpenUrl($opp, array $snap): string
     {
         // If scanner stored a link, use it.
@@ -542,6 +556,14 @@ class GideonOpportunitiesController extends Controller
         // snapshots typically store contact_type + contact_id
         $snapContactId = ! empty($snap['contact_id']) ? (int) $snap['contact_id'] : null;
         $snapContactType = ! empty($snap['contact_type']) ? (string) $snap['contact_type'] : null;
+
+        // ✅ P4 safety: treat entity_id as a service contact when category is p4_service_recovery,
+        // even if snapshot wasn't populated with contact_type/contact_id yet.
+        $category = (string) ($opp->category ?? '');
+        if (! $snapContactId && $category === 'p4_service_recovery' && ($opp->entity_type ?? '') === 'contact' && $opp->entity_id) {
+            $snapContactId = (int) $opp->entity_id;
+            $snapContactType = 'service';
+        }
 
         if ($snapContactId && $snapContactType) {
             try {
@@ -576,6 +598,12 @@ class GideonOpportunitiesController extends Controller
         if (! $entityId) return '#';
 
         try {
+            // ✅ P4 fallback: if we somehow got here and it's P4, still prefer service.
+            if ($entityType === 'contact' && $category === 'p4_service_recovery') {
+                if (Route::has('service.open')) return route('service.open', $entityId);
+                if (Route::has('service.index')) return route('service.index', ['selected' => $entityId]);
+            }
+
             // Contacts: prefer Book if that's your primary "open"
             if ($entityType === 'contact') {
                 if (Route::has('book.open')) return route('book.open', $entityId);
