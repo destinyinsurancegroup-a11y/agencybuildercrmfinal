@@ -329,6 +329,9 @@ class OpportunityScanner
      * - Notes are stored in `notes` table with `contact_id`
      * - We look for a text column in notes: note/body/content/text
      * - allowlist / blocklist keyword heuristics
+     *
+     * ✅ Edit: Also stores a short matched_excerpt in source_snapshot for UI proof.
+     * ✅ Edit: Notes are scoped by agency_id when notes.agency_id exists (prevents cross-agency leakage).
      */
     protected function scanArchivedNotesP3(int $agencyId, ?int $userId, int $minDays = 90, int $pivotDays = 180): array
     {
@@ -401,10 +404,6 @@ class OpportunityScanner
             'scam',
         ];
 
-        $now = now();
-        $minCutoff   = $now->copy()->subDays($minDays);
-        $pivotCutoff = $now->copy()->subDays($pivotDays);
-
         $touched = 0;
         $scanned = 0;
 
@@ -473,13 +472,15 @@ class OpportunityScanner
 
                 if ($this->p3Exists($agencyId, $contactId, $category)) continue;
 
-                $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                [$corpus, $parts] = $this->buildNotesCorpusAndParts($agencyId, $contactId, $noteTextCol);
                 if ($corpus === null) continue;
 
                 if ($this->textContainsAny($corpus, $blocklist)) continue;
 
                 $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
                 if (! $matchedSignal) continue;
+
+                $matchedExcerpt = $this->extractMatchedExcerpt($parts, $matchedSignal);
 
                 $opp = GideonOpportunity::updateOrCreate(
                     [
@@ -502,6 +503,7 @@ class OpportunityScanner
                             'service_archived_at' => (string) ($row->service_archived_at ?? null),
                             'priority_window'     => "{$minDays}-{$pivotDays}",
                             'matched_signal'      => $matchedSignal,
+                            'matched_excerpt'     => $matchedExcerpt,
                             'signal_source'       => "notes.{$noteTextCol}",
                         ],
                     ]
@@ -531,13 +533,15 @@ class OpportunityScanner
 
                 if ($this->p3Exists($agencyId, $contactId, $category)) continue;
 
-                $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                [$corpus, $parts] = $this->buildNotesCorpusAndParts($agencyId, $contactId, $noteTextCol);
                 if ($corpus === null) continue;
 
                 if ($this->textContainsAny($corpus, $blocklist)) continue;
 
                 $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
                 if (! $matchedSignal) continue;
+
+                $matchedExcerpt = $this->extractMatchedExcerpt($parts, $matchedSignal);
 
                 $opp = GideonOpportunity::updateOrCreate(
                     [
@@ -560,6 +564,7 @@ class OpportunityScanner
                             'service_archived_at' => (string) ($row->service_archived_at ?? null),
                             'priority_window'     => ">{$pivotDays}",
                             'matched_signal'      => $matchedSignal,
+                            'matched_excerpt'     => $matchedExcerpt,
                             'signal_source'       => "notes.{$noteTextCol}",
                         ],
                     ]
@@ -590,14 +595,14 @@ class OpportunityScanner
         $minCutoff   = $now->copy()->subDays($minDays);
         $pivotCutoff = $now->copy()->subDays($pivotDays);
 
-        $hasAgency = Schema::hasColumn('contacts', 'agency_id');
-        $hasType   = Schema::hasColumn('contacts', 'contact_type');
-        $hasStatus = Schema::hasColumn('contacts', 'status');
+        $hasAgency     = Schema::hasColumn('contacts', 'agency_id');
+        $hasType       = Schema::hasColumn('contacts', 'contact_type');
+        $hasStatus     = Schema::hasColumn('contacts', 'status');
         $hasArchivedAt = Schema::hasColumn('contacts', 'archived_at');
         $hasUpdatedAt  = Schema::hasColumn('contacts', 'updated_at');
         $hasCreatedAt  = Schema::hasColumn('contacts', 'created_at');
 
-        // Choose best "archived date" column we can:
+        // Choose best "archive date" column we can:
         // archived_at > updated_at > created_at
         $dateCol = $hasArchivedAt ? 'archived_at' : ($hasUpdatedAt ? 'updated_at' : ($hasCreatedAt ? 'created_at' : null));
         if (! $dateCol) {
@@ -609,25 +614,32 @@ class OpportunityScanner
         $scanned = 0;
 
         // Helper to build base query for archived leads
-        $baseLeadQuery = function () use ($agencyId, $hasAgency, $hasType, $hasStatus, $dateCol) {
+        $baseLeadQuery = function () use ($agencyId, $hasAgency, $hasType, $hasStatus, $hasArchivedAt, $dateCol) {
             $q = DB::table('contacts')->select(['id', $dateCol]);
 
             if ($hasAgency) $q->where('agency_id', $agencyId);
 
-            // Try to limit to leads if your schema supports it
+            // Limit to leads if schema supports it
             if ($hasType) $q->where('contact_type', 'lead');
 
             // Archived condition:
             // - status = archived (if exists)
-            // - OR archived_at is not null (if archived_at exists and is our dateCol)
-            if ($hasStatus) {
-                $q->where('status', 'archived');
-            } else {
-                // If there's no status column, require archived_at not null if archived_at exists
-                if (Schema::hasColumn('contacts', 'archived_at')) {
-                    $q->whereNotNull('archived_at');
+            // - OR archived_at is not null (if exists)
+            $q->where(function ($w) use ($hasStatus, $hasArchivedAt) {
+                if ($hasStatus) {
+                    $w->where('status', 'archived');
+                    if ($hasArchivedAt) {
+                        $w->orWhereNotNull('archived_at');
+                    }
+                } else {
+                    if ($hasArchivedAt) {
+                        $w->whereNotNull('archived_at');
+                    } else {
+                        // No status and no archived_at => nothing reliable to target
+                        $w->whereRaw('1=0');
+                    }
                 }
-            }
+            });
 
             return $q;
         };
@@ -647,13 +659,15 @@ class OpportunityScanner
 
                     if ($this->p3Exists($agencyId, $contactId, $category)) continue;
 
-                    $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                    [$corpus, $parts] = $this->buildNotesCorpusAndParts($agencyId, $contactId, $noteTextCol);
                     if ($corpus === null) continue;
 
                     if ($this->textContainsAny($corpus, $blocklist)) continue;
 
                     $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
                     if (! $matchedSignal) continue;
+
+                    $matchedExcerpt = $this->extractMatchedExcerpt($parts, $matchedSignal);
 
                     $opp = GideonOpportunity::updateOrCreate(
                         [
@@ -670,13 +684,14 @@ class OpportunityScanner
                             'score'              => 33,
                             'status'             => 'open',
                             'source_snapshot'    => [
-                                'contact_id'      => $contactId,
-                                'contact_type'    => 'lead',
-                                'archived_date'   => (string) ($row->{$dateCol} ?? null),
+                                'contact_id'        => $contactId,
+                                'contact_type'      => 'lead',
+                                'archived_date'     => (string) ($row->{$dateCol} ?? null),
                                 'archived_date_col' => $dateCol,
-                                'priority_window' => "{$minDays}-{$pivotDays}",
-                                'matched_signal'  => $matchedSignal,
-                                'signal_source'   => "notes.{$noteTextCol}",
+                                'priority_window'   => "{$minDays}-{$pivotDays}",
+                                'matched_signal'    => $matchedSignal,
+                                'matched_excerpt'   => $matchedExcerpt,
+                                'signal_source'     => "notes.{$noteTextCol}",
                             ],
                         ]
                     );
@@ -700,13 +715,15 @@ class OpportunityScanner
 
                     if ($this->p3Exists($agencyId, $contactId, $category)) continue;
 
-                    $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                    [$corpus, $parts] = $this->buildNotesCorpusAndParts($agencyId, $contactId, $noteTextCol);
                     if ($corpus === null) continue;
 
                     if ($this->textContainsAny($corpus, $blocklist)) continue;
 
                     $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
                     if (! $matchedSignal) continue;
+
+                    $matchedExcerpt = $this->extractMatchedExcerpt($parts, $matchedSignal);
 
                     $opp = GideonOpportunity::updateOrCreate(
                         [
@@ -729,6 +746,7 @@ class OpportunityScanner
                                 'archived_date_col' => $dateCol,
                                 'priority_window'   => ">{$pivotDays}",
                                 'matched_signal'    => $matchedSignal,
+                                'matched_excerpt'   => $matchedExcerpt,
                                 'signal_source'     => "notes.{$noteTextCol}",
                             ],
                         ]
@@ -741,27 +759,72 @@ class OpportunityScanner
         return [$touched, $scanned];
     }
 
+    /**
+     * ✅ Edit: treat duplicates as existing if entity_type is contact OR lead for safety.
+     * (No regression: still matches existing contact-based P3 rows.)
+     */
     protected function p3Exists(int $agencyId, int $contactId, string $category): bool
     {
         return GideonOpportunity::query()
             ->where('agency_id', $agencyId)
-            ->where('entity_type', 'contact')
             ->where('entity_id', $contactId)
             ->where('category', $category)
+            ->where(function ($q) {
+                $q->where('entity_type', 'contact')
+                  ->orWhere('entity_type', 'lead');
+            })
             ->exists();
     }
 
-    protected function buildNotesCorpus(int $contactId, string $noteTextCol): ?string
+    /**
+     * Returns [corpusLower|null, partsArray]
+     *
+     * ✅ Edit: scopes notes by agency_id when notes.agency_id exists.
+     */
+    protected function buildNotesCorpusAndParts(int $agencyId, int $contactId, string $noteTextCol): array
     {
-        $parts = DB::table('notes')
-            ->where('contact_id', $contactId)
-            ->pluck($noteTextCol)
-            ->filter()
-            ->all();
+        $q = DB::table('notes')->where('contact_id', $contactId);
 
-        if (empty($parts)) return null;
+        if (Schema::hasColumn('notes', 'agency_id')) {
+            $q->where('agency_id', $agencyId);
+        }
 
-        return strtolower(implode(' ', $parts));
+        $parts = $q->pluck($noteTextCol)->filter()->map(function ($v) {
+            return trim((string) $v);
+        })->filter()->values()->all();
+
+        if (empty($parts)) {
+            return [null, []];
+        }
+
+        return [strtolower(implode(' ', $parts)), $parts];
+    }
+
+    /**
+     * ✅ New: extract a short human-readable excerpt for UI proof.
+     */
+    protected function extractMatchedExcerpt(array $parts, string $needle, int $maxLen = 180): string
+    {
+        $needleL = strtolower($needle);
+
+        foreach ($parts as $p) {
+            $pStr = (string) $p;
+            $pLow = strtolower($pStr);
+            if ($needleL !== '' && str_contains($pLow, $needleL)) {
+                $clean = preg_replace('/\s+/', ' ', trim($pStr)) ?: '';
+                if (mb_strlen($clean) > $maxLen) {
+                    $clean = mb_substr($clean, 0, $maxLen - 1) . '…';
+                }
+                return $clean;
+            }
+        }
+
+        // fallback: first note truncated
+        $first = isset($parts[0]) ? preg_replace('/\s+/', ' ', trim((string) $parts[0])) : '';
+        if (mb_strlen($first) > $maxLen) {
+            $first = mb_substr($first, 0, $maxLen - 1) . '…';
+        }
+        return $first ?: '';
     }
 
     // =====================================================================
