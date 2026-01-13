@@ -100,7 +100,13 @@
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
         });
-        return res.json();
+
+        // ✅ keep debugging friendly
+        try {
+            return await res.json();
+        } catch (e) {
+            return [];
+        }
     }
 
     async function fetchGroupItems(bucket) {
@@ -111,7 +117,12 @@
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
         });
-        return res.json();
+
+        try {
+            return await res.json();
+        } catch (e) {
+            return { title: 'Opportunities', why: '', next: '', items: [] };
+        }
     }
 
     // ✅ Map buckets -> badge label. This is what "wires P4 to UI" visually.
@@ -276,8 +287,10 @@
 
     async function refresh() {
         statusEl.textContent = 'Refreshing…';
+
         const groups = await fetchGroups();
         renderGroups(groups);
+
         statusEl.textContent = 'Ready';
     }
 
