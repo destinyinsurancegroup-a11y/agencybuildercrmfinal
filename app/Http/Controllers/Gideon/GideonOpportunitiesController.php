@@ -94,7 +94,7 @@ class GideonOpportunitiesController extends Controller
 
         $buckets = [
             // =========================
-            // P1 Buckets (existing)
+            // P1 Buckets
             // =========================
             'p1_bec' => [
                 'priority' => 1,
@@ -139,7 +139,7 @@ class GideonOpportunitiesController extends Controller
             ],
 
             // =========================
-            // ✅ P2 Bucket (existing)
+            // P2 Bucket
             // =========================
             'p2_policy_reviews' => [
                 'priority' => 2,
@@ -162,15 +162,18 @@ class GideonOpportunitiesController extends Controller
             ],
 
             // =========================
-            // ✅ P4 Bucket (NEW) — Service Archive recovery from notes
+            // ✅ P3 Bucket (renamed from old P4)
+            // Includes archived Service notes + archived Lead notes
             // =========================
-            'p4_service_recovery' => [
-                'priority' => 4,
-                'title' => 'Service Archive: possible re-engagements (P4)',
-                'why' => 'These archived “Not Interested” clients had price/coverage hesitation in notes — they may be open to re-checking options now.',
-                'next' => 'Open each contact, review the notes, and do a soft check-in + quick re-quote if appropriate.',
+            'p3_recovery' => [
+                'priority' => 3,
+                'title' => 'Archived re-engagements (notes signals) (P3)',
+                'why' => 'These are archived Service contacts and archived Leads where notes suggest “price/coverage/timing” hesitation — worth a soft check-in.',
+                'next' => 'Open each record, read the notes, then do a soft check-in + quick re-quote/comparison if appropriate.',
                 'match' => function ($row) {
-                    return (string) ($row->category ?? '') === 'p4_service_recovery';
+                    $cat = (string) ($row->category ?? '');
+                    // ✅ No regression: accept old category too, in case any rows still exist
+                    return $cat === 'p3_recovery' || $cat === 'p3_recovery' || $cat === 'p4_service_recovery';
                 },
             ],
         ];
@@ -229,7 +232,7 @@ class GideonOpportunitiesController extends Controller
 
         $defs = [
             // =========================
-            // P1 Buckets (existing)
+            // P1 Buckets
             // =========================
             'p1_bec' => [
                 'priority' => 1,
@@ -265,7 +268,7 @@ class GideonOpportunitiesController extends Controller
             ],
 
             // =========================
-            // P2 Bucket (existing)
+            // P2 Bucket
             // =========================
             'p2_policy_reviews' => [
                 'priority' => 2,
@@ -285,15 +288,19 @@ class GideonOpportunitiesController extends Controller
             ],
 
             // =========================
-            // ✅ P4 Bucket (NEW)
+            // ✅ P3 Bucket (renamed from old P4)
             // =========================
-            'p4_service_recovery' => [
-                'priority' => 4,
-                'title' => 'Service Archive: possible re-engagements (P4)',
-                'why' => 'These archived “Not Interested” clients had price/coverage hesitation in notes — they may be open to re-checking options now.',
-                'next' => 'Open each contact, review the notes, and do a soft check-in + quick re-quote if appropriate.',
+            'p3_recovery' => [
+                'priority' => 3,
+                'title' => 'Archived re-engagements (notes signals) (P3)',
+                'why' => 'These are archived Service contacts and archived Leads where notes suggest “price/coverage/timing” hesitation — worth a soft check-in.',
+                'next' => 'Open each record, read the notes, then do a soft check-in + quick re-quote/comparison if appropriate.',
                 'filter' => function ($q) {
-                    $q->where('category', 'p4_service_recovery');
+                    $q->where(function ($qq) {
+                        // ✅ No regression: include old category too
+                        $qq->where('category', 'p3_recovery')
+                           ->orWhere('category', 'p4_service_recovery');
+                    });
                 },
             ],
         ];
@@ -467,7 +474,7 @@ class GideonOpportunitiesController extends Controller
     /**
      * Hydrate entity labels for UI display.
      *
-     * ✅ Edit: supports contacts.full_name in addition to name/first_name/last_name
+     * ✅ supports contacts.full_name in addition to name/first_name/last_name
      * (no regression: still works if full_name does not exist)
      */
     private function hydrateEntityLabels(Collection $opportunities): Collection
@@ -533,7 +540,7 @@ class GideonOpportunitiesController extends Controller
                 ? $opp->source_snapshot
                 : (json_decode($opp->source_snapshot ?? 'null', true) ?: []);
 
-            // ✅ snapshots may contain contact_name; use that as fallback
+            // snapshots may contain contact_name; use that as fallback
             if (! $opp->entity_label && is_array($snap)) {
                 $opp->entity_label = $snap['contact_name'] ?? null;
             }
@@ -543,8 +550,12 @@ class GideonOpportunitiesController extends Controller
     }
 
     /**
-     * ✅ Edit: Make P4 "Open" reliably go to Service UI even if the snapshot
-     * doesn't include contact_type/contact_id (no regressions; only adds fallback).
+     * Build an "Open" URL for the UI.
+     *
+     * ✅ Updated for P3 (renamed from old P4):
+     * - P3 can be service OR lead, so we DO NOT force service.
+     * - If snapshot is missing contact_type/contact_id, we try to detect contact_type from contacts table.
+     * - No regressions: existing snapshot-based routing still wins.
      */
     private function buildOpenUrl($opp, array $snap): string
     {
@@ -553,28 +564,23 @@ class GideonOpportunitiesController extends Controller
             return $snap['open_url'];
         }
 
-        // snapshots typically store contact_type + contact_id
         $snapContactId = ! empty($snap['contact_id']) ? (int) $snap['contact_id'] : null;
         $snapContactType = ! empty($snap['contact_type']) ? (string) $snap['contact_type'] : null;
 
-        // ✅ P4 safety: treat entity_id as a service contact when category is p4_service_recovery,
-        // even if snapshot wasn't populated with contact_type/contact_id yet.
         $category = (string) ($opp->category ?? '');
-        if (! $snapContactId && $category === 'p4_service_recovery' && ($opp->entity_type ?? '') === 'contact' && $opp->entity_id) {
-            $snapContactId = (int) $opp->entity_id;
-            $snapContactType = 'service';
-        }
 
+        // ✅ No-regression: if older P4 rows exist, treat them as P3-ish for routing purposes
+        $isP3 = ($category === 'p3_recovery' || $category === 'p4_service_recovery');
+
+        // If we have explicit snapshot routing, use it.
         if ($snapContactId && $snapContactType) {
             try {
                 if ($snapContactType === 'book') {
-                    // Prefer "book.open", otherwise fall back to book.index?selected=
                     if (Route::has('book.open')) return route('book.open', $snapContactId);
                     if (Route::has('book.index')) return route('book.index', ['selected' => $snapContactId]);
                 }
 
                 if ($snapContactType === 'service') {
-                    // Prefer "service.open", otherwise fall back to service.index?selected=
                     if (Route::has('service.open')) return route('service.open', $snapContactId);
                     if (Route::has('service.index')) return route('service.index', ['selected' => $snapContactId]);
                 }
@@ -598,18 +604,32 @@ class GideonOpportunitiesController extends Controller
         if (! $entityId) return '#';
 
         try {
-            // ✅ P4 fallback: if we somehow got here and it's P4, still prefer service.
-            if ($entityType === 'contact' && $category === 'p4_service_recovery') {
-                if (Route::has('service.open')) return route('service.open', $entityId);
-                if (Route::has('service.index')) return route('service.index', ['selected' => $entityId]);
+            // ✅ P3/P4 fallback: if snapshot is missing contact_type, attempt detection from contacts table
+            if ($entityType === 'contact' && $isP3 && Schema::hasTable('contacts') && Schema::hasColumn('contacts', 'contact_type')) {
+                $detected = DB::table('contacts')->where('id', $entityId)->value('contact_type');
+                $detected = is_string($detected) ? strtolower(trim($detected)) : '';
+
+                if ($detected === 'service') {
+                    if (Route::has('service.open')) return route('service.open', $entityId);
+                    if (Route::has('service.index')) return route('service.index', ['selected' => $entityId]);
+                }
+
+                if ($detected === 'lead') {
+                    if (Route::has('leads.show')) return route('leads.show', $entityId);
+                }
+
+                if ($detected === 'book' || $detected === 'client') {
+                    if (Route::has('book.open')) return route('book.open', $entityId);
+                    if (Route::has('book.index')) return route('book.index', ['selected' => $entityId]);
+                }
             }
 
-            // Contacts: prefer Book if that's your primary "open"
+            // Default Contacts: prefer Book if that's your primary "open"
             if ($entityType === 'contact') {
                 if (Route::has('book.open')) return route('book.open', $entityId);
                 if (Route::has('book.index')) return route('book.index', ['selected' => $entityId]);
 
-                // If contact is actually service-based, at least support service.index selection
+                // Support service selection too
                 if (Route::has('service.index')) return route('service.index', ['selected' => $entityId]);
 
                 if (Route::has('contacts.show')) return route('contacts.show', $entityId);
