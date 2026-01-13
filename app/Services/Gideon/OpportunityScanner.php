@@ -10,24 +10,20 @@ use Illuminate\Support\Facades\Schema;
 /**
  * OpportunityScanner
  *
- * Tier 1 Gideon scanner that:
- * - Reads CRM data (Leads + Book/Clients)
- * - Writes scored opportunities into gideon_opportunities
- *
- * QUICK SCAN (deep=false):
+ * P1 (quick):
  *  - Revive old leads (30+ days untouched)
- *  - Beneficiary/Emergency Contact opportunities (Option 1: ONE opportunity per client)
+ *  - Beneficiary/Emergency Contact opportunities (ONE per client)
  *
- * DEEP SCAN (deep=true):
- *  - Policy review opportunities (policies older than X months)
- *  - Referral request opportunities (heuristic)
- *  - P4: Service Archive note scan (Not Interested + archived 90+ days ago; prioritize 90–180 first, then older)
+ * P2 (deep):
+ *  - Policy review opportunities
+ *  - Referral request opportunities
+ *
+ * P3 (archived note re-engagement)  <-- renamed from old P4
+ *  - Service Archive notes scan (Not Interested + archived 90+ days ago)
+ *  - Archived Leads notes scan (archived 90+ days ago)
  */
 class OpportunityScanner
 {
-    /**
-     * Backwards-compatible entrypoint (used by /gideon/run-opportunity-scan).
-     */
     public function runForUser($user, bool $deep = false): array
     {
         if (! $user) {
@@ -43,21 +39,14 @@ class OpportunityScanner
         return $this->run((int) $agencyId, (int) ($user->id ?? 0), $deep);
     }
 
-    /**
-     * Controller-friendly entrypoint (used by GideonScanController).
-     *
-     * @param  int       $agencyId
-     * @param  int|null  $userId
-     * @param  bool      $deep
-     */
     public function run(int $agencyId, ?int $userId = null, bool $deep = false): array
     {
         $createdCount = 0;
         $messages = [];
 
-        // ------------------------------------------------------------
-        // RULE #1: REVIVE OLD LEADS (30+ days untouched)
-        // ------------------------------------------------------------
+        // ---------------------------
+        // P1: Revive old leads
+        // ---------------------------
         if (class_exists(Lead::class) && Schema::hasTable('contacts')) {
             [$count, $msg] = $this->reviveOldLeads($agencyId, $userId, 30);
             $createdCount += $count;
@@ -66,17 +55,18 @@ class OpportunityScanner
             $messages[] = 'Lead model or contacts table not found; revive_lead rule skipped.';
         }
 
-        // ------------------------------------------------------------
-        // QUICK SCAN: Beneficiaries + Emergency Contacts (Book of Business)
-        // ------------------------------------------------------------
+        // ---------------------------
+        // P1: Beneficiary + Emergency
+        // ---------------------------
         [$countBec, $msgBec] = $this->scanBeneficiariesAndEmergencyContacts($agencyId, $userId);
         $createdCount += $countBec;
         $messages[] = $msgBec;
 
-        // ------------------------------------------------------------
-        // DEEP SCAN: Policy reviews + Referral callbacks + P4 Service Archive
-        // ------------------------------------------------------------
+        // ---------------------------
+        // P2 + P3: deep scan
+        // ---------------------------
         if ($deep) {
+            // P2
             [$countPolicies, $msgPolicies] = $this->scanPolicyReviewOpportunities($agencyId, $userId);
             $createdCount += $countPolicies;
             $messages[] = $msgPolicies;
@@ -85,11 +75,11 @@ class OpportunityScanner
             $createdCount += $countRef;
             $messages[] = $msgRef;
 
-            // ✅ P4: Service Archive notes scan
-            // Start with 90–180 days, then scan older than 180.
-            [$countP4, $msgP4] = $this->scanServiceArchiveNotes($agencyId, $userId, 90, 180);
-            $createdCount += $countP4;
-            $messages[] = $msgP4;
+            // P3 (renamed from old P4)
+            // Priority window 90–180 first, then older.
+            [$countP3, $msgP3] = $this->scanArchivedNotesP3($agencyId, $userId, 90, 180);
+            $createdCount += $countP3;
+            $messages[] = $msgP3;
         }
 
         return [
@@ -99,32 +89,26 @@ class OpportunityScanner
     }
 
     // =====================================================================
-    // RULE IMPLEMENTATIONS
+    // P1
     // =====================================================================
 
-    /**
-     * Revive old leads using the Lead model (which is a scoped Contact).
-     */
     protected function reviveOldLeads(int $agencyId, ?int $userId, int $daysStale = 30): array
     {
         /** @var \Illuminate\Database\Eloquent\Builder $query */
         $query = Lead::query();
 
-        // Extra safety: scope by agency_id if the column exists.
         if (Schema::hasColumn('contacts', 'agency_id')) {
             $query->where('agency_id', $agencyId);
         }
 
         $threshold = now()->subDays($daysStale);
 
-        // Prefer updated_at if present; otherwise fall back to created_at.
         if (Schema::hasColumn('contacts', 'updated_at')) {
             $query->where('updated_at', '<=', $threshold);
         } elseif (Schema::hasColumn('contacts', 'created_at')) {
             $query->where('created_at', '<=', $threshold);
         }
 
-        // Safety limit.
         $leads = $query->limit(300)->get();
         $touched = 0;
 
@@ -152,6 +136,7 @@ class OpportunityScanner
                         'status'       => $lead->status ?? null,
                         'source'       => $lead->source ?? null,
                         'last_touched' => $lastTouched ? $lastTouched->toDateTimeString() : null,
+                        'contact_type' => 'lead',
                     ],
                 ]
             );
@@ -162,20 +147,6 @@ class OpportunityScanner
         return [$touched, "Revive_lead executed for {$leads->count()} stale leads."];
     }
 
-    /**
-     * QUICK SCAN (Book of Business only) — Option 1: ONE opportunity per client.
-     *
-     * Your actual data model:
-     * - Beneficiaries/Emergency contacts live in `contact_relations`
-     * - `contact_relations.type` is 'beneficiary' or 'emergency'
-     * - `contact_relations.contacted` (0 = No / not contacted yet)
-     *
-     * Create ONE opportunity per Book-of-Business client when ANY is true:
-     * - No relations at all (tabs empty)
-     * - Beneficiaries < 2
-     * - Emergency contacts < 1
-     * - Any relation has contacted = 0
-     */
     protected function scanBeneficiariesAndEmergencyContacts(int $agencyId, ?int $userId): array
     {
         if (! Schema::hasTable('contacts')) {
@@ -186,14 +157,12 @@ class OpportunityScanner
             return [0, 'contact_relations table not found; BEC scan skipped.'];
         }
 
-        // Required columns (safe guards)
         foreach (['contact_id', 'type', 'contacted'] as $col) {
             if (! Schema::hasColumn('contact_relations', $col)) {
                 return [0, "contact_relations missing required column {$col}; BEC scan skipped."];
             }
         }
 
-        // Build select list dynamically (so we can show client name)
         $select = ['id'];
 
         $hasFullName = Schema::hasColumn('contacts', 'full_name');
@@ -210,21 +179,18 @@ class OpportunityScanner
         if ($hasContactType) $select[] = 'contact_type';
         if ($hasInBoB)       $select[] = 'in_book_of_business';
 
-        // Book of Business contacts only
         $contactsQ = DB::table('contacts')->select($select);
 
         if (Schema::hasColumn('contacts', 'agency_id')) {
             $contactsQ->where('agency_id', $agencyId);
         }
 
-        // Prefer the real flag your app uses
         if ($hasInBoB) {
             $contactsQ->where('in_book_of_business', 1);
         } elseif ($hasContactType) {
             $contactsQ->where('contact_type', 'book');
         }
 
-        // Skip archived if present
         if (Schema::hasColumn('contacts', 'status')) {
             $contactsQ->where(function ($q) {
                 $q->whereNull('status')->orWhere('status', '!=', 'archived');
@@ -238,7 +204,6 @@ class OpportunityScanner
             foreach ($rows as $c) {
                 $scanned++;
 
-                // Build client name for dashboard display
                 $clientName = '';
                 if ($hasFullName && ! empty($c->full_name)) {
                     $clientName = (string) $c->full_name;
@@ -247,9 +212,7 @@ class OpportunityScanner
                     $last  = $hasLast  ? (string) ($c->last_name ?? '') : '';
                     $clientName = trim($first . ' ' . $last);
                 }
-                if ($clientName === '') {
-                    $clientName = "Client #{$c->id}";
-                }
+                if ($clientName === '') $clientName = "Client #{$c->id}";
 
                 $contactType = $hasContactType ? (string) ($c->contact_type ?? '') : '';
                 $inBoB       = $hasInBoB ? (int) ($c->in_book_of_business ?? 0) : 0;
@@ -258,7 +221,6 @@ class OpportunityScanner
                     ->where('contact_id', $c->id)
                     ->whereIn('type', ['beneficiary', 'emergency']);
 
-                // Scope by agency_id if the column exists
                 if (Schema::hasColumn('contact_relations', 'agency_id')) {
                     $relsQ->where('agency_id', $agencyId);
                 }
@@ -285,21 +247,17 @@ class OpportunityScanner
                     }
                 }
 
-                // Your rules
                 $tabsEmpty = ($total === 0);
                 $missingBenefMin = ($benefTotal < 2);
                 $missingEmergencyMin = ($emTotal < 1);
                 $hasUncontacted = ($benefUncontacted > 0 || $emUncontacted > 0);
 
-                // Only create if there is a REAL opportunity
                 if (! ($tabsEmpty || $missingBenefMin || $missingEmergencyMin || $hasUncontacted)) {
                     continue;
                 }
 
-                // Option 1: ONE opportunity per client (do not spam)
                 $category = 'beneficiary_emergency_opportunity';
 
-                // Score: strongest if completely missing; then missing minimums; then uncontacted follow-up
                 $score = 75;
                 if ($tabsEmpty) $score = 92;
                 elseif ($missingBenefMin || $missingEmergencyMin) $score = 88;
@@ -320,12 +278,6 @@ class OpportunityScanner
                     $shortReason = 'At least one listed beneficiary or emergency contact is marked “No” for contacted.';
                     $recommendedAction = 'Call/text the listed contacts, confirm details, and mark them as contacted.';
                 }
-
-                $whyItMatters = [
-                    'Right thing to do: beneficiaries should know coverage exists.',
-                    'Can save your deal: reduces lapses/cancellations if the client goes dark.',
-                    'More premium: beneficiaries/emergency contacts can become new policies.',
-                ];
 
                 $opp = GideonOpportunity::updateOrCreate(
                     [
@@ -353,13 +305,6 @@ class OpportunityScanner
                                 'emergency_uncontacted'     => $emUncontacted,
                                 'total_relations'           => $total,
                             ],
-                            'rules_triggered' => [
-                                'tabs_empty'            => $tabsEmpty,
-                                'missing_benef_min_2'   => $missingBenefMin,
-                                'missing_em_min_1'      => $missingEmergencyMin,
-                                'has_uncontacted'       => $hasUncontacted,
-                            ],
-                            'why_it_matters' => $whyItMatters,
                         ],
                     ]
                 );
@@ -371,39 +316,28 @@ class OpportunityScanner
         return [$touched, "BEC scan (contact_relations) executed for {$scanned} book contacts."];
     }
 
+    // =====================================================================
+    // P3 (renamed from old P4) - Archived note re-engagement
+    // =====================================================================
+
     /**
-     * ✅ P4 — Service Archive notes scan (ONLY Service Archive, ONLY notes table)
+     * P3 — Archived note re-engagement scan:
+     * - Service archived contacts (service_status Not Interested + service_archived_at old)
+     * - Archived leads (status=archived OR archived_at set) + old enough
      *
-     * This version matches your reality:
-     * - Notes are stored in `notes` table with `contact_id` + text column (`note` or `body`)
-     * - We DO NOT depend on contacts.notes
-     *
-     * Behavior:
-     * - Prioritize contacts archived 90–180 days (first pass)
-     * - Then scan older than 180 days (second pass)
-     *
-     * Criteria:
-     * - contacts.contact_type = 'service' (if column exists)
-     * - contacts.service_status = 'Not Interested' (case/format tolerant)
-     * - contacts.service_archived_at <= now - 90 days
-     * - notes text contains allowlist and NOT blocklist
+     * Notes:
+     * - Notes are stored in `notes` table with `contact_id`
+     * - We look for a text column in notes: note/body/content/text
+     * - allowlist / blocklist keyword heuristics
      */
-    protected function scanServiceArchiveNotes(int $agencyId, ?int $userId, int $minDays = 90, int $pivotDays = 180): array
+    protected function scanArchivedNotesP3(int $agencyId, ?int $userId, int $minDays = 90, int $pivotDays = 180): array
     {
         if (! Schema::hasTable('contacts')) {
-            return [0, 'Contacts table not found; P4 scan skipped.'];
+            return [0, 'Contacts table not found; P3 archived-notes scan skipped.'];
         }
 
-        // Must have these service archive fields
-        foreach (['service_status', 'service_archived_at'] as $col) {
-            if (! Schema::hasColumn('contacts', $col)) {
-                return [0, "contacts missing {$col}; P4 scan skipped."];
-            }
-        }
-
-        // Notes table must exist and be keyed to contacts
         if (! Schema::hasTable('notes') || ! Schema::hasColumn('notes', 'contact_id')) {
-            return [0, 'notes table (with contact_id) not found; P4 scan skipped.'];
+            return [0, 'notes table (with contact_id) not found; P3 archived-notes scan skipped.'];
         }
 
         // Find the note text column
@@ -416,12 +350,11 @@ class OpportunityScanner
             }
         }
         if (! $noteTextCol) {
-            return [0, 'notes table has no recognizable text column (note/body/content/text); P4 scan skipped.'];
+            return [0, 'notes table has no recognizable text column (note/body/content/text); P3 archived-notes scan skipped.'];
         }
 
-        $category = 'p4_service_recovery';
+        $category = 'p3_recovery'; // <-- formerly p4_service_recovery
 
-        // allow/block keywords
         $allowlist = [
             'found something cheaper',
             'cheaper',
@@ -431,24 +364,20 @@ class OpportunityScanner
             'cannot afford',
             'price too high',
             'premium too high',
-
             'got something better',
             'something better',
             'better coverage',
             'went with another company',
             'another agent',
             'switched',
-
             'already covered',
             'got coverage',
             'have coverage now',
-
             'misled',
             'confused',
             'not what i thought',
             'inferior coverage',
             'inferor coverage',
-
             'call back',
             'follow up',
             'down the road',
@@ -464,151 +393,315 @@ class OpportunityScanner
             'never call',
             'remove me',
             'leave me alone',
-
             'attorney',
             'lawsuit',
             'complaint',
             'insurance department',
-
             'fraud',
             'scam',
         ];
 
         $now = now();
-        $minCutoff   = $now->copy()->subDays($minDays);    // must be <= this (at least minDays old)
-        $pivotCutoff = $now->copy()->subDays($pivotDays);  // 180 days cutoff
+        $minCutoff   = $now->copy()->subDays($minDays);
+        $pivotCutoff = $now->copy()->subDays($pivotDays);
 
         $touched = 0;
         $scanned = 0;
 
         // ------------------------------------------------------------
-        // PASS 1: 90–180 days old (priority window)
-        // archived_at between (now-180) and (now-90)
+        // PASS A: Service archive contacts (priority window then older)
         // ------------------------------------------------------------
+        [$tA, $sA] = $this->scanServiceArchivedContactsForP3(
+            $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $minDays, $pivotDays
+        );
+        $touched += $tA; $scanned += $sA;
+
+        // ------------------------------------------------------------
+        // PASS B: Archived leads (priority window then older)
+        // ------------------------------------------------------------
+        [$tB, $sB] = $this->scanArchivedLeadsForP3(
+            $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $minDays, $pivotDays
+        );
+        $touched += $tB; $scanned += $sB;
+
+        return [$touched, "P3 archived-notes scan executed for {$scanned} contacts/leads (priority {$minDays}-{$pivotDays}, then older)."];
+    }
+
+    protected function scanServiceArchivedContactsForP3(
+        int $agencyId,
+        ?int $userId,
+        string $category,
+        string $noteTextCol,
+        array $allowlist,
+        array $blocklist,
+        int $minDays,
+        int $pivotDays
+    ): array {
+        // Require service archive columns
+        foreach (['service_status', 'service_archived_at'] as $col) {
+            if (! Schema::hasColumn('contacts', $col)) {
+                return [0, 0]; // silently skip service portion if schema doesn't support it
+            }
+        }
+
+        $now = now();
+        $minCutoff   = $now->copy()->subDays($minDays);
+        $pivotCutoff = $now->copy()->subDays($pivotDays);
+
+        $serviceArchiveStatuses = ['Not Interested', 'not interested', 'not_interested', 'NOT INTERESTED'];
+
+        $touched = 0;
+        $scanned = 0;
+
+        // PASS 1: 90–180 window
         $q1 = DB::table('contacts')->select(['id', 'service_archived_at', 'service_status']);
 
-        if (Schema::hasColumn('contacts', 'agency_id')) {
-            $q1->where('agency_id', $agencyId);
-        }
-
-        if (Schema::hasColumn('contacts', 'contact_type')) {
-            $q1->where('contact_type', 'service');
-        }
+        if (Schema::hasColumn('contacts', 'agency_id')) $q1->where('agency_id', $agencyId);
+        if (Schema::hasColumn('contacts', 'contact_type')) $q1->where('contact_type', 'service');
 
         $q1->whereNotNull('service_archived_at')
             ->whereBetween('service_archived_at', [$pivotCutoff, $minCutoff])
-            // ✅ EDIT #1: normalize service_status comparison so variations match
-            ->whereRaw("LOWER(TRIM(REPLACE(service_status, '_', ' '))) = ?", ['not interested']);
+            ->whereIn('service_status', $serviceArchiveStatuses);
 
-        $q1->orderBy('service_archived_at', 'asc')
-            ->chunk(200, function ($rows) use (
-                $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $minDays, $pivotDays,
-                &$touched, &$scanned
-            ) {
-                foreach ($rows as $row) {
-                    $scanned++;
+        $q1->orderBy('service_archived_at', 'asc')->chunk(200, function ($rows) use (
+            $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $minDays, $pivotDays,
+            &$touched, &$scanned
+        ) {
+            foreach ($rows as $row) {
+                $scanned++;
+                $contactId = (int) $row->id;
 
-                    $contactId = (int) $row->id;
+                if ($this->p3Exists($agencyId, $contactId, $category)) continue;
 
-                    // skip duplicates
-                    $exists = GideonOpportunity::query()
-                        ->where('agency_id', $agencyId)
-                        ->where('entity_type', 'contact')
-                        ->where('entity_id', $contactId)
-                        ->where('category', $category)
-                        ->exists();
-                    if ($exists) continue;
+                $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                if ($corpus === null) continue;
 
-                    // Build corpus from notes table (all notes for this contact)
-                    $parts = DB::table('notes')
-                        ->where('contact_id', $contactId)
-                        ->pluck($noteTextCol)
-                        ->filter()
-                        ->all();
+                if ($this->textContainsAny($corpus, $blocklist)) continue;
 
-                    if (empty($parts)) continue;
+                $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
+                if (! $matchedSignal) continue;
 
-                    $corpus = strtolower(implode(' ', $parts));
-
-                    if ($this->textContainsAny($corpus, $blocklist)) continue;
-
-                    $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
-                    if (! $matchedSignal) continue;
-
-                    $opp = GideonOpportunity::updateOrCreate(
-                        [
-                            'agency_id'   => $agencyId,
-                            'entity_type' => 'contact',
-                            'entity_id'   => $contactId,
-                            'category'    => $category,
+                $opp = GideonOpportunity::updateOrCreate(
+                    [
+                        'agency_id'   => $agencyId,
+                        'entity_type' => 'contact',
+                        'entity_id'   => $contactId,
+                        'category'    => $category,
+                    ],
+                    [
+                        'user_id'            => $userId ?: null,
+                        'title'              => 'P3: Archived re-engagement (notes signal)',
+                        'short_reason'       => 'Archived notes show hesitation (price/coverage/timing). Client may be open to revisiting.',
+                        'recommended_action' => 'Soft check-in, ask what they chose, and offer a quick comparison or re-quote if there are gaps.',
+                        'score'              => 35,
+                        'status'             => 'open',
+                        'source_snapshot'    => [
+                            'contact_id'          => $contactId,
+                            'contact_type'        => 'service',
+                            'service_status'      => (string) ($row->service_status ?? ''),
+                            'service_archived_at' => (string) ($row->service_archived_at ?? null),
+                            'priority_window'     => "{$minDays}-{$pivotDays}",
+                            'matched_signal'      => $matchedSignal,
+                            'signal_source'       => "notes.{$noteTextCol}",
                         ],
-                        [
-                            'user_id'            => $userId ?: null,
-                            'title'              => 'P4: Archived service re-engagement',
-                            'short_reason'       => 'Archived service notes show price/coverage hesitation—client may be open to reconsidering.',
-                            'recommended_action' => 'Soft check-in: ask what they chose, verify if it’s truly better/cheaper, re-quote if gaps exist.',
-                            'score'              => 35,
-                            'status'             => 'open',
-                            'source_snapshot'    => [
-                                'service_status'      => (string) ($row->service_status ?? ''),
-                                'service_archived_at' => (string) ($row->service_archived_at ?? null),
-                                'priority_window'     => "{$minDays}-{$pivotDays}",
-                                'matched_signal'      => $matchedSignal,
-                                'signal_source'       => "notes.{$noteTextCol}",
-                            ],
-                        ]
-                    );
+                    ]
+                );
 
-                    if ($opp) $touched++;
-                }
-            });
+                if ($opp) $touched++;
+            }
+        });
 
-        // ------------------------------------------------------------
-        // PASS 2: older than 180 days
-        // archived_at <= (now-180)
-        // ------------------------------------------------------------
+        // PASS 2: older than pivot
         $q2 = DB::table('contacts')->select(['id', 'service_archived_at', 'service_status']);
 
-        if (Schema::hasColumn('contacts', 'agency_id')) {
-            $q2->where('agency_id', $agencyId);
-        }
-
-        if (Schema::hasColumn('contacts', 'contact_type')) {
-            $q2->where('contact_type', 'service');
-        }
+        if (Schema::hasColumn('contacts', 'agency_id')) $q2->where('agency_id', $agencyId);
+        if (Schema::hasColumn('contacts', 'contact_type')) $q2->where('contact_type', 'service');
 
         $q2->whereNotNull('service_archived_at')
             ->where('service_archived_at', '<=', $pivotCutoff)
-            // ✅ EDIT #1: normalize service_status comparison so variations match
-            ->whereRaw("LOWER(TRIM(REPLACE(service_status, '_', ' '))) = ?", ['not interested']);
+            ->whereIn('service_status', $serviceArchiveStatuses);
 
-        $q2->orderBy('service_archived_at', 'asc')
+        $q2->orderBy('service_archived_at', 'asc')->chunk(200, function ($rows) use (
+            $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $pivotDays,
+            &$touched, &$scanned
+        ) {
+            foreach ($rows as $row) {
+                $scanned++;
+                $contactId = (int) $row->id;
+
+                if ($this->p3Exists($agencyId, $contactId, $category)) continue;
+
+                $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                if ($corpus === null) continue;
+
+                if ($this->textContainsAny($corpus, $blocklist)) continue;
+
+                $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
+                if (! $matchedSignal) continue;
+
+                $opp = GideonOpportunity::updateOrCreate(
+                    [
+                        'agency_id'   => $agencyId,
+                        'entity_type' => 'contact',
+                        'entity_id'   => $contactId,
+                        'category'    => $category,
+                    ],
+                    [
+                        'user_id'            => $userId ?: null,
+                        'title'              => 'P3: Archived re-engagement (notes signal)',
+                        'short_reason'       => 'Archived notes show hesitation (price/coverage/timing). Client may be open to revisiting.',
+                        'recommended_action' => 'Soft check-in, ask what they chose, and offer a quick comparison or re-quote if there are gaps.',
+                        'score'              => 35,
+                        'status'             => 'open',
+                        'source_snapshot'    => [
+                            'contact_id'          => $contactId,
+                            'contact_type'        => 'service',
+                            'service_status'      => (string) ($row->service_status ?? ''),
+                            'service_archived_at' => (string) ($row->service_archived_at ?? null),
+                            'priority_window'     => ">{$pivotDays}",
+                            'matched_signal'      => $matchedSignal,
+                            'signal_source'       => "notes.{$noteTextCol}",
+                        ],
+                    ]
+                );
+
+                if ($opp) $touched++;
+            }
+        });
+
+        return [$touched, $scanned];
+    }
+
+    protected function scanArchivedLeadsForP3(
+        int $agencyId,
+        ?int $userId,
+        string $category,
+        string $noteTextCol,
+        array $allowlist,
+        array $blocklist,
+        int $minDays,
+        int $pivotDays
+    ): array {
+        if (! Schema::hasTable('contacts')) {
+            return [0, 0];
+        }
+
+        $now = now();
+        $minCutoff   = $now->copy()->subDays($minDays);
+        $pivotCutoff = $now->copy()->subDays($pivotDays);
+
+        $hasAgency = Schema::hasColumn('contacts', 'agency_id');
+        $hasType   = Schema::hasColumn('contacts', 'contact_type');
+        $hasStatus = Schema::hasColumn('contacts', 'status');
+        $hasArchivedAt = Schema::hasColumn('contacts', 'archived_at');
+        $hasUpdatedAt  = Schema::hasColumn('contacts', 'updated_at');
+        $hasCreatedAt  = Schema::hasColumn('contacts', 'created_at');
+
+        // Choose best "archived date" column we can:
+        // archived_at > updated_at > created_at
+        $dateCol = $hasArchivedAt ? 'archived_at' : ($hasUpdatedAt ? 'updated_at' : ($hasCreatedAt ? 'created_at' : null));
+        if (! $dateCol) {
+            // No reliable date column; skip lead-archive scan to avoid noise
+            return [0, 0];
+        }
+
+        $touched = 0;
+        $scanned = 0;
+
+        // Helper to build base query for archived leads
+        $baseLeadQuery = function () use ($agencyId, $hasAgency, $hasType, $hasStatus, $dateCol) {
+            $q = DB::table('contacts')->select(['id', $dateCol]);
+
+            if ($hasAgency) $q->where('agency_id', $agencyId);
+
+            // Try to limit to leads if your schema supports it
+            if ($hasType) $q->where('contact_type', 'lead');
+
+            // Archived condition:
+            // - status = archived (if exists)
+            // - OR archived_at is not null (if archived_at exists and is our dateCol)
+            if ($hasStatus) {
+                $q->where('status', 'archived');
+            } else {
+                // If there's no status column, require archived_at not null if archived_at exists
+                if (Schema::hasColumn('contacts', 'archived_at')) {
+                    $q->whereNotNull('archived_at');
+                }
+            }
+
+            return $q;
+        };
+
+        // PASS 1: 90–180
+        $q1 = $baseLeadQuery();
+        $q1->whereNotNull($dateCol)
+            ->whereBetween($dateCol, [$pivotCutoff, $minCutoff])
+            ->orderBy($dateCol, 'asc')
             ->chunk(200, function ($rows) use (
-                $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $pivotDays,
+                $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $minDays, $pivotDays, $dateCol,
                 &$touched, &$scanned
             ) {
                 foreach ($rows as $row) {
                     $scanned++;
-
                     $contactId = (int) $row->id;
 
-                    $exists = GideonOpportunity::query()
-                        ->where('agency_id', $agencyId)
-                        ->where('entity_type', 'contact')
-                        ->where('entity_id', $contactId)
-                        ->where('category', $category)
-                        ->exists();
-                    if ($exists) continue;
+                    if ($this->p3Exists($agencyId, $contactId, $category)) continue;
 
-                    $parts = DB::table('notes')
-                        ->where('contact_id', $contactId)
-                        ->pluck($noteTextCol)
-                        ->filter()
-                        ->all();
+                    $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                    if ($corpus === null) continue;
 
-                    if (empty($parts)) continue;
+                    if ($this->textContainsAny($corpus, $blocklist)) continue;
 
-                    $corpus = strtolower(implode(' ', $parts));
+                    $matchedSignal = $this->firstMatchedNeedle($corpus, $allowlist);
+                    if (! $matchedSignal) continue;
+
+                    $opp = GideonOpportunity::updateOrCreate(
+                        [
+                            'agency_id'   => $agencyId,
+                            'entity_type' => 'contact', // leads are contacts in your DB model
+                            'entity_id'   => $contactId,
+                            'category'    => $category,
+                        ],
+                        [
+                            'user_id'            => $userId ?: null,
+                            'title'              => 'P3: Archived lead re-engagement (notes signal)',
+                            'short_reason'       => 'Archived lead notes show a buying signal or “later” language—may be worth a soft re-touch.',
+                            'recommended_action' => 'Soft check-in text/call: “Still shopping? Want me to see if pricing improved?”',
+                            'score'              => 33,
+                            'status'             => 'open',
+                            'source_snapshot'    => [
+                                'contact_id'      => $contactId,
+                                'contact_type'    => 'lead',
+                                'archived_date'   => (string) ($row->{$dateCol} ?? null),
+                                'archived_date_col' => $dateCol,
+                                'priority_window' => "{$minDays}-{$pivotDays}",
+                                'matched_signal'  => $matchedSignal,
+                                'signal_source'   => "notes.{$noteTextCol}",
+                            ],
+                        ]
+                    );
+
+                    if ($opp) $touched++;
+                }
+            });
+
+        // PASS 2: older than pivot
+        $q2 = $baseLeadQuery();
+        $q2->whereNotNull($dateCol)
+            ->where($dateCol, '<=', $pivotCutoff)
+            ->orderBy($dateCol, 'asc')
+            ->chunk(200, function ($rows) use (
+                $agencyId, $userId, $category, $noteTextCol, $allowlist, $blocklist, $pivotDays, $dateCol,
+                &$touched, &$scanned
+            ) {
+                foreach ($rows as $row) {
+                    $scanned++;
+                    $contactId = (int) $row->id;
+
+                    if ($this->p3Exists($agencyId, $contactId, $category)) continue;
+
+                    $corpus = $this->buildNotesCorpus($contactId, $noteTextCol);
+                    if ($corpus === null) continue;
 
                     if ($this->textContainsAny($corpus, $blocklist)) continue;
 
@@ -624,17 +717,19 @@ class OpportunityScanner
                         ],
                         [
                             'user_id'            => $userId ?: null,
-                            'title'              => 'P4: Archived service re-engagement',
-                            'short_reason'       => 'Archived service notes show price/coverage hesitation—client may be open to reconsidering.',
-                            'recommended_action' => 'Soft check-in: ask what they chose, verify if it’s truly better/cheaper, re-quote if gaps exist.',
-                            'score'              => 35,
+                            'title'              => 'P3: Archived lead re-engagement (notes signal)',
+                            'short_reason'       => 'Archived lead notes show a buying signal or “later” language—may be worth a soft re-touch.',
+                            'recommended_action' => 'Soft check-in text/call: “Still shopping? Want me to see if pricing improved?”',
+                            'score'              => 33,
                             'status'             => 'open',
                             'source_snapshot'    => [
-                                'service_status'      => (string) ($row->service_status ?? ''),
-                                'service_archived_at' => (string) ($row->service_archived_at ?? null),
-                                'priority_window'     => ">{$pivotDays}",
-                                'matched_signal'      => $matchedSignal,
-                                'signal_source'       => "notes.{$noteTextCol}",
+                                'contact_id'        => $contactId,
+                                'contact_type'      => 'lead',
+                                'archived_date'     => (string) ($row->{$dateCol} ?? null),
+                                'archived_date_col' => $dateCol,
+                                'priority_window'   => ">{$pivotDays}",
+                                'matched_signal'    => $matchedSignal,
+                                'signal_source'     => "notes.{$noteTextCol}",
                             ],
                         ]
                     );
@@ -643,37 +738,36 @@ class OpportunityScanner
                 }
             });
 
-        return [$touched, "P4 service archive notes scan executed for {$scanned} archived service contacts (priority {$minDays}-{$pivotDays}, then older)."];
+        return [$touched, $scanned];
     }
 
-    protected function textContainsAny(string $haystack, array $needles): bool
+    protected function p3Exists(int $agencyId, int $contactId, string $category): bool
     {
-        $haystack = strtolower($haystack);
-        foreach ($needles as $n) {
-            $n = strtolower(trim((string) $n));
-            if ($n !== '' && str_contains($haystack, $n)) {
-                return true;
-            }
-        }
-        return false;
+        return GideonOpportunity::query()
+            ->where('agency_id', $agencyId)
+            ->where('entity_type', 'contact')
+            ->where('entity_id', $contactId)
+            ->where('category', $category)
+            ->exists();
     }
 
-    protected function firstMatchedNeedle(string $haystack, array $needles): ?string
+    protected function buildNotesCorpus(int $contactId, string $noteTextCol): ?string
     {
-        $haystack = strtolower($haystack);
-        foreach ($needles as $n) {
-            $n = strtolower(trim((string) $n));
-            if ($n !== '' && str_contains($haystack, $n)) {
-                return $n;
-            }
-        }
-        return null;
+        $parts = DB::table('notes')
+            ->where('contact_id', $contactId)
+            ->pluck($noteTextCol)
+            ->filter()
+            ->all();
+
+        if (empty($parts)) return null;
+
+        return strtolower(implode(' ', $parts));
     }
 
-    /**
-     * DEEP SCAN:
-     * Policy review opportunities.
-     */
+    // =====================================================================
+    // P2
+    // =====================================================================
+
     protected function scanPolicyReviewOpportunities(int $agencyId, ?int $userId): array
     {
         if (! Schema::hasTable('policies')) {
@@ -710,11 +804,8 @@ class OpportunityScanner
             });
         }
 
-        if ($issueCol) {
-            $q->whereDate($issueCol, '<=', $threshold->toDateString());
-        } else {
-            $q->where($createdCol, '<=', $threshold);
-        }
+        if ($issueCol) $q->whereDate($issueCol, '<=', $threshold->toDateString());
+        else $q->where($createdCol, '<=', $threshold);
 
         $touched = 0;
         $scanned = 0;
@@ -744,12 +835,12 @@ class OpportunityScanner
                         'score'              => 78,
                         'status'             => 'open',
                         'source_snapshot'    => [
-                            'policy_id'      => $p->id,
-                            'contact_id'     => $p->contact_id ?? null,
-                            'carrier'        => $carrier,
-                            'product'        => $product,
-                            'policy_number'  => $p->policy_number ?? null,
-                            'status'         => $p->status ?? null,
+                            'policy_id'     => $p->id,
+                            'contact_id'    => $p->contact_id ?? null,
+                            'carrier'       => $carrier,
+                            'product'       => $product,
+                            'policy_number' => $p->policy_number ?? null,
+                            'status'        => $p->status ?? null,
                         ],
                     ]
                 );
@@ -761,10 +852,6 @@ class OpportunityScanner
         return [$touched, "Policy review scan executed for {$scanned} policies."];
     }
 
-    /**
-     * DEEP SCAN:
-     * Referral request opportunities.
-     */
     protected function scanReferralRequestOpportunities(int $agencyId, ?int $userId): array
     {
         if (! Schema::hasTable('policies')) {
@@ -788,11 +875,8 @@ class OpportunityScanner
             ->whereNotNull('contact_id')
             ->groupBy('contact_id');
 
-        if (Schema::hasColumn('policies', 'agency_id')) {
-            $q->where('agency_id', $agencyId);
-        } elseif (Schema::hasColumn('policies', 'tenant_id')) {
-            $q->where('tenant_id', $agencyId);
-        }
+        if (Schema::hasColumn('policies', 'agency_id')) $q->where('agency_id', $agencyId);
+        elseif (Schema::hasColumn('policies', 'tenant_id')) $q->where('tenant_id', $agencyId);
 
         if (Schema::hasColumn('policies', 'status')) {
             $q->where(function ($w) {
@@ -801,11 +885,8 @@ class OpportunityScanner
             });
         }
 
-        if ($dateCol === 'created_at') {
-            $q->where('created_at', '<=', $threshold);
-        } else {
-            $q->whereDate('policy_issue_date', '<=', $threshold->toDateString());
-        }
+        if ($dateCol === 'created_at') $q->where('created_at', '<=', $threshold);
+        else $q->whereDate('policy_issue_date', '<=', $threshold->toDateString());
 
         $touched = 0;
         $scanned = 0;
@@ -815,10 +896,8 @@ class OpportunityScanner
         ) {
             foreach ($rows as $row) {
                 $scanned++;
-
                 $contactId = $row->contact_id;
 
-                // Only attempt this if your notes table actually supports entity_type/entity_id
                 if ($notesTable && Schema::hasColumn($notesTable, 'entity_type') && Schema::hasColumn($notesTable, 'entity_id')) {
                     $recentReferralNoteExists = DB::table($notesTable)
                         ->where('entity_type', 'contact')
@@ -833,9 +912,7 @@ class OpportunityScanner
                         })
                         ->exists();
 
-                    if ($recentReferralNoteExists) {
-                        continue;
-                    }
+                    if ($recentReferralNoteExists) continue;
                 }
 
                 $opp = GideonOpportunity::updateOrCreate(
@@ -848,7 +925,7 @@ class OpportunityScanner
                     [
                         'user_id'            => $userId ?: null,
                         'title'              => 'Request referrals (warm client)',
-                        'short_reason'       => 'Client has an in-force policy long enough to justify a referral ask. Referral calls are high-conversion and low-cost.',
+                        'short_reason'       => 'Client has an in-force policy long enough to justify a referral ask.',
                         'recommended_action' => 'Call: “Who else do you care about that would want the same protection?” Ask for 2 names + numbers.',
                         'score'              => 74,
                         'status'             => 'open',
@@ -866,9 +943,34 @@ class OpportunityScanner
         return [$touched, "Referral scan executed for {$scanned} policy-holders."];
     }
 
-    /**
-     * Best-effort name builder for a lead/contact.
-     */
+    // =====================================================================
+    // helpers
+    // =====================================================================
+
+    protected function textContainsAny(string $haystack, array $needles): bool
+    {
+        $haystack = strtolower($haystack);
+        foreach ($needles as $n) {
+            $n = strtolower(trim((string) $n));
+            if ($n !== '' && str_contains($haystack, $n)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected function firstMatchedNeedle(string $haystack, array $needles): ?string
+    {
+        $haystack = strtolower($haystack);
+        foreach ($needles as $n) {
+            $n = strtolower(trim((string) $n));
+            if ($n !== '' && str_contains($haystack, $n)) {
+                return $n;
+            }
+        }
+        return null;
+    }
+
     protected function guessLeadName($lead): string
     {
         if (isset($lead->full_name) && $lead->full_name) {
