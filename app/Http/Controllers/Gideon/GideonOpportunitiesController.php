@@ -173,7 +173,7 @@ class GideonOpportunitiesController extends Controller
                 'match' => function ($row) {
                     $cat = (string) ($row->category ?? '');
                     // ✅ No regression: accept old category too, in case any rows still exist
-                    return $cat === 'p3_recovery' || $cat === 'p3_recovery' || $cat === 'p4_service_recovery';
+                    return $cat === 'p3_recovery' || $cat === 'p4_service_recovery';
                 },
             ],
         ];
