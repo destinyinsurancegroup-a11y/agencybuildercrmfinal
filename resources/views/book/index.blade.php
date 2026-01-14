@@ -75,6 +75,27 @@
         background: #b5901f;
     }
 
+    /* ✅ Added for messaging buttons on the card */
+    .btn-outline-gold {
+        background: transparent;
+        color: #c9a227;
+        border: 1px solid #c9a227;
+        padding: 6px 10px;
+        font-weight: 600;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.10);
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .btn-outline-gold:hover {
+        background: rgba(201,162,39,0.12);
+    }
+    .btn-outline-gold:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
     .button-row {
         margin-bottom: 20px;
         display: flex;
@@ -263,6 +284,60 @@
     </div>
 </div>
 
+<!-- =========================
+     Messaging Modals (loaded once)
+     ========================= -->
+<div class="modal fade" id="abSmsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" onsubmit="ABMessaging.sendSms(event)">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Text</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="ab_sms_contact_id">
+                <div class="mb-1 fw-bold" id="ab_sms_contact_name"></div>
+                <div class="mb-2 text-muted" id="ab_sms_to"></div>
+
+                <textarea id="ab_sms_body" class="form-control" rows="4" placeholder="Type message..."></textarea>
+                <div class="small text-muted mt-2">Manual send only (backend wiring next).</div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn-gold">Send</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="abEmailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" onsubmit="ABMessaging.sendEmail(event)">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="ab_email_contact_id">
+                <div class="mb-1 fw-bold" id="ab_email_contact_name"></div>
+                <div class="mb-2 text-muted" id="ab_email_to"></div>
+
+                <input id="ab_email_subject" class="form-control mb-2" placeholder="Subject">
+                <textarea id="ab_email_body" class="form-control" rows="6" placeholder="Type email..."></textarea>
+                <div class="small text-muted mt-2">Manual send only (backend wiring next).</div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn-gold">Send</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
@@ -334,6 +409,54 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modalEl) new bootstrap.Modal(modalEl).show();
     @endif
 });
+
+
+/* ------------------------------------------------------
+   MESSAGING UI (UI-ONLY STUB FOR NOW)
+   - Contact card buttons call ABMessaging.openSms/openEmail
+   - Next step: wire backend endpoints and real sending
+   ------------------------------------------------------ */
+window.ABMessaging = {
+    openSms(contactId, name, phone) {
+        document.getElementById('ab_sms_contact_id').value = contactId;
+        document.getElementById('ab_sms_contact_name').textContent = name || '';
+        document.getElementById('ab_sms_to').textContent = phone ? `To: ${phone}` : 'No phone on file';
+        document.getElementById('ab_sms_body').value = '';
+
+        new bootstrap.Modal(document.getElementById('abSmsModal')).show();
+    },
+
+    openEmail(contactId, name, email) {
+        document.getElementById('ab_email_contact_id').value = contactId;
+        document.getElementById('ab_email_contact_name').textContent = name || '';
+        document.getElementById('ab_email_to').textContent = email ? `To: ${email}` : 'No email on file';
+        document.getElementById('ab_email_subject').value = '';
+        document.getElementById('ab_email_body').value = '';
+
+        new bootstrap.Modal(document.getElementById('abEmailModal')).show();
+    },
+
+    sendSms(e) {
+        e.preventDefault();
+        const body = (document.getElementById('ab_sms_body').value || '').trim();
+        if (!body) return alert('Message is empty.');
+
+        // UI stub for now
+        alert('SMS queued (UI stub). Next: wire POST /contacts/{id}/messages + Twilio.');
+        bootstrap.Modal.getInstance(document.getElementById('abSmsModal')).hide();
+    },
+
+    sendEmail(e) {
+        e.preventDefault();
+        const subject = (document.getElementById('ab_email_subject').value || '').trim();
+        const body = (document.getElementById('ab_email_body').value || '').trim();
+        if (!subject || !body) return alert('Subject and body are required.');
+
+        // UI stub for now
+        alert('Email queued (UI stub). Next: wire POST /contacts/{id}/messages + email provider.');
+        bootstrap.Modal.getInstance(document.getElementById('abEmailModal')).hide();
+    }
+};
 
 
 /* ------------------------------------------------------
