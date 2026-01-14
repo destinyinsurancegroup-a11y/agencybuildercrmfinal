@@ -406,104 +406,137 @@ document.addEventListener('DOMContentLoaded', () => {
     {{-- ✅ If upload had errors, reopen modal so user sees it --}}
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadBookModal');
-        if (modalEl) new bootstrap.Modal(modalEl).show();
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+            new bootstrap.Modal(modalEl).show();
+        }
     @endif
 });
 
 
 /* ------------------------------------------------------
    MESSAGING UI (Phase 2: POST -> /contacts/{id}/messages)
+   Defensive: if bootstrap/modals are missing, show why.
    ------------------------------------------------------ */
-window.ABMessaging = {
-    openSms(contactId, name, phone) {
-        document.getElementById('ab_sms_contact_id').value = contactId;
-        document.getElementById('ab_sms_contact_name').textContent = name || '';
-        document.getElementById('ab_sms_to').textContent = phone ? `To: ${phone}` : 'No phone on file';
-        document.getElementById('ab_sms_body').value = '';
-
-        new bootstrap.Modal(document.getElementById('abSmsModal')).show();
-    },
-
-    openEmail(contactId, name, email) {
-        document.getElementById('ab_email_contact_id').value = contactId;
-        document.getElementById('ab_email_contact_name').textContent = name || '';
-        document.getElementById('ab_email_to').textContent = email ? `To: ${email}` : 'No email on file';
-        document.getElementById('ab_email_subject').value = '';
-        document.getElementById('ab_email_body').value = '';
-
-        new bootstrap.Modal(document.getElementById('abEmailModal')).show();
-    },
-
-    sendSms(e) {
-        e.preventDefault();
-
-        const contactId = document.getElementById('ab_sms_contact_id').value;
-        const body = (document.getElementById('ab_sms_body').value || '').trim();
-        if (!body) return alert('Message is empty.');
-
-        fetch(`/contacts/${contactId}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                channel: 'sms',
-                body: body
-            })
-        })
-        .then(async (r) => {
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(data.message || 'Failed to save SMS.');
-            return data;
-        })
-        .then(() => {
-            bootstrap.Modal.getInstance(document.getElementById('abSmsModal')).hide();
-            alert('Text saved to Messages (queued).');
-            // Optional: later we will reload to show history
-            // loadBookPanel(`/book/${contactId}`);
-        })
-        .catch((err) => alert(err.message));
-    },
-
-    sendEmail(e) {
-        e.preventDefault();
-
-        const contactId = document.getElementById('ab_email_contact_id').value;
-        const subject = (document.getElementById('ab_email_subject').value || '').trim();
-        const body = (document.getElementById('ab_email_body').value || '').trim();
-
-        if (!subject) return alert('Subject is required.');
-        if (!body) return alert('Email body is empty.');
-
-        fetch(`/contacts/${contactId}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                channel: 'email',
-                subject: subject,
-                body: body
-            })
-        })
-        .then(async (r) => {
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(data.message || 'Failed to save Email.');
-            return data;
-        })
-        .then(() => {
-            bootstrap.Modal.getInstance(document.getElementById('abEmailModal')).hide();
-            alert('Email saved to Messages (queued).');
-            // Optional: later we will reload to show history
-            // loadBookPanel(`/book/${contactId}`);
-        })
-        .catch((err) => alert(err.message));
+(function () {
+    function requireEl(id) {
+        const el = document.getElementById(id);
+        if (!el) throw new Error(`Missing element #${id} (modal not on page)`);
+        return el;
     }
-};
+
+    function requireBootstrap() {
+        if (!window.bootstrap || !window.bootstrap.Modal) {
+            throw new Error('Bootstrap JS is missing (bootstrap.Modal not available).');
+        }
+        return window.bootstrap;
+    }
+
+    // Hard-global (important for AJAX-loaded partials)
+    window.ABMessaging = {
+        openSms(contactId, name, phone) {
+            try {
+                requireBootstrap();
+                requireEl('ab_sms_contact_id').value = contactId;
+                requireEl('ab_sms_contact_name').textContent = name || '';
+                requireEl('ab_sms_to').textContent = phone ? `To: ${phone}` : 'No phone on file';
+                requireEl('ab_sms_body').value = '';
+
+                const modalEl = requireEl('abSmsModal');
+                new bootstrap.Modal(modalEl).show();
+            } catch (err) {
+                console.error(err);
+                alert(`Text modal failed: ${err.message}`);
+            }
+        },
+
+        openEmail(contactId, name, email) {
+            try {
+                requireBootstrap();
+                requireEl('ab_email_contact_id').value = contactId;
+                requireEl('ab_email_contact_name').textContent = name || '';
+                requireEl('ab_email_to').textContent = email ? `To: ${email}` : 'No email on file';
+                requireEl('ab_email_subject').value = '';
+                requireEl('ab_email_body').value = '';
+
+                const modalEl = requireEl('abEmailModal');
+                new bootstrap.Modal(modalEl).show();
+            } catch (err) {
+                console.error(err);
+                alert(`Email modal failed: ${err.message}`);
+            }
+        },
+
+        async sendSms(e) {
+            e.preventDefault();
+
+            const contactId = (document.getElementById('ab_sms_contact_id')?.value || '').trim();
+            const body = (document.getElementById('ab_sms_body')?.value || '').trim();
+            if (!body) return alert('Message is empty.');
+
+            try {
+                const res = await fetch(`/contacts/${contactId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ channel: 'sms', body })
+                });
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || `Failed to save SMS (HTTP ${res.status}).`);
+
+                // Close modal if possible
+                if (window.bootstrap?.Modal) {
+                    const inst = bootstrap.Modal.getInstance(document.getElementById('abSmsModal'));
+                    if (inst) inst.hide();
+                }
+
+                alert('Text saved to Messages (queued).');
+            } catch (err) {
+                console.error(err);
+                alert(`SMS send failed: ${err.message}`);
+            }
+        },
+
+        async sendEmail(e) {
+            e.preventDefault();
+
+            const contactId = (document.getElementById('ab_email_contact_id')?.value || '').trim();
+            const subject = (document.getElementById('ab_email_subject')?.value || '').trim();
+            const body = (document.getElementById('ab_email_body')?.value || '').trim();
+
+            if (!subject) return alert('Subject is required.');
+            if (!body) return alert('Email body is empty.');
+
+            try {
+                const res = await fetch(`/contacts/${contactId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ channel: 'email', subject, body })
+                });
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || `Failed to save Email (HTTP ${res.status}).`);
+
+                if (window.bootstrap?.Modal) {
+                    const inst = bootstrap.Modal.getInstance(document.getElementById('abEmailModal'));
+                    if (inst) inst.hide();
+                }
+
+                alert('Email saved to Messages (queued).');
+            } catch (err) {
+                console.error(err);
+                alert(`Email send failed: ${err.message}`);
+            }
+        }
+    };
+})();
 
 
 /* ------------------------------------------------------
