@@ -18,6 +18,39 @@
                 {{ $clientName }}
             </h2>
 
+            <!-- ✅ Messaging buttons (VISUAL ONLY for now; no behavior yet) -->
+            <div class="mt-2 d-flex gap-2 flex-wrap">
+                <button
+                    type="button"
+                    class="btn-outline-gold"
+                    style="font-size:12px;"
+                    disabled
+                    title="Messaging coming soon"
+                >
+                    Text
+                </button>
+
+                <button
+                    type="button"
+                    class="btn-outline-gold"
+                    style="font-size:12px;"
+                    disabled
+                    title="Messaging coming soon"
+                >
+                    Email
+                </button>
+
+                <button
+                    type="button"
+                    class="btn-outline-gold"
+                    style="font-size:12px;"
+                    disabled
+                    title="Sequences coming soon"
+                >
+                    Start Sequence
+                </button>
+            </div>
+
             <!-- Attachments -->
             <div class="mt-2">
                 <strong class="d-block mb-1" style="font-size:14px;">Attachments</strong>
@@ -41,8 +74,8 @@
         </div>
 
         <!-- ⭐ EDIT CLIENT BUTTON (NOW WORKING) ⭐ -->
-        <button 
-            type="button" 
+        <button
+            type="button"
             class="btn-gold edit-client-btn"
             data-edit-url="{{ route('book.edit.panel', $client->id) }}"
             style="font-size:12px;"
@@ -196,7 +229,7 @@
         <h5 class="fw-bold text-dark mb-3">Notes</h5>
 
         <!-- Add Note -->
-        <form 
+        <form
             id="add-note-form"
             data-client-id="{{ $client->id }}"
             action="{{ route('book.notes.store', $client->id) }}"
@@ -204,7 +237,7 @@
         >
             @csrf
 
-            <textarea 
+            <textarea
                 name="body"
                 class="form-control mb-2"
                 rows="3"
@@ -234,7 +267,7 @@
                     </div>
 
                     <!-- Inline Edit -->
-                    <button 
+                    <button
                         type="button"
                         class="btn btn-sm btn-outline-secondary mt-1 edit-note-btn"
                         data-note-id="{{ $note->id }}"
