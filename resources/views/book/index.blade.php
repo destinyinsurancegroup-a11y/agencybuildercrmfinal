@@ -54,9 +54,7 @@
         box-shadow: 0 4px 8px rgba(0,0,0,0.20);
     }
 
-    .contacts-search-btn:hover {
-        background: #b5901f;
-    }
+    .contacts-search-btn:hover { background: #b5901f; }
 
     .btn-gold {
         background: #c9a227;
@@ -70,10 +68,7 @@
         cursor: pointer;
         white-space: nowrap;
     }
-
-    .btn-gold:hover {
-        background: #b5901f;
-    }
+    .btn-gold:hover { background: #b5901f; }
 
     /* Messaging outline buttons */
     .btn-outline-gold {
@@ -88,13 +83,8 @@
         cursor: pointer;
         white-space: nowrap;
     }
-    .btn-outline-gold:hover {
-        background: rgba(201,162,39,0.12);
-    }
-    .btn-outline-gold:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-    }
+    .btn-outline-gold:hover { background: rgba(201,162,39,0.12); }
+    .btn-outline-gold:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .button-row {
         margin-bottom: 20px;
@@ -108,34 +98,21 @@
         border-bottom: 1px solid #eee;
         cursor: pointer;
     }
-
-    .contact-list-item:hover {
-        background: #f9fafb;
-    }
+    .contact-list-item:hover { background: #f9fafb; }
 
     .active-contact-row {
         background: #eae6d1 !important;
         font-weight: 600;
     }
 
-    .empty-right-panel {
-        height: 100%;
-        background: transparent !important;
-    }
+    .empty-right-panel { height: 100%; background: transparent !important; }
 
-    .urgent-contact {
-        color: #b91c1c;
-        font-weight: 700;
-    }
+    .urgent-contact { color: #b91c1c; font-weight: 700; }
 
     #book-details-container,
-    #book-details-container * {
-        text-align: left !important;
-    }
+    #book-details-container * { text-align: left !important; }
 
-    .flash-wrap {
-        margin-bottom: 14px;
-    }
+    .flash-wrap { margin-bottom: 14px; }
 </style>
 
 <div class="dashboard-page">
@@ -342,10 +319,10 @@
 (function () {
     'use strict';
 
-    // Blade -> JS values (safe JSON encoding)
+    // Safe server-side values
     var CSRF_TOKEN = @json(csrf_token());
     var SELECTED_ID = @json(!empty($selected) ? (int)$selected : null);
-    var SHOULD_REOPEN_UPLOAD = @json((bool) (session('import_error') || $errors->any()));
+    var SHOULD_REOPEN_UPLOAD = @json((bool)(session('import_error') || $errors->any()));
     var BOOK_BASE_URL = @json(url('/book'));
 
     function hasBootstrapModal() {
@@ -365,7 +342,7 @@
         new bootstrap.Modal(el).show();
     }
 
-    // Make global for AJAX-loaded partial buttons
+    // Global so AJAX-loaded details.blade.php onclick handlers can call it
     window.ABMessaging = {
         openSms: function (contactId, name, phone) {
             try {
@@ -399,11 +376,10 @@
 
             var contactIdEl = document.getElementById('ab_sms_contact_id');
             var bodyEl = document.getElementById('ab_sms_body');
+            var contactId = contactIdEl ? String(contactIdEl.value || '').trim() : '';
+            var body = bodyEl ? String(bodyEl.value || '').trim() : '';
 
-            var contactId = contactIdEl ? (contactIdEl.value || '').trim() : '';
-            var body = bodyEl ? (bodyEl.value || '').trim() : '';
-
-            if (!body) { alert('Message is empty.'); return; }
+            if (!body) return alert('Message is empty.');
 
             fetch('/contacts/' + contactId + '/messages', {
                 method: 'POST',
@@ -440,12 +416,12 @@
             var subjectEl = document.getElementById('ab_email_subject');
             var bodyEl = document.getElementById('ab_email_body');
 
-            var contactId = contactIdEl ? (contactIdEl.value || '').trim() : '';
-            var subject = subjectEl ? (subjectEl.value || '').trim() : '';
-            var body = bodyEl ? (bodyEl.value || '').trim() : '';
+            var contactId = contactIdEl ? String(contactIdEl.value || '').trim() : '';
+            var subject = subjectEl ? String(subjectEl.value || '').trim() : '';
+            var body = bodyEl ? String(bodyEl.value || '').trim() : '';
 
-            if (!subject) { alert('Subject is required.'); return; }
-            if (!body) { alert('Email body is empty.'); return; }
+            if (!subject) return alert('Subject is required.');
+            if (!body) return alert('Email body is empty.');
 
             fetch('/contacts/' + contactId + '/messages', {
                 method: 'POST',
@@ -476,6 +452,7 @@
         }
     };
 
+    // Right-panel loader + page wiring
     document.addEventListener('DOMContentLoaded', function () {
         var container = document.getElementById('book-details-container');
 
@@ -500,15 +477,13 @@
 
         var rows = document.querySelectorAll('.js-book-row');
         for (var i = 0; i < rows.length; i++) {
-            (function (row) {
-                row.addEventListener('click', function () {
-                    var all = document.querySelectorAll('.js-book-row');
-                    for (var j = 0; j < all.length; j++) all[j].classList.remove('active-contact-row');
+            rows[i].addEventListener('click', function () {
+                var all = document.querySelectorAll('.js-book-row');
+                for (var j = 0; j < all.length; j++) all[j].classList.remove('active-contact-row');
 
-                    row.classList.add('active-contact-row');
-                    window.loadBookPanel(row.getAttribute('data-show-url'));
-                });
-            })(rows[i]);
+                this.classList.add('active-contact-row');
+                window.loadBookPanel(this.getAttribute('data-show-url'));
+            });
         }
 
         var addBtn = document.getElementById('add-book-client-btn');
@@ -521,35 +496,33 @@
         var searchEl = document.getElementById('book-search');
         if (searchEl) {
             searchEl.addEventListener('keyup', function () {
-                var term = (this.value || '').toLowerCase();
+                var term = String(this.value || '').toLowerCase();
                 var listRows = document.querySelectorAll('#book-list .js-book-row');
                 for (var k = 0; k < listRows.length; k++) {
-                    var show = (listRows[k].textContent || '').toLowerCase().indexOf(term) !== -1;
+                    var show = listRows[k].textContent.toLowerCase().indexOf(term) !== -1;
                     listRows[k].style.display = show ? 'block' : 'none';
                 }
             });
         }
 
         if (SELECTED_ID) {
-            window.loadBookPanel(BOOK_BASE_URL + '/' + SELECTED_ID);
+            window.loadBookPanel(BOOK_BASE_URL + '/' + String(SELECTED_ID));
         }
 
-        if (SHOULD_REOPEN_UPLOAD && hasBootstrapModal()) {
+        if (SHOULD_REOPEN_UPLOAD) {
             showModalById('uploadBookModal');
         }
     });
 
 })();
 
-/* ------------------------------------------------------
-   NOTES (global so AJAX partial can call them)
-   ------------------------------------------------------ */
+// Notes must be global (details.blade.php calls saveNote())
 function saveNote(clientId) {
     var textarea = document.getElementById('new_note_body');
     if (!textarea) return;
 
-    var body = (textarea.value || '').trim();
-    if (!body) { alert("Note cannot be empty."); return; }
+    var body = String(textarea.value || '').trim();
+    if (!body) return alert('Note cannot be empty.');
 
     fetch('/book/' + clientId + '/notes', {
         method: 'POST',
@@ -568,54 +541,9 @@ function saveNote(clientId) {
         textarea.value = '';
         if (window.loadBookPanel) window.loadBookPanel('/book/' + clientId);
     })
-    .catch(function () { alert('Error saving note.'); });
-}
-
-function editNote(clientId, noteId) {
-    var noteEl = document.querySelector('#note-' + noteId + ' .note-body');
-    if (!noteEl) return;
-
-    var existing = (noteEl.innerText || '').trim();
-    var updated = prompt("Edit note:", existing);
-    if (updated === null) return;
-
-    fetch('/book/' + clientId + '/notes/' + noteId, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': @json(csrf_token()),
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({ body: updated })
-    })
-    .then(function (r) {
-        if (!r.ok) throw new Error('Failed to update note');
-        return r.json();
-    })
-    .then(function () {
-        if (window.loadBookPanel) window.loadBookPanel('/book/' + clientId);
-    })
-    .catch(function () { alert('Error updating note.'); });
-}
-
-function deleteNote(clientId, noteId) {
-    if (!confirm("Delete this note?")) return;
-
-    fetch('/book/' + clientId + '/notes/' + noteId, {
-        method: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': @json(csrf_token()),
-            'Accept': 'application/json'
-        }
-    })
-    .then(function (r) {
-        if (!r.ok) throw new Error('Failed to delete note');
-        return r.json();
-    })
-    .then(function () {
-        if (window.loadBookPanel) window.loadBookPanel('/book/' + clientId);
-    })
-    .catch(function () { alert('Error deleting note.'); });
+    .catch(function () {
+        alert('Error saving note.');
+    });
 }
 </script>
 @endpush
