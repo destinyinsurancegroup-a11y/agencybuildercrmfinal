@@ -59,7 +59,8 @@
                         type="button"
                         class="btn-outline-gold"
                         style="font-size:12px;"
-                        onclick="ABMessaging.openSms({{ (int) $client->id }}, @json($clientName), @json($client->phone))"
+                        {{-- ✅ FIX: use single quotes around onclick so @json() double-quotes don't break the attribute --}}
+                        onclick='ABMessaging.openSms({{ (int) $client->id }}, @json($clientName), @json($client->phone))'
                         {{ empty($client->phone) ? 'disabled' : '' }}
                         title="{{ empty($client->phone) ? 'No phone on file' : 'Send a text' }}"
                     >
@@ -70,14 +71,14 @@
                         type="button"
                         class="btn-outline-gold"
                         style="font-size:12px;"
-                        onclick="ABMessaging.openEmail({{ (int) $client->id }}, @json($clientName), @json($client->email))"
+                        {{-- ✅ FIX: use single quotes around onclick so @json() double-quotes don't break the attribute --}}
+                        onclick='ABMessaging.openEmail({{ (int) $client->id }}, @json($clientName), @json($client->email))'
                         {{ empty($client->email) ? 'disabled' : '' }}
                         title="{{ empty($client->email) ? 'No email on file' : 'Send an email' }}"
                     >
                         Email
                     </button>
 
-                    <!-- ✅ FIX: remove disabled so it matches styling; keep non-functional for now -->
                     <button
                         type="button"
                         class="btn-outline-gold"
@@ -167,8 +168,7 @@
         <hr>
 
         <!-- ================================ -->
-        <!-- BENEFICIARIES & EMERGENCY CONTACTS
-             Destiny-style combined list         -->
+        <!-- BENEFICIARIES & EMERGENCY CONTACTS -->
         <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Beneficiaries &amp; Emergency Contacts</h4>
 
@@ -235,12 +235,12 @@
                       rows="2"
                       placeholder="Write a new note..."></textarea>
 
-            <button class="btn-gold mt-2" onclick="saveNote({{ $client->id }})">
+            <button class="btn-gold mt-2" onclick="saveNote({{ (int) $client->id }})">
                 Add Note
             </button>
         </div>
 
-        {{-- EXISTING NOTES – simple structure like Contacts/Leads --}}
+        {{-- EXISTING NOTES --}}
         <div id="notes-list" class="mt-3">
             @php
                 $notes = $client->allNotes ?? $client->notes ?? collect();
