@@ -61,44 +61,84 @@ class ContactMessageController extends Controller
      * Phase 3: message history for a contact
      * GET /contacts/{contact}/messages
      *
-     * Returns JSON (for AJAX UI).
+     * UI-friendly response for chat/popup:
+     * - returns items in ASC order (old -> new)
+     * - supports "before_id" to load older messages
+     *
+     * Query params:
+     * - limit (default 50, max 200)
+     * - channel: sms|email (optional)
+     * - before_id: int (optional) load messages with id < before_id
      */
     public function index(Request $request, Contact $contact)
     {
         $this->enforceScopeOrAbort($contact);
 
-        $perPage = (int) $request->query('per_page', 25);
-        if ($perPage < 1) $perPage = 25;
-        if ($perPage > 100) $perPage = 100;
+        $limit = (int) $request->query('limit', 50);
+        if ($limit < 1) $limit = 50;
+        if ($limit > 200) $limit = 200;
 
-        $query = Message::query()
-            ->where('contact_id', $contact->id)
-            ->orderByDesc('created_at');
+        $channel = $request->query('channel');
+        $beforeId = $request->query('before_id');
 
-        // Optional filters for UI (safe defaults)
-        if ($request->filled('channel')) {
-            $channel = $request->query('channel');
-            if (in_array($channel, ['sms', 'email'], true)) {
-                $query->where('channel', $channel);
-            }
+        $q = Message::query()
+            ->where('contact_id', $contact->id);
+
+        if (in_array($channel, ['sms', 'email'], true)) {
+            $q->where('channel', $channel);
         }
 
-        if ($request->filled('status')) {
-            $status = $request->query('status');
-            if (in_array($status, ['queued', 'sent', 'failed'], true)) {
-                $query->where('status', $status);
-            }
+        if (is_numeric($beforeId)) {
+            $q->where('id', '<', (int) $beforeId);
         }
 
-        $messages = $query->paginate($perPage);
+        // Pull newest first (cheap for paging), then reverse in memory to display old->new
+        $rows = $q->orderByDesc('id')
+            ->limit($limit + 1) // +1 to detect has_more
+            ->get([
+                'id',
+                'contact_id',
+                'created_by',
+                'channel',
+                'direction',
+                'status',
+                'to_address',
+                'subject',
+                'body',
+                'provider',
+                'provider_message_id',
+                'error_message',
+                'created_at',
+                'updated_at',
+            ]);
+
+        $hasMore = $rows->count() > $limit;
+        if ($hasMore) {
+            $rows = $rows->slice(0, $limit);
+        }
+
+        // For chat UI we want ascending order (oldest -> newest)
+        $rows = $rows->reverse()->values();
+
+        $nextBeforeId = null;
+        if ($rows->isNotEmpty()) {
+            // To load older, we ask for id < oldest currently returned
+            $nextBeforeId = (int) $rows->first()->id;
+        }
+
+        $contactName = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
 
         return response()->json([
-            'success'  => true,
-            'contact'  => [
+            'success' => true,
+            'contact' => [
                 'id'   => $contact->id,
-                'name' => $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? '')),
+                'name' => $contactName ?: '(No Name)',
             ],
-            'messages' => $messages,
+            // What your popup should render:
+            'items' => $rows,
+            // For "Load earlier messages" / infinite scroll:
+            'has_more' => $hasMore,
+            'next_before_id' => $hasMore ? $nextBeforeId : null,
         ]);
     }
 
