@@ -17,6 +17,9 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\ServiceController;
 
+// ✅ NEW: CONTACT MESSAGES (Phase 2)
+use App\Http\Controllers\ContactMessageController;
+
 // NEW ACTIVITY CONTROLLER
 use App\Http\Controllers\ActivityController;
 
@@ -112,6 +115,14 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/billing', [BillingController::class, 'index'])->name('billing');
+
+    /*
+    |--------------------------------------------------------------------------
+    | CONTACT MESSAGES (Phase 2: store outbound messages)
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/contacts/{contact}/messages', [ContactMessageController::class, 'store'])
+        ->name('contacts.messages.store');
 
     /*
     |--------------------------------------------------------------------------
