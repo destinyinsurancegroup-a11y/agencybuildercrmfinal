@@ -17,7 +17,7 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\ServiceController;
 
-// ✅ NEW: CONTACT MESSAGES (Phase 2)
+// ✅ CONTACT MESSAGES (Phase 2 + Phase 3)
 use App\Http\Controllers\ContactMessageController;
 
 // NEW ACTIVITY CONTROLLER
@@ -118,9 +118,14 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | CONTACT MESSAGES (Phase 2: store outbound messages)
+    | CONTACT MESSAGES (Phase 2 + Phase 3)
     |--------------------------------------------------------------------------
+    | Phase 2: POST stores outbound messages
+    | Phase 3: GET lists message history for a contact
     */
+    Route::get('/contacts/{contact}/messages', [ContactMessageController::class, 'index'])
+        ->name('contacts.messages.index');
+
     Route::post('/contacts/{contact}/messages', [ContactMessageController::class, 'store'])
         ->name('contacts.messages.store');
 
@@ -178,7 +183,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | LEAD NOTES  (reuse BookController note logic)
+    | LEAD NOTES (reuse BookController note logic)
     |--------------------------------------------------------------------------
     */
     Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
