@@ -53,7 +53,7 @@
                     {{ $clientName }}
                 </h1>
 
-                <!-- ✅ Messaging buttons (Text/Email clickable; Start Sequence disabled for now) -->
+                <!-- ✅ Messaging buttons -->
                 <div class="mt-2 d-flex gap-2 flex-wrap">
                     <button
                         type="button"
@@ -77,11 +77,12 @@
                         Email
                     </button>
 
+                    <!-- ✅ FIX: remove disabled so it matches styling; keep non-functional for now -->
                     <button
                         type="button"
                         class="btn-outline-gold"
                         style="font-size:12px;"
-                        disabled
+                        onclick="alert('Start Sequence is coming soon. Next phase will enable this.')"
                         title="Sequences coming soon"
                     >
                         Start Sequence
