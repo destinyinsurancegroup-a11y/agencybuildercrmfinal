@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Note;
-use App\Models\Message;            // ✅ ADDED
-use App\Models\ContactRelation;   // Destiny unified relations
+use App\Models\Message;            // ✅ ADD
+use App\Models\ContactRelation;    // Destiny unified relations
 use App\Models\ServiceEvent;
-use App\Models\Event;             // Calendar events / follow-ups
+use App\Models\Event;              // Calendar events / follow-ups
 use App\Models\Concerns\TenantScoped;
 use Carbon\Carbon;
 
@@ -124,19 +124,17 @@ class Contact extends Model
     }
 
     /**
-     * ✅ NEW: Messages (sent + received)
+     * ✅ Messages thread (SMS + Email) for this contact.
+     * direction: outbound/inbound
+     * channel: sms/email
      */
     public function messages()
     {
-        return $this->hasMany(Message::class, 'contact_id')
-                    ->orderBy('created_at', 'desc');
+        return $this->hasMany(Message::class, 'contact_id')->latest();
     }
 
     /* ============================================================
      |  DESTINY RELATION SYSTEM — Unified Table
-     |  contact_relations:
-     |  id, contact_id, type, name, relationship, phone,
-     |  contacted, agency_id, created_by, timestamps
      * ============================================================ */
 
     public function relations()
@@ -186,40 +184,26 @@ class Contact extends Model
      |  UPCOMING DATE CHECKERS for Dashboard Insights
      * ============================================================ */
 
-    /**
-     * Is the contact's birthday within the next 7 days?
-     */
     public function birthdayIsSoon(): bool
     {
-        if (!$this->date_of_birth) {
-            return false;
-        }
+        if (!$this->date_of_birth) return false;
 
         $dob = $this->date_of_birth->copy();
         $next = Carbon::create(now()->year, $dob->month, $dob->day);
 
-        if ($next->isPast()) {
-            $next->addYear();
-        }
+        if ($next->isPast()) $next->addYear();
 
         return now()->diffInDays($next) <= 7;
     }
 
-    /**
-     * Is the contact's anniversary within the next 7 days?
-     */
     public function anniversaryIsSoon(): bool
     {
-        if (!$this->anniversary) {
-            return false;
-        }
+        if (!$this->anniversary) return false;
 
         $ann = $this->anniversary->copy();
         $next = Carbon::create(now()->year, $ann->month, $ann->day);
 
-        if ($next->isPast()) {
-            $next->addYear();
-        }
+        if ($next->isPast()) $next->addYear();
 
         return now()->diffInDays($next) <= 7;
     }
