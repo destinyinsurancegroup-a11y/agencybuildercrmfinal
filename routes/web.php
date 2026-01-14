@@ -173,7 +173,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/import/template', [LeadController::class, 'downloadTemplate'])
         ->name('leads.import.template');
 
-    Route::get('/leads/{id}',     [LeadController::class, 'show'])->name('leads.show');
+    Route::get('/leads/{id}', [LeadController::class, 'show'])->name('leads.show');
 
     Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
         ->name('leads.sold');
@@ -186,7 +186,7 @@ Route::middleware('auth')->group(function () {
     | LEAD NOTES (reuse BookController note logic)
     |--------------------------------------------------------------------------
     */
-    Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
+    Route::post('/leads/{client}/notes', [BookController::class, 'storeNote'])
         ->name('leads.notes.store');
 
     Route::put('/leads/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -216,6 +216,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/create-panel', [BookController::class, 'createPanel'])->name('book.create.panel');
         Route::post('/', [BookController::class, 'store'])->name('book.store');
+
         Route::get('/{client}', [BookController::class, 'show'])->name('book.show');
         Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])->name('book.edit.panel');
         Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
@@ -265,9 +266,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/archive/not-saved', [ServiceController::class, 'notSavedArchive'])
             ->name('service.archive.not-saved');
 
-        Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
+        Route::get('/{client}', [ServiceController::class, 'show'])->name('service.show');
         Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
-        Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
+        Route::put('/{client}', [ServiceController::class, 'update'])->name('service.update');
 
         Route::get('/{client}/follow-up', [ServiceController::class, 'followUp'])
             ->name('service.follow-up');
@@ -293,7 +294,7 @@ Route::middleware('auth')->group(function () {
     | SERVICE NOTES
     |--------------------------------------------------------------------------
     */
-    Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])
+    Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])
         ->name('service.notes.store');
 
     Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -307,15 +308,11 @@ Route::middleware('auth')->group(function () {
     | SERVICE Beneficiary / Emergency DELETE
     |--------------------------------------------------------------------------
     */
-    Route::delete(
-        '/service/{client}/beneficiaries/{beneficiary}',
-        [BookController::class, 'deleteBeneficiary']
-    )->name('service.beneficiaries.destroy');
+    Route::delete('/service/{client}/beneficiaries/{beneficiary}', [BookController::class, 'deleteBeneficiary'])
+        ->name('service.beneficiaries.destroy');
 
-    Route::delete(
-        '/service/{client}/emergencies/{contact}',
-        [BookController::class, 'deleteEmergency']
-    )->name('service.emergencies.destroy');
+    Route::delete('/service/{client}/emergencies/{contact}', [BookController::class, 'deleteEmergency'])
+        ->name('service.emergencies.destroy');
 
     /*
     |--------------------------------------------------------------------------
@@ -391,26 +388,15 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * ✅ IMPORTANT:
-     * /gideon/opportunities is handled ONLY by the controller.
-     * DO NOT add any Route::view() or closure returning view('gideon.opportunities')
-     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
-    /**
-     * Grouped endpoints for the dashboard UI
-     */
     Route::get('/gideon/opportunities/groups', [GideonOpportunitiesController::class, 'groups'])
         ->name('gideon.opportunities.groups');
 
     Route::get('/gideon/opportunities/group-items', [GideonOpportunitiesController::class, 'groupItems'])
         ->name('gideon.opportunities.groupItems');
 
-    /**
-     * Actions
-     */
     Route::prefix('gideon/opportunities')->group(function () {
         Route::post('/{opportunity}/complete', [GideonOpportunitiesController::class, 'complete'])
             ->name('gideon.opportunities.complete');
@@ -425,9 +411,6 @@ Route::middleware('auth')->group(function () {
             ->name('gideon.opportunities.dismiss');
     });
 
-    /**
-     * Scans + dashboard top list
-     */
     Route::prefix('gideon')->group(function () {
         Route::post('/scan',      [GideonScanController::class, 'scan'])->name('gideon.scan');
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
@@ -442,17 +425,17 @@ Route::middleware('auth')->group(function () {
         $agencyId = $user->agency_id ?? 1;
 
         $opp = GideonOpportunity::create([
-            'agency_id'           => $agencyId,
-            'user_id'             => $user->id ?? null,
-            'entity_type'         => 'debug',
-            'entity_id'           => null,
-            'category'            => 'test',
-            'title'               => 'Test Gideon Opportunity',
-            'short_reason'        => 'This is a fake opportunity created to verify the Gideon DB wiring.',
-            'recommended_action'  => 'No action needed – this is only a test.',
-            'score'               => 50,
-            'status'              => 'open',
-            'source_snapshot'     => [
+            'agency_id'          => $agencyId,
+            'user_id'            => $user->id ?? null,
+            'entity_type'        => 'debug',
+            'entity_id'          => null,
+            'category'           => 'test',
+            'title'              => 'Test Gideon Opportunity',
+            'short_reason'       => 'This is a fake opportunity created to verify the Gideon DB wiring.',
+            'recommended_action' => 'No action needed – this is only a test.',
+            'score'              => 50,
+            'status'             => 'open',
+            'source_snapshot'    => [
                 'note' => 'Created by /debug-gideon-create-opportunity route.',
             ],
         ]);
