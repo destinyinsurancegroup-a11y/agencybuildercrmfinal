@@ -301,7 +301,7 @@
                 <div class="mb-2 text-muted" id="ab_sms_to"></div>
 
                 <textarea id="ab_sms_body" class="form-control" rows="4" placeholder="Type message..."></textarea>
-                <div class="small text-muted mt-2">Manual send only (backend wiring next).</div>
+                <div class="small text-muted mt-2">This will save a queued text to the database (Phase 2).</div>
             </div>
 
             <div class="modal-footer">
@@ -327,7 +327,7 @@
 
                 <input id="ab_email_subject" class="form-control mb-2" placeholder="Subject">
                 <textarea id="ab_email_body" class="form-control" rows="6" placeholder="Type email..."></textarea>
-                <div class="small text-muted mt-2">Manual send only (backend wiring next).</div>
+                <div class="small text-muted mt-2">This will save a queued email to the database (Phase 2).</div>
             </div>
 
             <div class="modal-footer">
@@ -412,9 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* ------------------------------------------------------
-   MESSAGING UI (UI-ONLY STUB FOR NOW)
-   - Contact card buttons call ABMessaging.openSms/openEmail
-   - Next step: wire backend endpoints and real sending
+   MESSAGING UI (Phase 2: POST -> /contacts/{id}/messages)
    ------------------------------------------------------ */
 window.ABMessaging = {
     openSms(contactId, name, phone) {
@@ -438,23 +436,72 @@ window.ABMessaging = {
 
     sendSms(e) {
         e.preventDefault();
+
+        const contactId = document.getElementById('ab_sms_contact_id').value;
         const body = (document.getElementById('ab_sms_body').value || '').trim();
         if (!body) return alert('Message is empty.');
 
-        // UI stub for now
-        alert('SMS queued (UI stub). Next: wire POST /contacts/{id}/messages + Twilio.');
-        bootstrap.Modal.getInstance(document.getElementById('abSmsModal')).hide();
+        fetch(`/contacts/${contactId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                channel: 'sms',
+                body: body
+            })
+        })
+        .then(async (r) => {
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(data.message || 'Failed to save SMS.');
+            return data;
+        })
+        .then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('abSmsModal')).hide();
+            alert('Text saved to Messages (queued).');
+            // Optional: later we will reload to show history
+            // loadBookPanel(`/book/${contactId}`);
+        })
+        .catch((err) => alert(err.message));
     },
 
     sendEmail(e) {
         e.preventDefault();
+
+        const contactId = document.getElementById('ab_email_contact_id').value;
         const subject = (document.getElementById('ab_email_subject').value || '').trim();
         const body = (document.getElementById('ab_email_body').value || '').trim();
-        if (!subject || !body) return alert('Subject and body are required.');
 
-        // UI stub for now
-        alert('Email queued (UI stub). Next: wire POST /contacts/{id}/messages + email provider.');
-        bootstrap.Modal.getInstance(document.getElementById('abEmailModal')).hide();
+        if (!subject) return alert('Subject is required.');
+        if (!body) return alert('Email body is empty.');
+
+        fetch(`/contacts/${contactId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                channel: 'email',
+                subject: subject,
+                body: body
+            })
+        })
+        .then(async (r) => {
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(data.message || 'Failed to save Email.');
+            return data;
+        })
+        .then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('abEmailModal')).hide();
+            alert('Email saved to Messages (queued).');
+            // Optional: later we will reload to show history
+            // loadBookPanel(`/book/${contactId}`);
+        })
+        .catch((err) => alert(err.message));
     }
 };
 
