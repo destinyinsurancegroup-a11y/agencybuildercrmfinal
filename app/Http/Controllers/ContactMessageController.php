@@ -63,23 +63,25 @@ class ContactMessageController extends Controller
      *
      * UI-friendly response for chat/popup:
      * - returns items in ASC order (old -> new)
-     * - supports "before_id" to load older messages
+     * - supports cursor paging via before_id (and before alias)
      *
      * Query params:
-     * - limit (default 50, max 200)
+     * - limit (default 50, max 100)
      * - channel: sms|email (optional)
-     * - before_id: int (optional) load messages with id < before_id
+     * - before_id OR before: int (optional) load messages with id < before_id
      */
     public function index(Request $request, Contact $contact)
     {
         $this->enforceScopeOrAbort($contact);
 
+        // Support both `before_id` and legacy `before`
+        $beforeId = $request->query('before_id', $request->query('before'));
+
         $limit = (int) $request->query('limit', 50);
         if ($limit < 1) $limit = 50;
-        if ($limit > 200) $limit = 200;
+        if ($limit > 100) $limit = 100;
 
         $channel = $request->query('channel');
-        $beforeId = $request->query('before_id');
 
         $q = Message::query()
             ->where('contact_id', $contact->id);
@@ -92,7 +94,10 @@ class ContactMessageController extends Controller
             $q->where('id', '<', (int) $beforeId);
         }
 
-        // Pull newest first (cheap for paging), then reverse in memory to display old->new
+        /**
+         * Pull newest first (cheap paging), then reverse in memory
+         * so the UI can render old->new naturally.
+         */
         $rows = $q->orderByDesc('id')
             ->limit($limit + 1) // +1 to detect has_more
             ->get([
@@ -105,11 +110,8 @@ class ContactMessageController extends Controller
                 'to_address',
                 'subject',
                 'body',
-                'provider',
-                'provider_message_id',
                 'error_message',
                 'created_at',
-                'updated_at',
             ]);
 
         $hasMore = $rows->count() > $limit;
@@ -117,14 +119,11 @@ class ContactMessageController extends Controller
             $rows = $rows->slice(0, $limit);
         }
 
-        // For chat UI we want ascending order (oldest -> newest)
+        // oldest -> newest
         $rows = $rows->reverse()->values();
 
-        $nextBeforeId = null;
-        if ($rows->isNotEmpty()) {
-            // To load older, we ask for id < oldest currently returned
-            $nextBeforeId = (int) $rows->first()->id;
-        }
+        // next cursor should be the oldest id in this batch
+        $nextBeforeId = $rows->isNotEmpty() ? (int) $rows->first()->id : null;
 
         $contactName = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
 
@@ -134,9 +133,7 @@ class ContactMessageController extends Controller
                 'id'   => $contact->id,
                 'name' => $contactName ?: '(No Name)',
             ],
-            // What your popup should render:
             'items' => $rows,
-            // For "Load earlier messages" / infinite scroll:
             'has_more' => $hasMore,
             'next_before_id' => $hasMore ? $nextBeforeId : null,
         ]);
