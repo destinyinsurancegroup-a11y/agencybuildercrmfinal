@@ -7,6 +7,7 @@ use App\Models\Note;
 use App\Models\ContactRelation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -175,6 +176,80 @@ class BookController extends Controller
         $this->saveRelations($request, $client, 'emergency');
 
         return redirect()->route('book.index', ['selected' => $client->id]);
+    }
+
+    /**
+     * ==========================================================
+     * PHASE 2 — MESSAGE QUEUE (DB STORAGE ONLY)
+     * Endpoint used by Book UI:
+     *   POST /contacts/{contact}/messages
+     * Body:
+     *   { channel: "sms"|"email", subject?: string, body: string }
+     *
+     * IMPORTANT:
+     * - This does NOT send to Twilio/Email provider yet.
+     * - It only stores a queued message in the database.
+     * ==========================================================
+     */
+    public function storeContactMessage(Request $request, Contact $contact)
+    {
+        $user = Auth::user();
+        if (!$user) abort(403);
+
+        // Agency isolation (minimum). If you have tenant middleware, keep this anyway.
+        if (!empty($contact->agency_id) && !empty($user->agency_id) && (int)$contact->agency_id !== (int)$user->agency_id) {
+            abort(403, 'Unauthorized');
+        }
+
+        // If the messages table isn't created yet, fail loudly (prevents silent "success")
+        if (!Schema::hasTable('messages')) {
+            return response()->json([
+                'message' => 'Messages table not found. Run Phase 2 migration to create message storage.',
+            ], 501);
+        }
+
+        $data = $request->validate([
+            'channel' => 'required|string|in:sms,email',
+            'subject' => 'nullable|string|max:255',
+            'body'    => 'required|string|max:5000',
+        ]);
+
+        // Enforce subject rules
+        if ($data['channel'] === 'sms') {
+            $data['subject'] = null;
+        } else {
+            // email
+            if (empty($data['subject'])) {
+                return response()->json(['message' => 'Subject is required for email.'], 422);
+            }
+        }
+
+        $tenantId = $contact->tenant_id ?? ($user->tenant_id ?? 1);
+        $agencyId = $contact->agency_id ?? ($user->agency_id ?? null);
+
+        // Minimal, provider-agnostic queue record
+        $id = DB::table('messages')->insertGetId([
+            'contact_id'   => $contact->id,
+            'tenant_id'    => $tenantId,
+            'agency_id'    => $agencyId,
+            'channel'      => $data['channel'],
+            'to_address'   => $data['channel'] === 'sms' ? ($contact->phone ?? null) : ($contact->email ?? null),
+            'subject'      => $data['subject'],
+            'body'         => trim($data['body']),
+            'status'       => 'queued',          // queued -> sent/failed later
+            'provider'     => null,              // twilio/postmark/etc later
+            'provider_ref' => null,              // sid/message-id later
+            'created_by'   => $user->id,
+            'sent_at'      => null,
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+
+        return response()->json([
+            'success'    => true,
+            'message_id' => $id,
+            'status'     => 'queued',
+        ], 201);
     }
 
     /**
