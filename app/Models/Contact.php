@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 use App\Models\Note;
+use App\Models\Message;            // ✅ ADDED
 use App\Models\ContactRelation;   // Destiny unified relations
 use App\Models\ServiceEvent;
 use App\Models\Event;             // Calendar events / follow-ups
@@ -120,6 +121,15 @@ class Contact extends Model
     public function allNotes()
     {
         return $this->notes();
+    }
+
+    /**
+     * ✅ NEW: Messages (sent + received)
+     */
+    public function messages()
+    {
+        return $this->hasMany(Message::class, 'contact_id')
+                    ->orderBy('created_at', 'desc');
     }
 
     /* ============================================================
