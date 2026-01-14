@@ -18,14 +18,15 @@
                 {{ $clientName }}
             </h2>
 
-            <!-- ✅ Messaging buttons (VISUAL ONLY for now; no behavior yet) -->
+            <!-- ✅ Messaging buttons (NOW CLICKABLE for Text/Email; Start Sequence still disabled) -->
             <div class="mt-2 d-flex gap-2 flex-wrap">
                 <button
                     type="button"
                     class="btn-outline-gold"
                     style="font-size:12px;"
-                    disabled
-                    title="Messaging coming soon"
+                    onclick="ABMessaging.openSms({{ (int) $client->id }}, @json($clientName), @json($client->phone))"
+                    {{ empty($client->phone) ? 'disabled' : '' }}
+                    title="{{ empty($client->phone) ? 'No phone on file' : 'Send a text' }}"
                 >
                     Text
                 </button>
@@ -34,8 +35,9 @@
                     type="button"
                     class="btn-outline-gold"
                     style="font-size:12px;"
-                    disabled
-                    title="Messaging coming soon"
+                    onclick="ABMessaging.openEmail({{ (int) $client->id }}, @json($clientName), @json($client->email))"
+                    {{ empty($client->email) ? 'disabled' : '' }}
+                    title="{{ empty($client->email) ? 'No email on file' : 'Send an email' }}"
                 >
                     Email
                 </button>
@@ -73,7 +75,7 @@
             </div>
         </div>
 
-        <!-- ⭐ EDIT CLIENT BUTTON (NOW WORKING) ⭐ -->
+        <!-- ⭐ EDIT CLIENT BUTTON (KEEP AS-IS) ⭐ -->
         <button
             type="button"
             class="btn-gold edit-client-btn"
