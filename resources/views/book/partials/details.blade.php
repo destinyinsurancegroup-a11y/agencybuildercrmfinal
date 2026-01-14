@@ -37,6 +37,10 @@
     // - they are a service contact AND
     // - their service has not been archived yet
     $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
+
+    // Build display name (consistent with other views)
+    $clientName = $client->full_name
+        ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
 @endphp
 
 <div class="p-4">
@@ -46,8 +50,43 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <h1 class="fw-bold" style="font-size: 32px;">
-                    {{ $client->first_name }} {{ $client->last_name }}
+                    {{ $clientName }}
                 </h1>
+
+                <!-- ✅ Messaging buttons (Text/Email clickable; Start Sequence disabled for now) -->
+                <div class="mt-2 d-flex gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        class="btn-outline-gold"
+                        style="font-size:12px;"
+                        onclick="ABMessaging.openSms({{ (int) $client->id }}, @json($clientName), @json($client->phone))"
+                        {{ empty($client->phone) ? 'disabled' : '' }}
+                        title="{{ empty($client->phone) ? 'No phone on file' : 'Send a text' }}"
+                    >
+                        Text
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn-outline-gold"
+                        style="font-size:12px;"
+                        onclick="ABMessaging.openEmail({{ (int) $client->id }}, @json($clientName), @json($client->email))"
+                        {{ empty($client->email) ? 'disabled' : '' }}
+                        title="{{ empty($client->email) ? 'No email on file' : 'Send an email' }}"
+                    >
+                        Email
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn-outline-gold"
+                        style="font-size:12px;"
+                        disabled
+                        title="Sequences coming soon"
+                    >
+                        Start Sequence
+                    </button>
+                </div>
 
                 @if($inActiveService)
                     {{-- Clickable badge: goes to Service tab with this client selected --}}
