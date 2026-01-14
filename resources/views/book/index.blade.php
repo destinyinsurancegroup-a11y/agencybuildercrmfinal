@@ -113,6 +113,70 @@
     #book-details-container * { text-align: left !important; }
 
     .flash-wrap { margin-bottom: 14px; }
+
+    /* ============================
+       MESSAGE THREAD (MODAL)
+       ============================ */
+    .ab-thread {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fafafa;
+        padding: 10px;
+        height: 220px;
+        overflow-y: auto;
+    }
+
+    .ab-thread-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .ab-thread-status {
+        font-size: 12px;
+        color: #6b7280;
+        min-height: 16px;
+    }
+
+    .ab-msg-row {
+        display: flex;
+        margin: 6px 0;
+    }
+    .ab-msg-row.outbound { justify-content: flex-end; }
+    .ab-msg-row.inbound  { justify-content: flex-start; }
+
+    .ab-bubble {
+        max-width: 78%;
+        border-radius: 12px;
+        padding: 8px 10px;
+        font-size: 13px;
+        line-height: 1.25rem;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .ab-msg-row.outbound .ab-bubble {
+        background: rgba(201,162,39,0.12);
+        border-color: rgba(201,162,39,0.35);
+    }
+
+    .ab-meta {
+        font-size: 11px;
+        color: #6b7280;
+        margin-top: 3px;
+        text-align: right;
+    }
+    .ab-msg-row.inbound .ab-meta { text-align: left; }
+
+    .ab-divider {
+        height: 1px;
+        background: #e5e7eb;
+        margin: 10px 0;
+    }
 </style>
 
 <div class="dashboard-page">
@@ -274,8 +338,19 @@
                 <div class="mb-1 fw-bold" id="ab_sms_contact_name"></div>
                 <div class="mb-2 text-muted" id="ab_sms_to"></div>
 
-                <textarea id="ab_sms_body" class="form-control" rows="4" placeholder="Type message..."></textarea>
-                <div class="small text-muted mt-2">This will save a queued text to the database (Phase 2).</div>
+                <!-- THREAD -->
+                <div class="ab-thread-top">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="ab_sms_load_more" style="display:none;">
+                        Load earlier
+                    </button>
+                    <div class="ab-thread-status" id="ab_sms_status"></div>
+                </div>
+                <div class="ab-thread" id="ab_sms_thread"></div>
+
+                <div class="ab-divider"></div>
+
+                <textarea id="ab_sms_body" class="form-control" rows="3" placeholder="Type message..."></textarea>
+                <div class="small text-muted mt-2">This will save a queued text to the database.</div>
             </div>
 
             <div class="modal-footer">
@@ -299,9 +374,20 @@
                 <div class="mb-1 fw-bold" id="ab_email_contact_name"></div>
                 <div class="mb-2 text-muted" id="ab_email_to"></div>
 
+                <!-- THREAD -->
+                <div class="ab-thread-top">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="ab_email_load_more" style="display:none;">
+                        Load earlier
+                    </button>
+                    <div class="ab-thread-status" id="ab_email_status"></div>
+                </div>
+                <div class="ab-thread" id="ab_email_thread"></div>
+
+                <div class="ab-divider"></div>
+
                 <input id="ab_email_subject" class="form-control mb-2" placeholder="Subject">
-                <textarea id="ab_email_body" class="form-control" rows="6" placeholder="Type email..."></textarea>
-                <div class="small text-muted mt-2">This will save a queued email to the database (Phase 2).</div>
+                <textarea id="ab_email_body" class="form-control" rows="5" placeholder="Type email..."></textarea>
+                <div class="small text-muted mt-2">This will save a queued email to the database.</div>
             </div>
 
             <div class="modal-footer">
@@ -342,15 +428,183 @@
         new bootstrap.Modal(el).show();
     }
 
+    function qs(id) { return document.getElementById(id); }
+
+    function escapeHtml(str) {
+        return String(str || '')
+            .replace(/&/g,'&amp;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;')
+            .replace(/'/g,'&#039;');
+    }
+
+    function formatWhen(isoString) {
+        if (!isoString) return '';
+        try {
+            var d = new Date(isoString);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleString();
+        } catch(e) { return ''; }
+    }
+
+    function scrollThreadToBottom(el) {
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function renderMessageBubble(msg) {
+        // msg: {id, channel, direction, status, body, subject, created_at ...}
+        var dir = (msg && msg.direction === 'inbound') ? 'inbound' : 'outbound';
+        var body = msg && msg.body ? msg.body : '';
+        var subject = msg && msg.subject ? msg.subject : '';
+        var when = formatWhen(msg && msg.created_at);
+        var status = msg && msg.status ? msg.status : '';
+
+        var bodyHtml = escapeHtml(body);
+
+        // For email, show subject bold above body if present
+        var subjectHtml = subject ? ('<div style="font-weight:700; margin-bottom:4px;">' + escapeHtml(subject) + '</div>') : '';
+
+        var meta = [];
+        if (when) meta.push(when);
+        if (status && dir === 'outbound') meta.push(status);
+        var metaHtml = meta.length ? ('<div class="ab-meta">' + escapeHtml(meta.join(' · ')) + '</div>') : '';
+
+        return (
+            '<div class="ab-msg-row ' + dir + '">' +
+                '<div class="ab-bubble">' +
+                    subjectHtml +
+                    bodyHtml +
+                    metaHtml +
+                '</div>' +
+            '</div>'
+        );
+    }
+
+    // ==========================
+    // Messaging state + helpers
+    // ==========================
+    var MessagingState = {
+        sms: { nextBeforeId: null, hasMore: false, contactId: null },
+        email: { nextBeforeId: null, hasMore: false, contactId: null }
+    };
+
+    function setStatus(kind, text) {
+        var el = qs(kind === 'sms' ? 'ab_sms_status' : 'ab_email_status');
+        if (el) el.textContent = text || '';
+    }
+
+    function setLoadMoreVisible(kind, visible) {
+        var btn = qs(kind === 'sms' ? 'ab_sms_load_more' : 'ab_email_load_more');
+        if (!btn) return;
+        btn.style.display = visible ? 'inline-block' : 'none';
+    }
+
+    function getThreadEl(kind) {
+        return qs(kind === 'sms' ? 'ab_sms_thread' : 'ab_email_thread');
+    }
+
+    function fetchHistory(kind, contactId, beforeId) {
+        var url = '/contacts/' + encodeURIComponent(contactId) + '/messages'
+            + '?channel=' + encodeURIComponent(kind)
+            + '&limit=50';
+
+        if (beforeId) {
+            url += '&before_id=' + encodeURIComponent(beforeId);
+        }
+
+        return fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(res) {
+            return res.json().catch(function(){ return {}; }).then(function(data){
+                if (!res.ok) {
+                    var msg = data && data.message ? data.message : ('Failed to load messages (HTTP ' + res.status + ')');
+                    throw new Error(msg);
+                }
+                return data;
+            });
+        });
+    }
+
+    function loadThread(kind, contactId, opts) {
+        opts = opts || {};
+        var reset = !!opts.reset;
+        var threadEl = getThreadEl(kind);
+
+        if (!contactId) return;
+
+        if (reset) {
+            MessagingState[kind].nextBeforeId = null;
+            MessagingState[kind].hasMore = false;
+            MessagingState[kind].contactId = contactId;
+            if (threadEl) threadEl.innerHTML = '';
+            setLoadMoreVisible(kind, false);
+        }
+
+        setStatus(kind, 'Loading...');
+        var beforeId = reset ? null : MessagingState[kind].nextBeforeId;
+
+        return fetchHistory(kind, contactId, beforeId)
+            .then(function(payload) {
+                var items = payload && payload.items ? payload.items : [];
+                var hasMore = !!(payload && payload.has_more);
+                var nextBeforeId = payload && payload.next_before_id ? payload.next_before_id : null;
+
+                MessagingState[kind].hasMore = hasMore;
+                MessagingState[kind].nextBeforeId = nextBeforeId;
+
+                setLoadMoreVisible(kind, hasMore);
+
+                if (!threadEl) return;
+
+                // If loading older (not reset), we prepend.
+                var html = '';
+                for (var i=0; i<items.length; i++) {
+                    html += renderMessageBubble(items[i]);
+                }
+
+                if (reset) {
+                    threadEl.innerHTML = html || '<div class="text-muted small">No messages yet.</div>';
+                    scrollThreadToBottom(threadEl);
+                } else {
+                    // Prepend without losing scroll position too badly
+                    var prevScroll = threadEl.scrollHeight;
+                    threadEl.innerHTML = html + threadEl.innerHTML;
+                    var newScroll = threadEl.scrollHeight;
+                    threadEl.scrollTop = (newScroll - prevScroll);
+                }
+
+                setStatus(kind, hasMore ? 'Showing latest (load earlier for more).' : 'Showing all messages.');
+            })
+            .catch(function(err) {
+                console.error(err);
+                setStatus(kind, err && err.message ? err.message : 'Failed to load messages.');
+                if (threadEl && !threadEl.innerHTML) {
+                    threadEl.innerHTML = '<div class="text-muted small">Unable to load messages.</div>';
+                }
+            });
+    }
+
     // Global so AJAX-loaded details.blade.php onclick handlers can call it
     window.ABMessaging = {
         openSms: function (contactId, name, phone) {
             try {
-                document.getElementById('ab_sms_contact_id').value = contactId || '';
-                document.getElementById('ab_sms_contact_name').textContent = name || '';
-                document.getElementById('ab_sms_to').textContent = phone ? ('To: ' + phone) : 'No phone on file';
-                document.getElementById('ab_sms_body').value = '';
-                showModalById('abSmsModal');
+                qs('ab_sms_contact_id').value = contactId || '';
+                qs('ab_sms_contact_name').textContent = name || '';
+                qs('ab_sms_to').textContent = phone ? ('To: ' + phone) : 'No phone on file';
+                qs('ab_sms_body').value = '';
+
+                // Reset & load thread before showing
+                loadThread('sms', contactId, { reset: true }).finally(function(){
+                    showModalById('abSmsModal');
+                });
+
             } catch (e) {
                 console.error(e);
                 alert('Failed to open Text modal. Check console.');
@@ -359,27 +613,47 @@
 
         openEmail: function (contactId, name, email) {
             try {
-                document.getElementById('ab_email_contact_id').value = contactId || '';
-                document.getElementById('ab_email_contact_name').textContent = name || '';
-                document.getElementById('ab_email_to').textContent = email ? ('To: ' + email) : 'No email on file';
-                document.getElementById('ab_email_subject').value = '';
-                document.getElementById('ab_email_body').value = '';
-                showModalById('abEmailModal');
+                qs('ab_email_contact_id').value = contactId || '';
+                qs('ab_email_contact_name').textContent = name || '';
+                qs('ab_email_to').textContent = email ? ('To: ' + email) : 'No email on file';
+                qs('ab_email_subject').value = '';
+                qs('ab_email_body').value = '';
+
+                loadThread('email', contactId, { reset: true }).finally(function(){
+                    showModalById('abEmailModal');
+                });
+
             } catch (e) {
                 console.error(e);
                 alert('Failed to open Email modal. Check console.');
             }
         },
 
+        loadMoreSms: function () {
+            var contactId = String(qs('ab_sms_contact_id') ? qs('ab_sms_contact_id').value : '').trim();
+            if (!contactId || !MessagingState.sms.hasMore) return;
+            return loadThread('sms', contactId, { reset: false });
+        },
+
+        loadMoreEmail: function () {
+            var contactId = String(qs('ab_email_contact_id') ? qs('ab_email_contact_id').value : '').trim();
+            if (!contactId || !MessagingState.email.hasMore) return;
+            return loadThread('email', contactId, { reset: false });
+        },
+
         sendSms: function (e) {
             e.preventDefault();
 
-            var contactIdEl = document.getElementById('ab_sms_contact_id');
-            var bodyEl = document.getElementById('ab_sms_body');
+            var contactIdEl = qs('ab_sms_contact_id');
+            var bodyEl = qs('ab_sms_body');
+            var threadEl = qs('ab_sms_thread');
+
             var contactId = contactIdEl ? String(contactIdEl.value || '').trim() : '';
             var body = bodyEl ? String(bodyEl.value || '').trim() : '';
 
             if (!body) return alert('Message is empty.');
+
+            setStatus('sms', 'Sending...');
 
             fetch('/contacts/' + contactId + '/messages', {
                 method: 'POST',
@@ -396,25 +670,36 @@
                     return data;
                 });
             })
-            .then(function () {
-                if (hasBootstrapModal()) {
-                    var inst = bootstrap.Modal.getInstance(document.getElementById('abSmsModal'));
-                    if (inst) inst.hide();
+            .then(function (data) {
+                // Append immediately to thread (new outbound)
+                if (threadEl) {
+                    var msg = data && data.message ? data.message : { direction: 'outbound', status: 'queued', body: body, created_at: new Date().toISOString() };
+                    threadEl.innerHTML = (threadEl.innerHTML.indexOf('No messages yet') !== -1) ? '' : threadEl.innerHTML;
+                    threadEl.innerHTML += renderMessageBubble(msg);
+                    scrollThreadToBottom(threadEl);
                 }
-                alert('Text saved to Messages (queued).');
+
+                if (bodyEl) bodyEl.value = '';
+                setStatus('sms', 'Saved (queued).');
+
+                // Optional: refresh from server to ensure canonical ordering/status
+                loadThread('sms', contactId, { reset: true });
+
             })
             .catch(function (err) {
                 console.error(err);
-                alert(err.message || 'SMS send failed.');
+                setStatus('sms', err && err.message ? err.message : 'SMS send failed.');
+                alert(err && err.message ? err.message : 'SMS send failed.');
             });
         },
 
         sendEmail: function (e) {
             e.preventDefault();
 
-            var contactIdEl = document.getElementById('ab_email_contact_id');
-            var subjectEl = document.getElementById('ab_email_subject');
-            var bodyEl = document.getElementById('ab_email_body');
+            var contactIdEl = qs('ab_email_contact_id');
+            var subjectEl = qs('ab_email_subject');
+            var bodyEl = qs('ab_email_body');
+            var threadEl = qs('ab_email_thread');
 
             var contactId = contactIdEl ? String(contactIdEl.value || '').trim() : '';
             var subject = subjectEl ? String(subjectEl.value || '').trim() : '';
@@ -422,6 +707,8 @@
 
             if (!subject) return alert('Subject is required.');
             if (!body) return alert('Email body is empty.');
+
+            setStatus('email', 'Sending...');
 
             fetch('/contacts/' + contactId + '/messages', {
                 method: 'POST',
@@ -438,19 +725,36 @@
                     return data;
                 });
             })
-            .then(function () {
-                if (hasBootstrapModal()) {
-                    var inst = bootstrap.Modal.getInstance(document.getElementById('abEmailModal'));
-                    if (inst) inst.hide();
+            .then(function (data) {
+                if (threadEl) {
+                    var msg = data && data.message ? data.message : { direction: 'outbound', status: 'queued', subject: subject, body: body, created_at: new Date().toISOString() };
+                    threadEl.innerHTML = (threadEl.innerHTML.indexOf('No messages yet') !== -1) ? '' : threadEl.innerHTML;
+                    threadEl.innerHTML += renderMessageBubble(msg);
+                    scrollThreadToBottom(threadEl);
                 }
-                alert('Email saved to Messages (queued).');
+
+                if (subjectEl) subjectEl.value = '';
+                if (bodyEl) bodyEl.value = '';
+                setStatus('email', 'Saved (queued).');
+
+                loadThread('email', contactId, { reset: true });
             })
             .catch(function (err) {
                 console.error(err);
-                alert(err.message || 'Email send failed.');
+                setStatus('email', err && err.message ? err.message : 'Email send failed.');
+                alert(err && err.message ? err.message : 'Email send failed.');
             });
         }
     };
+
+    // Wire "load earlier" buttons
+    document.addEventListener('DOMContentLoaded', function () {
+        var smsMore = qs('ab_sms_load_more');
+        if (smsMore) smsMore.addEventListener('click', function(){ window.ABMessaging.loadMoreSms(); });
+
+        var emailMore = qs('ab_email_load_more');
+        if (emailMore) emailMore.addEventListener('click', function(){ window.ABMessaging.loadMoreEmail(); });
+    });
 
     // Right-panel loader + page wiring
     document.addEventListener('DOMContentLoaded', function () {
