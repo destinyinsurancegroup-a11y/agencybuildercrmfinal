@@ -339,20 +339,14 @@
 
 @push('scripts')
 <script>
-/**
- * FIX SUMMARY
- * - Your “Unexpected end of input (book:1)” means a script is broken and NOTHING after it runs.
- * - If ABMessaging never defines, Text/Email buttons do nothing.
- * - This script avoids Blade directives inside JS logic and defines globals safely.
- */
 (function () {
     'use strict';
 
     // Blade -> JS values (safe JSON encoding)
-    const CSRF_TOKEN = @json(csrf_token());
-    const SELECTED_ID = @json(!empty($selected) ? (int)$selected : null);
-    const SHOULD_REOPEN_UPLOAD = @json((bool) (session('import_error') || $errors->any()));
-    const BOOK_BASE_URL = @json(url('/book'));
+    var CSRF_TOKEN = @json(csrf_token());
+    var SELECTED_ID = @json(!empty($selected) ? (int)$selected : null);
+    var SHOULD_REOPEN_UPLOAD = @json((bool) (session('import_error') || $errors->any()));
+    var BOOK_BASE_URL = @json(url('/book'));
 
     function hasBootstrapModal() {
         return !!(window.bootstrap && window.bootstrap.Modal);
@@ -363,7 +357,7 @@
             alert('Bootstrap modal JS is missing. (bootstrap.Modal not available)');
             return;
         }
-        const el = document.getElementById(id);
+        var el = document.getElementById(id);
         if (!el) {
             alert('Missing modal element: #' + id);
             return;
@@ -371,7 +365,7 @@
         new bootstrap.Modal(el).show();
     }
 
-    // IMPORTANT: Make global for AJAX-loaded partial buttons
+    // Make global for AJAX-loaded partial buttons
     window.ABMessaging = {
         openSms: function (contactId, name, phone) {
             try {
@@ -400,79 +394,90 @@
             }
         },
 
-        sendSms: async function (e) {
+        sendSms: function (e) {
             e.preventDefault();
 
-            const contactId = (document.getElementById('ab_sms_contact_id')?.value || '').trim();
-            const body = (document.getElementById('ab_sms_body')?.value || '').trim();
-            if (!body) return alert('Message is empty.');
+            var contactIdEl = document.getElementById('ab_sms_contact_id');
+            var bodyEl = document.getElementById('ab_sms_body');
 
-            try {
-                const res = await fetch('/contacts/' + contactId + '/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': CSRF_TOKEN,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ channel: 'sms', body: body })
+            var contactId = contactIdEl ? (contactIdEl.value || '').trim() : '';
+            var body = bodyEl ? (bodyEl.value || '').trim() : '';
+
+            if (!body) { alert('Message is empty.'); return; }
+
+            fetch('/contacts/' + contactId + '/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ channel: 'sms', body: body })
+            })
+            .then(function (res) {
+                return res.json().catch(function () { return {}; }).then(function (data) {
+                    if (!res.ok) throw new Error(data.message || ('Failed to save SMS (HTTP ' + res.status + ').'));
+                    return data;
                 });
-
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.message || ('Failed to save SMS (HTTP ' + res.status + ').'));
-
+            })
+            .then(function () {
                 if (hasBootstrapModal()) {
-                    const inst = bootstrap.Modal.getInstance(document.getElementById('abSmsModal'));
+                    var inst = bootstrap.Modal.getInstance(document.getElementById('abSmsModal'));
                     if (inst) inst.hide();
                 }
-
                 alert('Text saved to Messages (queued).');
-            } catch (err) {
+            })
+            .catch(function (err) {
                 console.error(err);
                 alert(err.message || 'SMS send failed.');
-            }
+            });
         },
 
-        sendEmail: async function (e) {
+        sendEmail: function (e) {
             e.preventDefault();
 
-            const contactId = (document.getElementById('ab_email_contact_id')?.value || '').trim();
-            const subject = (document.getElementById('ab_email_subject')?.value || '').trim();
-            const body = (document.getElementById('ab_email_body')?.value || '').trim();
+            var contactIdEl = document.getElementById('ab_email_contact_id');
+            var subjectEl = document.getElementById('ab_email_subject');
+            var bodyEl = document.getElementById('ab_email_body');
 
-            if (!subject) return alert('Subject is required.');
-            if (!body) return alert('Email body is empty.');
+            var contactId = contactIdEl ? (contactIdEl.value || '').trim() : '';
+            var subject = subjectEl ? (subjectEl.value || '').trim() : '';
+            var body = bodyEl ? (bodyEl.value || '').trim() : '';
 
-            try {
-                const res = await fetch('/contacts/' + contactId + '/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': CSRF_TOKEN,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ channel: 'email', subject: subject, body: body })
+            if (!subject) { alert('Subject is required.'); return; }
+            if (!body) { alert('Email body is empty.'); return; }
+
+            fetch('/contacts/' + contactId + '/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ channel: 'email', subject: subject, body: body })
+            })
+            .then(function (res) {
+                return res.json().catch(function () { return {}; }).then(function (data) {
+                    if (!res.ok) throw new Error(data.message || ('Failed to save Email (HTTP ' + res.status + ').'));
+                    return data;
                 });
-
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.message || ('Failed to save Email (HTTP ' + res.status + ').'));
-
+            })
+            .then(function () {
                 if (hasBootstrapModal()) {
-                    const inst = bootstrap.Modal.getInstance(document.getElementById('abEmailModal'));
+                    var inst = bootstrap.Modal.getInstance(document.getElementById('abEmailModal'));
                     if (inst) inst.hide();
                 }
-
                 alert('Email saved to Messages (queued).');
-            } catch (err) {
+            })
+            .catch(function (err) {
                 console.error(err);
                 alert(err.message || 'Email send failed.');
-            }
+            });
         }
     };
 
-    // Book right panel loader
     document.addEventListener('DOMContentLoaded', function () {
-        const container = document.getElementById('book-details-container');
+        var container = document.getElementById('book-details-container');
 
         window.loadBookPanel = function (url) {
             if (!container) return;
@@ -486,47 +491,49 @@
                 '</div>';
 
             fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(res => res.text())
-                .then(html => { container.innerHTML = html; })
-                .catch(() => {
+                .then(function (res) { return res.text(); })
+                .then(function (html) { container.innerHTML = html; })
+                .catch(function () {
                     container.innerHTML = '<div style="padding:40px; color:red;">Failed to load.</div>';
                 });
         };
 
-        document.querySelectorAll('.js-book-row').forEach(function (row) {
-            row.addEventListener('click', function () {
-                document.querySelectorAll('.js-book-row')
-                    .forEach(r => r.classList.remove('active-contact-row'));
+        var rows = document.querySelectorAll('.js-book-row');
+        for (var i = 0; i < rows.length; i++) {
+            (function (row) {
+                row.addEventListener('click', function () {
+                    var all = document.querySelectorAll('.js-book-row');
+                    for (var j = 0; j < all.length; j++) all[j].classList.remove('active-contact-row');
 
-                row.classList.add('active-contact-row');
-                window.loadBookPanel(row.dataset.showUrl);
-            });
-        });
+                    row.classList.add('active-contact-row');
+                    window.loadBookPanel(row.getAttribute('data-show-url'));
+                });
+            })(rows[i]);
+        }
 
-        const addBtn = document.getElementById('add-book-client-btn');
+        var addBtn = document.getElementById('add-book-client-btn');
         if (addBtn) {
             addBtn.addEventListener('click', function () {
-                window.loadBookPanel(this.dataset.createUrl);
+                window.loadBookPanel(this.getAttribute('data-create-url'));
             });
         }
 
-        const searchEl = document.getElementById('book-search');
+        var searchEl = document.getElementById('book-search');
         if (searchEl) {
             searchEl.addEventListener('keyup', function () {
-                const term = (this.value || '').toLowerCase();
-                document.querySelectorAll('#book-list .js-book-row')
-                    .forEach(function (row) {
-                        row.style.display = row.textContent.toLowerCase().includes(term) ? 'block' : 'none';
-                    });
+                var term = (this.value || '').toLowerCase();
+                var listRows = document.querySelectorAll('#book-list .js-book-row');
+                for (var k = 0; k < listRows.length; k++) {
+                    var show = (listRows[k].textContent || '').toLowerCase().indexOf(term) !== -1;
+                    listRows[k].style.display = show ? 'block' : 'none';
+                }
             });
         }
 
-        // Auto-load selected client if present
         if (SELECTED_ID) {
             window.loadBookPanel(BOOK_BASE_URL + '/' + SELECTED_ID);
         }
 
-        // Reopen upload modal on import error
         if (SHOULD_REOPEN_UPLOAD && hasBootstrapModal()) {
             showModalById('uploadBookModal');
         }
@@ -538,11 +545,11 @@
    NOTES (global so AJAX partial can call them)
    ------------------------------------------------------ */
 function saveNote(clientId) {
-    const textarea = document.getElementById('new_note_body');
+    var textarea = document.getElementById('new_note_body');
     if (!textarea) return;
 
-    const body = (textarea.value || '').trim();
-    if (!body) return alert("Note cannot be empty.");
+    var body = (textarea.value || '').trim();
+    if (!body) { alert("Note cannot be empty."); return; }
 
     fetch('/book/' + clientId + '/notes', {
         method: 'POST',
@@ -553,23 +560,23 @@ function saveNote(clientId) {
         },
         body: JSON.stringify({ body: body })
     })
-    .then(r => {
+    .then(function (r) {
         if (!r.ok) throw new Error('Failed to save note');
         return r.json();
     })
-    .then(() => {
+    .then(function () {
         textarea.value = '';
         if (window.loadBookPanel) window.loadBookPanel('/book/' + clientId);
     })
-    .catch(() => alert('Error saving note.'));
+    .catch(function () { alert('Error saving note.'); });
 }
 
 function editNote(clientId, noteId) {
-    const noteEl = document.querySelector('#note-' + noteId + ' .note-body');
+    var noteEl = document.querySelector('#note-' + noteId + ' .note-body');
     if (!noteEl) return;
 
-    const existing = (noteEl.innerText || '').trim();
-    const updated = prompt("Edit note:", existing);
+    var existing = (noteEl.innerText || '').trim();
+    var updated = prompt("Edit note:", existing);
     if (updated === null) return;
 
     fetch('/book/' + clientId + '/notes/' + noteId, {
@@ -581,14 +588,14 @@ function editNote(clientId, noteId) {
         },
         body: JSON.stringify({ body: updated })
     })
-    .then(r => {
+    .then(function (r) {
         if (!r.ok) throw new Error('Failed to update note');
         return r.json();
     })
-    .then(() => {
+    .then(function () {
         if (window.loadBookPanel) window.loadBookPanel('/book/' + clientId);
     })
-    .catch(() => alert('Error updating note.'));
+    .catch(function () { alert('Error updating note.'); });
 }
 
 function deleteNote(clientId, noteId) {
@@ -601,14 +608,14 @@ function deleteNote(clientId, noteId) {
             'Accept': 'application/json'
         }
     })
-    .then(r => {
+    .then(function (r) {
         if (!r.ok) throw new Error('Failed to delete note');
         return r.json();
     })
-    .then(() => {
+    .then(function () {
         if (window.loadBookPanel) window.loadBookPanel('/book/' + clientId);
     })
-    .catch(() => alert('Error deleting note.'));
+    .catch(function () { alert('Error deleting note.'); });
 }
 </script>
 @endpush
