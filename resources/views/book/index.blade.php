@@ -70,6 +70,7 @@
     }
     .btn-gold:hover { background: #b5901f; }
 
+    /* Messaging outline buttons */
     .btn-outline-gold {
         background: transparent;
         color: #c9a227;
@@ -86,10 +87,9 @@
     .btn-outline-gold:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .button-row {
-        margin-bottom: 12px;
+        margin-bottom: 20px;
         display: flex;
         gap: 8px;
-        flex-wrap: wrap;
     }
 
     .contact-list-item {
@@ -109,6 +109,7 @@
     }
 
     .empty-right-panel { height: 100%; background: transparent !important; }
+
     .urgent-contact { color: #b91c1c; font-weight: 700; }
 
     #book-details-container,
@@ -116,40 +117,57 @@
 
     .flash-wrap { margin-bottom: 14px; }
 
-    /* checkbox alignment */
-    .book-check {
-        margin-top: 3px;
-        transform: scale(1.05);
-        cursor: pointer;
-    }
-
-    .book-row-text {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .bulk-mini {
+    /* Bulk selection bar */
+    .bulk-bar {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 10px;
-        padding: 8px 10px;
-        border: 1px solid #eee;
-        border-radius: 10px;
+        gap: 10px;
+        padding: 10px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        margin-bottom: 12px;
         background: #fafafa;
     }
+    .bulk-bar small { color: #6b7280; }
 
-    .bulk-count {
+    .bulk-count-pill {
         font-size: 12px;
-        color: #6b7280;
-        white-space: nowrap;
+        color: #111827;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        padding: 4px 8px;
+        border-radius: 999px;
     }
 
-    /* Bulk modal */
-    .bulk-help {
-        font-size: 12px;
+    /* History bubbles */
+    .ab-history {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px;
+        max-height: 260px;
+        overflow-y: auto;
+        margin-bottom: 10px;
+    }
+
+    .ab-msg {
+        max-width: 85%;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 8px 10px;
+        margin: 6px 0;
+        font-size: 13px;
+        line-height: 1.25rem;
+        background: #f9fafb;
+    }
+
+    .ab-msg.outbound { margin-left: auto; background: #fdf6e3; border-color: rgba(201,162,39,0.45); }
+    .ab-msg.inbound  { margin-right: auto; background: #f3f4f6; }
+
+    .ab-msg-meta {
+        font-size: 11px;
         color: #6b7280;
+        margin-top: 4px;
     }
 </style>
 
@@ -217,21 +235,20 @@
                     </button>
                 </div>
 
-                <!-- ✅ Bulk tools -->
-                <div class="bulk-mini">
-                    <label class="d-flex align-items-center gap-2 m-0" style="cursor:pointer;">
-                        <input type="checkbox" id="book-select-all" class="form-check-input m-0">
-                        <span style="font-size:12px;">Select all</span>
+                <!-- ✅ Bulk selection bar -->
+                <div class="bulk-bar">
+                    <label class="d-flex align-items-center gap-2 mb-0" style="cursor:pointer;">
+                        <input type="checkbox" id="bulk-select-all" class="form-check-input mt-0">
+                        <small>Select all</small>
                     </label>
 
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="bulk-count">
-                            Selected: <span id="book-selected-count">0</span>
-                        </span>
-                        <button id="bulk-text-btn" class="btn-outline-gold" type="button" disabled>
-                            Bulk Text
-                        </button>
-                    </div>
+                    <span class="bulk-count-pill">
+                        Selected: <span id="bulk-selected-count">0</span>
+                    </span>
+
+                    <button id="bulk-text-btn" class="btn-outline-gold ms-auto" type="button" disabled>
+                        Bulk Text
+                    </button>
                 </div>
 
                 <!-- Client List -->
@@ -249,15 +266,16 @@
                             data-id="{{ $client->id }}"
                             data-show-url="{{ route('book.show', $client->id) }}"
                         >
-                            <!-- ✅ Checkbox -->
+                            <!-- ✅ Checkbox (bulk) -->
                             <input
                                 type="checkbox"
-                                class="form-check-input book-check js-book-check"
-                                data-contact-id="{{ $client->id }}"
-                                onclick="event.stopPropagation();"
+                                class="form-check-input js-bulk-check mt-1"
+                                data-id="{{ $client->id }}"
+                                data-phone="{{ $client->phone }}"
                             >
 
-                            <div class="book-row-text">
+                            <!-- Row content -->
+                            <div style="flex:1;">
                                 {{ $name ?: '(No Name)' }}
 
                                 @if($isServiceUrgent)
@@ -325,9 +343,9 @@
     </div>
 </div>
 
-<!-- Messaging Modals -->
+<!-- ✅ Single SMS Modal (with history) -->
 <div class="modal fade" id="abSmsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <form class="modal-content" onsubmit="ABMessaging.sendSms(event)">
             <div class="modal-header">
                 <h5 class="modal-title">Send Text</h5>
@@ -338,6 +356,9 @@
                 <input type="hidden" id="ab_sms_contact_id">
                 <div class="mb-1 fw-bold" id="ab_sms_contact_name"></div>
                 <div class="mb-2 text-muted" id="ab_sms_to"></div>
+
+                <div class="small text-muted mb-2" id="ab_sms_history_label">Loading history...</div>
+                <div id="ab_sms_history" class="ab-history"></div>
 
                 <textarea id="ab_sms_body" class="form-control" rows="4" placeholder="Type message..."></textarea>
                 <div class="small text-muted mt-2">This will save a queued text to the database.</div>
@@ -351,8 +372,9 @@
     </div>
 </div>
 
+<!-- ✅ Single Email Modal (with history) -->
 <div class="modal fade" id="abEmailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <form class="modal-content" onsubmit="ABMessaging.sendEmail(event)">
             <div class="modal-header">
                 <h5 class="modal-title">Send Email</h5>
@@ -363,6 +385,9 @@
                 <input type="hidden" id="ab_email_contact_id">
                 <div class="mb-1 fw-bold" id="ab_email_contact_name"></div>
                 <div class="mb-2 text-muted" id="ab_email_to"></div>
+
+                <div class="small text-muted mb-2" id="ab_email_history_label">Loading history...</div>
+                <div id="ab_email_history" class="ab-history"></div>
 
                 <input id="ab_email_subject" class="form-control mb-2" placeholder="Subject">
                 <textarea id="ab_email_body" class="form-control" rows="6" placeholder="Type email..."></textarea>
@@ -377,9 +402,9 @@
     </div>
 </div>
 
-<!-- ✅ BULK TEXT MODAL -->
+<!-- ✅ Bulk SMS Modal -->
 <div class="modal fade" id="abBulkSmsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <form class="modal-content" onsubmit="ABMessaging.sendBulkSms(event)">
             <div class="modal-header">
                 <h5 class="modal-title">Bulk Text</h5>
@@ -388,16 +413,13 @@
 
             <div class="modal-body">
                 <div class="mb-2">
-                    <div class="fw-bold">Recipients</div>
-                    <div class="bulk-help">
-                        Selected: <span id="bulkSmsRecipientCount">0</span>
-                        <span class="ms-2 text-muted">(contacts without phone will be skipped)</span>
-                    </div>
+                    <strong>Sending to:</strong>
+                    <span id="ab_bulk_count">0</span> selected contacts
                 </div>
 
-                <textarea id="ab_bulk_sms_body" class="form-control" rows="5" placeholder="Type one message to send to everyone..."></textarea>
-                <div class="bulk-help mt-2">
-                    This will create one <strong>queued</strong> SMS per contact in the database. (Delivery requires Twilio later.)
+                <textarea id="ab_bulk_sms_body" class="form-control" rows="5" placeholder="Type message to send to all selected..."></textarea>
+                <div class="small text-muted mt-2">
+                    This will queue a message record per contact (Phase 2 storage). Provider sending is later.
                 </div>
             </div>
 
@@ -421,6 +443,9 @@
     var SHOULD_REOPEN_UPLOAD = @json((bool)(session('import_error') || $errors->any()));
     var BOOK_BASE_URL = @json(url('/book'));
 
+    // Bulk selected IDs
+    var bulkSelected = new Set();
+
     function hasBootstrapModal() {
         return !!(window.bootstrap && window.bootstrap.Modal);
     }
@@ -438,176 +463,265 @@
         new bootstrap.Modal(el).show();
     }
 
-    function getSelectedContactIds() {
-        var checks = document.querySelectorAll('.js-book-check');
-        var ids = [];
-        for (var i = 0; i < checks.length; i++) {
-            if (checks[i].checked) {
-                ids.push(parseInt(checks[i].getAttribute('data-contact-id'), 10));
-            }
-        }
-        return ids.filter(function (n) { return !isNaN(n); });
+    function escapeHtml(s) {
+        return String(s || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
     }
 
-    function syncBulkUi() {
-        var ids = getSelectedContactIds();
-        var countEl = document.getElementById('book-selected-count');
-        var btn = document.getElementById('bulk-text-btn');
-        if (countEl) countEl.textContent = String(ids.length);
-        if (btn) btn.disabled = ids.length === 0;
-
-        var selectAll = document.getElementById('book-select-all');
-        if (selectAll) {
-            // only consider visible rows for "select all"
-            var visibleChecks = Array.prototype.filter.call(document.querySelectorAll('.js-book-check'), function (c) {
-                var row = c.closest('.contact-list-item');
-                return row && row.style.display !== 'none';
-            });
-            var allChecked = visibleChecks.length > 0 && visibleChecks.every(function (c) { return c.checked; });
-            selectAll.checked = allChecked;
-        }
+    function formatMeta(item) {
+        var dt = item && item.created_at ? new Date(item.created_at) : null;
+        var stamp = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+        var status = item && item.status ? String(item.status) : '';
+        return (stamp ? (stamp + (status ? ' · ' + status : '')) : status);
     }
 
-    // Global so AJAX-loaded details.blade.php onclick handlers can call it
-    window.ABMessaging = window.ABMessaging || {};
+    function renderHistory(targetId, labelId, items) {
+        var box = document.getElementById(targetId);
+        var label = document.getElementById(labelId);
+        if (!box) return;
 
-    // Keep your existing per-contact handlers (these already work)
-    window.ABMessaging.openSms = function (contactId, name, phone) {
-        try {
-            document.getElementById('ab_sms_contact_id').value = contactId || '';
-            document.getElementById('ab_sms_contact_name').textContent = name || '';
-            document.getElementById('ab_sms_to').textContent = phone ? ('To: ' + phone) : 'No phone on file';
-            document.getElementById('ab_sms_body').value = '';
-            showModalById('abSmsModal');
-        } catch (e) {
-            console.error(e);
-            alert('Failed to open Text modal. Check console.');
+        if (!items || !items.length) {
+            if (label) label.textContent = 'No messages yet.';
+            box.innerHTML = '';
+            return;
         }
-    };
 
-    window.ABMessaging.openEmail = function (contactId, name, email) {
-        try {
-            document.getElementById('ab_email_contact_id').value = contactId || '';
-            document.getElementById('ab_email_contact_name').textContent = name || '';
-            document.getElementById('ab_email_to').textContent = email ? ('To: ' + email) : 'No email on file';
-            document.getElementById('ab_email_subject').value = '';
-            document.getElementById('ab_email_body').value = '';
-            showModalById('abEmailModal');
-        } catch (e) {
-            console.error(e);
-            alert('Failed to open Email modal. Check console.');
+        if (label) label.textContent = 'Showing all messages.';
+        var html = '';
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var direction = (it.direction || 'outbound');
+            var cls = direction === 'inbound' ? 'inbound' : 'outbound';
+            html += '<div class="ab-msg ' + cls + '">';
+            html +=   '<div>' + escapeHtml(it.body || '') + '</div>';
+            html +=   '<div class="ab-msg-meta">' + escapeHtml(formatMeta(it)) + '</div>';
+            html += '</div>';
         }
-    };
+        box.innerHTML = html;
 
-    window.ABMessaging.sendSms = function (e) {
-        e.preventDefault();
+        // scroll to bottom
+        box.scrollTop = box.scrollHeight;
+    }
 
-        var contactId = String((document.getElementById('ab_sms_contact_id') || {}).value || '').trim();
-        var body = String((document.getElementById('ab_sms_body') || {}).value || '').trim();
-        if (!body) return alert('Message is empty.');
-
-        fetch('/contacts/' + contactId + '/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF_TOKEN,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ channel: 'sms', body: body })
+    function fetchHistory(contactId, channel, targetId, labelId) {
+        var url = '/contacts/' + contactId + '/messages?channel=' + encodeURIComponent(channel) + '&limit=200';
+        return fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(function (res) {
             return res.json().catch(function () { return {}; }).then(function (data) {
-                if (!res.ok) throw new Error(data.message || ('Failed to save SMS (HTTP ' + res.status + ').'));
-                return data;
-            });
-        })
-        .then(function () {
-            var inst = bootstrap.Modal.getInstance(document.getElementById('abSmsModal'));
-            if (inst) inst.hide();
-            alert('Text saved to Messages (queued).');
-        })
-        .catch(function (err) {
-            console.error(err);
-            alert(err.message || 'SMS send failed.');
-        });
-    };
-
-    window.ABMessaging.sendEmail = function (e) {
-        e.preventDefault();
-
-        var contactId = String((document.getElementById('ab_email_contact_id') || {}).value || '').trim();
-        var subject = String((document.getElementById('ab_email_subject') || {}).value || '').trim();
-        var body = String((document.getElementById('ab_email_body') || {}).value || '').trim();
-
-        if (!subject) return alert('Subject is required.');
-        if (!body) return alert('Email body is empty.');
-
-        fetch('/contacts/' + contactId + '/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF_TOKEN,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ channel: 'email', subject: subject, body: body })
-        })
-        .then(function (res) {
-            return res.json().catch(function () { return {}; }).then(function (data) {
-                if (!res.ok) throw new Error(data.message || ('Failed to save Email (HTTP ' + res.status + ').'));
-                return data;
-            });
-        })
-        .then(function () {
-            var inst = bootstrap.Modal.getInstance(document.getElementById('abEmailModal'));
-            if (inst) inst.hide();
-            alert('Email saved to Messages (queued).');
-        })
-        .catch(function (err) {
-            console.error(err);
-            alert(err.message || 'Email send failed.');
-        });
-    };
-
-    // ✅ Bulk SMS handler
-    window.ABMessaging.sendBulkSms = function (e) {
-        e.preventDefault();
-
-        var ids = getSelectedContactIds();
-        if (!ids.length) return alert('No contacts selected.');
-
-        var body = String((document.getElementById('ab_bulk_sms_body') || {}).value || '').trim();
-        if (!body) return alert('Message is empty.');
-
-        fetch('/contacts/messages/bulk', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF_TOKEN,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ contact_ids: ids, body: body })
-        })
-        .then(function (res) {
-            return res.json().catch(function () { return {}; }).then(function (data) {
-                if (!res.ok) throw new Error(data.message || ('Bulk SMS failed (HTTP ' + res.status + ').'));
+                if (!res.ok) throw new Error(data.message || ('Failed to load history (HTTP ' + res.status + ').'));
                 return data;
             });
         })
         .then(function (data) {
-            var inst = bootstrap.Modal.getInstance(document.getElementById('abBulkSmsModal'));
-            if (inst) inst.hide();
-
-            var queued = (data && data.queued) ? data.queued : 0;
-            var skippedNoPhone = (data && data.skipped && data.skipped.no_phone) ? data.skipped.no_phone : 0;
-
-            alert('Bulk text queued.\n\nQueued: ' + queued + '\nSkipped (no phone): ' + skippedNoPhone);
+            renderHistory(targetId, labelId, (data && data.items) ? data.items : []);
+            return data;
         })
         .catch(function (err) {
             console.error(err);
-            alert(err.message || 'Bulk SMS send failed.');
+            var label = document.getElementById(labelId);
+            if (label) label.textContent = 'Failed to load history.';
+            var box = document.getElementById(targetId);
+            if (box) box.innerHTML = '';
         });
+    }
+
+    // Global so AJAX-loaded details.blade.php onclick handlers can call it
+    window.ABMessaging = {
+        openSms: function (contactId, name, phone) {
+            try {
+                document.getElementById('ab_sms_contact_id').value = contactId || '';
+                document.getElementById('ab_sms_contact_name').textContent = name || '';
+                document.getElementById('ab_sms_to').textContent = phone ? ('To: ' + phone) : 'No phone on file';
+                document.getElementById('ab_sms_body').value = '';
+                // Clear UI then load history
+                renderHistory('ab_sms_history', 'ab_sms_history_label', []);
+                document.getElementById('ab_sms_history_label').textContent = 'Loading history...';
+                fetchHistory(contactId, 'sms', 'ab_sms_history', 'ab_sms_history_label');
+                showModalById('abSmsModal');
+            } catch (e) {
+                console.error(e);
+                alert('Failed to open Text modal. Check console.');
+            }
+        },
+
+        openEmail: function (contactId, name, email) {
+            try {
+                document.getElementById('ab_email_contact_id').value = contactId || '';
+                document.getElementById('ab_email_contact_name').textContent = name || '';
+                document.getElementById('ab_email_to').textContent = email ? ('To: ' + email) : 'No email on file';
+                document.getElementById('ab_email_subject').value = '';
+                document.getElementById('ab_email_body').value = '';
+                // Clear UI then load history
+                renderHistory('ab_email_history', 'ab_email_history_label', []);
+                document.getElementById('ab_email_history_label').textContent = 'Loading history...';
+                fetchHistory(contactId, 'email', 'ab_email_history', 'ab_email_history_label');
+                showModalById('abEmailModal');
+            } catch (e) {
+                console.error(e);
+                alert('Failed to open Email modal. Check console.');
+            }
+        },
+
+        sendSms: function (e) {
+            e.preventDefault();
+
+            var contactId = String(document.getElementById('ab_sms_contact_id').value || '').trim();
+            var body = String(document.getElementById('ab_sms_body').value || '').trim();
+
+            if (!body) return alert('Message is empty.');
+
+            fetch('/contacts/' + contactId + '/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ channel: 'sms', body: body })
+            })
+            .then(function (res) {
+                return res.json().catch(function () { return {}; }).then(function (data) {
+                    if (!res.ok) throw new Error(data.message || ('Failed to save SMS (HTTP ' + res.status + ').'));
+                    return data;
+                });
+            })
+            .then(function () {
+                document.getElementById('ab_sms_body').value = '';
+                // Refresh history
+                fetchHistory(contactId, 'sms', 'ab_sms_history', 'ab_sms_history_label');
+                alert('Text saved to Messages (queued).');
+            })
+            .catch(function (err) {
+                console.error(err);
+                alert(err.message || 'SMS send failed.');
+            });
+        },
+
+        sendEmail: function (e) {
+            e.preventDefault();
+
+            var contactId = String(document.getElementById('ab_email_contact_id').value || '').trim();
+            var subject = String(document.getElementById('ab_email_subject').value || '').trim();
+            var body = String(document.getElementById('ab_email_body').value || '').trim();
+
+            if (!subject) return alert('Subject is required.');
+            if (!body) return alert('Email body is empty.');
+
+            fetch('/contacts/' + contactId + '/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ channel: 'email', subject: subject, body: body })
+            })
+            .then(function (res) {
+                return res.json().catch(function () { return {}; }).then(function (data) {
+                    if (!res.ok) throw new Error(data.message || ('Failed to save Email (HTTP ' + res.status + ').'));
+                    return data;
+                });
+            })
+            .then(function () {
+                document.getElementById('ab_email_subject').value = '';
+                document.getElementById('ab_email_body').value = '';
+                // Refresh history
+                fetchHistory(contactId, 'email', 'ab_email_history', 'ab_email_history_label');
+                alert('Email saved to Messages (queued).');
+            })
+            .catch(function (err) {
+                console.error(err);
+                alert(err.message || 'Email send failed.');
+            });
+        },
+
+        openBulkSms: function () {
+            document.getElementById('ab_bulk_sms_body').value = '';
+            document.getElementById('ab_bulk_count').textContent = String(bulkSelected.size);
+            showModalById('abBulkSmsModal');
+        },
+
+        sendBulkSms: function (e) {
+            e.preventDefault();
+
+            var body = String(document.getElementById('ab_bulk_sms_body').value || '').trim();
+            if (!body) return alert('Message is empty.');
+            if (bulkSelected.size < 1) return alert('No contacts selected.');
+
+            var ids = Array.from(bulkSelected);
+
+            // Queue sequentially (simple + safe). If you want parallel later, we can do Promise.all with throttling.
+            var idx = 0;
+            function next() {
+                if (idx >= ids.length) {
+                    alert('Bulk Text queued for ' + ids.length + ' contacts.');
+                    var inst = bootstrap.Modal.getInstance(document.getElementById('abBulkSmsModal'));
+                    if (inst) inst.hide();
+                    return;
+                }
+
+                var contactId = ids[idx++];
+                fetch('/contacts/' + contactId + '/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ channel: 'sms', body: body })
+                })
+                .then(function (res) {
+                    return res.json().catch(function () { return {}; }).then(function (data) {
+                        if (!res.ok) throw new Error(data.message || ('Failed on contact ' + contactId));
+                        return data;
+                    });
+                })
+                .then(next)
+                .catch(function (err) {
+                    console.error(err);
+                    alert('Bulk queue failed: ' + (err.message || 'Unknown error'));
+                });
+            }
+
+            next();
+        }
     };
 
+    function updateBulkUI() {
+        var countEl = document.getElementById('bulk-selected-count');
+        if (countEl) countEl.textContent = String(bulkSelected.size);
+
+        var bulkBtn = document.getElementById('bulk-text-btn');
+        if (bulkBtn) bulkBtn.disabled = bulkSelected.size < 1;
+    }
+
+    function setAllVisibleChecks(checked) {
+        var checks = document.querySelectorAll('#book-list .js-bulk-check');
+        for (var i = 0; i < checks.length; i++) {
+            // Only toggle visible rows (search filter hides via display:none on the row container)
+            var row = checks[i].closest('.contact-list-item');
+            var visible = row && row.style.display !== 'none';
+            if (!visible) continue;
+
+            checks[i].checked = checked;
+            var id = checks[i].getAttribute('data-id');
+            if (checked) bulkSelected.add(String(id));
+            else bulkSelected.delete(String(id));
+        }
+        updateBulkUI();
+    }
+
+    // Right-panel loader + page wiring
     document.addEventListener('DOMContentLoaded', function () {
         var container = document.getElementById('book-details-container');
 
@@ -630,10 +744,15 @@
                 });
         };
 
-        // row click loads details panel
+        // ✅ Row click loads panel, but checkbox click should NOT
         var rows = document.querySelectorAll('.js-book-row');
         for (var i = 0; i < rows.length; i++) {
-            rows[i].addEventListener('click', function () {
+            rows[i].addEventListener('click', function (e) {
+                // If user clicked a checkbox, ignore row click
+                if (e && e.target && e.target.classList && e.target.classList.contains('js-bulk-check')) {
+                    return;
+                }
+
                 var all = document.querySelectorAll('.js-book-row');
                 for (var j = 0; j < all.length; j++) all[j].classList.remove('active-contact-row');
 
@@ -642,39 +761,32 @@
             });
         }
 
-        // bulk checkbox wiring
-        document.addEventListener('change', function (e) {
-            if (e.target && e.target.classList && e.target.classList.contains('js-book-check')) {
-                syncBulkUi();
-            }
-        });
+        // ✅ Checkbox selection handling
+        var checks = document.querySelectorAll('.js-bulk-check');
+        for (var c = 0; c < checks.length; c++) {
+            checks[c].addEventListener('click', function (e) {
+                // stop checkbox click from also triggering row click
+                e.stopPropagation();
 
-        var selectAll = document.getElementById('book-select-all');
+                var id = String(this.getAttribute('data-id'));
+                if (this.checked) bulkSelected.add(id);
+                else bulkSelected.delete(id);
+
+                updateBulkUI();
+            });
+        }
+
+        var selectAll = document.getElementById('bulk-select-all');
         if (selectAll) {
             selectAll.addEventListener('change', function () {
-                var checks = document.querySelectorAll('.js-book-check');
-                for (var i = 0; i < checks.length; i++) {
-                    var row = checks[i].closest('.contact-list-item');
-                    var visible = row && row.style.display !== 'none';
-                    if (visible) checks[i].checked = !!selectAll.checked;
-                }
-                syncBulkUi();
+                setAllVisibleChecks(!!this.checked);
             });
         }
 
         var bulkBtn = document.getElementById('bulk-text-btn');
         if (bulkBtn) {
             bulkBtn.addEventListener('click', function () {
-                var ids = getSelectedContactIds();
-                if (!ids.length) return;
-
-                var count = document.getElementById('bulkSmsRecipientCount');
-                if (count) count.textContent = String(ids.length);
-
-                var bodyEl = document.getElementById('ab_bulk_sms_body');
-                if (bodyEl) bodyEl.value = '';
-
-                showModalById('abBulkSmsModal');
+                window.ABMessaging.openBulkSms();
             });
         }
 
@@ -686,7 +798,7 @@
             });
         }
 
-        // search filter
+        // Search filter (also affects Select All by only applying to visible rows)
         var searchEl = document.getElementById('book-search');
         if (searchEl) {
             searchEl.addEventListener('keyup', function () {
@@ -696,7 +808,6 @@
                     var show = listRows[k].textContent.toLowerCase().indexOf(term) !== -1;
                     listRows[k].style.display = show ? 'flex' : 'none';
                 }
-                syncBulkUi();
             });
         }
 
@@ -708,7 +819,7 @@
             showModalById('uploadBookModal');
         }
 
-        syncBulkUi();
+        updateBulkUI();
     });
 
 })();
@@ -726,7 +837,8 @@ function saveNote(clientId) {
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': @json(csrf_token()),
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({ body: body })
     })
