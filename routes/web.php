@@ -12,34 +12,23 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\NoteController;
 
-// NEW CONTROLLERS FOR LEADS / BOOK / SERVICE
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\ServiceController;
 
-// ✅ CONTACT MESSAGES (Phase 2 + Phase 3)
+// ✅ CONTACT MESSAGES (Phase 2 + Phase 3 + Bulk)
 use App\Http\Controllers\ContactMessageController;
 
-// NEW ACTIVITY CONTROLLER
 use App\Http\Controllers\ActivityController;
-
-// AUTH CONTROLLER
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
-// GIDEON SERVICES
 use App\Services\Gideon\GideonLlmClient;
 use App\Services\Gideon\OpportunityScanner;
 
-// ✅ GIDEON OPPORTUNITIES API CONTROLLER (under App\Http\Controllers\Gideon)
 use App\Http\Controllers\Gideon\GideonOpportunitiesController;
-
-// ✅ NEW: GIDEON SECOND BRAIN CONTROLLER
 use App\Http\Controllers\Gideon\GideonInsightsController;
 
-// ✅ NEW: GIDEON SCAN CONTROLLER (scan + deep scan + top)
 use App\Http\Controllers\GideonScanController;
-
-// ✅ NEW: BILLING CONTROLLER (placeholder to stop 404)
 use App\Http\Controllers\BillingController;
 
 /*
@@ -48,15 +37,12 @@ use App\Http\Controllers\BillingController;
 |--------------------------------------------------------------------------
 */
 
-// Show login form
 Route::get('/login', [AuthenticatedSessionController::class, 'create'])
     ->name('login');
 
-// Handle login POST
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])
     ->name('login.store');
 
-// Handle logout POST
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->name('logout');
 
@@ -76,20 +62,11 @@ Route::get('/debug-laravel-log', function () {
 
 Route::get('/test', fn () => 'ROUTES ARE WORKING');
 
-/**
- * TEMP: list columns on contacts table so we can see how leads/contacts
- * are stored. REMOVE after we’re done debugging.
- */
 Route::get('/debug-contact-columns', function () {
     $columns = Schema::getColumnListing('contacts');
     return response()->json($columns);
 });
 
-/**
- * TEMPORARY: Gideon LLM connectivity test.
- * Hit /gideon-test in the browser to confirm OpenAI is wired up.
- * Remove this route after validation.
- */
 Route::get('/gideon-test', function (GideonLlmClient $client) {
     return $client->testPing();
 });
@@ -102,26 +79,24 @@ Route::get('/gideon-test', function (GideonLlmClient $client) {
 Route::middleware('auth')->group(function () {
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | DASHBOARD
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | BILLING (Placeholder)
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/billing', [BillingController::class, 'index'])->name('billing');
 
     /*
-    |--------------------------------------------------------------------------
-    | CONTACT MESSAGES (Phase 2 + Phase 3)
-    |--------------------------------------------------------------------------
-    | Phase 2: POST stores outbound messages
-    | Phase 3: GET lists message history for a contact
+    |----------------------------------------------------------------------
+    | CONTACT MESSAGES (Phase 2 + Phase 3 + Bulk)
+    |----------------------------------------------------------------------
     */
     Route::get('/contacts/{contact}/messages', [ContactMessageController::class, 'index'])
         ->name('contacts.messages.index');
@@ -129,10 +104,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/contacts/{contact}/messages', [ContactMessageController::class, 'store'])
         ->name('contacts.messages.store');
 
+    // ✅ NEW: Bulk queue SMS (checkbox-selected contacts)
+    Route::post('/contacts/messages/bulk', [ContactMessageController::class, 'bulkStore'])
+        ->name('contacts.messages.bulk-store');
+
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | CONTACTS (FULL CRUD + AJAX RIGHT PANEL)
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/all-contacts', fn () => redirect()->route('contacts.index'));
 
@@ -145,9 +124,9 @@ Route::middleware('auth')->group(function () {
         ->name('contacts.import');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | CONTACT NOTES
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/contacts/{contact}/notes', [NoteController::class, 'index'])
         ->name('contacts.notes.index');
@@ -159,9 +138,9 @@ Route::middleware('auth')->group(function () {
         ->name('contacts.notes.list');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | LEADS
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/leads',          [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/archived', [LeadController::class, 'archived'])->name('leads.archived');
@@ -173,7 +152,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/import/template', [LeadController::class, 'downloadTemplate'])
         ->name('leads.import.template');
 
-    Route::get('/leads/{id}', [LeadController::class, 'show'])->name('leads.show');
+    Route::get('/leads/{id}',     [LeadController::class, 'show'])->name('leads.show');
 
     Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
         ->name('leads.sold');
@@ -182,11 +161,11 @@ Route::middleware('auth')->group(function () {
         ->name('leads.archive');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | LEAD NOTES (reuse BookController note logic)
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
-    Route::post('/leads/{client}/notes', [BookController::class, 'storeNote'])
+    Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
         ->name('leads.notes.store');
 
     Route::put('/leads/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -196,27 +175,20 @@ Route::middleware('auth')->group(function () {
         ->name('leads.notes.destroy');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | BOOK OF BUSINESS
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::prefix('book')->group(function () {
 
         Route::get('/', [BookController::class, 'index'])->name('book.index');
 
-        /**
-         * ✅ Stable deep-link helper for Gideon (and future links)
-         * /book/open/285  ->  /book?selected=285
-         *
-         * IMPORTANT: Book auto-loader expects `selected` (not `open`)
-         */
         Route::get('/open/{client}', function ($client) {
             return redirect()->route('book.index', ['selected' => $client]);
         })->name('book.open');
 
         Route::get('/create-panel', [BookController::class, 'createPanel'])->name('book.create.panel');
         Route::post('/', [BookController::class, 'store'])->name('book.store');
-
         Route::get('/{client}', [BookController::class, 'show'])->name('book.show');
         Route::get('/{client}/edit-panel', [BookController::class, 'editPanel'])->name('book.edit.panel');
         Route::put('/{client}', [BookController::class, 'update'])->name('book.update');
@@ -237,18 +209,14 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | SERVICE
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::prefix('service')->group(function () {
 
         Route::get('/', [ServiceController::class, 'index'])->name('service.index');
 
-        /**
-         * ✅ Stable deep-link helper like Book
-         * /service/open/123 -> /service?open=123
-         */
         Route::get('/open/{client}', function ($client) {
             return redirect()->route('service.index', ['open' => $client]);
         })->name('service.open');
@@ -256,7 +224,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/create-panel', [ServiceController::class, 'createPanel'])->name('service.create.panel');
         Route::post('/', [ServiceController::class, 'store'])->name('service.store');
 
-        // ✅ IMPORTANT: keep /import BEFORE /{client}
         Route::post('/import', [ServiceController::class, 'import'])
             ->name('service.import');
 
@@ -266,9 +233,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/archive/not-saved', [ServiceController::class, 'notSavedArchive'])
             ->name('service.archive.not-saved');
 
-        Route::get('/{client}', [ServiceController::class, 'show'])->name('service.show');
+        Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
         Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
-        Route::put('/{client}', [ServiceController::class, 'update'])->name('service.update');
+        Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
 
         Route::get('/{client}/follow-up', [ServiceController::class, 'followUp'])
             ->name('service.follow-up');
@@ -290,11 +257,11 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | SERVICE NOTES
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
-    Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])
+    Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])
         ->name('service.notes.store');
 
     Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -304,9 +271,9 @@ Route::middleware('auth')->group(function () {
         ->name('service.notes.destroy');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | SERVICE Beneficiary / Emergency DELETE
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::delete('/service/{client}/beneficiaries/{beneficiary}', [BookController::class, 'deleteBeneficiary'])
         ->name('service.beneficiaries.destroy');
@@ -315,9 +282,9 @@ Route::middleware('auth')->group(function () {
         ->name('service.emergencies.destroy');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | ACTIVITY
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
@@ -327,9 +294,9 @@ Route::middleware('auth')->group(function () {
         ->name('activity.totals');
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | CALENDAR
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/calendar', fn () => view('calendar.index'));
 
@@ -383,11 +350,10 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | GIDEON
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
-
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
 
@@ -425,17 +391,17 @@ Route::middleware('auth')->group(function () {
         $agencyId = $user->agency_id ?? 1;
 
         $opp = GideonOpportunity::create([
-            'agency_id'          => $agencyId,
-            'user_id'            => $user->id ?? null,
-            'entity_type'        => 'debug',
-            'entity_id'          => null,
-            'category'           => 'test',
-            'title'              => 'Test Gideon Opportunity',
-            'short_reason'       => 'This is a fake opportunity created to verify the Gideon DB wiring.',
-            'recommended_action' => 'No action needed – this is only a test.',
-            'score'              => 50,
-            'status'             => 'open',
-            'source_snapshot'    => [
+            'agency_id'           => $agencyId,
+            'user_id'             => $user->id ?? null,
+            'entity_type'         => 'debug',
+            'entity_id'           => null,
+            'category'            => 'test',
+            'title'               => 'Test Gideon Opportunity',
+            'short_reason'        => 'This is a fake opportunity created to verify the Gideon DB wiring.',
+            'recommended_action'  => 'No action needed – this is only a test.',
+            'score'               => 50,
+            'status'              => 'open',
+            'source_snapshot'     => [
                 'note' => 'Created by /debug-gideon-create-opportunity route.',
             ],
         ]);
@@ -450,9 +416,9 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     | MAINTENANCE
-    |--------------------------------------------------------------------------
+    |----------------------------------------------------------------------
     */
     Route::get('/migrate', function () {
         try {
