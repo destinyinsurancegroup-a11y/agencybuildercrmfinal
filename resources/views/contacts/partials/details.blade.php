@@ -1,5 +1,9 @@
 {{-- resources/views/contacts/partials/details.blade.php --}}
 
+@php
+    $contactName = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+@endphp
+
 <div class="card shadow-sm border-0"
      style="border-radius:18px; height: calc(100vh - 120px); overflow-y:auto; background:#ffffff;">
 
@@ -13,7 +17,42 @@
 
         <div>
             <div style="font-size:34px; font-weight:800; color:#111827; line-height:1;">
-                {{ $contact->full_name }}
+                {{ $contactName }}
+            </div>
+
+            {{-- ✅ Messaging buttons (same UX as Book) --}}
+            <div class="mt-2 d-flex gap-2 flex-wrap">
+                <button
+                    type="button"
+                    class="btn-outline-gold"
+                    style="font-size:12px;"
+                    onclick='ABMessaging.openSms({{ (int) $contact->id }}, @json($contactName), @json($contact->phone))'
+                    {{ empty($contact->phone) ? 'disabled' : '' }}
+                    title="{{ empty($contact->phone) ? 'No phone on file' : 'Send a text' }}"
+                >
+                    Text
+                </button>
+
+                <button
+                    type="button"
+                    class="btn-outline-gold"
+                    style="font-size:12px;"
+                    onclick='ABMessaging.openEmail({{ (int) $contact->id }}, @json($contactName), @json($contact->email))'
+                    {{ empty($contact->email) ? 'disabled' : '' }}
+                    title="{{ empty($contact->email) ? 'No email on file' : 'Send an email' }}"
+                >
+                    Email
+                </button>
+
+                <button
+                    type="button"
+                    class="btn-outline-gold"
+                    style="font-size:12px;"
+                    onclick="alert('Start Sequence is coming soon. Next phase will enable this.')"
+                    title="Sequences coming soon"
+                >
+                    Start Sequence
+                </button>
             </div>
 
             {{-- 🚫 REMOVED CONTACT ID --}}
