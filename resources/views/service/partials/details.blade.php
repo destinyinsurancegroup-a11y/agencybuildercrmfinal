@@ -12,17 +12,27 @@
     .p-4 { padding: 1.25rem !important; }
 
     /* standalone notes block below the card */
-    #service-notes-wrapper {
-        margin-top: 24px;
-    }
+    #service-notes-wrapper { margin-top: 24px; }
 
-    /* (local only) ensure disabled outline buttons look disabled */
-    .btn-outline-gold:disabled { opacity: 0.45; cursor: not-allowed; }
+    /* ✅ MATCH Book/Contacts/Leads button style */
+    .btn-outline-gold{
+        background: transparent;
+        color:#c9a227;
+        border:1px solid #c9a227;
+        padding:6px 10px;
+        font-weight:600;
+        border-radius:8px;
+        box-shadow:0 4px 8px rgba(0,0,0,0.10);
+        font-size:12px;
+        cursor:pointer;
+        white-space:nowrap;
+    }
+    .btn-outline-gold:hover{ background: rgba(201,162,39,0.12); }
+    .btn-outline-gold:disabled{ opacity:0.45; cursor:not-allowed; }
 </style>
 
 @php
-    $clientName = $client->full_name
-        ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+    $clientName = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
 @endphp
 
 <div class="p-4">
@@ -33,10 +43,10 @@
 
             <div>
                 <h1 class="fw-bold" style="font-size: 32px; margin-bottom:10px;">
-                    {{ $client->first_name }} {{ $client->last_name }}
+                    {{ $clientName }}
                 </h1>
 
-                <!-- ✅ Messaging buttons (Text / Email) -->
+                {{-- ✅ Messaging buttons (match Book look) --}}
                 <div class="mt-2 d-flex gap-2 flex-wrap">
                     <button
                         type="button"
@@ -64,22 +74,14 @@
                 {{-- CURRENT SERVICE STATUS BADGE (if any) --}}
                 @if($client->service_status || $client->service_archived_at)
                     <div class="mb-2 mt-2">
-                        @php
-                            $status = $client->service_status;
-                        @endphp
+                        @php $status = $client->service_status; @endphp
 
                         @if(in_array($status, ['Saved', 'Back on Books']))
-                            <span class="badge bg-success">
-                                {{ $status ?? 'Saved' }}
-                            </span>
+                            <span class="badge bg-success">{{ $status ?? 'Saved' }}</span>
                         @elseif(in_array($status, ['Not Interested', 'Cancelled']))
-                            <span class="badge bg-danger">
-                                {{ $status }}
-                            </span>
+                            <span class="badge bg-danger">{{ $status }}</span>
                         @elseif($client->service_archived_at)
-                            <span class="badge bg-secondary">
-                                Archived
-                            </span>
+                            <span class="badge bg-secondary">Archived</span>
                         @endif
 
                         @if($client->service_archived_at)
@@ -326,7 +328,6 @@
                 'X-CSRF-TOKEN': csrfToken,
                 'X-Requested-With': 'XMLHttpRequest',
             },
-            // ✅ SAFE TWEAK: send both keys to match Leads/backend expectations
             body: JSON.stringify({ note: bodyText, body: bodyText })
         })
         .then(function (response) {
@@ -349,11 +350,8 @@
 
             let createdAtText = '';
             if (note.created_at) {
-                try {
-                    createdAtText = new Date(note.created_at).toLocaleString();
-                } catch (e) {
-                    createdAtText = note.created_at;
-                }
+                try { createdAtText = new Date(note.created_at).toLocaleString(); }
+                catch (e) { createdAtText = note.created_at; }
             }
 
             wrapper.innerHTML = `
@@ -377,12 +375,8 @@
                 </div>
             `;
 
-            // Prepend newest note
-            if (notesList.firstChild) {
-                notesList.insertBefore(wrapper, notesList.firstChild);
-            } else {
-                notesList.appendChild(wrapper);
-            }
+            if (notesList.firstChild) notesList.insertBefore(wrapper, notesList.firstChild);
+            else notesList.appendChild(wrapper);
 
             textarea.value = '';
         })
@@ -402,12 +396,9 @@
         const currentText = bodyDiv.textContent.trim();
         const updated     = prompt('Edit note:', currentText);
 
-        if (updated === null) return;           // user cancelled
+        if (updated === null) return;
         const trimmed = updated.trim();
-        if (!trimmed) {
-            alert('Note cannot be empty.');
-            return;
-        }
+        if (!trimmed) { alert('Note cannot be empty.'); return; }
 
         fetch(`${baseUrl}/${noteId}`, {
             method: 'PUT',
@@ -435,11 +426,8 @@
             const timeDiv = noteEl.querySelector('.note-time');
             if (timeDiv && note.created_at) {
                 let createdAtText = '';
-                try {
-                    createdAtText = new Date(note.created_at).toLocaleString();
-                } catch (e) {
-                    createdAtText = note.created_at;
-                }
+                try { createdAtText = new Date(note.created_at).toLocaleString(); }
+                catch (e) { createdAtText = note.created_at; }
                 timeDiv.textContent = createdAtText;
             }
         })
@@ -471,9 +459,7 @@
             }
 
             const noteEl = document.getElementById('note-' + noteId);
-            if (noteEl && noteEl.parentNode) {
-                noteEl.parentNode.removeChild(noteEl);
-            }
+            if (noteEl && noteEl.parentNode) noteEl.parentNode.removeChild(noteEl);
 
             if (!notesList || notesList.children.length === 0) {
                 const empty = document.createElement('p');
