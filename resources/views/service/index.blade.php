@@ -257,6 +257,9 @@
     </div>
 </div>
 
+{{-- ✅ REQUIRED: Messaging modals + ABMessaging global (one time per page) --}}
+@include('partials.messaging')
+
 @endsection
 
 @push('scripts')
