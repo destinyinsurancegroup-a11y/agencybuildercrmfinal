@@ -17,9 +17,7 @@
             0 8px 16px -8px rgba(0,0,0,0.18);
     }
 
-    .dashboard-page {
-        padding-top: 10px;
-    }
+    .dashboard-page { padding-top: 10px; }
 
     .contacts-card-wrapper {
         width: 320px !important;
@@ -46,7 +44,6 @@
         letter-spacing: 0.01em;
     }
 
-    /* SEARCH BAR */
     .contacts-search-wrapper {
         display: flex;
         align-items: stretch;
@@ -87,11 +84,8 @@
         justify-content: center;
     }
 
-    .contacts-search-btn:hover {
-        background: var(--ab-gold-dark);
-    }
+    .contacts-search-btn:hover { background: var(--ab-gold-dark); }
 
-    /* GOLD BUTTON */
     .btn-gold {
         background: var(--ab-gold);
         color: #111827;
@@ -105,19 +99,30 @@
         letter-spacing: 0.07em;
         cursor: pointer;
     }
+    .btn-gold:hover { background: var(--ab-gold-dark); }
 
-    .btn-gold:hover {
-        background: var(--ab-gold-dark);
+    .btn-outline-gold {
+        background: transparent;
+        color: var(--ab-gold);
+        border: 1px solid var(--ab-gold);
+        padding: 6px 10px;
+        font-weight: 600;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.10);
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
     }
+    .btn-outline-gold:hover { background: rgba(201,162,39,0.12); }
+    .btn-outline-gold:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .button-row {
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
     }
 
-    /* CONTACT LIST */
     .contacts-list-scroll {
         flex: 1;
         overflow-y: auto;
@@ -131,8 +136,8 @@
         cursor: pointer;
         color: var(--ab-text-main);
         display: flex;
-        align-items: center;
-        gap: 8px;
+        align-items: flex-start;
+        gap: 10px;
         transition: background 0.12s ease, transform 0.08s ease;
     }
 
@@ -147,16 +152,9 @@
         box-shadow: 0 0 0 1px rgba(201,162,39,0.4);
     }
 
-    .contact-list-empty {
-        font-size: 13px;
-        color: var(--ab-text-muted);
-    }
+    .contact-list-empty { font-size: 13px; color: var(--ab-text-muted); }
 
-    /* RIGHT PANEL */
-    #contact-details-container {
-        width: 100%;
-        min-height: 400px;
-    }
+    #contact-details-container { width: 100%; min-height: 400px; }
 
     .empty-right-panel {
         height: calc(100vh - 120px);
@@ -179,22 +177,34 @@
         color: var(--ab-text-main);
     }
 
-    /* ✅ Messaging outline buttons + history bubbles (same UX as Book) */
-    .btn-outline-gold {
-        background: transparent;
-        color: var(--ab-gold);
-        border: 1px solid var(--ab-gold);
-        padding: 6px 10px;
-        font-weight: 600;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.10);
-        font-size: 12px;
-        cursor: pointer;
-        white-space: nowrap;
+    /* Bulk row */
+    .bulk-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 8px 0 12px;
     }
-    .btn-outline-gold:hover { background: rgba(201,162,39,0.12); }
-    .btn-outline-gold:disabled { opacity: 0.45; cursor: not-allowed; }
+    .bulk-row label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--ab-text-muted);
+        user-select: none;
+    }
+    .bulk-row .right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .bulk-row .count {
+        font-size: 13px;
+        color: var(--ab-text-muted);
+    }
 
+    /* Messaging history UI */
     .ab-history {
         border: 1px solid #e5e7eb;
         border-radius: 10px;
@@ -204,7 +214,6 @@
         overflow-y: auto;
         margin-bottom: 10px;
     }
-
     .ab-msg {
         max-width: 85%;
         border: 1px solid #e5e7eb;
@@ -215,10 +224,8 @@
         line-height: 1.25rem;
         background: #f9fafb;
     }
-
     .ab-msg.outbound { margin-left: auto; background: #fdf6e3; border-color: rgba(201,162,39,0.45); }
     .ab-msg.inbound  { margin-right: auto; background: #f3f4f6; }
-
     .ab-msg-meta {
         font-size: 11px;
         color: #6b7280;
@@ -268,6 +275,23 @@
                     </button>
                 </div>
 
+                {{-- ✅ Bulk select row --}}
+                <div class="bulk-row">
+                    <label>
+                        <input type="checkbox" id="contacts-select-all">
+                        Select all
+                    </label>
+
+                    <div class="right">
+                        <div class="count">
+                            Selected: <span id="contacts-selected-count">0</span>
+                        </div>
+                        <button type="button" class="btn-outline-gold" id="contacts-bulk-text-btn" disabled>
+                            Bulk Text
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Contact List -->
                 <div class="contacts-list-scroll">
                     @forelse ($contacts as $contact)
@@ -276,7 +300,12 @@
                             data-contact-url="{{ route('contacts.show', $contact->id) }}"
                             data-contact-id="{{ $contact->id }}"
                         >
-                            {{ $contact->full_name }}
+                            <input type="checkbox"
+                                   class="contacts-row-checkbox"
+                                   data-id="{{ $contact->id }}"
+                                   onclick="event.stopPropagation();">
+
+                            <span>{{ $contact->full_name }}</span>
                         </div>
                     @empty
                         <p class="contact-list-empty">No contacts found.</p>
@@ -334,7 +363,34 @@
     </div>
 </div>
 
-<!-- ✅ Single SMS Modal (with history) -->
+{{-- ✅ Bulk Text Modal --}}
+<div class="modal fade" id="contactsBulkTextModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content" onsubmit="return false;">
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title">Bulk Text</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="small text-muted mb-2">
+                    Sending to <strong><span id="contacts-bulk-count">0</span></strong> selected contacts.
+                </div>
+                <textarea id="contacts-bulk-body" class="form-control" rows="4" placeholder="Type message..."></textarea>
+                <div class="small text-muted mt-2">
+                    This will queue outbound SMS messages in the database (Phase 2/3).
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn-gold" id="contacts-bulk-send-btn">Send</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ✅ Messaging modals --}}
 <div class="modal fade" id="abSmsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <form class="modal-content" onsubmit="ABMessaging.sendSms(event)">
@@ -363,7 +419,6 @@
     </div>
 </div>
 
-<!-- ✅ Single Email Modal (with history) -->
 <div class="modal fade" id="abEmailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <form class="modal-content" onsubmit="ABMessaging.sendEmail(event)">
@@ -398,24 +453,144 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-
     const container = document.getElementById('contact-details-container');
     const CSRF_TOKEN = @json(csrf_token());
 
-    function hasBootstrapModal() {
-        return !!(window.bootstrap && window.bootstrap.Modal);
+    function loadPanel(url) {
+        container.innerHTML = `
+            <div style="padding:40px; text-align:center;">
+                <div class="spinner-border text-warning" role="status"></div>
+                <p class="mt-3 text-muted">Loading...</p>
+            </div>
+        `;
+
+        fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
+        .then(res => res.text())
+        .then(html => { container.innerHTML = html; })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = `
+                <div style="padding:40px; text-align:center; color:red;">
+                    Failed to load.
+                </div>
+            `;
+        });
     }
 
+    // Contact row click handler
+    document.querySelectorAll('.js-contact-row').forEach(row => {
+        row.addEventListener('click', () => {
+            document.querySelectorAll('.js-contact-row')
+                .forEach(r => r.classList.remove('active-contact-row'));
+
+            row.classList.add('active-contact-row');
+            loadPanel(row.dataset.contactUrl);
+        });
+    });
+
+    // Add Contact button
+    const addBtn = document.getElementById('add-contact-btn');
+    addBtn.addEventListener('click', () => loadPanel(addBtn.dataset.createUrl));
+
+    // Auto-load selected contact after edit
+    const selectedId = @json($selected ?? '');
+    if (selectedId) {
+        const target = document.querySelector(`.js-contact-row[data-contact-id='${selectedId}']`);
+        if (target) target.click();
+    }
+
+    // ============================================================
+    // ✅ BULK SELECT + BULK TEXT
+    // ============================================================
+    const selected = new Set();
+
+    function refreshBulkUi() {
+        document.getElementById('contacts-selected-count').textContent = String(selected.size);
+        const btn = document.getElementById('contacts-bulk-text-btn');
+        if (btn) btn.disabled = selected.size === 0;
+    }
+
+    document.querySelectorAll('.contacts-row-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const id = String(cb.dataset.id);
+            if (cb.checked) selected.add(id);
+            else selected.delete(id);
+            refreshBulkUi();
+        });
+    });
+
+    const selectAll = document.getElementById('contacts-select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            const checked = selectAll.checked;
+            document.querySelectorAll('.contacts-row-checkbox').forEach(cb => {
+                cb.checked = checked;
+                const id = String(cb.dataset.id);
+                if (checked) selected.add(id);
+                else selected.delete(id);
+            });
+            refreshBulkUi();
+        });
+    }
+
+    const bulkBtn = document.getElementById('contacts-bulk-text-btn');
+    if (bulkBtn) {
+        bulkBtn.addEventListener('click', () => {
+            document.getElementById('contacts-bulk-count').textContent = String(selected.size);
+            document.getElementById('contacts-bulk-body').value = '';
+            new bootstrap.Modal(document.getElementById('contactsBulkTextModal')).show();
+        });
+    }
+
+    const bulkSendBtn = document.getElementById('contacts-bulk-send-btn');
+    if (bulkSendBtn) {
+        bulkSendBtn.addEventListener('click', () => {
+            const body = (document.getElementById('contacts-bulk-body').value || '').trim();
+            if (!body) return alert('Message is empty.');
+
+            fetch('/contacts/messages/bulk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ contact_ids: Array.from(selected), body })
+            })
+            .then(r => r.json().catch(() => ({})).then(data => {
+                if (!r.ok) throw new Error(data.message || 'Bulk send failed.');
+                return data;
+            }))
+            .then(data => {
+                alert(`Queued ${data.queued || 0} texts. Skipped (no phone): ${data.skipped?.no_phone || 0}`);
+
+                selected.clear();
+                document.querySelectorAll('.contacts-row-checkbox').forEach(cb => cb.checked = false);
+                const selAll = document.getElementById('contacts-select-all');
+                if (selAll) selAll.checked = false;
+                refreshBulkUi();
+
+                bootstrap.Modal.getInstance(document.getElementById('contactsBulkTextModal'))?.hide();
+            })
+            .catch(err => {
+                console.error(err);
+                alert(err.message || 'Bulk send failed.');
+            });
+        });
+    }
+
+    refreshBulkUi();
+
+    // ============================================================
+    // ✅ ABMessaging
+    // ============================================================
+    function hasBootstrapModal() { return !!(window.bootstrap && window.bootstrap.Modal); }
+
     function showModalById(id) {
-        if (!hasBootstrapModal()) {
-            alert('Bootstrap modal JS is missing. (bootstrap.Modal not available)');
-            return;
-        }
+        if (!hasBootstrapModal()) return alert('Bootstrap modal JS missing.');
         const el = document.getElementById(id);
-        if (!el) {
-            alert('Missing modal element: #' + id);
-            return;
-        }
+        if (!el) return alert('Missing modal: #' + id);
         new bootstrap.Modal(el).show();
     }
 
@@ -484,73 +659,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ✅ Make loader global (optional, but safe)
-    window.loadContactsPanel = function (url) {
-        container.innerHTML = `
-            <div style="padding:40px; text-align:center;">
-                <div class="spinner-border text-warning" role="status"></div>
-                <p class="mt-3 text-muted">Loading...</p>
-            </div>
-        `;
-
-        fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
-            .then(res => res.text())
-            .then(html => { container.innerHTML = html; })
-            .catch(err => {
-                console.error(err);
-                container.innerHTML = `
-                    <div style="padding:40px; text-align:center; color:red;">
-                        Failed to load.
-                    </div>
-                `;
-            });
-    };
-
-    // ✅ Global messaging object so AJAX-loaded partial buttons work
     window.ABMessaging = window.ABMessaging || {
         openSms: function (contactId, name, phone) {
-            try {
-                document.getElementById('ab_sms_contact_id').value = contactId || '';
-                document.getElementById('ab_sms_contact_name').textContent = name || '';
-                document.getElementById('ab_sms_to').textContent = phone ? ('To: ' + phone) : 'No phone on file';
-                document.getElementById('ab_sms_body').value = '';
+            document.getElementById('ab_sms_contact_id').value = contactId || '';
+            document.getElementById('ab_sms_contact_name').textContent = name || '';
+            document.getElementById('ab_sms_to').textContent = phone ? ('To: ' + phone) : 'No phone on file';
+            document.getElementById('ab_sms_body').value = '';
 
-                renderHistory('ab_sms_history', 'ab_sms_history_label', []);
-                document.getElementById('ab_sms_history_label').textContent = 'Loading history...';
-                fetchHistory(contactId, 'sms', 'ab_sms_history', 'ab_sms_history_label');
+            renderHistory('ab_sms_history', 'ab_sms_history_label', []);
+            document.getElementById('ab_sms_history_label').textContent = 'Loading history...';
+            fetchHistory(contactId, 'sms', 'ab_sms_history', 'ab_sms_history_label');
 
-                showModalById('abSmsModal');
-            } catch (e) {
-                console.error(e);
-                alert('Failed to open Text modal. Check console.');
-            }
+            showModalById('abSmsModal');
         },
 
         openEmail: function (contactId, name, email) {
-            try {
-                document.getElementById('ab_email_contact_id').value = contactId || '';
-                document.getElementById('ab_email_contact_name').textContent = name || '';
-                document.getElementById('ab_email_to').textContent = email ? ('To: ' + email) : 'No email on file';
-                document.getElementById('ab_email_subject').value = '';
-                document.getElementById('ab_email_body').value = '';
+            document.getElementById('ab_email_contact_id').value = contactId || '';
+            document.getElementById('ab_email_contact_name').textContent = name || '';
+            document.getElementById('ab_email_to').textContent = email ? ('To: ' + email) : 'No email on file';
+            document.getElementById('ab_email_subject').value = '';
+            document.getElementById('ab_email_body').value = '';
 
-                renderHistory('ab_email_history', 'ab_email_history_label', []);
-                document.getElementById('ab_email_history_label').textContent = 'Loading history...';
-                fetchHistory(contactId, 'email', 'ab_email_history', 'ab_email_history_label');
+            renderHistory('ab_email_history', 'ab_email_history_label', []);
+            document.getElementById('ab_email_history_label').textContent = 'Loading history...';
+            fetchHistory(contactId, 'email', 'ab_email_history', 'ab_email_history_label');
 
-                showModalById('abEmailModal');
-            } catch (e) {
-                console.error(e);
-                alert('Failed to open Email modal. Check console.');
-            }
+            showModalById('abEmailModal');
         },
 
         sendSms: function (e) {
             e.preventDefault();
-
             const contactId = String(document.getElementById('ab_sms_contact_id').value || '').trim();
             const body = String(document.getElementById('ab_sms_body').value || '').trim();
-
             if (!body) return alert('Message is empty.');
 
             fetch('/contacts/' + contactId + '/messages', {
@@ -561,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ channel: 'sms', body: body })
+                body: JSON.stringify({ channel: 'sms', body })
             })
             .then(res => res.json().catch(() => ({})).then(data => {
                 if (!res.ok) throw new Error(data.message || ('Failed to save SMS (HTTP ' + res.status + ').'));
@@ -580,11 +720,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         sendEmail: function (e) {
             e.preventDefault();
-
             const contactId = String(document.getElementById('ab_email_contact_id').value || '').trim();
             const subject = String(document.getElementById('ab_email_subject').value || '').trim();
             const body = String(document.getElementById('ab_email_body').value || '').trim();
-
             if (!subject) return alert('Subject is required.');
             if (!body) return alert('Email body is empty.');
 
@@ -596,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ channel: 'email', subject: subject, body: body })
+                body: JSON.stringify({ channel: 'email', subject, body })
             })
             .then(res => res.json().catch(() => ({})).then(data => {
                 if (!res.ok) throw new Error(data.message || ('Failed to save Email (HTTP ' + res.status + ').'));
@@ -614,30 +752,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     };
-
-    // Contact row click handler
-    document.querySelectorAll('.js-contact-row').forEach(row => {
-        row.addEventListener('click', () => {
-            document.querySelectorAll('.js-contact-row')
-                .forEach(r => r.classList.remove('active-contact-row'));
-
-            row.classList.add('active-contact-row');
-            window.loadContactsPanel(row.dataset.contactUrl);
-        });
-    });
-
-    // Add Contact button
-    const addBtn = document.getElementById('add-contact-btn');
-    addBtn.addEventListener('click', () => {
-        window.loadContactsPanel(addBtn.dataset.createUrl);
-    });
-
-    // Auto-load selected contact after edit
-    const selectedId = @json($selected ?? '');
-    if (selectedId) {
-        const target = document.querySelector(`.js-contact-row[data-contact-id='${selectedId}']`);
-        if (target) target.click();
-    }
 });
 </script>
 @endpush
