@@ -35,6 +35,9 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 
+// ✅ SETTINGS (Messaging - Universal SMS Providers)
+use App\Http\Controllers\Settings\SmsProvidersController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION
@@ -94,22 +97,39 @@ Route::middleware('auth')->group(function () {
     |----------------------------------------------------------------------
     | SETTINGS (Tier 1): Profile / Messaging / Billing
     |----------------------------------------------------------------------
-    | NOTE: This does NOT replace /billing (existing). It adds Settings tabs.
+    | NOTE: This does NOT replace /billing (existing). It adds Settings pages.
     */
     Route::get('/settings', [SettingsController::class, 'redirect'])->name('settings');
 
     Route::get('/settings/profile', [SettingsController::class, 'profile'])
         ->name('settings.profile');
 
-    // Profile actions (Step 1 wiring)
+    // Profile actions (Step 1 wiring) - controller can be created later if needed
     Route::patch('/settings/profile/email', [ProfileSettingsController::class, 'updateEmail'])
         ->name('settings.profile.email.update');
 
     Route::patch('/settings/profile/password', [ProfileSettingsController::class, 'updatePassword'])
         ->name('settings.profile.password.update');
 
-    Route::get('/settings/messaging', [SettingsController::class, 'messaging'])
+    /*
+    |----------------------------------------------------------------------
+    | SETTINGS -> MESSAGING LANDING (redirect to Universal SMS Providers)
+    |----------------------------------------------------------------------
+    */
+    Route::get('/settings/messaging', fn () => redirect()->route('settings.messaging.sms_providers'))
         ->name('settings.messaging');
+
+    /*
+    |----------------------------------------------------------------------
+    | SETTINGS -> MESSAGING -> SMS PROVIDERS (Universal)
+    |----------------------------------------------------------------------
+    */
+    Route::get('/settings/messaging/sms-providers', [SmsProvidersController::class, 'index'])
+        ->name('settings.messaging.sms_providers');
+
+    Route::get('/settings/messaging/sms-providers/{provider}/configure', [SmsProvidersController::class, 'configure'])
+        ->whereIn('provider', ['twilio', 'telnyx', 'plivo', 'vonage'])
+        ->name('settings.messaging.sms_providers.configure');
 
     Route::get('/settings/billing', [SettingsController::class, 'billing'])
         ->name('settings.billing');
