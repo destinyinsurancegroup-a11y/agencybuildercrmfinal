@@ -1,19 +1,72 @@
 <div class="p-4">
 
+    @php
+        // Match Book pattern: safe display name
+        $leadName = $contact->full_name
+            ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+    @endphp
+
     {{-- MAIN LEAD CARD --}}
     <div class="card shadow-sm border-0 p-4">
 
         <!-- BIG NAME HEADER -->
-        <h1 class="fw-bold mb-3" style="font-size: 32px;">
+        <h1 class="fw-bold mb-2" style="font-size: 32px;">
             {{ $contact->first_name }} {{ $contact->last_name }}
         </h1>
+
+        <!-- ✅ Messaging buttons (Text / Email) -->
+        <div class="mt-2 d-flex gap-2 flex-wrap">
+            <button
+                type="button"
+                class="btn-outline-gold"
+                style="
+                    font-size:12px;
+                    background: transparent;
+                    color: #c9a227;
+                    border: 1px solid #c9a227;
+                    padding: 6px 10px;
+                    font-weight: 600;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.10);
+                    cursor: pointer;
+                    white-space: nowrap;
+                "
+                onclick='ABMessaging.openSms({{ (int) $contact->id }}, @json($leadName), @json($contact->phone))'
+                {{ empty($contact->phone) ? 'disabled' : '' }}
+                title="{{ empty($contact->phone) ? 'No phone on file' : 'Send a text' }}"
+            >
+                Text
+            </button>
+
+            <button
+                type="button"
+                class="btn-outline-gold"
+                style="
+                    font-size:12px;
+                    background: transparent;
+                    color: #c9a227;
+                    border: 1px solid #c9a227;
+                    padding: 6px 10px;
+                    font-weight: 600;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.10);
+                    cursor: pointer;
+                    white-space: nowrap;
+                "
+                onclick='ABMessaging.openEmail({{ (int) $contact->id }}, @json($leadName), @json($contact->email))'
+                {{ empty($contact->email) ? 'disabled' : '' }}
+                title="{{ empty($contact->email) ? 'No email on file' : 'Send an email' }}"
+            >
+                Email
+            </button>
+        </div>
 
         <!-- Hidden helpers for JS -->
         <input type="hidden" id="leadContactId" value="{{ $contact->id }}">
         <input type="hidden" id="leadContactName" value="{{ $contact->full_name }}">
 
         <!-- DISPOSITION BUTTONS UNDER NAME -->
-        <div class="d-flex gap-2 mb-4">
+        <div class="d-flex gap-2 mb-4 mt-3">
 
             {{-- SOLD --}}
             <form method="POST"
@@ -240,15 +293,12 @@
         .then(response => response.json())
         .then(data => {
             if (!data || !data.note) {
-                // If backend returns plain success, just reload for safety
-                // but we prefer JSON with the note record.
                 window.location.reload();
                 return;
             }
 
             const list = document.getElementById('lead-notes-list');
 
-            // Prepend new note
             const el = renderLeadNoteElement(data.note);
             list.prepend(el);
 
@@ -265,7 +315,7 @@
 
         const currentText = noteEl.innerText.trim();
         const updatedText = prompt('Edit note:', currentText);
-        if (updatedText === null) return; // user cancelled
+        if (updatedText === null) return;
         const trimmed = updatedText.trim();
         if (!trimmed) return;
 
