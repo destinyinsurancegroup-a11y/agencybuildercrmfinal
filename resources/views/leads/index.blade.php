@@ -78,8 +78,24 @@
         background: #b5901f;
     }
 
+    /* ✅ Outline gold button like Book */
+    .btn-outline-gold {
+        background: transparent;
+        color:#c9a227;
+        border:1px solid #c9a227;
+        padding:6px 10px;
+        font-weight:600;
+        border-radius:8px;
+        box-shadow:0 4px 8px rgba(0,0,0,0.10);
+        font-size:12px;
+        cursor:pointer;
+        white-space:nowrap;
+    }
+    .btn-outline-gold:hover { background: rgba(201,162,39,0.12); }
+    .btn-outline-gold:disabled { opacity: 0.45; cursor: not-allowed; }
+
     .button-row {
-        margin-bottom: 20px;
+        margin-bottom: 14px;
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
@@ -91,9 +107,8 @@
         border-bottom: 1px solid #eee;
         cursor: pointer;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        gap: 6px;
+        gap: 10px;
     }
 
     .contact-list-item:hover {
@@ -112,6 +127,45 @@
 
     .flash-wrap {
         margin-bottom: 14px;
+    }
+
+    /* ✅ Bulk UI row (matches Service/Contacts bulk feel) */
+    .bulk-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 8px 0 12px;
+    }
+
+    .bulk-row label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #6b7280;
+        user-select: none;
+        margin: 0;
+    }
+
+    .bulk-row .right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .bulk-row .count {
+        font-size: 13px;
+        color: #6b7280;
+    }
+
+    /* Archived badge spacing when checkbox exists */
+    .lead-row-right {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     }
 </style>
 
@@ -201,6 +255,24 @@
                     </button>
                 </div>
 
+                {{-- ✅ BULK SELECT ROW --}}
+                <div class="bulk-row">
+                    <label>
+                        <input type="checkbox" id="leads-select-all">
+                        Select all
+                    </label>
+
+                    <div class="right">
+                        <div class="count">
+                            Selected: <span id="leads-selected-count">0</span>
+                        </div>
+
+                        <button type="button" class="btn-outline-gold" id="leads-bulk-text-btn" disabled>
+                            Bulk Text
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Lead List -->
                 <div id="lead-list">
                     @forelse ($leads as $lead)
@@ -214,7 +286,7 @@
                                 ? route('book.show', $lead->id)
                                 : route('leads.show', $lead->id);
 
-                            // Blade-safe badge class (no @if inside attributes)
+                            // Blade-safe badge class
                             $badgeClass = 'badge bg-secondary';
                             if ($statusLower === 'sold') {
                                 $badgeClass = 'badge bg-success';
@@ -230,10 +302,18 @@
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
                         >
+                            {{-- ✅ checkbox (stops row click) --}}
+                            <input type="checkbox"
+                                   class="leads-row-checkbox"
+                                   data-id="{{ $lead->id }}"
+                                   onclick="event.stopPropagation();">
+
                             <span>{{ $name ?: '(No Name)' }}</span>
 
                             @if($isArchivedView)
-                                <span class="{{ $badgeClass }}">{{ $status }}</span>
+                                <span class="lead-row-right">
+                                    <span class="{{ $badgeClass }}">{{ $status }}</span>
+                                </span>
                             @endif
                         </div>
                     @empty
@@ -292,6 +372,33 @@
     </div>
 </div>
 
+{{-- ✅ BULK TEXT MODAL --}}
+<div class="modal fade" id="leadsBulkTextModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content" onsubmit="return false;">
+            <div class="modal-header bg-black text-gold">
+                <h5 class="modal-title">Bulk Text</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="small text-muted mb-2">
+                    Sending to <strong><span id="leads-bulk-count">0</span></strong> selected leads.
+                </div>
+                <textarea id="leads-bulk-body" class="form-control" rows="4" placeholder="Type message..."></textarea>
+                <div class="small text-muted mt-2">
+                    This will queue outbound SMS messages in the database (Phase 2/3).
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn-gold" id="leads-bulk-send-btn">Send</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {{-- ✅ REQUIRED for Leads Text/Email: includes modals + ABMessaging global --}}
 @include('partials.messaging')
 
@@ -302,6 +409,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     const container = document.getElementById('contact-details-container');
+    const CSRF_TOKEN = @json(csrf_token());
 
     // ✅ Make loader available to AJAX partials + global note functions
     window.loadLeadPanel = function (url) {
@@ -353,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     });
 
-    // ✅ If upload had errors, reopen modal so user sees it (match Book tab)
+    // ✅ If upload had errors, reopen modal so user sees it
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadLeadModal');
         if (modalEl) new bootstrap.Modal(modalEl).show();
@@ -363,6 +471,95 @@ document.addEventListener('DOMContentLoaded', () => {
     @if(!empty($selected))
         window.loadLeadPanel("{{ route('leads.show', $selected) }}");
     @endif
+
+    // ============================================================
+    // ✅ BULK SELECT + BULK TEXT (uses POST /contacts/messages/bulk)
+    // ============================================================
+    const selectedIds = new Set();
+
+    function refreshBulkUi() {
+        const count = selectedIds.size;
+        const countEl = document.getElementById('leads-selected-count');
+        if (countEl) countEl.textContent = String(count);
+
+        const btn = document.getElementById('leads-bulk-text-btn');
+        if (btn) btn.disabled = count === 0;
+    }
+
+    document.querySelectorAll('.leads-row-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const id = String(cb.dataset.id);
+            if (cb.checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            refreshBulkUi();
+        });
+    });
+
+    const selectAll = document.getElementById('leads-select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            const checked = selectAll.checked;
+            document.querySelectorAll('.leads-row-checkbox').forEach(cb => {
+                cb.checked = checked;
+                const id = String(cb.dataset.id);
+                if (checked) selectedIds.add(id);
+                else selectedIds.delete(id);
+            });
+            refreshBulkUi();
+        });
+    }
+
+    const bulkBtn = document.getElementById('leads-bulk-text-btn');
+    if (bulkBtn) {
+        bulkBtn.addEventListener('click', () => {
+            document.getElementById('leads-bulk-count').textContent = String(selectedIds.size);
+            document.getElementById('leads-bulk-body').value = '';
+            new bootstrap.Modal(document.getElementById('leadsBulkTextModal')).show();
+        });
+    }
+
+    const bulkSendBtn = document.getElementById('leads-bulk-send-btn');
+    if (bulkSendBtn) {
+        bulkSendBtn.addEventListener('click', () => {
+            const body = (document.getElementById('leads-bulk-body').value || '').trim();
+            if (!body) return alert('Message is empty.');
+
+            fetch('/contacts/messages/bulk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ contact_ids: Array.from(selectedIds), body })
+            })
+            .then(r => r.json().catch(() => ({})).then(data => {
+                if (!r.ok) throw new Error(data.message || 'Bulk send failed.');
+                return data;
+            }))
+            .then(data => {
+                const queued = data.queued || 0;
+                const skippedNoPhone = (data.skipped && data.skipped.no_phone) ? data.skipped.no_phone : 0;
+                alert(`Queued ${queued} texts. Skipped (no phone): ${skippedNoPhone}`);
+
+                // Clear selections
+                selectedIds.clear();
+                document.querySelectorAll('.leads-row-checkbox').forEach(cb => cb.checked = false);
+                const selAll = document.getElementById('leads-select-all');
+                if (selAll) selAll.checked = false;
+                refreshBulkUi();
+
+                bootstrap.Modal.getInstance(document.getElementById('leadsBulkTextModal'))?.hide();
+            })
+            .catch(err => {
+                console.error(err);
+                alert(err.message || 'Bulk send failed.');
+            });
+        });
+    }
+
+    refreshBulkUi();
 });
 
 
@@ -371,10 +568,9 @@ document.addEventListener('DOMContentLoaded', () => {
    ======================================================= */
 
 window.saveLeadNote = function (contactId) {
-    // This id must match your leads details partial textarea
     const textarea =
         document.getElementById('lead_new_note_body') ||
-        document.getElementById('new_note_body'); // fallback if partial uses same as Book
+        document.getElementById('new_note_body');
 
     if (!textarea) {
         console.error('No note textarea found (expected #lead_new_note_body or #new_note_body).');
@@ -414,13 +610,10 @@ window.saveLeadNote = function (contactId) {
 };
 
 window.editLeadNote = function (contactId, noteId) {
-    // Supports either markup:
-    // - #lead-note-{id} .note-body
-    // - #note-{id} .note-body
     const noteEl =
+        document.querySelector(`#lead-note-${noteId} .lead-note-text`) ||
         document.querySelector(`#lead-note-${noteId} .note-body`) ||
-        document.querySelector(`#note-${noteId} .note-body`) ||
-        document.querySelector(`#lead-note-${noteId} div:first-child`);
+        document.querySelector(`#note-${noteId} .note-body`);
 
     if (!noteEl) {
         console.error('Existing note element not found for noteId:', noteId);
