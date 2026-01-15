@@ -1,144 +1,240 @@
 @extends('layouts.app')
 
 @php
-    // Helper to mark active tab
-    $isActive = fn(string $tab) => ($activeTab ?? 'profile') === $tab;
+    // Expect $settingsSection and $settingsPage from controller/view.
+    // Example:
+    // $settingsSection = 'messaging';
+    // $settingsPage = 'sms_providers';
+    $settingsSection = $settingsSection ?? 'settings';
+    $settingsPage = $settingsPage ?? 'profile';
+
+    $isActive = function (string $page) use ($settingsPage) {
+        return $settingsPage === $page;
+    };
 @endphp
 
 @section('content')
-<div class="container-fluid" style="padding: 24px 24px 40px 24px;">
-    <div class="settings-page">
+<div class="container-fluid" style="padding: 24px;">
+    <div class="settings-shell">
 
-        {{-- Page Title --}}
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <h1 class="settings-title">Settings</h1>
+        <div class="settings-header mb-3">
+            <h1 class="settings-title mb-0">Settings</h1>
         </div>
 
-        {{-- Tabs --}}
-        <ul class="nav nav-tabs settings-tabs mb-0">
-            <li class="nav-item">
-                <a class="nav-link {{ $isActive('profile') ? 'active' : '' }}"
-                   href="{{ route('settings.profile') }}">
-                    Profile
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $isActive('messaging') ? 'active' : '' }}"
-                   href="{{ route('settings.messaging') }}">
-                    Messaging
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $isActive('billing') ? 'active' : '' }}"
-                   href="{{ route('settings.billing') }}">
-                    Billing
-                </a>
-            </li>
-        </ul>
+        <div class="settings-body">
+            {{-- Left Settings Menu --}}
+            <aside class="settings-menu">
+                <div class="settings-menu-group">
+                    <div class="settings-menu-item settings-menu-item--header">
+                        <span class="settings-menu-icon">⚙️</span>
+                        <span>Settings</span>
+                    </div>
 
-        {{-- Content Card --}}
-        <div class="settings-card">
-            @yield('settings_content')
+                    <a class="settings-menu-item {{ $isActive('profile') ? 'active' : '' }}"
+                       href="{{ route('settings.profile') }}">
+                        Profile
+                    </a>
+
+                    {{-- You can enable Organization later; keep it visible as placeholder --}}
+                    <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
+                        Organization <span class="badge bg-light text-muted ms-auto">Soon</span>
+                    </a>
+
+                    {{-- Tier 1 note: not needed yet, but your preferred UI shows it --}}
+                    <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
+                        Users &amp; Roles <span class="badge bg-light text-muted ms-auto">Soon</span>
+                    </a>
+
+                    <a class="settings-menu-item {{ $isActive('billing') ? 'active' : '' }}"
+                       href="{{ route('settings.billing') }}">
+                        Billing
+                    </a>
+                </div>
+
+                <div class="settings-menu-divider"></div>
+
+                <div class="settings-menu-group">
+                    <div class="settings-menu-section">MESSAGING</div>
+
+                    {{-- Messaging lands on SMS Providers style page --}}
+                    <a class="settings-menu-item {{ $isActive('sms_providers') ? 'active' : '' }}"
+                       href="{{ route('settings.messaging') }}">
+                        <span class="settings-bullet">💬</span>
+                        SMS Providers
+                        <span class="settings-chevron ms-auto">›</span>
+                    </a>
+
+                    <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
+                        Message Templates <span class="badge bg-light text-muted ms-auto">Soon</span>
+                    </a>
+
+                    <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
+                        Drip Campaigns <span class="badge bg-light text-muted ms-auto">Soon</span>
+                    </a>
+
+                    <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
+                        Notification Preferences <span class="badge bg-light text-muted ms-auto">Soon</span>
+                    </a>
+                </div>
+            </aside>
+
+            {{-- Right Content Panel --}}
+            <main class="settings-content">
+                @yield('settings_content')
+            </main>
         </div>
     </div>
 </div>
 
-{{-- Minimal ABC theme shim for Settings only --}}
 <style>
-    /* Match your app’s soft beige background vibe */
-    .settings-page {
-        max-width: 1200px;
+    /* Layout shell */
+    .settings-shell {
+        max-width: 1320px;
     }
 
     .settings-title {
         font-size: 40px;
-        font-weight: 700;
-        margin: 0;
-        color: #111827;
+        font-weight: 800;
         letter-spacing: -0.02em;
-    }
-
-    /* Tabs */
-    .settings-tabs {
-        border-bottom: 1px solid #e5e7eb;
-    }
-    .settings-tabs .nav-link {
-        border: 1px solid transparent;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
-        color: #111827;
-        padding: 10px 16px;
-        font-weight: 600;
-    }
-    .settings-tabs .nav-link:hover {
-        color: #111827;
-        background: #f9fafb;
-        border-color: #e5e7eb #e5e7eb transparent;
-    }
-    .settings-tabs .nav-link.active {
-        background: #ffffff;
-        border-color: #e5e7eb #e5e7eb #ffffff;
         color: #111827;
     }
 
-    /* Content area */
-    .settings-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-top: none;
-        border-bottom-left-radius: 14px;
-        border-bottom-right-radius: 14px;
-        border-top-right-radius: 14px;
+    .settings-body {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 22px;
+        align-items: start;
+    }
+
+    /* Left menu */
+    .settings-menu {
+        background: #f5f5f4;
+        border-radius: 14px;
+        border: 1px solid #e7e5e4;
+        padding: 14px;
         box-shadow: 0 12px 30px rgba(0,0,0,0.08);
-        padding: 22px;
-        min-height: 260px;
     }
 
-    /* ABC gold buttons */
-    .btn-abc-gold {
-        background: #c9a227;
+    .settings-menu-divider {
+        height: 1px;
+        background: #e7e5e4;
+        margin: 12px 0;
+    }
+
+    .settings-menu-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .settings-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        text-decoration: none;
         color: #111827;
+        font-weight: 600;
+        border: 1px solid transparent;
+        background: transparent;
+    }
+
+    .settings-menu-item:hover {
+        background: #ffffff;
+        border-color: #e7e5e4;
+        color: #111827;
+    }
+
+    .settings-menu-item.active {
+        background: #efe7d3;
+        border-color: #e6d7b0;
+        color: #111827;
+        position: relative;
+    }
+
+    .settings-menu-item.active::before {
+        content: "";
+        width: 4px;
+        height: 70%;
+        background: #c9a227;
+        border-radius: 4px;
+        position: absolute;
+        left: 6px;
+        top: 15%;
+    }
+
+    .settings-menu-item--header {
+        background: transparent;
+        border: none;
+        font-weight: 800;
+        padding: 8px 8px;
+        color: #111827;
+    }
+
+    .settings-menu-icon { opacity: 0.7; }
+    .settings-menu-section {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        color: #6b7280;
+        padding: 6px 10px 4px 10px;
+    }
+
+    .settings-bullet { opacity: 0.85; }
+    .settings-chevron { color: #6b7280; font-weight: 900; }
+
+    .settings-menu-item.disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    /* Right content */
+    .settings-content {
+        min-height: 400px;
+    }
+
+    /* Shared right-panel card */
+    .panel-card {
+        background: #ffffff;
+        border: 1px solid #e7e5e4;
+        border-radius: 14px;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+
+    .panel-card-header {
+        background: linear-gradient(90deg, #d7b34a, #f0d27a);
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 900;
+        color: #111827;
+    }
+
+    .panel-card-body {
+        padding: 18px;
+    }
+
+    .btn-abc-gold {
+        background: #a57c12;
+        color: #fff;
         border: none;
         border-radius: 10px;
-        padding: 10px 16px;
-        font-weight: 700;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        padding: 10px 14px;
+        font-weight: 800;
+        box-shadow: 0 10px 18px rgba(0,0,0,0.15);
     }
-    .btn-abc-gold:hover {
-        opacity: 0.92;
-        color: #111827;
-    }
+    .btn-abc-gold:hover { opacity: 0.92; color: #fff; }
 
     .btn-abc-outline {
         background: #fff;
         color: #111827;
-        border: 1px solid #d1d5db;
+        border: 1px solid #d6d3d1;
         border-radius: 10px;
-        padding: 10px 16px;
-        font-weight: 700;
-    }
-    .btn-abc-outline:hover {
-        background: #f9fafb;
-        color: #111827;
-    }
-
-    .settings-subtitle {
-        color: #6b7280;
-        margin-top: 4px;
-        margin-bottom: 18px;
-    }
-
-    .settings-section-title {
-        font-size: 22px;
+        padding: 10px 14px;
         font-weight: 800;
-        margin: 0;
-        color: #111827;
     }
+    .btn-abc-outline:hover { background: #fafaf9; }
 
-    .settings-help {
-        font-size: 13px;
-        color: #6b7280;
-        margin-top: 10px;
-    }
+    .form-label { font-weight: 800; color: #111827; }
 </style>
 @endsection
