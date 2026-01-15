@@ -292,6 +292,9 @@
     </div>
 </div>
 
+{{-- ✅ REQUIRED for Leads Text/Email: includes modals + ABMessaging global --}}
+@include('partials.messaging')
+
 @endsection
 
 @push('scripts')
