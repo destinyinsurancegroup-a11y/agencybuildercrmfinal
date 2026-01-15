@@ -31,6 +31,10 @@ use App\Http\Controllers\Gideon\GideonInsightsController;
 use App\Http\Controllers\GideonScanController;
 use App\Http\Controllers\BillingController;
 
+// ✅ SETTINGS (Tier 1 tabs + Profile actions)
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\Settings\ProfileSettingsController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION
@@ -85,6 +89,30 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    /*
+    |----------------------------------------------------------------------
+    | SETTINGS (Tier 1): Profile / Messaging / Billing
+    |----------------------------------------------------------------------
+    | NOTE: This does NOT replace /billing (existing). It adds Settings tabs.
+    */
+    Route::get('/settings', [SettingsController::class, 'redirect'])->name('settings');
+
+    Route::get('/settings/profile', [SettingsController::class, 'profile'])
+        ->name('settings.profile');
+
+    // Profile actions (Step 1 wiring)
+    Route::patch('/settings/profile/email', [ProfileSettingsController::class, 'updateEmail'])
+        ->name('settings.profile.email.update');
+
+    Route::patch('/settings/profile/password', [ProfileSettingsController::class, 'updatePassword'])
+        ->name('settings.profile.password.update');
+
+    Route::get('/settings/messaging', [SettingsController::class, 'messaging'])
+        ->name('settings.messaging');
+
+    Route::get('/settings/billing', [SettingsController::class, 'billing'])
+        ->name('settings.billing');
 
     /*
     |----------------------------------------------------------------------
