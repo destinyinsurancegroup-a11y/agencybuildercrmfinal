@@ -15,7 +15,15 @@
     #service-notes-wrapper {
         margin-top: 24px;
     }
+
+    /* (local only) ensure disabled outline buttons look disabled */
+    .btn-outline-gold:disabled { opacity: 0.45; cursor: not-allowed; }
 </style>
+
+@php
+    $clientName = $client->full_name
+        ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+@endphp
 
 <div class="p-4">
     <div class="card shadow-sm border-0 p-4">
@@ -28,9 +36,34 @@
                     {{ $client->first_name }} {{ $client->last_name }}
                 </h1>
 
+                <!-- ✅ Messaging buttons (Text / Email) -->
+                <div class="mt-2 d-flex gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        class="btn-outline-gold"
+                        style="font-size:12px;"
+                        onclick='ABMessaging.openSms({{ (int) $client->id }}, @json($clientName), @json($client->phone))'
+                        {{ empty($client->phone) ? 'disabled' : '' }}
+                        title="{{ empty($client->phone) ? 'No phone on file' : 'Send a text' }}"
+                    >
+                        Text
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn-outline-gold"
+                        style="font-size:12px;"
+                        onclick='ABMessaging.openEmail({{ (int) $client->id }}, @json($clientName), @json($client->email))'
+                        {{ empty($client->email) ? 'disabled' : '' }}
+                        title="{{ empty($client->email) ? 'No email on file' : 'Send an email' }}"
+                    >
+                        Email
+                    </button>
+                </div>
+
                 {{-- CURRENT SERVICE STATUS BADGE (if any) --}}
                 @if($client->service_status || $client->service_archived_at)
-                    <div class="mb-2">
+                    <div class="mb-2 mt-2">
                         @php
                             $status = $client->service_status;
                         @endphp
@@ -145,10 +178,10 @@
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
-                <p><strong>Face Amount:</strong> 
+                <p><strong>Face Amount:</strong>
                     {{ $client->face_amount ? '$'.number_format($client->face_amount, 2) : '—' }}
                 </p>
-                <p><strong>Monthly Premium:</strong> 
+                <p><strong>Monthly Premium:</strong>
                     {{ $client->premium_amount ? '$'.number_format($client->premium_amount, 2) : '—' }}
                 </p>
             </div>
