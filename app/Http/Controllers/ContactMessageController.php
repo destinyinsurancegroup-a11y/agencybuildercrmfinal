@@ -42,14 +42,12 @@ class ContactMessageController extends Controller
             abort(403);
         }
 
-        // If agency_id exists, enforce it when both are present
         if ($this->contactsHasAgencyId() && isset($contact->agency_id) && isset($user->agency_id)) {
             if ((string) $contact->agency_id !== (string) $user->agency_id) {
                 abort(403, 'Unauthorized');
             }
         }
 
-        // If tenant_id exists, enforce it when both are present
         if ($this->contactsHasTenantId() && isset($contact->tenant_id) && isset($user->tenant_id)) {
             if ((string) $contact->tenant_id !== (string) $user->tenant_id) {
                 abort(403, 'Unauthorized');
@@ -61,27 +59,21 @@ class ContactMessageController extends Controller
      * Phase 3: message history for a contact
      * GET /contacts/{contact}/messages
      *
-     * UI-friendly response for chat/popup:
-     * - returns items in ASC order (old -> new)
-     * - supports cursor paging via before_id (and before alias)
-     *
      * Query params:
-     * - limit (default 50, max 100)
+     * - limit (default 50, max 200)
      * - channel: sms|email (optional)
-     * - before_id OR before: int (optional) load messages with id < before_id
+     * - before_id: int (optional) load messages with id < before_id
      */
     public function index(Request $request, Contact $contact)
     {
         $this->enforceScopeOrAbort($contact);
 
-        // Support both `before_id` and legacy `before`
-        $beforeId = $request->query('before_id', $request->query('before'));
-
         $limit = (int) $request->query('limit', 50);
         if ($limit < 1) $limit = 50;
-        if ($limit > 100) $limit = 100;
+        if ($limit > 200) $limit = 200;
 
         $channel = $request->query('channel');
+        $beforeId = $request->query('before_id');
 
         $q = Message::query()
             ->where('contact_id', $contact->id);
@@ -94,12 +86,8 @@ class ContactMessageController extends Controller
             $q->where('id', '<', (int) $beforeId);
         }
 
-        /**
-         * Pull newest first (cheap paging), then reverse in memory
-         * so the UI can render old->new naturally.
-         */
         $rows = $q->orderByDesc('id')
-            ->limit($limit + 1) // +1 to detect has_more
+            ->limit($limit + 1)
             ->get([
                 'id',
                 'contact_id',
@@ -110,8 +98,11 @@ class ContactMessageController extends Controller
                 'to_address',
                 'subject',
                 'body',
+                'provider',
+                'provider_message_id',
                 'error_message',
                 'created_at',
+                'updated_at',
             ]);
 
         $hasMore = $rows->count() > $limit;
@@ -119,11 +110,12 @@ class ContactMessageController extends Controller
             $rows = $rows->slice(0, $limit);
         }
 
-        // oldest -> newest
         $rows = $rows->reverse()->values();
 
-        // next cursor should be the oldest id in this batch
-        $nextBeforeId = $rows->isNotEmpty() ? (int) $rows->first()->id : null;
+        $nextBeforeId = null;
+        if ($rows->isNotEmpty()) {
+            $nextBeforeId = (int) $rows->first()->id;
+        }
 
         $contactName = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
 
@@ -158,7 +150,6 @@ class ContactMessageController extends Controller
             'subject' => 'nullable|string|max:255',
         ]);
 
-        // Normalize recipient from contact record
         $toAddress = null;
 
         if ($data['channel'] === 'sms') {
@@ -196,6 +187,87 @@ class ContactMessageController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
+        ], 201);
+    }
+
+    /**
+     * ✅ Bulk queue SMS (checkbox-selected contacts)
+     * POST /contacts/messages/bulk
+     *
+     * Payload:
+     * - contact_ids: array<int>
+     * - body: string
+     */
+    public function bulkStore(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) abort(403);
+
+        $data = $request->validate([
+            'contact_ids'   => 'required|array|min:1',
+            'contact_ids.*' => 'integer',
+            'body'          => 'required|string|max:5000',
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', $data['contact_ids'])));
+        $body = trim((string) $data['body']);
+
+        // Pull contacts and apply best-effort scoping in SQL when possible
+        $contactsQ = Contact::query()->whereIn('id', $ids);
+
+        if ($this->contactsHasAgencyId() && isset($user->agency_id)) {
+            $contactsQ->where(function ($q) use ($user) {
+                $q->whereNull('agency_id')->orWhere('agency_id', $user->agency_id);
+            });
+        }
+
+        if ($this->contactsHasTenantId() && isset($user->tenant_id)) {
+            $contactsQ->where(function ($q) use ($user) {
+                $q->whereNull('tenant_id')->orWhere('tenant_id', $user->tenant_id);
+            });
+        }
+
+        $contacts = $contactsQ->get(['id', 'phone', 'agency_id', 'tenant_id']);
+
+        $queued = 0;
+        $skippedNoPhone = 0;
+        $skippedNotFoundOrUnauthorized = max(0, count($ids) - $contacts->count());
+
+        foreach ($contacts as $contact) {
+            // Final safety check per contact
+            $this->enforceScopeOrAbort($contact);
+
+            $to = trim((string) ($contact->phone ?? ''));
+            if ($to === '') {
+                $skippedNoPhone++;
+                continue;
+            }
+
+            Message::create([
+                'agency_id'  => $contact->agency_id ?? ($user->agency_id ?? null),
+                'tenant_id'  => $contact->tenant_id ?? ($user->tenant_id ?? null),
+                'contact_id' => $contact->id,
+                'created_by' => $user->id,
+
+                'channel'    => 'sms',
+                'direction'  => 'outbound',
+                'status'     => 'queued',
+
+                'to_address' => $to,
+                'subject'    => null,
+                'body'       => $body,
+            ]);
+
+            $queued++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'queued'  => $queued,
+            'skipped' => [
+                'no_phone' => $skippedNoPhone,
+                'not_found_or_unauthorized' => $skippedNotFoundOrUnauthorized,
+            ],
         ], 201);
     }
 }
