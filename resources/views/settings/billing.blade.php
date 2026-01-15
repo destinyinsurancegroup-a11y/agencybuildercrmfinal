@@ -1,19 +1,17 @@
 @extends('settings.layout')
 
 @section('settings_content')
-    <h2 class="text-xl font-semibold text-gray-900">Billing</h2>
-    <p class="text-gray-600 mt-1">
-        Manage your subscription and invoices (placeholder).
-    </p>
+    <h2 class="settings-section-title">Billing</h2>
+    <p class="settings-subtitle">Manage your plan and subscription.</p>
 
-    <div class="mt-6 rounded-lg border border-gray-200 p-4">
-        <div class="flex items-center justify-between">
+    <div class="p-3 border rounded-3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div>
-                <p class="font-semibold text-gray-900">Current Plan</p>
-                <p class="text-sm text-gray-600">Tier 1</p>
+                <div class="fw-bold">Current Plan</div>
+                <div class="text-muted" style="font-size: 13px;">Tier 1</div>
             </div>
 
-            <button class="px-4 py-2 rounded-md bg-[#C9A227] text-black hover:opacity-90" type="button">
+            <button class="btn btn-abc-gold" type="button">
                 Manage Subscription
             </button>
         </div>
