@@ -1,11 +1,13 @@
 @extends('layouts.app')
 
 @php
-    // Expect $settingsSection and $settingsPage from controller/view.
-    // Example:
-    // $settingsSection = 'messaging';
-    // $settingsPage = 'sms_providers';
-    $settingsSection = $settingsSection ?? 'settings';
+    /**
+     * Settings layout (Tier 1)
+     * - Left submenu + right content panel (matches your preferred ABC layout)
+     * - Messaging should land on Universal SMS Providers list
+     *
+     * Views can set: $settingsPage = 'profile' | 'billing' | 'sms_providers'
+     */
     $settingsPage = $settingsPage ?? 'profile';
 
     $isActive = function (string $page) use ($settingsPage) {
@@ -35,12 +37,11 @@
                         Profile
                     </a>
 
-                    {{-- You can enable Organization later; keep it visible as placeholder --}}
+                    {{-- Keep placeholders visible but disabled --}}
                     <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
                         Organization <span class="badge bg-light text-muted ms-auto">Soon</span>
                     </a>
 
-                    {{-- Tier 1 note: not needed yet, but your preferred UI shows it --}}
                     <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
                         Users &amp; Roles <span class="badge bg-light text-muted ms-auto">Soon</span>
                     </a>
@@ -56,9 +57,9 @@
                 <div class="settings-menu-group">
                     <div class="settings-menu-section">MESSAGING</div>
 
-                    {{-- Messaging lands on SMS Providers style page --}}
+                    {{-- ✅ Universal SMS Providers list (not Twilio-only) --}}
                     <a class="settings-menu-item {{ $isActive('sms_providers') ? 'active' : '' }}"
-                       href="{{ route('settings.messaging') }}">
+                       href="{{ route('settings.messaging.sms_providers') }}">
                         <span class="settings-bullet">💬</span>
                         SMS Providers
                         <span class="settings-chevron ms-auto">›</span>
