@@ -9,13 +9,23 @@ class MessageTemplate extends Model
 {
     use SoftDeletes;
 
+    protected $table = 'message_templates';
+
     protected $fillable = [
-        'agency_id','tenant_id','channel','name','subject','body',
-        'is_active','variables_json','created_by','updated_by'
+        'agency_id',
+        'tenant_id',
+        'channel',
+        'name',
+        'subject',
+        'body',
+        'variables_json',
+        'is_active',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
         'variables_json' => 'array',
+        'is_active' => 'boolean',
     ];
 }
