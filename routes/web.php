@@ -38,6 +38,10 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
 
+// ✅ SETTINGS (Messaging - Templates + Drip Campaigns)
+use App\Http\Controllers\Settings\MessageTemplateController;
+use App\Http\Controllers\Settings\DripCampaignController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION
@@ -86,17 +90,17 @@ Route::get('/gideon-test', function (GideonLlmClient $client) {
 Route::middleware('auth')->group(function () {
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | DASHBOARD
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | SETTINGS (Tier 1): Profile / Messaging / Billing
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | NOTE: This does NOT replace /billing (existing). It adds Settings pages.
     */
     Route::get('/settings', [SettingsController::class, 'redirect'])->name('settings');
@@ -112,17 +116,17 @@ Route::middleware('auth')->group(function () {
         ->name('settings.profile.password.update');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | SETTINGS -> MESSAGING LANDING (redirect to Universal SMS Providers)
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/settings/messaging', fn () => redirect()->route('settings.messaging.sms_providers'))
         ->name('settings.messaging');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | SETTINGS -> MESSAGING -> SMS PROVIDERS (Universal)
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/settings/messaging/sms-providers', [SmsProvidersController::class, 'index'])
         ->name('settings.messaging.sms_providers');
@@ -131,20 +135,36 @@ Route::middleware('auth')->group(function () {
         ->whereIn('provider', ['twilio', 'telnyx', 'plivo', 'vonage'])
         ->name('settings.messaging.sms_providers.configure');
 
+    /*
+    |--------------------------------------------------------------------------
+    | ✅ SETTINGS -> MESSAGING -> MESSAGE TEMPLATES (Step 1 routes)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'index'])
+        ->name('settings.messaging.templates.index');
+
+    /*
+    |--------------------------------------------------------------------------
+    | ✅ SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (Step 1 routes)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/settings/messaging/drips', [DripCampaignController::class, 'index'])
+        ->name('settings.messaging.drips.index');
+
     Route::get('/settings/billing', [SettingsController::class, 'billing'])
         ->name('settings.billing');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | BILLING (Placeholder)
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/billing', [BillingController::class, 'index'])->name('billing');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | CONTACT MESSAGES (Phase 2 + Phase 3 + Bulk)
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/contacts/{contact}/messages', [ContactMessageController::class, 'index'])
         ->name('contacts.messages.index');
@@ -157,9 +177,9 @@ Route::middleware('auth')->group(function () {
         ->name('contacts.messages.bulk-store');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | CONTACTS (FULL CRUD + AJAX RIGHT PANEL)
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/all-contacts', fn () => redirect()->route('contacts.index'));
 
@@ -172,9 +192,9 @@ Route::middleware('auth')->group(function () {
         ->name('contacts.import');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | CONTACT NOTES
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/contacts/{contact}/notes', [NoteController::class, 'index'])
         ->name('contacts.notes.index');
@@ -186,9 +206,9 @@ Route::middleware('auth')->group(function () {
         ->name('contacts.notes.list');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | LEADS
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/leads',          [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/archived', [LeadController::class, 'archived'])->name('leads.archived');
@@ -209,9 +229,9 @@ Route::middleware('auth')->group(function () {
         ->name('leads.archive');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | LEAD NOTES (reuse BookController note logic)
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
         ->name('leads.notes.store');
@@ -223,9 +243,9 @@ Route::middleware('auth')->group(function () {
         ->name('leads.notes.destroy');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | BOOK OF BUSINESS
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::prefix('book')->group(function () {
 
@@ -257,9 +277,9 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | SERVICE
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::prefix('service')->group(function () {
 
@@ -305,9 +325,9 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | SERVICE NOTES
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])
         ->name('service.notes.store');
@@ -319,9 +339,9 @@ Route::middleware('auth')->group(function () {
         ->name('service.notes.destroy');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | SERVICE Beneficiary / Emergency DELETE
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::delete('/service/{client}/beneficiaries/{beneficiary}', [BookController::class, 'deleteBeneficiary'])
         ->name('service.beneficiaries.destroy');
@@ -330,9 +350,9 @@ Route::middleware('auth')->group(function () {
         ->name('service.emergencies.destroy');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | ACTIVITY
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/activity/popup', [ActivityController::class, 'popup'])->name('activity.popup');
@@ -342,9 +362,9 @@ Route::middleware('auth')->group(function () {
         ->name('activity.totals');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | CALENDAR
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/calendar', fn () => view('calendar.index'));
 
@@ -398,9 +418,9 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | GIDEON
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/gideon/opportunities', [GideonOpportunitiesController::class, 'index'])
         ->name('gideon.opportunities.index');
@@ -464,9 +484,9 @@ Route::middleware('auth')->group(function () {
     });
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | MAINTENANCE
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/migrate', function () {
         try {
