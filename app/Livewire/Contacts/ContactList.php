@@ -6,7 +6,7 @@ use App\Models\Contact;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-class ContactsList extends Component
+class ContactList extends Component
 {
     use WithPagination;
 
