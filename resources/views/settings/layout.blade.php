@@ -6,7 +6,7 @@
      * - Left submenu + right content panel (matches your preferred ABC layout)
      * - Messaging should land on Universal SMS Providers list
      *
-     * Views can set: $settingsPage = 'profile' | 'billing' | 'sms_providers'
+     * Views can set: $settingsPage = 'profile' | 'billing' | 'sms_providers' | 'templates' | 'drips'
      */
     $settingsPage = $settingsPage ?? 'profile';
 
@@ -65,12 +65,16 @@
                         <span class="settings-chevron ms-auto">›</span>
                     </a>
 
-                    <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
-                        Message Templates <span class="badge bg-light text-muted ms-auto">Soon</span>
+                    {{-- ✅ Message Templates --}}
+                    <a class="settings-menu-item {{ $isActive('templates') ? 'active' : '' }}"
+                       href="{{ route('settings.messaging.templates.index') }}">
+                        Message Templates
                     </a>
 
-                    <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
-                        Drip Campaigns <span class="badge bg-light text-muted ms-auto">Soon</span>
+                    {{-- ✅ Drip Campaigns --}}
+                    <a class="settings-menu-item {{ $isActive('drips') ? 'active' : '' }}"
+                       href="{{ route('settings.messaging.drips.index') }}">
+                        Drip Campaigns
                     </a>
 
                     <a class="settings-menu-item disabled" href="javascript:void(0)" aria-disabled="true">
