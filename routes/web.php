@@ -38,8 +38,10 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
 
-// ⚠️ TEMPORARILY REMOVED: these can break deploy if class/path/case mismatch exists.
-// use App\Http\Controllers\Settings\MessageTemplateController;
+// ✅ OPTION A (Read-only list): Message Templates Controller
+use App\Http\Controllers\Settings\MessageTemplateController;
+
+// ⚠️ Still not needed yet (kept off until we build drips list/CRUD)
 // use App\Http\Controllers\Settings\DripCampaignController;
 
 /*
@@ -108,7 +110,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/profile', [SettingsController::class, 'profile'])
         ->name('settings.profile');
 
-    // Profile actions (Step 1 wiring) - controller can be created later if needed
+    // Profile actions (Step 1 wiring)
     Route::patch('/settings/profile/email', [ProfileSettingsController::class, 'updateEmail'])
         ->name('settings.profile.email.update');
 
@@ -137,16 +139,15 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ SETTINGS -> MESSAGING -> MESSAGE TEMPLATES (closure route to prevent deploy crash)
+    | ✅ OPTION A: SETTINGS -> MESSAGING -> MESSAGE TEMPLATES (Index/List)
     |--------------------------------------------------------------------------
     */
-    Route::get('/settings/messaging/templates', function () {
-        return view('settings.messaging.templates.index');
-    })->name('settings.messaging.templates.index');
+    Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'index'])
+        ->name('settings.messaging.templates.index');
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (closure route to prevent deploy crash)
+    | SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (still placeholder view for now)
     |--------------------------------------------------------------------------
     */
     Route::get('/settings/messaging/drips', function () {
