@@ -38,7 +38,7 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
 
-// ✅ OPTION A (Read-only list): Message Templates Controller
+// ✅ OPTION A: Message Templates Controller (Index + Create + Store)
 use App\Http\Controllers\Settings\MessageTemplateController;
 
 // ⚠️ Still not needed yet (kept off until we build drips list/CRUD)
@@ -139,11 +139,21 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ OPTION A: SETTINGS -> MESSAGING -> MESSAGE TEMPLATES (Index/List)
+    | ✅ MESSAGE TEMPLATES (Step 1 = routes for Create page wiring)
     |--------------------------------------------------------------------------
+    | Option A flow:
+    | - GET  /settings/messaging/templates           -> list
+    | - GET  /settings/messaging/templates/create    -> create form page
+    | - POST /settings/messaging/templates           -> store (save)
     */
     Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'index'])
         ->name('settings.messaging.templates.index');
+
+    Route::get('/settings/messaging/templates/create', [MessageTemplateController::class, 'create'])
+        ->name('settings.messaging.templates.create');
+
+    Route::post('/settings/messaging/templates', [MessageTemplateController::class, 'store'])
+        ->name('settings.messaging.templates.store');
 
     /*
     |--------------------------------------------------------------------------
