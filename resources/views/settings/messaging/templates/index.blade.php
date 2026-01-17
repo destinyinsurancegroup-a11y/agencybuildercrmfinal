@@ -46,7 +46,7 @@
                                 <td style="font-weight:800;">
                                     {{-- Make the name clickable to Edit --}}
                                     <a
-                                        href="{{ route('settings.messaging.templates.edit', $t->id) }}"
+                                        href="{{ route('settings.messaging.templates.edit', $t) }}"
                                         class="text-decoration-none"
                                         style="font-weight:900;"
                                     >
@@ -61,7 +61,7 @@
 
                                     <div class="text-muted mt-1" style="font-size:13px;">
                                         <a
-                                            href="{{ route('settings.messaging.templates.edit', $t->id) }}"
+                                            href="{{ route('settings.messaging.templates.edit', $t) }}"
                                             class="text-decoration-none"
                                             style="font-weight:800;"
                                         >
