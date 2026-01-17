@@ -10,7 +10,7 @@
         <div>
             <h2 class="mb-0">Edit Message Template</h2>
             <p class="mb-0" style="font-size:14px; font-weight:600;">
-                Update this SMS or Email template.
+                Update an SMS or Email template you can reuse.
             </p>
         </div>
 
@@ -62,7 +62,7 @@
                     name="subject"
                     class="form-control"
                     value="{{ old('subject', $template->subject) }}"
-                    placeholder="e.g. Welcome, {{ first_name }}"
+                    placeholder="e.g. Welcome, {{ '{{first_name}}' }}"
                 >
                 @error('subject') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                 <div class="text-muted mt-1" style="font-size:13px;">
@@ -82,8 +82,8 @@
 
                 <div class="text-muted mt-2" style="font-size:13px;">
                     Variables you can use (examples):
-                    <code>@verbatim{{first_name}}@endverbatim</code>,
-                    <code>@verbatim{{last_name}}@endverbatim</code>
+                    <code>{{ '{{first_name}}' }}</code>,
+                    <code>{{ '{{last_name}}' }}</code>
                 </div>
             </div>
 
