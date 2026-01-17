@@ -39,11 +39,19 @@
                             <th style="font-weight:900;">Last Updated</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         @foreach($templates as $t)
                             <tr>
                                 <td style="font-weight:800;">
-                                    {{ $t->name }}
+                                    {{-- Make the name clickable to Edit --}}
+                                    <a
+                                        href="{{ route('settings.messaging.templates.edit', $t->id) }}"
+                                        class="text-decoration-none"
+                                        style="font-weight:900;"
+                                    >
+                                        {{ $t->name }}
+                                    </a>
 
                                     @if($t->channel === 'email' && $t->subject)
                                         <div class="text-muted" style="font-size:13px; font-weight:600;">
@@ -52,8 +60,12 @@
                                     @endif
 
                                     <div class="text-muted mt-1" style="font-size:13px;">
-                                        <a href="#" class="text-decoration-none" style="font-weight:800;">
-                                            View / Edit (next step)
+                                        <a
+                                            href="{{ route('settings.messaging.templates.edit', $t->id) }}"
+                                            class="text-decoration-none"
+                                            style="font-weight:800;"
+                                        >
+                                            View / Edit
                                         </a>
                                     </div>
                                 </td>
