@@ -14,12 +14,20 @@
             </p>
         </div>
 
-        <button class="btn btn-abc-gold" disabled>
+        {{-- ✅ Make this a real link (was a disabled button) --}}
+        <a href="{{ route('settings.messaging.templates.create') }}"
+           class="btn btn-abc-gold">
             + New Template
-        </button>
+        </a>
     </div>
 
     <div class="panel-card-body">
+        @if(session('success'))
+            <div class="alert alert-success" style="font-weight:700;">
+                {{ session('success') }}
+            </div>
+        @endif
+
         @if($templates->count() === 0)
             <p class="text-muted mb-0">
                 No templates yet. Once seeded or created, they’ll appear here.
@@ -35,11 +43,21 @@
                             <th style="font-weight:900;">Last Updated</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         @foreach($templates as $t)
                             <tr>
                                 <td style="font-weight:800;">
-                                    {{ $t->name }}
+                                    {{-- ✅ Make name clickable (go to edit if route exists) --}}
+                                    @if(\Illuminate\Support\Facades\Route::has('settings.messaging.templates.edit'))
+                                        <a href="{{ route('settings.messaging.templates.edit', $t->id) }}"
+                                           style="text-decoration:none; color:inherit;">
+                                            {{ $t->name }}
+                                        </a>
+                                    @else
+                                        {{ $t->name }}
+                                    @endif
+
                                     @if($t->channel === 'email' && $t->subject)
                                         <div class="text-muted" style="font-size:13px; font-weight:600;">
                                             Subject: {{ $t->subject }}
@@ -64,7 +82,7 @@
                                 </td>
 
                                 <td class="text-muted" style="font-weight:600;">
-                                    {{ optional($t->updated_at)->diffForHumans() ?? '—' }}
+                                    {{ $t->updated_at ? $t->updated_at->diffForHumans() : '—' }}
                                 </td>
                             </tr>
                         @endforeach
