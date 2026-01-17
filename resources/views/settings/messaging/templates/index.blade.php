@@ -14,23 +14,19 @@
             </p>
         </div>
 
-        {{-- ✅ Make this a real link (was a disabled button) --}}
-        <a href="{{ route('settings.messaging.templates.create') }}"
-           class="btn btn-abc-gold">
+        <a href="{{ route('settings.messaging.templates.create') }}" class="btn btn-abc-gold">
             + New Template
         </a>
     </div>
 
     <div class="panel-card-body">
         @if(session('success'))
-            <div class="alert alert-success" style="font-weight:700;">
-                {{ session('success') }}
-            </div>
+            <div class="alert alert-success">{{ session('success') }}</div>
         @endif
 
         @if($templates->count() === 0)
             <p class="text-muted mb-0">
-                No templates yet. Once seeded or created, they’ll appear here.
+                No templates yet. Click <strong>+ New Template</strong> to create one.
             </p>
         @else
             <div class="table-responsive">
@@ -43,26 +39,23 @@
                             <th style="font-weight:900;">Last Updated</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         @foreach($templates as $t)
                             <tr>
                                 <td style="font-weight:800;">
-                                    {{-- ✅ Make name clickable (go to edit if route exists) --}}
-                                    @if(\Illuminate\Support\Facades\Route::has('settings.messaging.templates.edit'))
-                                        <a href="{{ route('settings.messaging.templates.edit', $t->id) }}"
-                                           style="text-decoration:none; color:inherit;">
-                                            {{ $t->name }}
-                                        </a>
-                                    @else
-                                        {{ $t->name }}
-                                    @endif
+                                    {{ $t->name }}
 
                                     @if($t->channel === 'email' && $t->subject)
                                         <div class="text-muted" style="font-size:13px; font-weight:600;">
                                             Subject: {{ $t->subject }}
                                         </div>
                                     @endif
+
+                                    <div class="text-muted mt-1" style="font-size:13px;">
+                                        <a href="#" class="text-decoration-none" style="font-weight:800;">
+                                            View / Edit (next step)
+                                        </a>
+                                    </div>
                                 </td>
 
                                 <td>
@@ -82,7 +75,7 @@
                                 </td>
 
                                 <td class="text-muted" style="font-weight:600;">
-                                    {{ $t->updated_at ? $t->updated_at->diffForHumans() : '—' }}
+                                    {{ optional($t->updated_at)->diffForHumans() ?? '—' }}
                                 </td>
                             </tr>
                         @endforeach
