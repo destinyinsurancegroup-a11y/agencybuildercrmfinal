@@ -10,7 +10,7 @@
         <div>
             <h2 class="mb-0">Edit Message Template</h2>
             <p class="mb-0" style="font-size:14px; font-weight:600;">
-                Update an SMS or Email template.
+                Update this SMS or Email template.
             </p>
         </div>
 
@@ -30,7 +30,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('settings.messaging.templates.update', $template) }}">
+        <form method="POST" action="{{ route('settings.messaging.templates.update', $template->id) }}">
             @csrf
             @method('PUT')
 
@@ -62,7 +62,7 @@
                     name="subject"
                     class="form-control"
                     value="{{ old('subject', $template->subject) }}"
-                    placeholder="e.g. Welcome, {{ '{{first_name}}' }}"
+                    placeholder="e.g. Welcome, {{ first_name }}"
                 >
                 @error('subject') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                 <div class="text-muted mt-1" style="font-size:13px;">
@@ -72,13 +72,18 @@
 
             <div class="mb-3">
                 <label class="form-label">Message Body</label>
-                <textarea name="body" class="form-control" rows="10" placeholder="Write your message here...">{{ old('body', $template->body) }}</textarea>
+                <textarea
+                    name="body"
+                    class="form-control"
+                    rows="8"
+                    placeholder="Write your message here..."
+                >{{ old('body', $template->body) }}</textarea>
                 @error('body') <div class="text-danger mt-1">{{ $message }}</div> @enderror
 
                 <div class="text-muted mt-2" style="font-size:13px;">
                     Variables you can use (examples):
-                    <code>{{ '{{first_name}}' }}</code>,
-                    <code>{{ '{{last_name}}' }}</code>
+                    <code>@verbatim{{first_name}}@endverbatim</code>,
+                    <code>@verbatim{{last_name}}@endverbatim</code>
                 </div>
             </div>
 
