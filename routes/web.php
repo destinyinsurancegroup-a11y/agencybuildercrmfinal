@@ -38,7 +38,7 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
 
-// ✅ OPTION A: Message Templates Controller (Index + Create + Store)
+// ✅ Message Templates Controller (Index + Create + Store + Edit + Update)
 use App\Http\Controllers\Settings\MessageTemplateController;
 
 // ⚠️ Still not needed yet (kept off until we build drips list/CRUD)
@@ -139,12 +139,9 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ MESSAGE TEMPLATES (Step 1 = routes for Create page wiring)
+    | ✅ MESSAGE TEMPLATES (Index + Create + Store + Edit + Update)
     |--------------------------------------------------------------------------
-    | Option A flow:
-    | - GET  /settings/messaging/templates           -> list
-    | - GET  /settings/messaging/templates/create    -> create form page
-    | - POST /settings/messaging/templates           -> store (save)
+    | Order matters: keep /create ABOVE /{messageTemplate}/edit to avoid conflicts.
     */
     Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'index'])
         ->name('settings.messaging.templates.index');
@@ -154,6 +151,14 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/settings/messaging/templates', [MessageTemplateController::class, 'store'])
         ->name('settings.messaging.templates.store');
+
+    // ✅ Click template name -> edit page
+    Route::get('/settings/messaging/templates/{messageTemplate}/edit', [MessageTemplateController::class, 'edit'])
+        ->name('settings.messaging.templates.edit');
+
+    // ✅ Save edits
+    Route::put('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'update'])
+        ->name('settings.messaging.templates.update');
 
     /*
     |--------------------------------------------------------------------------
