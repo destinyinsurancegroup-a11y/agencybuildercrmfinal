@@ -38,7 +38,7 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
 
-// ✅ Message Templates Controller (Index + Create + Store + Edit + Update)
+// ✅ Message Templates Controller (Index + Create + Store + Show + Edit + Update + Delete)
 use App\Http\Controllers\Settings\MessageTemplateController;
 
 // ⚠️ Still not needed yet (kept off until we build drips list/CRUD)
@@ -103,7 +103,6 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     | SETTINGS (Tier 1): Profile / Messaging / Billing
     |--------------------------------------------------------------------------
-    | NOTE: This does NOT replace /billing (existing). It adds Settings pages.
     */
     Route::get('/settings', [SettingsController::class, 'redirect'])->name('settings');
 
@@ -139,9 +138,9 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ MESSAGE TEMPLATES (Index + Create + Store + Edit + Update)
+    | ✅ MESSAGE TEMPLATES (Index + Create + Store + Show + Edit + Update + Delete)
     |--------------------------------------------------------------------------
-    | Order matters: keep /create ABOVE /{messageTemplate}/edit to avoid conflicts.
+    | IMPORTANT: keep /create ABOVE any /{messageTemplate} routes.
     */
     Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'index'])
         ->name('settings.messaging.templates.index');
@@ -152,13 +151,21 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/messaging/templates', [MessageTemplateController::class, 'store'])
         ->name('settings.messaging.templates.store');
 
-    // ✅ Click template name -> edit page
+    // ✅ View (optional but useful for "View" links)
+    Route::get('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'show'])
+        ->name('settings.messaging.templates.show');
+
+    // ✅ Edit page
     Route::get('/settings/messaging/templates/{messageTemplate}/edit', [MessageTemplateController::class, 'edit'])
         ->name('settings.messaging.templates.edit');
 
     // ✅ Save edits
     Route::put('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'update'])
         ->name('settings.messaging.templates.update');
+
+    // ✅ Delete (optional but completes CRUD)
+    Route::delete('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'destroy'])
+        ->name('settings.messaging.templates.destroy');
 
     /*
     |--------------------------------------------------------------------------
@@ -190,7 +197,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/contacts/{contact}/messages', [ContactMessageController::class, 'store'])
         ->name('contacts.messages.store');
 
-    // ✅ NEW: Bulk queue SMS (checkbox-selected contacts)
+    // ✅ Bulk queue SMS (checkbox-selected contacts)
     Route::post('/contacts/messages/bulk', [ContactMessageController::class, 'bulkStore'])
         ->name('contacts.messages.bulk-store');
 
@@ -238,7 +245,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/import/template', [LeadController::class, 'downloadTemplate'])
         ->name('leads.import.template');
 
-    Route::get('/leads/{id}',     [LeadController::class, 'show'])->name('leads.show');
+    Route::get('/leads/{id}', [LeadController::class, 'show'])->name('leads.show');
 
     Route::post('/leads/{contact}/sold', [LeadController::class, 'markSold'])
         ->name('leads.sold');
@@ -251,7 +258,7 @@ Route::middleware('auth')->group(function () {
     | LEAD NOTES (reuse BookController note logic)
     |--------------------------------------------------------------------------
     */
-    Route::post('/leads/{client}/notes',       [BookController::class, 'storeNote'])
+    Route::post('/leads/{client}/notes', [BookController::class, 'storeNote'])
         ->name('leads.notes.store');
 
     Route::put('/leads/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -319,9 +326,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/archive/not-saved', [ServiceController::class, 'notSavedArchive'])
             ->name('service.archive.not-saved');
 
-        Route::get('/{client}',            [ServiceController::class, 'show'])->name('service.show');
+        Route::get('/{client}', [ServiceController::class, 'show'])->name('service.show');
         Route::get('/{client}/edit-panel', [ServiceController::class, 'editPanel'])->name('service.edit.panel');
-        Route::put('/{client}',            [ServiceController::class, 'update'])->name('service.update');
+        Route::put('/{client}', [ServiceController::class, 'update'])->name('service.update');
 
         Route::get('/{client}/follow-up', [ServiceController::class, 'followUp'])
             ->name('service.follow-up');
@@ -347,7 +354,7 @@ Route::middleware('auth')->group(function () {
     | SERVICE NOTES
     |--------------------------------------------------------------------------
     */
-    Route::post('/service/{client}/notes',       [BookController::class, 'storeNote'])
+    Route::post('/service/{client}/notes', [BookController::class, 'storeNote'])
         ->name('service.notes.store');
 
     Route::put('/service/{client}/notes/{note}', [BookController::class, 'updateNote'])
@@ -464,9 +471,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('gideon')->group(function () {
-        Route::post('/scan',      [GideonScanController::class, 'scan'])->name('gideon.scan');
+        Route::post('/scan', [GideonScanController::class, 'scan'])->name('gideon.scan');
         Route::post('/scan/deep', [GideonScanController::class, 'deepScan'])->name('gideon.scan.deep');
-        Route::get('/top',        [GideonScanController::class, 'top'])->name('gideon.top');
+        Route::get('/top', [GideonScanController::class, 'top'])->name('gideon.top');
     });
 
     Route::get('/gideon/second-brain', [GideonInsightsController::class, 'index'])
