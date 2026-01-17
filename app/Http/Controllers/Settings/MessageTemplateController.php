@@ -53,9 +53,7 @@ class MessageTemplateController extends Controller
         ]);
 
         if (($data['channel'] ?? null) === 'email' && empty($data['subject'])) {
-            return back()
-                ->withErrors(['subject' => 'Subject is required for Email templates.'])
-                ->withInput();
+            return back()->withErrors(['subject' => 'Subject is required for Email templates.'])->withInput();
         }
 
         if (($data['channel'] ?? null) === 'sms') {
@@ -63,25 +61,25 @@ class MessageTemplateController extends Controller
         }
 
         $template = MessageTemplate::create([
-            'agency_id'      => $user->agency_id,
-            'tenant_id'      => $user->tenant_id,
-            'channel'        => $data['channel'],
-            'name'           => $data['name'],
-            'subject'        => $data['subject'] ?? null,
-            'body'           => $data['body'],
-            'is_active'      => (bool)($data['is_active'] ?? true),
-            'created_by'     => $user->id,
-            'updated_by'     => $user->id,
-            'variables_json' => null,
+            'agency_id'       => $user->agency_id,
+            'tenant_id'       => $user->tenant_id,
+            'channel'         => $data['channel'],
+            'name'            => $data['name'],
+            'subject'         => $data['subject'] ?? null,
+            'body'            => $data['body'],
+            'is_active'       => (bool)($data['is_active'] ?? true),
+            'created_by'      => $user->id,
+            'updated_by'      => $user->id,
+            'variables_json'  => null,
         ]);
 
         Log::info('message_template.created', [
-            'agency_id'    => $user->agency_id,
-            'tenant_id'    => $user->tenant_id,
-            'user_id'      => $user->id,
-            'template_id'  => $template->id,
-            'channel'      => $template->channel,
-            'is_active'    => $template->is_active,
+            'agency_id' => $user->agency_id,
+            'tenant_id' => $user->tenant_id,
+            'user_id' => $user->id,
+            'template_id' => $template->id,
+            'channel' => $template->channel,
+            'is_active' => $template->is_active,
         ]);
 
         return redirect()
@@ -93,18 +91,20 @@ class MessageTemplateController extends Controller
     {
         $user = $request->user();
 
-        // simple “don’t let people edit other agencies” guard
-        abort_unless($messageTemplate->agency_id === $user->agency_id, 404);
+        // Security: don’t allow editing another agency’s templates
+        if ((int)$messageTemplate->agency_id !== (int)$user->agency_id) {
+            abort(404);
+        }
 
-        // Tier 1: if tenant_id is set on user, allow global (null) or matching tenant
-        if ($user->tenant_id) {
-            abort_unless(
-                is_null($messageTemplate->tenant_id) || $messageTemplate->tenant_id === $user->tenant_id,
-                404
-            );
+        // Tenant rule (Tier 1): allow tenant null or same tenant
+        if (!is_null($user->tenant_id)) {
+            if (!is_null($messageTemplate->tenant_id) && (int)$messageTemplate->tenant_id !== (int)$user->tenant_id) {
+                abort(404);
+            }
         } else {
-            // if user has no tenant, only allow global
-            abort_unless(is_null($messageTemplate->tenant_id), 404);
+            if (!is_null($messageTemplate->tenant_id)) {
+                abort(404);
+            }
         }
 
         return view('settings.messaging.templates.edit', [
@@ -116,7 +116,9 @@ class MessageTemplateController extends Controller
     {
         $user = $request->user();
 
-        abort_unless($messageTemplate->agency_id === $user->agency_id, 404);
+        if ((int)$messageTemplate->agency_id !== (int)$user->agency_id) {
+            abort(404);
+        }
 
         $data = $request->validate([
             'channel'   => ['required', 'in:sms,email'],
@@ -127,9 +129,7 @@ class MessageTemplateController extends Controller
         ]);
 
         if (($data['channel'] ?? null) === 'email' && empty($data['subject'])) {
-            return back()
-                ->withErrors(['subject' => 'Subject is required for Email templates.'])
-                ->withInput();
+            return back()->withErrors(['subject' => 'Subject is required for Email templates.'])->withInput();
         }
 
         if (($data['channel'] ?? null) === 'sms') {
@@ -146,16 +146,16 @@ class MessageTemplateController extends Controller
         ]);
 
         Log::info('message_template.updated', [
-            'agency_id'   => $user->agency_id,
-            'tenant_id'   => $user->tenant_id,
-            'user_id'     => $user->id,
+            'agency_id' => $user->agency_id,
+            'tenant_id' => $user->tenant_id,
+            'user_id' => $user->id,
             'template_id' => $messageTemplate->id,
-            'channel'     => $messageTemplate->channel,
-            'is_active'   => $messageTemplate->is_active,
+            'channel' => $messageTemplate->channel,
+            'is_active' => $messageTemplate->is_active,
         ]);
 
         return redirect()
-            ->route('settings.messaging.templates.edit', $messageTemplate)
+            ->route('settings.messaging.templates.index')
             ->with('success', 'Template updated.');
     }
 }
