@@ -9,31 +9,23 @@ use Illuminate\Support\Facades\Log;
 
 class MessageTemplateController extends Controller
 {
-    /**
-     * Base query for templates visible to this user (agency + tenant rules).
-     */
-    protected function scopedTemplatesQuery($user)
-    {
-        $agencyId = $user->agency_id;
-        $tenantId = $user->tenant_id;
-
-        return MessageTemplate::query()
-            ->where('agency_id', $agencyId)
-            ->when($tenantId, function ($q) use ($tenantId) {
-                $q->where(function ($qq) use ($tenantId) {
-                    $qq->whereNull('tenant_id')
-                        ->orWhere('tenant_id', $tenantId);
-                });
-            }, function ($q) {
-                $q->whereNull('tenant_id');
-            });
-    }
-
     public function index(Request $request)
     {
         $user = $request->user();
 
-        $templates = $this->scopedTemplatesQuery($user)
+        $agencyId = $user->agency_id;
+        $tenantId = $user->tenant_id;
+
+        $templates = MessageTemplate::query()
+            ->where('agency_id', $agencyId)
+            ->when($tenantId, function ($q) use ($tenantId) {
+                $q->where(function ($qq) use ($tenantId) {
+                    $qq->whereNull('tenant_id')
+                       ->orWhere('tenant_id', $tenantId);
+                });
+            }, function ($q) {
+                $q->whereNull('tenant_id');
+            })
             ->orderBy('channel')
             ->orderBy('name')
             ->paginate(25);
@@ -71,16 +63,16 @@ class MessageTemplateController extends Controller
         }
 
         $template = MessageTemplate::create([
-            'agency_id'       => $user->agency_id,
-            'tenant_id'       => $user->tenant_id, // Tier 1 may be null — OK
-            'channel'         => $data['channel'],
-            'name'            => $data['name'],
-            'subject'         => $data['subject'] ?? null,
-            'body'            => $data['body'],
-            'is_active'       => (bool)($data['is_active'] ?? true),
-            'created_by'      => $user->id,
-            'updated_by'      => $user->id,
-            'variables_json'  => null,
+            'agency_id'      => $user->agency_id,
+            'tenant_id'      => $user->tenant_id,
+            'channel'        => $data['channel'],
+            'name'           => $data['name'],
+            'subject'        => $data['subject'] ?? null,
+            'body'           => $data['body'],
+            'is_active'      => (bool)($data['is_active'] ?? true),
+            'created_by'     => $user->id,
+            'updated_by'     => $user->id,
+            'variables_json' => null,
         ]);
 
         Log::info('message_template.created', [
@@ -97,23 +89,34 @@ class MessageTemplateController extends Controller
             ->with('success', 'Template created.');
     }
 
-    public function edit(Request $request, $messageTemplate)
+    public function edit(Request $request, MessageTemplate $messageTemplate)
     {
         $user = $request->user();
 
-        // IMPORTANT: load using the same tenant/agency rules as index
-        $template = $this->scopedTemplatesQuery($user)->findOrFail($messageTemplate);
+        // simple “don’t let people edit other agencies” guard
+        abort_unless($messageTemplate->agency_id === $user->agency_id, 404);
+
+        // Tier 1: if tenant_id is set on user, allow global (null) or matching tenant
+        if ($user->tenant_id) {
+            abort_unless(
+                is_null($messageTemplate->tenant_id) || $messageTemplate->tenant_id === $user->tenant_id,
+                404
+            );
+        } else {
+            // if user has no tenant, only allow global
+            abort_unless(is_null($messageTemplate->tenant_id), 404);
+        }
 
         return view('settings.messaging.templates.edit', [
-            'template' => $template,
+            'template' => $messageTemplate,
         ]);
     }
 
-    public function update(Request $request, $messageTemplate)
+    public function update(Request $request, MessageTemplate $messageTemplate)
     {
         $user = $request->user();
 
-        $template = $this->scopedTemplatesQuery($user)->findOrFail($messageTemplate);
+        abort_unless($messageTemplate->agency_id === $user->agency_id, 404);
 
         $data = $request->validate([
             'channel'   => ['required', 'in:sms,email'],
@@ -133,7 +136,7 @@ class MessageTemplateController extends Controller
             $data['subject'] = null;
         }
 
-        $template->update([
+        $messageTemplate->update([
             'channel'    => $data['channel'],
             'name'       => $data['name'],
             'subject'    => $data['subject'] ?? null,
@@ -143,16 +146,16 @@ class MessageTemplateController extends Controller
         ]);
 
         Log::info('message_template.updated', [
-            'agency_id'    => $user->agency_id,
-            'tenant_id'    => $user->tenant_id,
-            'user_id'      => $user->id,
-            'template_id'  => $template->id,
-            'channel'      => $template->channel,
-            'is_active'    => $template->is_active,
+            'agency_id'   => $user->agency_id,
+            'tenant_id'   => $user->tenant_id,
+            'user_id'     => $user->id,
+            'template_id' => $messageTemplate->id,
+            'channel'     => $messageTemplate->channel,
+            'is_active'   => $messageTemplate->is_active,
         ]);
 
         return redirect()
-            ->route('settings.messaging.templates.edit', $template->id)
+            ->route('settings.messaging.templates.edit', $messageTemplate)
             ->with('success', 'Template updated.');
     }
 }
