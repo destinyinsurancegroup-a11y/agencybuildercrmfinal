@@ -6,8 +6,15 @@
     // Safety: allow controller to pass either $template or $messageTemplate
     $template = $template ?? $messageTemplate ?? null;
 
-    // Determine current channel (old() takes priority after validation errors)
-    $currentChannel = $template ? old('channel', $template->channel) : old('channel', 'sms');
+    $channel = $template ? ($template->channel ?? 'sms') : 'sms';
+
+    // Back should go to the correct library
+    $backUrl = route('settings.messaging.templates.choose');
+    if ($template) {
+        $backUrl = $channel === 'email'
+            ? route('settings.messaging.templates.email')
+            : route('settings.messaging.templates.sms');
+    }
 @endphp
 
 @section('settings_content')
@@ -20,7 +27,7 @@
             </p>
         </div>
 
-        <a href="{{ route('settings.messaging.templates.index') }}" class="btn btn-abc-outline">
+        <a href="{{ $backUrl }}" class="btn btn-abc-outline">
             ← Back
         </a>
     </div>
@@ -48,9 +55,9 @@
 
                 <div class="mb-3">
                     <label class="form-label">Channel</label>
-                    <select name="channel" id="channelSelect" class="form-control">
-                        <option value="sms" {{ $currentChannel === 'sms' ? 'selected' : '' }}>SMS</option>
-                        <option value="email" {{ $currentChannel === 'email' ? 'selected' : '' }}>Email</option>
+                    <select name="channel" class="form-control">
+                        <option value="sms" {{ old('channel', $template->channel) === 'sms' ? 'selected' : '' }}>SMS</option>
+                        <option value="email" {{ old('channel', $template->channel) === 'email' ? 'selected' : '' }}>Email</option>
                     </select>
                     @error('channel') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                 </div>
@@ -67,22 +74,23 @@
                     @error('name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                 </div>
 
-                {{-- ✅ SUBJECT: show ONLY for email templates --}}
-                <div class="mb-3" id="subjectWrap" style="{{ $currentChannel === 'sms' ? 'display:none;' : '' }}">
-                    <label class="form-label">Subject</label>
-                    <input
-                        type="text"
-                        name="subject"
-                        id="subjectInput"
-                        class="form-control"
-                        value="{{ old('subject', $template->subject) }}"
-                        placeholder="e.g. Welcome, {{ '{{first_name}}' }}"
-                    >
-                    @error('subject') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-                    <div class="text-muted mt-1" style="font-size:13px;">
-                        Email templates only.
+                {{-- ✅ SHOW SUBJECT ONLY FOR EMAIL --}}
+                @if(old('channel', $template->channel) === 'email')
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <input
+                            type="text"
+                            name="subject"
+                            class="form-control"
+                            value="{{ old('subject', $template->subject) }}"
+                            placeholder="e.g. Welcome, @{{first_name}}"
+                        >
+                        @error('subject') <div class="text-danger mt-1">{{ $message }}</div> @enderror
+                        <div class="text-muted mt-1" style="font-size:13px;">
+                            Subject is required for Email templates.
+                        </div>
                     </div>
-                </div>
+                @endif
 
                 <div class="mb-3">
                     <label class="form-label">Message Body</label>
@@ -96,8 +104,9 @@
 
                     <div class="text-muted mt-2" style="font-size:13px;">
                         Variables you can use (examples):
-                        <code>{{ '{{first_name}}' }}</code>,
-                        <code>{{ '{{last_name}}' }}</code>
+                        <code>@{{first_name}}</code>,
+                        <code>@{{last_name}}</code>,
+                        <code>@{{agent_name}}</code>
                     </div>
                 </div>
 
@@ -120,28 +129,9 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-abc-gold">Save Changes</button>
-                    <a href="{{ route('settings.messaging.templates.index') }}" class="btn btn-abc-outline">Cancel</a>
+                    <a href="{{ $backUrl }}" class="btn btn-abc-outline">Cancel</a>
                 </div>
             </form>
-
-            {{-- ✅ Tiny JS: hide Subject for SMS and clear it --}}
-            <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                const channel = document.getElementById('channelSelect');
-                const subjectWrap = document.getElementById('subjectWrap');
-                const subjectInput = document.getElementById('subjectInput');
-
-                function syncSubject() {
-                    const isEmail = channel.value === 'email';
-                    subjectWrap.style.display = isEmail ? '' : 'none';
-                    if (!isEmail && subjectInput) subjectInput.value = '';
-                }
-
-                syncSubject();
-                channel.addEventListener('change', syncSubject);
-            });
-            </script>
-
         @endif
     </div>
 </div>
