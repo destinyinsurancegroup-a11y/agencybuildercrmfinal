@@ -41,9 +41,6 @@ use App\Http\Controllers\Settings\SmsProvidersController;
 // ✅ Message Templates Controller
 use App\Http\Controllers\Settings\MessageTemplateController;
 
-// ⚠️ Still not needed yet (kept off until we build drips list/CRUD)
-// use App\Http\Controllers\Settings\DripCampaignController;
-
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION
@@ -138,48 +135,50 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ MESSAGE TEMPLATES (Chooser -> Email library -> SMS library)
+    | ✅ MESSAGE TEMPLATES (Chooser + Email Library + SMS Library)
     |--------------------------------------------------------------------------
-    | Goal:
-    | - /settings/messaging/templates          => chooser card (Email vs Text)
-    | - /settings/messaging/templates/email    => Email templates library
-    | - /settings/messaging/templates/sms      => SMS templates library
+    | Your blade files reference:
+    | - settings.messaging.templates.index  (sidebar/layout)
+    | - settings.messaging.templates.choose
+    | - settings.messaging.templates.email
+    | - settings.messaging.templates.sms
+    |
+    | So we define ALL of them.
     |
     | IMPORTANT:
-    | - Keep /create ABOVE any /{messageTemplate} routes
-    | - Keep a route named settings.messaging.templates.index to avoid 500s
+    | - keep /create ABOVE any /{messageTemplate} routes.
     */
 
-    // ✅ Backwards-compatible alias (fixes your 500 from layout links)
+    // ✅ Main entry (what sidebar usually links to)
     Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'choose'])
         ->name('settings.messaging.templates.index');
 
-    // ✅ Explicit chooser route (optional but clean)
+    // ✅ Explicit chooser route (your Back buttons use this)
     Route::get('/settings/messaging/templates/choose', [MessageTemplateController::class, 'choose'])
         ->name('settings.messaging.templates.choose');
 
     // ✅ Libraries
     Route::get('/settings/messaging/templates/email', [MessageTemplateController::class, 'emailIndex'])
-        ->name('settings.messaging.templates.email.index');
+        ->name('settings.messaging.templates.email');
 
     Route::get('/settings/messaging/templates/sms', [MessageTemplateController::class, 'smsIndex'])
-        ->name('settings.messaging.templates.sms.index');
+        ->name('settings.messaging.templates.sms');
 
-    // ✅ Create/store (channel may be preselected by ?channel=email or ?channel=sms)
+    // ✅ Create/store (supports ?channel=email or ?channel=sms)
     Route::get('/settings/messaging/templates/create', [MessageTemplateController::class, 'create'])
         ->name('settings.messaging.templates.create');
 
     Route::post('/settings/messaging/templates', [MessageTemplateController::class, 'store'])
         ->name('settings.messaging.templates.store');
 
-    // ✅ Edit / update
+    // ✅ Edit/update
     Route::get('/settings/messaging/templates/{messageTemplate}/edit', [MessageTemplateController::class, 'edit'])
         ->name('settings.messaging.templates.edit');
 
     Route::put('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'update'])
         ->name('settings.messaging.templates.update');
 
-    // ✅ Delete (optional)
+    // ✅ Optional delete
     Route::delete('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'destroy'])
         ->name('settings.messaging.templates.destroy');
 
