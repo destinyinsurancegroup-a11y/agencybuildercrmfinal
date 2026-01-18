@@ -3,8 +3,9 @@
 @php
     $settingsPage = 'templates';
 
-    // Prefer the channel passed in the URL (?channel=sms|email), otherwise old() fallback
-    $prefChannel = request('channel', old('channel', 'sms'));
+    // If coming from /templates/sms -> create?channel=sms, honor that.
+    // Also honor old() on validation fail.
+    $defaultChannel = old('channel', request()->get('channel', 'sms'));
 @endphp
 
 @section('settings_content')
@@ -39,8 +40,8 @@
             <div class="mb-3">
                 <label class="form-label">Channel</label>
                 <select id="channelSelect" name="channel" class="form-control">
-                    <option value="sms" {{ $prefChannel === 'sms' ? 'selected' : '' }}>SMS</option>
-                    <option value="email" {{ $prefChannel === 'email' ? 'selected' : '' }}>Email</option>
+                    <option value="sms" {{ $defaultChannel === 'sms' ? 'selected' : '' }}>SMS</option>
+                    <option value="email" {{ $defaultChannel === 'email' ? 'selected' : '' }}>Email</option>
                 </select>
                 @error('channel') <div class="text-danger mt-1">{{ $message }}</div> @enderror
             </div>
@@ -52,26 +53,27 @@
                     name="name"
                     class="form-control"
                     value="{{ old('name') }}"
-                    placeholder="e.g. Welcome - Day 0"
+                    placeholder="e.g. Welcome Email - Day 0"
                 >
                 @error('name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
             </div>
 
-            {{-- Subject: ONLY show for Email --}}
-            <div id="subjectWrap" class="mb-3" style="{{ $prefChannel === 'sms' ? 'display:none;' : '' }}">
-                <label class="form-label">Subject</label>
+            {{-- SUBJECT (EMAIL ONLY) --}}
+            <div id="subjectWrap" class="mb-3" style="{{ $defaultChannel === 'sms' ? 'display:none;' : '' }}">
+                <label class="form-label">Subject (Email only)</label>
                 <input
                     type="text"
                     name="subject"
                     class="form-control"
                     value="{{ old('subject') }}"
-                    placeholder="e.g. Welcome, {{ '{{first_name}}' }}"
+                    placeholder="e.g. Welcome, {{'{{first_name}}'}}"
                 >
                 @error('subject') <div class="text-danger mt-1">{{ $message }}</div> @enderror
-            </div>
 
-            {{-- If SMS is selected, ensure subject is posted as blank --}}
-            <input type="hidden" id="subjectHidden" name="subject_hidden" value="">
+                <div class="text-muted mt-1" style="font-size:13px;">
+                    Only used for Email templates.
+                </div>
+            </div>
 
             <div class="mb-3">
                 <label class="form-label">Message Body</label>
@@ -85,8 +87,9 @@
 
                 <div class="text-muted mt-2" style="font-size:13px;">
                     Variables you can use (examples):
-                    <code>{{ '{{first_name}}' }}</code>,
-                    <code>{{ '{{last_name}}' }}</code>
+                    <code>{{'{{first_name}}'}}</code>,
+                    <code>{{'{{last_name}}'}}</code>,
+                    <code>{{'{{agent_name}}'}}</code>
                 </div>
             </div>
 
@@ -115,21 +118,18 @@
     </div>
 </div>
 
+{{-- Simple toggle so Subject appears only when Email is selected --}}
 <script>
-(function () {
-    const sel = document.getElementById('channelSelect');
-    const wrap = document.getElementById('subjectWrap');
-    const hidden = document.getElementById('subjectHidden');
+document.addEventListener('DOMContentLoaded', function () {
+    const channel = document.getElementById('channelSelect');
+    const subjectWrap = document.getElementById('subjectWrap');
 
     function sync() {
-        const isSms = (sel.value === 'sms');
-        wrap.style.display = isSms ? 'none' : '';
-        // If SMS, blank out subject to avoid accidental validation issues
-        hidden.value = isSms ? '' : '';
+        subjectWrap.style.display = (channel.value === 'email') ? '' : 'none';
     }
 
-    sel.addEventListener('change', sync);
+    channel.addEventListener('change', sync);
     sync();
-})();
+});
 </script>
 @endsection
