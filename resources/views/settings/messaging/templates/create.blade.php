@@ -3,9 +3,16 @@
 @php
     $settingsPage = 'templates';
 
-    // If coming from /templates/sms -> create?channel=sms, honor that.
-    // Also honor old() on validation fail.
-    $defaultChannel = old('channel', request()->get('channel', 'sms'));
+    // Default channel:
+    // - If you clicked "+ New Email Template" we pass ?channel=email
+    // - Otherwise default to sms
+    $defaultChannel = request('channel', 'sms');
+    $currentChannel = old('channel', $defaultChannel);
+
+    // Back should go to the correct library
+    $backUrl = $currentChannel === 'email'
+        ? route('settings.messaging.templates.email')
+        : route('settings.messaging.templates.sms');
 @endphp
 
 @section('settings_content')
@@ -18,7 +25,7 @@
             </p>
         </div>
 
-        <a href="{{ route('settings.messaging.templates.choose') }}" class="btn btn-abc-outline">
+        <a href="{{ $backUrl }}" class="btn btn-abc-outline">
             ← Back
         </a>
     </div>
@@ -40,8 +47,8 @@
             <div class="mb-3">
                 <label class="form-label">Channel</label>
                 <select id="channelSelect" name="channel" class="form-control">
-                    <option value="sms" {{ $defaultChannel === 'sms' ? 'selected' : '' }}>SMS</option>
-                    <option value="email" {{ $defaultChannel === 'email' ? 'selected' : '' }}>Email</option>
+                    <option value="sms" {{ $currentChannel === 'sms' ? 'selected' : '' }}>SMS</option>
+                    <option value="email" {{ $currentChannel === 'email' ? 'selected' : '' }}>Email</option>
                 </select>
                 @error('channel') <div class="text-danger mt-1">{{ $message }}</div> @enderror
             </div>
@@ -58,20 +65,20 @@
                 @error('name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
             </div>
 
-            {{-- SUBJECT (EMAIL ONLY) --}}
-            <div id="subjectWrap" class="mb-3" style="{{ $defaultChannel === 'sms' ? 'display:none;' : '' }}">
-                <label class="form-label">Subject (Email only)</label>
+            {{-- ✅ SUBJECT: ONLY FOR EMAIL --}}
+            <div id="subjectWrap" class="mb-3" style="{{ $currentChannel === 'email' ? '' : 'display:none;' }}">
+                <label class="form-label">Subject</label>
                 <input
                     type="text"
                     name="subject"
                     class="form-control"
                     value="{{ old('subject') }}"
-                    placeholder="e.g. Welcome, {{'{{first_name}}'}}"
+                    placeholder="e.g. Welcome, &#123;&#123;first_name&#125;&#125;"
                 >
                 @error('subject') <div class="text-danger mt-1">{{ $message }}</div> @enderror
 
                 <div class="text-muted mt-1" style="font-size:13px;">
-                    Only used for Email templates.
+                    Subject is required for Email templates.
                 </div>
             </div>
 
@@ -87,9 +94,9 @@
 
                 <div class="text-muted mt-2" style="font-size:13px;">
                     Variables you can use (examples):
-                    <code>{{'{{first_name}}'}}</code>,
-                    <code>{{'{{last_name}}'}}</code>,
-                    <code>{{'{{agent_name}}'}}</code>
+                    <code>&#123;&#123;first_name&#125;&#125;</code>,
+                    <code>&#123;&#123;last_name&#125;&#125;</code>,
+                    <code>&#123;&#123;agent_name&#125;&#125;</code>
                 </div>
             </div>
 
@@ -112,24 +119,32 @@
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-abc-gold">Save Template</button>
-                <a href="{{ route('settings.messaging.templates.choose') }}" class="btn btn-abc-outline">Cancel</a>
+                <a href="{{ $backUrl }}" class="btn btn-abc-outline">Cancel</a>
             </div>
         </form>
     </div>
 </div>
 
-{{-- Simple toggle so Subject appears only when Email is selected --}}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const channel = document.getElementById('channelSelect');
-    const subjectWrap = document.getElementById('subjectWrap');
+    (function () {
+        const channel = document.getElementById('channelSelect');
+        const subjectWrap = document.getElementById('subjectWrap');
 
-    function sync() {
-        subjectWrap.style.display = (channel.value === 'email') ? '' : 'none';
-    }
+        if (!channel || !subjectWrap) return;
 
-    channel.addEventListener('change', sync);
-    sync();
-});
+        function toggleSubject() {
+            const isEmail = channel.value === 'email';
+            subjectWrap.style.display = isEmail ? '' : 'none';
+
+            // Optional: if switching to SMS, clear subject field
+            if (!isEmail) {
+                const subjectInput = subjectWrap.querySelector('input[name="subject"]');
+                if (subjectInput) subjectInput.value = '';
+            }
+        }
+
+        channel.addEventListener('change', toggleSubject);
+        toggleSubject();
+    })();
 </script>
 @endsection
