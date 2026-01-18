@@ -9,14 +9,23 @@ use Illuminate\Support\Facades\Log;
 
 class MessageTemplateController extends Controller
 {
-    public function index(Request $request)
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Base query scoped to the logged-in user's agency + tenant rules.
+     */
+    private function scopedTemplatesQuery(Request $request)
     {
         $user = $request->user();
 
         $agencyId = $user->agency_id;
         $tenantId = $user->tenant_id;
 
-        $templates = MessageTemplate::query()
+        return MessageTemplate::query()
             ->where('agency_id', $agencyId)
             ->when($tenantId, function ($q) use ($tenantId) {
                 $q->where(function ($qq) use ($tenantId) {
@@ -25,14 +34,99 @@ class MessageTemplateController extends Controller
                 });
             }, function ($q) {
                 $q->whereNull('tenant_id');
-            })
-            ->orderBy('channel')
+            });
+    }
+
+    /**
+     * Guard so a user can't access another agency/tenant template.
+     */
+    private function guardTemplateAccess(Request $request, MessageTemplate $messageTemplate): void
+    {
+        $user = $request->user();
+
+        // Must match agency
+        if ((int) $messageTemplate->agency_id !== (int) $user->agency_id) {
+            abort(404);
+        }
+
+        // Tenant rules
+        if ($user->tenant_id) {
+            // allow tenant-specific OR global (null)
+            if (!is_null($messageTemplate->tenant_id) && (int) $messageTemplate->tenant_id !== (int) $user->tenant_id) {
+                abort(404);
+            }
+        } else {
+            // if user has no tenant, only allow global templates
+            if (!is_null($messageTemplate->tenant_id)) {
+                abort(404);
+            }
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | NEW: Chooser + Libraries
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * GET /settings/messaging/templates
+     * Shows chooser card: Email vs Text
+     */
+    public function choose(Request $request)
+    {
+        return view('settings.messaging.templates.choose');
+    }
+
+    /**
+     * GET /settings/messaging/templates/email
+     * Email templates library
+     */
+    public function emailIndex(Request $request)
+    {
+        $templates = $this->scopedTemplatesQuery($request)
+            ->where('channel', 'email')
             ->orderBy('name')
             ->paginate(25);
 
-        return view('settings.messaging.templates.index', [
+        return view('settings.messaging.templates.email.index', [
             'templates' => $templates,
         ]);
+    }
+
+    /**
+     * GET /settings/messaging/templates/sms
+     * SMS templates library
+     */
+    public function smsIndex(Request $request)
+    {
+        $templates = $this->scopedTemplatesQuery($request)
+            ->where('channel', 'sms')
+            ->orderBy('name')
+            ->paginate(25);
+
+        return view('settings.messaging.templates.sms.index', [
+            'templates' => $templates,
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Existing CRUD (kept)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * (Legacy) If anything still calls templates.index route somewhere,
+     * you can either remove this OR keep it and redirect to chooser.
+     *
+     * Since routes/web.php now points /templates to choose(),
+     * this method is safe to keep but won't be used by that route.
+     */
+    public function index(Request $request)
+    {
+        // Best behavior now: redirect to chooser so you don't have two entry points.
+        return redirect()->route('settings.messaging.templates.choose');
     }
 
     public function create(Request $request)
@@ -76,39 +170,37 @@ class MessageTemplateController extends Controller
         ]);
 
         Log::info('message_template.created', [
-            'agency_id'    => $user->agency_id,
-            'tenant_id'    => $user->tenant_id,
-            'user_id'      => $user->id,
-            'template_id'  => $template->id,
-            'channel'      => $template->channel,
-            'is_active'    => $template->is_active,
+            'agency_id'   => $user->agency_id,
+            'tenant_id'   => $user->tenant_id,
+            'user_id'     => $user->id,
+            'template_id' => $template->id,
+            'channel'     => $template->channel,
+            'is_active'   => $template->is_active,
         ]);
 
+        // Redirect to the correct library based on channel
         return redirect()
-            ->route('settings.messaging.templates.index')
+            ->route($template->channel === 'email'
+                ? 'settings.messaging.templates.email'
+                : 'settings.messaging.templates.sms')
             ->with('success', 'Template created.');
+    }
+
+    /**
+     * GET /settings/messaging/templates/{messageTemplate}
+     * Optional "show" page. For now, just redirect to edit.
+     */
+    public function show(Request $request, MessageTemplate $messageTemplate)
+    {
+        $this->guardTemplateAccess($request, $messageTemplate);
+
+        // Most systems treat "show" as "edit" for templates.
+        return redirect()->route('settings.messaging.templates.edit', $messageTemplate->id);
     }
 
     public function edit(Request $request, MessageTemplate $messageTemplate)
     {
-        $user = $request->user();
-
-        // Simple tenant/agency guard so users can't edit other agencies' templates
-        if ((int)$messageTemplate->agency_id !== (int)$user->agency_id) {
-            abort(404);
-        }
-
-        // If user has a tenant_id, allow tenant-specific OR global (null)
-        if ($user->tenant_id) {
-            if (!is_null($messageTemplate->tenant_id) && (int)$messageTemplate->tenant_id !== (int)$user->tenant_id) {
-                abort(404);
-            }
-        } else {
-            // If user has no tenant, only allow global (null) templates
-            if (!is_null($messageTemplate->tenant_id)) {
-                abort(404);
-            }
-        }
+        $this->guardTemplateAccess($request, $messageTemplate);
 
         return view('settings.messaging.templates.edit', [
             'template' => $messageTemplate,
@@ -119,19 +211,7 @@ class MessageTemplateController extends Controller
     {
         $user = $request->user();
 
-        if ((int)$messageTemplate->agency_id !== (int)$user->agency_id) {
-            abort(404);
-        }
-
-        if ($user->tenant_id) {
-            if (!is_null($messageTemplate->tenant_id) && (int)$messageTemplate->tenant_id !== (int)$user->tenant_id) {
-                abort(404);
-            }
-        } else {
-            if (!is_null($messageTemplate->tenant_id)) {
-                abort(404);
-            }
-        }
+        $this->guardTemplateAccess($request, $messageTemplate);
 
         $data = $request->validate([
             'channel'   => ['required', 'in:sms,email'],
@@ -169,8 +249,37 @@ class MessageTemplateController extends Controller
             'is_active'   => $messageTemplate->is_active,
         ]);
 
+        // After saving, go back to the correct library tab
         return redirect()
-            ->route('settings.messaging.templates.edit', $messageTemplate->id)
+            ->route($messageTemplate->channel === 'email'
+                ? 'settings.messaging.templates.email'
+                : 'settings.messaging.templates.sms')
             ->with('success', 'Template updated.');
+    }
+
+    public function destroy(Request $request, MessageTemplate $messageTemplate)
+    {
+        $user = $request->user();
+
+        $this->guardTemplateAccess($request, $messageTemplate);
+
+        $channel = $messageTemplate->channel;
+        $id = $messageTemplate->id;
+
+        $messageTemplate->delete();
+
+        Log::info('message_template.deleted', [
+            'agency_id'   => $user->agency_id,
+            'tenant_id'   => $user->tenant_id,
+            'user_id'     => $user->id,
+            'template_id' => $id,
+            'channel'     => $channel,
+        ]);
+
+        return redirect()
+            ->route($channel === 'email'
+                ? 'settings.messaging.templates.email'
+                : 'settings.messaging.templates.sms')
+            ->with('success', 'Template deleted.');
     }
 }
