@@ -38,7 +38,7 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
 
-// ✅ Message Templates Controller (Index + Create + Store + Show + Edit + Update + Delete)
+// ✅ Message Templates Controller
 use App\Http\Controllers\Settings\MessageTemplateController;
 
 // ⚠️ Still not needed yet (kept off until we build drips list/CRUD)
@@ -109,7 +109,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/profile', [SettingsController::class, 'profile'])
         ->name('settings.profile');
 
-    // Profile actions (Step 1 wiring)
+    // Profile actions
     Route::patch('/settings/profile/email', [ProfileSettingsController::class, 'updateEmail'])
         ->name('settings.profile.email.update');
 
@@ -118,7 +118,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | SETTINGS -> MESSAGING LANDING (redirect to Universal SMS Providers)
+    | SETTINGS -> MESSAGING LANDING
     |--------------------------------------------------------------------------
     */
     Route::get('/settings/messaging', fn () => redirect()->route('settings.messaging.sms_providers'))
@@ -138,38 +138,52 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ MESSAGE TEMPLATES (Index + Create + Store + Show + Edit + Update + Delete)
+    | ✅ MESSAGE TEMPLATES (Chooser -> Email library -> SMS library)
     |--------------------------------------------------------------------------
+    | What you want:
+    | - /settings/messaging/templates          => chooser card (Email vs Text)
+    | - /settings/messaging/templates/email    => Email templates library
+    | - /settings/messaging/templates/sms      => SMS templates library
+    |
     | IMPORTANT: keep /create ABOVE any /{messageTemplate} routes.
     */
-    Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'index'])
-        ->name('settings.messaging.templates.index');
 
+    // ✅ Chooser card
+    Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'choose'])
+        ->name('settings.messaging.templates.choose');
+
+    // ✅ Libraries
+    Route::get('/settings/messaging/templates/email', [MessageTemplateController::class, 'emailIndex'])
+        ->name('settings.messaging.templates.email');
+
+    Route::get('/settings/messaging/templates/sms', [MessageTemplateController::class, 'smsIndex'])
+        ->name('settings.messaging.templates.sms');
+
+    // ✅ Create/store
     Route::get('/settings/messaging/templates/create', [MessageTemplateController::class, 'create'])
         ->name('settings.messaging.templates.create');
 
     Route::post('/settings/messaging/templates', [MessageTemplateController::class, 'store'])
         ->name('settings.messaging.templates.store');
 
-    // ✅ View (optional but useful for "View" links)
+    // ✅ View (optional)
     Route::get('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'show'])
         ->name('settings.messaging.templates.show');
 
-    // ✅ Edit page
+    // ✅ Edit / update
     Route::get('/settings/messaging/templates/{messageTemplate}/edit', [MessageTemplateController::class, 'edit'])
         ->name('settings.messaging.templates.edit');
 
-    // ✅ Save edits
     Route::put('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'update'])
         ->name('settings.messaging.templates.update');
 
-    // ✅ Delete (optional but completes CRUD)
+    // ✅ Delete (optional)
     Route::delete('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'destroy'])
         ->name('settings.messaging.templates.destroy');
 
     /*
     |--------------------------------------------------------------------------
-    | SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (still placeholder view for now)
+    | SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (placeholder view for now)
     |--------------------------------------------------------------------------
     */
     Route::get('/settings/messaging/drips', function () {
@@ -197,7 +211,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/contacts/{contact}/messages', [ContactMessageController::class, 'store'])
         ->name('contacts.messages.store');
 
-    // ✅ Bulk queue SMS (checkbox-selected contacts)
     Route::post('/contacts/messages/bulk', [ContactMessageController::class, 'bulkStore'])
         ->name('contacts.messages.bulk-store');
 
