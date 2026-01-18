@@ -140,35 +140,37 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     | ✅ MESSAGE TEMPLATES (Chooser -> Email library -> SMS library)
     |--------------------------------------------------------------------------
-    | What you want:
+    | Goal:
     | - /settings/messaging/templates          => chooser card (Email vs Text)
     | - /settings/messaging/templates/email    => Email templates library
     | - /settings/messaging/templates/sms      => SMS templates library
     |
-    | IMPORTANT: keep /create ABOVE any /{messageTemplate} routes.
+    | IMPORTANT:
+    | - Keep /create ABOVE any /{messageTemplate} routes
+    | - Keep a route named settings.messaging.templates.index to avoid 500s
     */
 
-    // ✅ Chooser card
+    // ✅ Backwards-compatible alias (fixes your 500 from layout links)
     Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'choose'])
+        ->name('settings.messaging.templates.index');
+
+    // ✅ Explicit chooser route (optional but clean)
+    Route::get('/settings/messaging/templates/choose', [MessageTemplateController::class, 'choose'])
         ->name('settings.messaging.templates.choose');
 
     // ✅ Libraries
     Route::get('/settings/messaging/templates/email', [MessageTemplateController::class, 'emailIndex'])
-        ->name('settings.messaging.templates.email');
+        ->name('settings.messaging.templates.email.index');
 
     Route::get('/settings/messaging/templates/sms', [MessageTemplateController::class, 'smsIndex'])
-        ->name('settings.messaging.templates.sms');
+        ->name('settings.messaging.templates.sms.index');
 
-    // ✅ Create/store
+    // ✅ Create/store (channel may be preselected by ?channel=email or ?channel=sms)
     Route::get('/settings/messaging/templates/create', [MessageTemplateController::class, 'create'])
         ->name('settings.messaging.templates.create');
 
     Route::post('/settings/messaging/templates', [MessageTemplateController::class, 'store'])
         ->name('settings.messaging.templates.store');
-
-    // ✅ View (optional)
-    Route::get('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'show'])
-        ->name('settings.messaging.templates.show');
 
     // ✅ Edit / update
     Route::get('/settings/messaging/templates/{messageTemplate}/edit', [MessageTemplateController::class, 'edit'])
