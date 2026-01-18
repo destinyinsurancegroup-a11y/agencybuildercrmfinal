@@ -3,10 +3,11 @@
 @php
     $settingsPage = 'templates';
 
-    // If you come from "+ New Email Template" or "+ New Text Template",
-    // we pass ?channel=email or ?channel=sms.
-    // old('channel') should win if validation fails and reloads the page.
-    $defaultChannel = request()->query('channel', 'sms');
+    // Preselect channel from query string if provided (?channel=sms or ?channel=email)
+    $presetChannel = request()->query('channel');
+    if (!in_array($presetChannel, ['sms', 'email'], true)) {
+        $presetChannel = null;
+    }
 @endphp
 
 @section('settings_content')
@@ -19,6 +20,7 @@
             </p>
         </div>
 
+        {{-- Back should go to chooser now (or change to sms/email library if you prefer) --}}
         <a href="{{ route('settings.messaging.templates.choose') }}" class="btn btn-abc-outline">
             ← Back
         </a>
@@ -40,11 +42,13 @@
 
             <div class="mb-3">
                 <label class="form-label">Channel</label>
-                <select name="channel" class="form-control">
-                    <option value="sms" {{ old('channel', $defaultChannel) === 'sms' ? 'selected' : '' }}>
+                <select id="channelSelect" name="channel" class="form-control">
+                    <option value="sms"
+                        {{ old('channel', $presetChannel ?? 'sms') === 'sms' ? 'selected' : '' }}>
                         SMS
                     </option>
-                    <option value="email" {{ old('channel', $defaultChannel) === 'email' ? 'selected' : '' }}>
+                    <option value="email"
+                        {{ old('channel', $presetChannel ?? 'sms') === 'email' ? 'selected' : '' }}>
                         Email
                     </option>
                 </select>
@@ -53,57 +57,50 @@
 
             <div class="mb-3">
                 <label class="form-label">Template Name</label>
-                <input
-                    type="text"
-                    name="name"
-                    class="form-control"
-                    value="{{ old('name') }}"
-                    placeholder="e.g. Welcome Email - Day 0"
-                >
+                <input type="text"
+                       name="name"
+                       class="form-control"
+                       value="{{ old('name') }}"
+                       placeholder="e.g. Welcome Email - Day 0">
                 @error('name') <div class="text-danger mt-1">{{ $message }}</div> @enderror
             </div>
 
-            <div class="mb-3">
+            {{-- ✅ Subject: only for Email --}}
+            <div id="subjectWrap" class="mb-3">
                 <label class="form-label">Subject (Email only)</label>
-                <input
-                    type="text"
-                    name="subject"
-                    class="form-control"
-                    value="{{ old('subject') }}"
-                    placeholder="e.g. Welcome, @{{ first_name }}"
-                >
+                <input type="text"
+                       name="subject"
+                       class="form-control"
+                       value="{{ old('subject') }}"
+                       placeholder="e.g. Welcome, {{ '{{first_name}}' }}">
                 @error('subject') <div class="text-danger mt-1">{{ $message }}</div> @enderror
                 <div class="text-muted mt-1" style="font-size:13px;">
-                    If Channel is SMS, subject is ignored.
+                    Only used for Email templates.
                 </div>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Message Body</label>
-                <textarea
-                    name="body"
-                    class="form-control"
-                    rows="8"
-                    placeholder="Write your message here..."
-                >{{ old('body') }}</textarea>
+                <textarea name="body"
+                          class="form-control"
+                          rows="8"
+                          placeholder="Write your message here...">{{ old('body') }}</textarea>
                 @error('body') <div class="text-danger mt-1">{{ $message }}</div> @enderror
 
                 <div class="text-muted mt-2" style="font-size:13px;">
                     Variables you can use (examples):
-                    <code>@{{ first_name }}</code>, <code>@{{ last_name }}</code>
+                    <code>{{ '{{first_name}}' }}</code>, <code>{{ '{{last_name}}' }}</code>
                 </div>
             </div>
 
             <div class="mb-4">
                 <label class="form-label">Status</label>
                 <div class="form-check">
-                    <input
-                        class="form-check-input"
-                        type="checkbox"
-                        name="is_active"
-                        value="1"
-                        {{ old('is_active', '1') ? 'checked' : '' }}
-                    >
+                    <input class="form-check-input"
+                           type="checkbox"
+                           name="is_active"
+                           value="1"
+                           {{ old('is_active', '1') ? 'checked' : '' }}>
                     <label class="form-check-label" style="font-weight:700;">
                         Active (available to use)
                     </label>
@@ -118,4 +115,20 @@
         </form>
     </div>
 </div>
+
+{{-- ✅ Hide/show Subject based on Channel --}}
+<script>
+(function () {
+    const channel = document.getElementById('channelSelect');
+    const subjectWrap = document.getElementById('subjectWrap');
+
+    function sync() {
+        const isEmail = channel.value === 'email';
+        subjectWrap.style.display = isEmail ? '' : 'none';
+    }
+
+    channel.addEventListener('change', sync);
+    sync(); // run on load
+})();
+</script>
 @endsection
