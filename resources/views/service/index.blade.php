@@ -157,34 +157,6 @@
         font-size: 13px;
         color: #6b7280;
     }
-
-    /* ✅ History bubble styling inside messaging modals */
-    .ab-history {
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        background: #fff;
-        padding: 10px;
-        max-height: 260px;
-        overflow-y: auto;
-        margin-bottom: 10px;
-    }
-    .ab-msg {
-        max-width: 85%;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 8px 10px;
-        margin: 6px 0;
-        font-size: 13px;
-        line-height: 1.25rem;
-        background: #f9fafb;
-    }
-    .ab-msg.outbound { margin-left: auto; background: #fdf6e3; border-color: rgba(201,162,39,0.45); }
-    .ab-msg.inbound  { margin-right: auto; background: #f3f4f6; }
-    .ab-msg-meta {
-        font-size: 11px;
-        color: #6b7280;
-        margin-top: 4px;
-    }
 </style>
 
 <div class="dashboard-page">
@@ -248,6 +220,7 @@
                         id="add-service-client-btn"
                         class="btn-gold"
                         data-create-url="{{ route('service.create.panel') }}"
+                        type="button"
                     >
                         Add
                     </button>
@@ -256,6 +229,7 @@
                         class="btn-gold"
                         data-bs-toggle="modal"
                         data-bs-target="#uploadServiceModal"
+                        type="button"
                     >
                         Upload
                     </button>
@@ -387,63 +361,8 @@
     </div>
 </div>
 
-{{-- ✅ Messaging Modals (shared once per page) --}}
-<div class="modal fade" id="abSmsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content" onsubmit="ABMessaging.sendSms(event)">
-            <div class="modal-header">
-                <h5 class="modal-title">Send Text</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <input type="hidden" id="ab_sms_contact_id">
-                <div class="mb-1 fw-bold" id="ab_sms_contact_name"></div>
-                <div class="mb-2 text-muted" id="ab_sms_to"></div>
-
-                <div class="small text-muted mb-2" id="ab_sms_history_label">Loading history...</div>
-                <div id="ab_sms_history" class="ab-history"></div>
-
-                <textarea id="ab_sms_body" class="form-control" rows="4" placeholder="Type message..."></textarea>
-                <div class="small text-muted mt-2">This will save a queued text to the database.</div>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn-gold">Send</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="abEmailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content" onsubmit="ABMessaging.sendEmail(event)">
-            <div class="modal-header">
-                <h5 class="modal-title">Send Email</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body">
-                <input type="hidden" id="ab_email_contact_id">
-                <div class="mb-1 fw-bold" id="ab_email_contact_name"></div>
-                <div class="mb-2 text-muted" id="ab_email_to"></div>
-
-                <div class="small text-muted mb-2" id="ab_email_history_label">Loading history...</div>
-                <div id="ab_email_history" class="ab-history"></div>
-
-                <input id="ab_email_subject" class="form-control mb-2" placeholder="Subject">
-                <textarea id="ab_email_body" class="form-control" rows="6" placeholder="Type email..."></textarea>
-                <div class="small text-muted mt-2">This will save a queued email to the database.</div>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn-gold">Send</button>
-            </div>
-        </form>
-    </div>
-</div>
+{{-- ✅ REQUIRED for Service Text/Email: includes modals + ABMessaging global --}}
+@include('partials.messaging')
 
 @endsection
 
@@ -456,6 +375,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* ===== LOAD RIGHT PANEL ===== */
     window.loadServicePanel = function (url) {
+        if (!container) return;
+
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
@@ -465,18 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
             .then(res => res.text())
-            .then(html => {
-                container.innerHTML = html;
-
-                // ✅ Ensure injected scripts execute (notes JS)
-                const scripts = container.querySelectorAll('script');
-                scripts.forEach(oldScript => {
-                    const newScript = document.createElement('script');
-                    for (const attr of oldScript.attributes) newScript.setAttribute(attr.name, attr.value);
-                    newScript.text = oldScript.textContent;
-                    oldScript.parentNode.replaceChild(newScript, oldScript);
-                });
-            })
+            .then(html => container.innerHTML = html)
             .catch(() => {
                 container.innerHTML = `
                     <div style="padding:40px; text-align:center; color:red;">
@@ -488,12 +398,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* ===== CLICK A CLIENT ===== */
     document.querySelectorAll('.js-service-row').forEach(row => {
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (e) => {
+            if (e && e.target && e.target.classList && e.target.classList.contains('service-row-checkbox')) {
+                return;
+            }
+
             document.querySelectorAll('.js-service-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
 
             row.classList.add('active-contact-row');
-            loadServicePanel(row.dataset.showUrl);
+            window.loadServicePanel(row.dataset.showUrl);
         });
     });
 
@@ -501,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addBtn = document.getElementById('add-service-client-btn');
     if (addBtn) {
         addBtn.addEventListener('click', function () {
-            loadServicePanel(this.dataset.createUrl);
+            window.loadServicePanel(this.dataset.createUrl);
         });
     }
 
@@ -509,33 +423,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchEl = document.getElementById('service-search');
     if (searchEl) {
         searchEl.addEventListener('keyup', function () {
-            const term = this.value.toLowerCase();
+            const term = (this.value || '').toLowerCase();
             document.querySelectorAll('#service-list .js-service-row')
                 .forEach(row => {
                     row.style.display = row.textContent.toLowerCase().includes(term)
                         ? 'flex'
                         : 'none';
                 });
+
+            const selAll = document.getElementById('service-select-all');
+            if (selAll) selAll.checked = false;
         });
     }
 
     /* ✅ If upload had errors, reopen modal */
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadServiceModal');
-        if (modalEl) new bootstrap.Modal(modalEl).show();
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) new bootstrap.Modal(modalEl).show();
     @endif
 
     /* ✅ AUTO-LOAD SELECTED */
     @if(!empty($selected))
-        const selectedRow = document.querySelector(`.js-service-row[data-id="{{ $selected }}"]`);
-        if (selectedRow) {
-            document.querySelectorAll('.js-service-row')
-                .forEach(r => r.classList.remove('active-contact-row'));
-            selectedRow.classList.add('active-contact-row');
-            loadServicePanel(selectedRow.dataset.showUrl);
-        } else {
-            loadServicePanel("{{ route('service.show', $selected) }}");
-        }
+        window.loadServicePanel("{{ route('service.show', $selected) }}");
     @endif
 
     // ============================================================
@@ -552,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.disabled = count === 0;
     }
 
+    // per-row checkbox
     document.querySelectorAll('.service-row-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
             const id = String(cb.dataset.id);
@@ -561,20 +471,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // select all (only visible rows)
     const selectAll = document.getElementById('service-select-all');
     if (selectAll) {
         selectAll.addEventListener('change', () => {
-            const checked = selectAll.checked;
-            document.querySelectorAll('.service-row-checkbox').forEach(cb => {
+            const checked = !!selectAll.checked;
+
+            document.querySelectorAll('#service-list .js-service-row').forEach(row => {
+                if (row.style.display === 'none') return;
+                const cb = row.querySelector('.service-row-checkbox');
+                if (!cb) return;
+
                 cb.checked = checked;
                 const id = String(cb.dataset.id);
                 if (checked) selectedIds.add(id);
                 else selectedIds.delete(id);
             });
+
             refreshBulkUi();
         });
     }
 
+    // open bulk modal
     const bulkBtn = document.getElementById('service-bulk-text-btn');
     if (bulkBtn) {
         bulkBtn.addEventListener('click', () => {
@@ -584,6 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // send bulk
     const bulkSendBtn = document.getElementById('service-bulk-send-btn');
     if (bulkSendBtn) {
         bulkSendBtn.addEventListener('click', () => {
@@ -609,14 +528,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const skippedNoPhone = (data.skipped && data.skipped.no_phone) ? data.skipped.no_phone : 0;
                 alert(`Queued ${queued} texts. Skipped (no phone): ${skippedNoPhone}`);
 
-                // Clear selections
                 selectedIds.clear();
                 document.querySelectorAll('.service-row-checkbox').forEach(cb => cb.checked = false);
+
                 const selAll = document.getElementById('service-select-all');
                 if (selAll) selAll.checked = false;
+
                 refreshBulkUi();
 
-                bootstrap.Modal.getInstance(document.getElementById('serviceBulkTextModal'))?.hide();
+                const inst = bootstrap.Modal.getInstance(document.getElementById('serviceBulkTextModal'));
+                if (inst) inst.hide();
             })
             .catch(err => {
                 console.error(err);
@@ -626,177 +547,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     refreshBulkUi();
-
-    // ============================================================
-    // ✅ ABMessaging (for Service details buttons -> uses /contacts/{id}/messages)
-    // ============================================================
-    function hasBootstrapModal() { return !!(window.bootstrap && window.bootstrap.Modal); }
-
-    function showModalById(id) {
-        if (!hasBootstrapModal()) return alert('Bootstrap modal JS missing.');
-        const el = document.getElementById(id);
-        if (!el) return alert('Missing modal: #' + id);
-        new bootstrap.Modal(el).show();
-    }
-
-    function escapeHtml(s) {
-        return String(s || '')
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#039;');
-    }
-
-    function formatMeta(item) {
-        const dt = item && item.created_at ? new Date(item.created_at) : null;
-        const stamp = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
-        const status = item && item.status ? String(item.status) : '';
-        return (stamp ? (stamp + (status ? ' · ' + status : '')) : status);
-    }
-
-    function renderHistory(targetId, labelId, items) {
-        const box = document.getElementById(targetId);
-        const label = document.getElementById(labelId);
-        if (!box) return;
-
-        if (!items || !items.length) {
-            if (label) label.textContent = 'No messages yet.';
-            box.innerHTML = '';
-            return;
-        }
-
-        if (label) label.textContent = 'Showing all messages.';
-        let html = '';
-        for (let i = 0; i < items.length; i++) {
-            const it = items[i];
-            const direction = (it.direction || 'outbound');
-            const cls = direction === 'inbound' ? 'inbound' : 'outbound';
-            html += '<div class="ab-msg ' + cls + '">';
-            html +=   '<div>' + escapeHtml(it.body || '') + '</div>';
-            html +=   '<div class="ab-msg-meta">' + escapeHtml(formatMeta(it)) + '</div>';
-            html += '</div>';
-        }
-        box.innerHTML = html;
-        box.scrollTop = box.scrollHeight;
-    }
-
-    function fetchHistory(contactId, channel, targetId, labelId) {
-        const url = '/contacts/' + contactId + '/messages?channel=' + encodeURIComponent(channel) + '&limit=200';
-        return fetch(url, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(res => res.json().catch(() => ({})).then(data => {
-            if (!res.ok) throw new Error(data.message || ('Failed to load history (HTTP ' + res.status + ').'));
-            return data;
-        }))
-        .then(data => {
-            renderHistory(targetId, labelId, (data && data.items) ? data.items : []);
-            return data;
-        })
-        .catch(err => {
-            console.error(err);
-            const label = document.getElementById(labelId);
-            if (label) label.textContent = 'Failed to load history.';
-            const box = document.getElementById(targetId);
-            if (box) box.innerHTML = '';
-        });
-    }
-
-    window.ABMessaging = window.ABMessaging || {
-        openSms: function (contactId, name, phone) {
-            document.getElementById('ab_sms_contact_id').value = contactId || '';
-            document.getElementById('ab_sms_contact_name').textContent = name || '';
-            document.getElementById('ab_sms_to').textContent = phone ? ('To: ' + phone) : 'No phone on file';
-            document.getElementById('ab_sms_body').value = '';
-
-            renderHistory('ab_sms_history', 'ab_sms_history_label', []);
-            document.getElementById('ab_sms_history_label').textContent = 'Loading history...';
-            fetchHistory(contactId, 'sms', 'ab_sms_history', 'ab_sms_history_label');
-
-            showModalById('abSmsModal');
-        },
-
-        openEmail: function (contactId, name, email) {
-            document.getElementById('ab_email_contact_id').value = contactId || '';
-            document.getElementById('ab_email_contact_name').textContent = name || '';
-            document.getElementById('ab_email_to').textContent = email ? ('To: ' + email) : 'No email on file';
-            document.getElementById('ab_email_subject').value = '';
-            document.getElementById('ab_email_body').value = '';
-
-            renderHistory('ab_email_history', 'ab_email_history_label', []);
-            document.getElementById('ab_email_history_label').textContent = 'Loading history...';
-            fetchHistory(contactId, 'email', 'ab_email_history', 'ab_email_history_label');
-
-            showModalById('abEmailModal');
-        },
-
-        sendSms: function (e) {
-            e.preventDefault();
-            const contactId = String(document.getElementById('ab_sms_contact_id').value || '').trim();
-            const body = String(document.getElementById('ab_sms_body').value || '').trim();
-            if (!body) return alert('Message is empty.');
-
-            fetch('/contacts/' + contactId + '/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': CSRF_TOKEN,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ channel: 'sms', body })
-            })
-            .then(res => res.json().catch(() => ({})).then(data => {
-                if (!res.ok) throw new Error(data.message || ('Failed to save SMS (HTTP ' + res.status + ').'));
-                return data;
-            }))
-            .then(() => {
-                document.getElementById('ab_sms_body').value = '';
-                fetchHistory(contactId, 'sms', 'ab_sms_history', 'ab_sms_history_label');
-                alert('Text saved to Messages (queued).');
-            })
-            .catch(err => {
-                console.error(err);
-                alert(err.message || 'SMS send failed.');
-            });
-        },
-
-        sendEmail: function (e) {
-            e.preventDefault();
-            const contactId = String(document.getElementById('ab_email_contact_id').value || '').trim();
-            const subject = String(document.getElementById('ab_email_subject').value || '').trim();
-            const body = String(document.getElementById('ab_email_body').value || '').trim();
-            if (!subject) return alert('Subject is required.');
-            if (!body) return alert('Email body is empty.');
-
-            fetch('/contacts/' + contactId + '/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': CSRF_TOKEN,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ channel: 'email', subject, body })
-            })
-            .then(res => res.json().catch(() => ({})).then(data => {
-                if (!res.ok) throw new Error(data.message || ('Failed to save Email (HTTP ' + res.status + ').'));
-                return data;
-            }))
-            .then(() => {
-                document.getElementById('ab_email_subject').value = '';
-                document.getElementById('ab_email_body').value = '';
-                fetchHistory(contactId, 'email', 'ab_email_history', 'ab_email_history_label');
-                alert('Email saved to Messages (queued).');
-            })
-            .catch(err => {
-                console.error(err);
-                alert(err.message || 'Email send failed.');
-            });
-        }
-    };
 });
 </script>
 @endpush
