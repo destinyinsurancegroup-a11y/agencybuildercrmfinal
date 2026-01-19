@@ -135,18 +135,11 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ MESSAGE TEMPLATES (Chooser + Email Library + SMS Library)
+    | ✅ MESSAGE TEMPLATES (Chooser + Email Library + SMS Library + JSON)
     |--------------------------------------------------------------------------
-    | Your blade files reference:
-    | - settings.messaging.templates.index  (sidebar/layout)
-    | - settings.messaging.templates.choose
-    | - settings.messaging.templates.email
-    | - settings.messaging.templates.sms
-    |
-    | So we define ALL of them.
-    |
-    | IMPORTANT:
-    | - keep /create ABOVE any /{messageTemplate} routes.
+    | IMPORTANT ORDER:
+    | - /json routes must be ABOVE /{messageTemplate}/... routes
+    | - /create must be ABOVE /{messageTemplate}/... routes
     */
 
     // ✅ Main entry (what sidebar usually links to)
@@ -164,6 +157,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/messaging/templates/sms', [MessageTemplateController::class, 'smsIndex'])
         ->name('settings.messaging.templates.sms');
 
+    // ✅ JSON endpoints used by the send modals template dropdowns
+    // List: GET /settings/messaging/templates/json?channel=sms|email
+    Route::get('/settings/messaging/templates/json', [MessageTemplateController::class, 'jsonIndex'])
+        ->name('settings.messaging.templates.json');
+
+    // Show one: GET /settings/messaging/templates/{messageTemplate}/json
+    Route::get('/settings/messaging/templates/{messageTemplate}/json', [MessageTemplateController::class, 'jsonShow'])
+        ->whereNumber('messageTemplate')
+        ->name('settings.messaging.templates.json.show');
+
     // ✅ Create/store (supports ?channel=email or ?channel=sms)
     Route::get('/settings/messaging/templates/create', [MessageTemplateController::class, 'create'])
         ->name('settings.messaging.templates.create');
@@ -173,22 +176,17 @@ Route::middleware('auth')->group(function () {
 
     // ✅ Edit/update
     Route::get('/settings/messaging/templates/{messageTemplate}/edit', [MessageTemplateController::class, 'edit'])
+        ->whereNumber('messageTemplate')
         ->name('settings.messaging.templates.edit');
 
     Route::put('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'update'])
+        ->whereNumber('messageTemplate')
         ->name('settings.messaging.templates.update');
 
     // ✅ Optional delete
     Route::delete('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'destroy'])
+        ->whereNumber('messageTemplate')
         ->name('settings.messaging.templates.destroy');
-
-    /*
-    |--------------------------------------------------------------------------
-    | ✅ NEW: JSON endpoint for template dropdowns (SMS/Email modals)
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/settings/messaging/templates/json', [MessageTemplateController::class, 'json'])
-        ->name('settings.messaging.templates.json');
 
     /*
     |--------------------------------------------------------------------------
