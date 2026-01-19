@@ -34,24 +34,37 @@ class ContactMessageController extends Controller
 
     /**
      * Best-effort tenant/agency isolation based on your schema.
+     * Returns true if allowed, false if not.
      */
-    protected function enforceScopeOrAbort(Contact $contact): void
+    protected function canAccessContact(Contact $contact): bool
     {
         $user = Auth::user();
-        if (! $user) {
-            abort(403);
-        }
+        if (!$user) return false;
 
+        // Agency check (only if the column exists and both have values)
         if ($this->contactsHasAgencyId() && isset($contact->agency_id) && isset($user->agency_id)) {
             if ((string) $contact->agency_id !== (string) $user->agency_id) {
-                abort(403, 'Unauthorized');
+                return false;
             }
         }
 
+        // Tenant check (only if the column exists and both have values)
         if ($this->contactsHasTenantId() && isset($contact->tenant_id) && isset($user->tenant_id)) {
             if ((string) $contact->tenant_id !== (string) $user->tenant_id) {
-                abort(403, 'Unauthorized');
+                return false;
             }
+        }
+
+        return true;
+    }
+
+    protected function enforceScopeOrAbort(Contact $contact): void
+    {
+        if (!Auth::user()) {
+            abort(403);
+        }
+        if (!$this->canAccessContact($contact)) {
+            abort(403, 'Unauthorized');
         }
     }
 
@@ -72,7 +85,7 @@ class ContactMessageController extends Controller
         if ($limit < 1) $limit = 50;
         if ($limit > 200) $limit = 200;
 
-        $channel = $request->query('channel');
+        $channel  = $request->query('channel');
         $beforeId = $request->query('before_id');
 
         $q = Message::query()
@@ -110,6 +123,7 @@ class ContactMessageController extends Controller
             $rows = $rows->slice(0, $limit);
         }
 
+        // Return oldest->newest in UI
         $rows = $rows->reverse()->values();
 
         $nextBeforeId = null;
@@ -132,14 +146,14 @@ class ContactMessageController extends Controller
     }
 
     /**
-     * Phase 2: store outbound messages
+     * Phase 2: store outbound messages (queued)
      * POST /contacts/{contact}/messages
      */
     public function store(Request $request, Contact $contact)
     {
         $user = Auth::user();
-        if (! $user) {
-            abort(403);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
         $this->enforceScopeOrAbort($contact);
@@ -150,18 +164,21 @@ class ContactMessageController extends Controller
             'subject' => 'nullable|string|max:255',
         ]);
 
+        $channel = $data['channel'];
+        $body    = trim((string) $data['body']);
+
         $toAddress = null;
 
-        if ($data['channel'] === 'sms') {
+        if ($channel === 'sms') {
             $toAddress = $contact->phone;
-            if (! $toAddress) {
+            if (!$toAddress) {
                 return response()->json(['success' => false, 'message' => 'Contact has no phone number.'], 422);
             }
         }
 
-        if ($data['channel'] === 'email') {
+        if ($channel === 'email') {
             $toAddress = $contact->email;
-            if (! $toAddress) {
+            if (!$toAddress) {
                 return response()->json(['success' => false, 'message' => 'Contact has no email address.'], 422);
             }
             if (empty($data['subject'])) {
@@ -175,13 +192,13 @@ class ContactMessageController extends Controller
             'contact_id' => $contact->id,
             'created_by' => $user->id,
 
-            'channel'    => $data['channel'],
+            'channel'    => $channel,
             'direction'  => 'outbound',
             'status'     => 'queued',
 
             'to_address' => $toAddress,
-            'subject'    => $data['channel'] === 'email' ? trim((string) $data['subject']) : null,
-            'body'       => trim((string) $data['body']),
+            'subject'    => $channel === 'email' ? trim((string) ($data['subject'] ?? '')) : null,
+            'body'       => $body,
         ]);
 
         return response()->json([
@@ -201,7 +218,9 @@ class ContactMessageController extends Controller
     public function bulkStore(Request $request)
     {
         $user = Auth::user();
-        if (! $user) abort(403);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
 
         $data = $request->validate([
             'contact_ids'   => 'required|array|min:1',
@@ -209,18 +228,20 @@ class ContactMessageController extends Controller
             'body'          => 'required|string|max:5000',
         ]);
 
-        $ids = array_values(array_unique(array_map('intval', $data['contact_ids'])));
+        $ids  = array_values(array_unique(array_map('intval', $data['contact_ids'])));
         $body = trim((string) $data['body']);
 
-        // Pull contacts and apply best-effort scoping in SQL when possible
+        // Pull contacts (best-effort scoping in SQL when possible)
         $contactsQ = Contact::query()->whereIn('id', $ids);
 
+        // If contacts has agency_id, match same agency (or allow null if your legacy data uses null)
         if ($this->contactsHasAgencyId() && isset($user->agency_id)) {
             $contactsQ->where(function ($q) use ($user) {
                 $q->whereNull('agency_id')->orWhere('agency_id', $user->agency_id);
             });
         }
 
+        // If contacts has tenant_id, match same tenant (or allow null if "global")
         if ($this->contactsHasTenantId() && isset($user->tenant_id)) {
             $contactsQ->where(function ($q) use ($user) {
                 $q->whereNull('tenant_id')->orWhere('tenant_id', $user->tenant_id);
@@ -231,11 +252,17 @@ class ContactMessageController extends Controller
 
         $queued = 0;
         $skippedNoPhone = 0;
+        $skippedUnauthorized = 0;
+
+        // Contacts not returned by SQL filter (not found or outside scope)
         $skippedNotFoundOrUnauthorized = max(0, count($ids) - $contacts->count());
 
         foreach ($contacts as $contact) {
-            // Final safety check per contact
-            $this->enforceScopeOrAbort($contact);
+            // Final per-row security check (but do NOT abort mid-loop)
+            if (!$this->canAccessContact($contact)) {
+                $skippedUnauthorized++;
+                continue;
+            }
 
             $to = trim((string) ($contact->phone ?? ''));
             if ($to === '') {
@@ -266,6 +293,7 @@ class ContactMessageController extends Controller
             'queued'  => $queued,
             'skipped' => [
                 'no_phone' => $skippedNoPhone,
+                'unauthorized' => $skippedUnauthorized,
                 'not_found_or_unauthorized' => $skippedNotFoundOrUnauthorized,
             ],
         ], 201);
