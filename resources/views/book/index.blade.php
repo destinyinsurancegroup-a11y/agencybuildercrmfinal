@@ -328,7 +328,18 @@
                     <span id="ab_bulk_count">0</span> selected contacts
                 </div>
 
-                <textarea id="ab_bulk_sms_body" class="form-control" rows="5" placeholder="Type message to send to all selected..."></textarea>
+                {{-- ✅ TEMPLATE SELECTOR (BULK SMS) --}}
+                <div class="mt-2">
+                    <label class="form-label small text-muted mb-1">Template</label>
+                    <select id="ab_bulk_sms_template_id" class="form-select">
+                        <option value="">— Select a template —</option>
+                    </select>
+                    <div class="small text-muted mt-1">
+                        Selecting a template will fill the message. You can still edit before queueing.
+                    </div>
+                </div>
+
+                <textarea id="ab_bulk_sms_body" class="form-control mt-3" rows="5" placeholder="Type message to send to all selected..."></textarea>
                 <div class="small text-muted mt-2">
                     This will queue outbound SMS messages in the database.
                 </div>
@@ -399,14 +410,67 @@
     }
 
     // ============================================================
+    // ✅ BULK TEMPLATE SUPPORT (SMS)
+    // ============================================================
+    function bulkTemplatesSetOptions(selectEl, items) {
+        if (!selectEl) return;
+        while (selectEl.options.length > 1) selectEl.remove(1);
+
+        (items || []).forEach(function (t) {
+            var opt = document.createElement('option');
+            opt.value = String(t.id);
+            opt.textContent = t.name || ('Template #' + t.id);
+            selectEl.appendChild(opt);
+        });
+    }
+
+    function bulkFetchJson(url) {
+        return fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (d) {
+                if (!r.ok) throw new Error(d.message || ('Request failed: ' + r.status));
+                return d;
+            });
+        });
+    }
+
+    function bulkLoadSmsTemplates() {
+        return bulkFetchJson('/settings/messaging/templates/json?channel=sms')
+            .then(function (d) { return (d.items || []); })
+            .catch(function (err) {
+                console.error(err);
+                return [];
+            });
+    }
+
+    function bulkLoadTemplateById(id) {
+        return bulkFetchJson('/settings/messaging/templates/' + encodeURIComponent(id) + '/json')
+            .then(function (d) { return d.item; });
+    }
+
+    // ============================================================
     // ✅ Extend global ABMessaging with BOOK bulk functions (do NOT overwrite openSms/openEmail)
-    // (Single SMS/Email modals + sendSms/sendEmail are defined in partials/messaging.blade.php)
     // ============================================================
     window.ABMessaging = window.ABMessaging || {};
 
     window.ABMessaging.openBulkSms = function () {
-        document.getElementById('ab_bulk_sms_body').value = '';
-        document.getElementById('ab_bulk_count').textContent = String(bulkSelected.size);
+        var bodyEl = document.getElementById('ab_bulk_sms_body');
+        if (bodyEl) bodyEl.value = '';
+
+        var countEl = document.getElementById('ab_bulk_count');
+        if (countEl) countEl.textContent = String(bulkSelected.size);
+
+        // ✅ Load templates into dropdown each open (so newly created templates appear)
+        var sel = document.getElementById('ab_bulk_sms_template_id');
+        if (sel) {
+            sel.value = '';
+            bulkLoadSmsTemplates().then(function (items) {
+                bulkTemplatesSetOptions(sel, items);
+            });
+        }
+
         showModalById('abBulkSmsModal');
     };
 
@@ -522,6 +586,30 @@
             });
         }
 
+        // ✅ Bulk template selection -> fill textarea
+        var bulkTemplateSel = document.getElementById('ab_bulk_sms_template_id');
+        if (bulkTemplateSel) {
+            bulkTemplateSel.addEventListener('change', function () {
+                var tplId = String(this.value || '').trim();
+                if (!tplId) return;
+
+                bulkLoadTemplateById(tplId)
+                    .then(function (item) {
+                        if (!item || item.channel !== 'sms') {
+                            alert('That template is not an SMS template.');
+                            bulkTemplateSel.value = '';
+                            return;
+                        }
+                        var bodyEl = document.getElementById('ab_bulk_sms_body');
+                        if (bodyEl) bodyEl.value = String(item.body || '');
+                    })
+                    .catch(function (err) {
+                        console.error(err);
+                        alert(err.message || 'Failed to load template.');
+                    });
+            });
+        }
+
         // Add button
         var addBtn = document.getElementById('add-book-client-btn');
         if (addBtn) {
@@ -530,7 +618,7 @@
             });
         }
 
-        // Search filter (also affects Select All by only applying to visible rows)
+        // Search filter
         var searchEl = document.getElementById('book-search');
         if (searchEl) {
             searchEl.addEventListener('keyup', function () {
