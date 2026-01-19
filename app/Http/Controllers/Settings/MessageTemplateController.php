@@ -65,58 +65,66 @@ class MessageTemplateController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ NEW: JSON endpoints (for template dropdown in send modals)
+    | ✅ NEW: JSON endpoints for template picker in send modals
     |--------------------------------------------------------------------------
-    | These are safe, scoped, and channel-filtered.
-    | Step 2a will add the routes that call these.
     */
 
     /**
      * GET /settings/messaging/templates/json?channel=sms|email
-     * Returns active templates for the given channel.
+     * Returns { success: true, items: [{id,name,channel}] }
      */
-    public function json(Request $request)
+    public function jsonIndex(Request $request)
     {
         $data = $request->validate([
             'channel' => ['required', 'in:sms,email'],
         ]);
 
-        $templates = $this->scopedTemplatesQuery($request)
-            ->where('channel', $data['channel'])
+        $channel = $data['channel'];
+
+        $items = $this->scopedTemplatesQuery($request)
+            ->where('channel', $channel)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'channel', 'name']);
+            ->get(['id', 'name', 'channel']);
 
         return response()->json([
             'success' => true,
-            'items'   => $templates,
+            'items'   => $items,
         ]);
     }
 
     /**
      * GET /settings/messaging/templates/{messageTemplate}/json
-     * Returns one template (scoped) including subject/body (subject may be null for sms).
+     * Returns { success: true, item: {id,name,channel,subject,body,variables_json} }
      */
-    public function showJson(Request $request, MessageTemplate $messageTemplate)
+    public function jsonShow(Request $request, MessageTemplate $messageTemplate)
     {
         $this->guardTemplateAccess($request, $messageTemplate);
 
+        // Extra safety: only allow active templates to be used in send flow
+        if (!$messageTemplate->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Template is inactive.',
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
-            'item' => [
-                'id'       => $messageTemplate->id,
-                'channel'  => $messageTemplate->channel,
-                'name'     => $messageTemplate->name,
-                'subject'  => $messageTemplate->subject, // null for sms
-                'body'     => $messageTemplate->body,
-                'is_active'=> (bool) $messageTemplate->is_active,
+            'item'    => [
+                'id'             => $messageTemplate->id,
+                'name'           => $messageTemplate->name,
+                'channel'        => $messageTemplate->channel,
+                'subject'        => $messageTemplate->subject, // null for sms
+                'body'           => $messageTemplate->body,
+                'variables_json' => $messageTemplate->variables_json,
             ],
         ]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Chooser + Libraries
+    | NEW: Chooser + Libraries
     |--------------------------------------------------------------------------
     */
 
@@ -163,7 +171,7 @@ class MessageTemplateController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Existing CRUD
+    | Existing CRUD (kept)
     |--------------------------------------------------------------------------
     */
 
@@ -228,13 +236,9 @@ class MessageTemplateController extends Controller
             ->with('success', 'Template created.');
     }
 
-    /**
-     * Optional "show" page. For now, just redirect to edit.
-     */
     public function show(Request $request, MessageTemplate $messageTemplate)
     {
         $this->guardTemplateAccess($request, $messageTemplate);
-
         return redirect()->route('settings.messaging.templates.edit', $messageTemplate->id);
     }
 
