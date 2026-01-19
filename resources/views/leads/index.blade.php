@@ -56,9 +56,7 @@
         text-transform: uppercase;
     }
 
-    .contacts-search-btn:hover {
-        background: #b5901f;
-    }
+    .contacts-search-btn:hover { background: #b5901f; }
 
     .btn-gold {
         background: #c9a227;
@@ -74,11 +72,8 @@
         white-space: nowrap;
     }
 
-    .btn-gold:hover {
-        background: #b5901f;
-    }
+    .btn-gold:hover { background: #b5901f; }
 
-    /* ✅ Outline gold button like Book */
     .btn-outline-gold {
         background: transparent;
         color:#c9a227;
@@ -111,25 +106,17 @@
         gap: 10px;
     }
 
-    .contact-list-item:hover {
-        background: #f9fafb;
-    }
+    .contact-list-item:hover { background: #f9fafb; }
 
     .active-contact-row {
         background: #eae6d1 !important;
         font-weight: 600;
     }
 
-    .empty-right-panel {
-        height: 100%;
-        background: transparent !important;
-    }
+    .empty-right-panel { height: 100%; background: transparent !important; }
 
-    .flash-wrap {
-        margin-bottom: 14px;
-    }
+    .flash-wrap { margin-bottom: 14px; }
 
-    /* ✅ Bulk UI row (matches Service/Contacts bulk feel) */
     .bulk-row {
         display: flex;
         align-items: center;
@@ -160,7 +147,6 @@
         color: #6b7280;
     }
 
-    /* Archived badge spacing when checkbox exists */
     .lead-row-right {
         margin-left: auto;
         display: inline-flex;
@@ -176,7 +162,6 @@
         <div class="col-md-4 col-lg-3 contacts-card-wrapper">
             <div class="contacts-card">
 
-                {{-- Header + Active/Archived toggle --}}
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div class="contacts-header mb-0">
                         @if(!empty($showingArchived) && $showingArchived)
@@ -199,7 +184,6 @@
                     </div>
                 </div>
 
-                {{-- ✅ FLASH MESSAGES (match Book of Business behavior) --}}
                 <div class="flash-wrap">
                     @if (session('import_success'))
                         <div class="alert alert-success py-2 mb-2">
@@ -225,39 +209,21 @@
                     @endif
                 </div>
 
-                <!-- Search (client-side only) -->
                 <div class="contacts-search-wrapper">
-                    <input
-                        type="text"
-                        id="lead-search"
-                        class="contacts-search-input"
-                        placeholder="Search leads..."
-                    >
+                    <input type="text" id="lead-search" class="contacts-search-input" placeholder="Search leads...">
                     <button class="contacts-search-btn" disabled>Search</button>
                 </div>
 
-                <!-- Add Lead + Upload -->
                 <div class="button-row">
-                    <button
-                        id="add-lead-btn"
-                        class="btn-gold"
-                        data-create-url="{{ route('leads.create') }}"
-                        type="button"
-                    >
+                    <button id="add-lead-btn" class="btn-gold" data-create-url="{{ route('leads.create') }}" type="button">
                         Add Lead
                     </button>
 
-                    <button
-                        class="btn-gold"
-                        data-bs-toggle="modal"
-                        data-bs-target="#uploadLeadModal"
-                        type="button"
-                    >
+                    <button class="btn-gold" data-bs-toggle="modal" data-bs-target="#uploadLeadModal" type="button">
                         Upload
                     </button>
                 </div>
 
-                {{-- ✅ BULK SELECT ROW --}}
                 <div class="bulk-row">
                     <label>
                         <input type="checkbox" id="leads-select-all">
@@ -275,7 +241,6 @@
                     </div>
                 </div>
 
-                <!-- Lead List -->
                 <div id="lead-list">
                     @forelse ($leads as $lead)
                         @php
@@ -288,7 +253,6 @@
                                 ? route('book.show', $lead->id)
                                 : route('leads.show', $lead->id);
 
-                            // Blade-safe badge class
                             $badgeClass = 'badge bg-secondary';
                             if ($statusLower === 'sold') {
                                 $badgeClass = 'badge bg-success';
@@ -304,7 +268,6 @@
                             data-id="{{ $lead->id }}"
                             data-show-url="{{ $rowUrl }}"
                         >
-                            {{-- ✅ checkbox (stops row click) --}}
                             <input type="checkbox"
                                    class="leads-row-checkbox"
                                    data-id="{{ $lead->id }}"
@@ -339,12 +302,7 @@
 <!-- UPLOAD LEADS MODAL -->
 <div class="modal fade" id="uploadLeadModal" tabindex="-1">
     <div class="modal-dialog">
-        <form
-            action="{{ route('leads.import') }}"
-            method="POST"
-            enctype="multipart/form-data"
-            class="modal-content"
-        >
+        <form action="{{ route('leads.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
             @csrf
 
             <div class="modal-header bg-black text-gold">
@@ -354,13 +312,7 @@
 
             <div class="modal-body">
                 <label class="form-label">Choose CSV or Excel file</label>
-                <input
-                    type="file"
-                    name="file"
-                    class="form-control"
-                    accept=".csv, .xlsx, .xls"
-                    required
-                >
+                <input type="file" name="file" class="form-control" accept=".csv, .xlsx, .xls" required>
                 <small class="text-muted d-block mt-2">
                     Tip: Header row should include fields like First Name / Last Name / Email / Phone, but blanks are allowed.
                 </small>
@@ -374,7 +326,7 @@
     </div>
 </div>
 
-{{-- ✅ BULK TEXT MODAL --}}
+{{-- ✅ BULK TEXT MODAL (NOW WITH TEMPLATE SELECTOR) --}}
 <div class="modal fade" id="leadsBulkTextModal" tabindex="-1">
     <div class="modal-dialog">
         <form class="modal-content" onsubmit="return false;">
@@ -387,6 +339,18 @@
                 <div class="small text-muted mb-2">
                     Sending to <strong><span id="leads-bulk-count">0</span></strong> selected leads.
                 </div>
+
+                {{-- ✅ Template dropdown (SMS templates) --}}
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-1">Template</label>
+                    <select id="leads-bulk-template-id" class="form-select">
+                        <option value="">— Select a template —</option>
+                    </select>
+                    <div class="small text-muted mt-1">
+                        Selecting a template will fill the message. You can still edit before sending.
+                    </div>
+                </div>
+
                 <textarea id="leads-bulk-body" class="form-control" rows="4" placeholder="Type message..."></textarea>
                 <div class="small text-muted mt-2">
                     This will queue outbound SMS messages in the database (Phase 2/3).
@@ -401,7 +365,8 @@
     </div>
 </div>
 
-{{-- ✅ REQUIRED for Leads Text/Email: includes modals + ABMessaging global --}}
+{{-- If your layouts/app.blade.php already includes partials.messaging globally, you do NOT need this include.
+   If it is NOT global, keep it. --}}
 @include('partials.messaging')
 
 @endsection
@@ -409,11 +374,10 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-
     const container = document.getElementById('contact-details-container');
     const CSRF_TOKEN = @json(csrf_token());
 
-    // ✅ Loader used for right panel
+    // right panel loader
     window.loadLeadPanel = function (url) {
         if (!container) return;
 
@@ -436,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
-    /* CLICK A LEAD */
+    // click lead row
     document.querySelectorAll('.js-lead-row').forEach(row => {
         row.addEventListener('click', () => {
             document.querySelectorAll('.js-lead-row')
@@ -446,47 +410,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    /* ADD LEAD */
+    // add lead
     const addBtn = document.getElementById('add-lead-btn');
     if (addBtn) {
         addBtn.addEventListener('click', function () {
-            // If your leads.create is a full page (not a partial), you can swap this to: window.location = this.dataset.createUrl;
             window.loadLeadPanel(this.dataset.createUrl);
         });
     }
 
-    /* CLIENT SIDE SEARCH */
+    // search filter
     const searchEl = document.getElementById('lead-search');
     if (searchEl) {
         searchEl.addEventListener('keyup', function () {
             const term = (this.value || '').toLowerCase();
             document.querySelectorAll('#lead-list .js-lead-row')
                 .forEach(row => {
-                    row.style.display = row.textContent.toLowerCase().includes(term)
-                        ? 'flex'
-                        : 'none';
+                    row.style.display = row.textContent.toLowerCase().includes(term) ? 'flex' : 'none';
                 });
 
-            // keep bulk "select all" honest when filtering
             const selAll = document.getElementById('leads-select-all');
             if (selAll) selAll.checked = false;
         });
     }
 
-    // ✅ If upload had errors, reopen modal so user sees it
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadLeadModal');
         if (modalEl && window.bootstrap && window.bootstrap.Modal) new bootstrap.Modal(modalEl).show();
     @endif
 
-    // Optional: auto-load selected lead if controller passes $selected
     @if(!empty($selected))
         window.loadLeadPanel("{{ route('leads.show', $selected) }}");
     @endif
 
-    // ============================================================
-    // ✅ BULK SELECT + BULK TEXT (uses POST /contacts/messages/bulk)
-    // ============================================================
+    // ------------------------------------------------------------
+    // bulk selection
+    // ------------------------------------------------------------
     const selectedIds = new Set();
 
     function refreshBulkUi() {
@@ -498,7 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.disabled = count === 0;
     }
 
-    // per-row checkbox
     document.querySelectorAll('.leads-row-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
             const id = String(cb.dataset.id);
@@ -508,14 +465,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // select all (only visible rows)
     const selectAll = document.getElementById('leads-select-all');
     if (selectAll) {
         selectAll.addEventListener('change', () => {
             const checked = !!selectAll.checked;
 
             document.querySelectorAll('#lead-list .js-lead-row').forEach(row => {
-                if (row.style.display === 'none') return; // only visible
+                if (row.style.display === 'none') return;
                 const cb = row.querySelector('.leads-row-checkbox');
                 if (!cb) return;
 
@@ -529,12 +485,95 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ------------------------------------------------------------
+    // ✅ Bulk Templates (SMS)
+    // ------------------------------------------------------------
+    const TEMPLATE_ROUTES = {
+        list: '/settings/messaging/templates/json',
+        show: '/settings/messaging/templates'
+    };
+
+    let smsTemplateListCache = null;
+
+    function setTemplateOptions(selectEl, items) {
+        if (!selectEl) return;
+        while (selectEl.options.length > 1) selectEl.remove(1);
+
+        (items || []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = String(t.id);
+            opt.textContent = t.name || ('Template #' + t.id);
+            selectEl.appendChild(opt);
+        });
+    }
+
+    function loadSmsTemplatesList() {
+        if (smsTemplateListCache) return Promise.resolve(smsTemplateListCache);
+
+        return fetch(`${TEMPLATE_ROUTES.list}?channel=sms`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json().catch(() => ({})).then(d => {
+            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load templates.');
+            return d.items || [];
+        }))
+        .then(items => {
+            smsTemplateListCache = items;
+            return items;
+        })
+        .catch(err => {
+            console.error(err);
+            smsTemplateListCache = [];
+            return [];
+        });
+    }
+
+    function loadTemplateById(id) {
+        return fetch(`${TEMPLATE_ROUTES.show}/${encodeURIComponent(id)}/json`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json().catch(() => ({})).then(d => {
+            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load template.');
+            return d.item;
+        }));
+    }
+
     const bulkBtn = document.getElementById('leads-bulk-text-btn');
     if (bulkBtn) {
-        bulkBtn.addEventListener('click', () => {
+        bulkBtn.addEventListener('click', async () => {
             document.getElementById('leads-bulk-count').textContent = String(selectedIds.size);
             document.getElementById('leads-bulk-body').value = '';
+
+            const sel = document.getElementById('leads-bulk-template-id');
+            if (sel) {
+                sel.value = '';
+                const items = await loadSmsTemplatesList();
+                setTemplateOptions(sel, items);
+            }
+
             new bootstrap.Modal(document.getElementById('leadsBulkTextModal')).show();
+        });
+    }
+
+    const tplSelect = document.getElementById('leads-bulk-template-id');
+    if (tplSelect) {
+        tplSelect.addEventListener('change', () => {
+            const tplId = String(tplSelect.value || '');
+            if (!tplId) return;
+
+            loadTemplateById(tplId)
+                .then(item => {
+                    if (!item || item.channel !== 'sms') {
+                        alert('That template does not match SMS.');
+                        tplSelect.value = '';
+                        return;
+                    }
+                    document.getElementById('leads-bulk-body').value = String(item.body || '');
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert(err.message || 'Failed to load template.');
+                });
         });
     }
 
@@ -543,6 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bulkSendBtn.addEventListener('click', () => {
             const body = (document.getElementById('leads-bulk-body').value || '').trim();
             if (!body) return alert('Message is empty.');
+            if (selectedIds.size < 1) return alert('No leads selected.');
 
             fetch('/contacts/messages/bulk', {
                 method: 'POST',
@@ -563,7 +603,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const skippedNoPhone = (data.skipped && data.skipped.no_phone) ? data.skipped.no_phone : 0;
                 alert(`Queued ${queued} texts. Skipped (no phone): ${skippedNoPhone}`);
 
-                // Clear selections
                 selectedIds.clear();
                 document.querySelectorAll('.leads-row-checkbox').forEach(cb => cb.checked = false);
 
@@ -584,120 +623,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     refreshBulkUi();
 });
-
-
-/* =======================================================
-   ✅ LEAD NOTES — MUST BE GLOBAL (AJAX partial can call)
-   ======================================================= */
-
-window.saveLeadNote = function (contactId) {
-    const textarea =
-        document.getElementById('lead_new_note_body') ||
-        document.getElementById('new_note_body');
-
-    if (!textarea) {
-        console.error('No note textarea found (expected #lead_new_note_body or #new_note_body).');
-        alert('Could not find the note field on the page.');
-        return;
-    }
-
-    const body = textarea.value.trim();
-    if (!body) {
-        alert("Note cannot be empty.");
-        return;
-    }
-
-    fetch(`/leads/${contactId}/notes`, {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json",
-            "X-Requested-With": "XMLHttpRequest"
-        },
-        body: JSON.stringify({ body })
-    })
-    .then(async (res) => {
-        if (!res.ok) {
-            const txt = await res.text();
-            console.error('Error saving lead note:', txt);
-            alert('Error saving note. Check /debug-laravel-log.');
-            return;
-        }
-        textarea.value = '';
-        if (window.loadLeadPanel) window.loadLeadPanel(`/leads/${contactId}`);
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Network error saving note.");
-    });
-};
-
-window.editLeadNote = function (contactId, noteId) {
-    const noteEl =
-        document.querySelector(`#lead-note-${noteId} .lead-note-text`) ||
-        document.querySelector(`#lead-note-${noteId} .note-body`) ||
-        document.querySelector(`#note-${noteId} .note-body`);
-
-    if (!noteEl) {
-        console.error('Existing note element not found for noteId:', noteId);
-        alert('Could not locate the note text to edit.');
-        return;
-    }
-
-    const existing = (noteEl.innerText || '').trim();
-    const updated = prompt("Edit note:", existing);
-    if (updated === null) return;
-
-    fetch(`/leads/${contactId}/notes/${noteId}`, {
-        method: 'PUT',
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json",
-            "X-Requested-With": "XMLHttpRequest"
-        },
-        body: JSON.stringify({ body: updated })
-    })
-    .then(async (res) => {
-        if (!res.ok) {
-            const txt = await res.text();
-            console.error('Error updating lead note:', txt);
-            alert('Error updating note. Check /debug-laravel-log.');
-            return;
-        }
-        if (window.loadLeadPanel) window.loadLeadPanel(`/leads/${contactId}`);
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Network error updating note.");
-    });
-};
-
-window.deleteLeadNote = function (contactId, noteId) {
-    if (!confirm("Delete this note?")) return;
-
-    fetch(`/leads/${contactId}/notes/${noteId}`, {
-        method: 'DELETE',
-        headers: {
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json",
-            "X-Requested-With": "XMLHttpRequest"
-        }
-    })
-    .then(async (res) => {
-        if (!res.ok) {
-            const txt = await res.text();
-            console.error('Error deleting lead note:', txt);
-            alert('Error deleting note. Check /debug-laravel-log.');
-            return;
-        }
-        if (window.loadLeadPanel) window.loadLeadPanel(`/leads/${contactId}`);
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Network error deleting note.");
-    });
-};
 </script>
 @endpush
