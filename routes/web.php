@@ -184,6 +184,14 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | ✅ NEW: JSON endpoint for template dropdowns (SMS/Email modals)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/settings/messaging/templates/json', [MessageTemplateController::class, 'json'])
+        ->name('settings.messaging.templates.json');
+
+    /*
+    |--------------------------------------------------------------------------
     | SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (placeholder view for now)
     |--------------------------------------------------------------------------
     */
