@@ -65,7 +65,58 @@ class MessageTemplateController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | NEW: Chooser + Libraries
+    | ✅ NEW: JSON endpoints (for template dropdown in send modals)
+    |--------------------------------------------------------------------------
+    | These are safe, scoped, and channel-filtered.
+    | Step 2a will add the routes that call these.
+    */
+
+    /**
+     * GET /settings/messaging/templates/json?channel=sms|email
+     * Returns active templates for the given channel.
+     */
+    public function json(Request $request)
+    {
+        $data = $request->validate([
+            'channel' => ['required', 'in:sms,email'],
+        ]);
+
+        $templates = $this->scopedTemplatesQuery($request)
+            ->where('channel', $data['channel'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'channel', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'items'   => $templates,
+        ]);
+    }
+
+    /**
+     * GET /settings/messaging/templates/{messageTemplate}/json
+     * Returns one template (scoped) including subject/body (subject may be null for sms).
+     */
+    public function showJson(Request $request, MessageTemplate $messageTemplate)
+    {
+        $this->guardTemplateAccess($request, $messageTemplate);
+
+        return response()->json([
+            'success' => true,
+            'item' => [
+                'id'       => $messageTemplate->id,
+                'channel'  => $messageTemplate->channel,
+                'name'     => $messageTemplate->name,
+                'subject'  => $messageTemplate->subject, // null for sms
+                'body'     => $messageTemplate->body,
+                'is_active'=> (bool) $messageTemplate->is_active,
+            ],
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chooser + Libraries
     |--------------------------------------------------------------------------
     */
 
@@ -112,20 +163,12 @@ class MessageTemplateController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Existing CRUD (kept)
+    | Existing CRUD
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * (Legacy) If anything still calls templates.index route somewhere,
-     * you can either remove this OR keep it and redirect to chooser.
-     *
-     * Since routes/web.php now points /templates to choose(),
-     * this method is safe to keep but won't be used by that route.
-     */
     public function index(Request $request)
     {
-        // Best behavior now: redirect to chooser so you don't have two entry points.
         return redirect()->route('settings.messaging.templates.choose');
     }
 
@@ -178,7 +221,6 @@ class MessageTemplateController extends Controller
             'is_active'   => $template->is_active,
         ]);
 
-        // Redirect to the correct library based on channel
         return redirect()
             ->route($template->channel === 'email'
                 ? 'settings.messaging.templates.email'
@@ -187,14 +229,12 @@ class MessageTemplateController extends Controller
     }
 
     /**
-     * GET /settings/messaging/templates/{messageTemplate}
      * Optional "show" page. For now, just redirect to edit.
      */
     public function show(Request $request, MessageTemplate $messageTemplate)
     {
         $this->guardTemplateAccess($request, $messageTemplate);
 
-        // Most systems treat "show" as "edit" for templates.
         return redirect()->route('settings.messaging.templates.edit', $messageTemplate->id);
     }
 
@@ -249,7 +289,6 @@ class MessageTemplateController extends Controller
             'is_active'   => $messageTemplate->is_active,
         ]);
 
-        // After saving, go back to the correct library tab
         return redirect()
             ->route($messageTemplate->channel === 'email'
                 ? 'settings.messaging.templates.email'
