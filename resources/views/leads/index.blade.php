@@ -242,6 +242,7 @@
                         id="add-lead-btn"
                         class="btn-gold"
                         data-create-url="{{ route('leads.create') }}"
+                        type="button"
                     >
                         Add Lead
                     </button>
@@ -250,6 +251,7 @@
                         class="btn-gold"
                         data-bs-toggle="modal"
                         data-bs-target="#uploadLeadModal"
+                        type="button"
                     >
                         Upload
                     </button>
@@ -411,8 +413,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('contact-details-container');
     const CSRF_TOKEN = @json(csrf_token());
 
-    // ✅ Make loader available to AJAX partials + global note functions
+    // ✅ Loader used for right panel
     window.loadLeadPanel = function (url) {
+        if (!container) return;
+
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
@@ -446,25 +450,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const addBtn = document.getElementById('add-lead-btn');
     if (addBtn) {
         addBtn.addEventListener('click', function () {
+            // If your leads.create is a full page (not a partial), you can swap this to: window.location = this.dataset.createUrl;
             window.loadLeadPanel(this.dataset.createUrl);
         });
     }
 
     /* CLIENT SIDE SEARCH */
-    document.getElementById('lead-search').addEventListener('keyup', function () {
-        const term = this.value.toLowerCase();
-        document.querySelectorAll('#lead-list .js-lead-row')
-            .forEach(row => {
-                row.style.display = row.textContent.toLowerCase().includes(term)
-                    ? 'flex'
-                    : 'none';
-            });
-    });
+    const searchEl = document.getElementById('lead-search');
+    if (searchEl) {
+        searchEl.addEventListener('keyup', function () {
+            const term = (this.value || '').toLowerCase();
+            document.querySelectorAll('#lead-list .js-lead-row')
+                .forEach(row => {
+                    row.style.display = row.textContent.toLowerCase().includes(term)
+                        ? 'flex'
+                        : 'none';
+                });
+
+            // keep bulk "select all" honest when filtering
+            const selAll = document.getElementById('leads-select-all');
+            if (selAll) selAll.checked = false;
+        });
+    }
 
     // ✅ If upload had errors, reopen modal so user sees it
     @if(session('import_error') || $errors->any())
         const modalEl = document.getElementById('uploadLeadModal');
-        if (modalEl) new bootstrap.Modal(modalEl).show();
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) new bootstrap.Modal(modalEl).show();
     @endif
 
     // Optional: auto-load selected lead if controller passes $selected
@@ -486,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.disabled = count === 0;
     }
 
+    // per-row checkbox
     document.querySelectorAll('.leads-row-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
             const id = String(cb.dataset.id);
@@ -495,16 +508,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // select all (only visible rows)
     const selectAll = document.getElementById('leads-select-all');
     if (selectAll) {
         selectAll.addEventListener('change', () => {
-            const checked = selectAll.checked;
-            document.querySelectorAll('.leads-row-checkbox').forEach(cb => {
+            const checked = !!selectAll.checked;
+
+            document.querySelectorAll('#lead-list .js-lead-row').forEach(row => {
+                if (row.style.display === 'none') return; // only visible
+                const cb = row.querySelector('.leads-row-checkbox');
+                if (!cb) return;
+
                 cb.checked = checked;
                 const id = String(cb.dataset.id);
                 if (checked) selectedIds.add(id);
                 else selectedIds.delete(id);
             });
+
             refreshBulkUi();
         });
     }
@@ -546,11 +566,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Clear selections
                 selectedIds.clear();
                 document.querySelectorAll('.leads-row-checkbox').forEach(cb => cb.checked = false);
+
                 const selAll = document.getElementById('leads-select-all');
                 if (selAll) selAll.checked = false;
+
                 refreshBulkUi();
 
-                bootstrap.Modal.getInstance(document.getElementById('leadsBulkTextModal'))?.hide();
+                const inst = bootstrap.Modal.getInstance(document.getElementById('leadsBulkTextModal'));
+                if (inst) inst.hide();
             })
             .catch(err => {
                 console.error(err);
@@ -564,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 /* =======================================================
-   ✅ LEAD NOTES — MUST BE GLOBAL (AJAX partial calls these)
+   ✅ LEAD NOTES — MUST BE GLOBAL (AJAX partial can call)
    ======================================================= */
 
 window.saveLeadNote = function (contactId) {
@@ -589,7 +612,8 @@ window.saveLeadNote = function (contactId) {
         headers: {
             "Content-Type": "application/json",
             "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
         },
         body: JSON.stringify({ body })
     })
@@ -601,7 +625,7 @@ window.saveLeadNote = function (contactId) {
             return;
         }
         textarea.value = '';
-        window.loadLeadPanel(`/leads/${contactId}`);
+        if (window.loadLeadPanel) window.loadLeadPanel(`/leads/${contactId}`);
     })
     .catch(err => {
         console.error(err);
@@ -630,7 +654,8 @@ window.editLeadNote = function (contactId, noteId) {
         headers: {
             "Content-Type": "application/json",
             "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
         },
         body: JSON.stringify({ body: updated })
     })
@@ -641,7 +666,7 @@ window.editLeadNote = function (contactId, noteId) {
             alert('Error updating note. Check /debug-laravel-log.');
             return;
         }
-        window.loadLeadPanel(`/leads/${contactId}`);
+        if (window.loadLeadPanel) window.loadLeadPanel(`/leads/${contactId}`);
     })
     .catch(err => {
         console.error(err);
@@ -656,7 +681,8 @@ window.deleteLeadNote = function (contactId, noteId) {
         method: 'DELETE',
         headers: {
             "X-CSRF-TOKEN": "{{ csrf_token() }}",
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
         }
     })
     .then(async (res) => {
@@ -666,7 +692,7 @@ window.deleteLeadNote = function (contactId, noteId) {
             alert('Error deleting note. Check /debug-laravel-log.');
             return;
         }
-        window.loadLeadPanel(`/leads/${contactId}`);
+        if (window.loadLeadPanel) window.loadLeadPanel(`/leads/${contactId}`);
     })
     .catch(err => {
         console.error(err);
