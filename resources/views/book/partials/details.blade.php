@@ -1,3 +1,5 @@
+{{-- resources/views/book/partials/details.blade.php --}}
+
 <style>
     /* ===== COMPACT SPACING FOR BOOK PAGE ===== */
 
@@ -41,6 +43,9 @@
     // Build display name (consistent with other views)
     $clientName = $client->full_name
         ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+
+    $clientPhone = $client->phone ?? null;
+    $clientEmail = $client->email ?? null;
 @endphp
 
 <div class="p-4">
@@ -50,7 +55,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <h1 class="fw-bold" style="font-size: 32px;">
-                    {{ $clientName }}
+                    {{ $clientName ?: '(No Name)' }}
                 </h1>
 
                 <!-- ✅ Messaging buttons -->
@@ -59,10 +64,9 @@
                         type="button"
                         class="btn-outline-gold"
                         style="font-size:12px;"
-                        {{-- ✅ FIX: use single quotes around onclick so @json() double-quotes don't break the attribute --}}
-                        onclick='ABMessaging.openSms({{ (int) $client->id }}, @json($clientName), @json($client->phone))'
-                        {{ empty($client->phone) ? 'disabled' : '' }}
-                        title="{{ empty($client->phone) ? 'No phone on file' : 'Send a text' }}"
+                        onclick='ABMessaging.openSms({{ (int) $client->id }}, @json($clientName), @json($clientPhone))'
+                        {{ empty($clientPhone) ? 'disabled' : '' }}
+                        title="{{ empty($clientPhone) ? 'No phone on file' : 'Send a text' }}"
                     >
                         Text
                     </button>
@@ -71,10 +75,9 @@
                         type="button"
                         class="btn-outline-gold"
                         style="font-size:12px;"
-                        {{-- ✅ FIX: use single quotes around onclick so @json() double-quotes don't break the attribute --}}
-                        onclick='ABMessaging.openEmail({{ (int) $client->id }}, @json($clientName), @json($client->email))'
-                        {{ empty($client->email) ? 'disabled' : '' }}
-                        title="{{ empty($client->email) ? 'No email on file' : 'Send an email' }}"
+                        onclick='ABMessaging.openEmail({{ (int) $client->id }}, @json($clientName), @json($clientEmail))'
+                        {{ empty($clientEmail) ? 'disabled' : '' }}
+                        title="{{ empty($clientEmail) ? 'No email on file' : 'Send an email' }}"
                     >
                         Email
                     </button>
@@ -105,6 +108,7 @@
                     class="btn-gold"
                     data-edit-url="{{ route('book.edit.panel', $client->id) }}"
                     onclick="loadBookPanel(this.dataset.editUrl)"
+                    type="button"
                 >
                     Edit
                 </button>
@@ -120,8 +124,8 @@
 
         <div class="row mb-4">
             <div class="col-md-6">
-                <p><strong>Email:</strong> {{ $client->email ?: '—' }}</p>
-                <p><strong>Phone:</strong> {{ $client->phone ?: '—' }}</p>
+                <p><strong>Email:</strong> {{ $clientEmail ?: '—' }}</p>
+                <p><strong>Phone:</strong> {{ $clientPhone ?: '—' }}</p>
                 <p><strong>Date of Birth:</strong> {{ $client->date_of_birth?->format('m/d/Y') ?: '—' }}</p>
                 <p><strong>Age:</strong> {{ $client->age ?? '—' }}</p>
             </div>
@@ -235,7 +239,7 @@
                       rows="2"
                       placeholder="Write a new note..."></textarea>
 
-            <button class="btn-gold mt-2" onclick="saveNote({{ (int) $client->id }})">
+            <button class="btn-gold mt-2" type="button" onclick="saveNote({{ (int) $client->id }})">
                 Add Note
             </button>
         </div>
