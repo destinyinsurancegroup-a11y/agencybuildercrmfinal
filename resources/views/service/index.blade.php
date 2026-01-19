@@ -334,7 +334,7 @@
     </div>
 </div>
 
-{{-- ✅ BULK TEXT MODAL --}}
+{{-- ✅ BULK TEXT MODAL (UPGRADED WITH TEMPLATES) --}}
 <div class="modal fade" id="serviceBulkTextModal" tabindex="-1">
     <div class="modal-dialog">
         <form class="modal-content" onsubmit="return false;">
@@ -347,7 +347,20 @@
                 <div class="small text-muted mb-2">
                     Sending to <strong><span id="service-bulk-count">0</span></strong> selected contacts.
                 </div>
+
+                {{-- ✅ Template selector --}}
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-1">Template</label>
+                    <select id="service-bulk-template" class="form-select">
+                        <option value="">— Select a template —</option>
+                    </select>
+                    <div class="small text-muted mt-1">
+                        Selecting a template will fill the message. You can still edit before sending.
+                    </div>
+                </div>
+
                 <textarea id="service-bulk-body" class="form-control" rows="4" placeholder="Type message..."></textarea>
+
                 <div class="small text-muted mt-2">
                     This will queue outbound SMS messages in the database (Phase 2/3).
                 </div>
@@ -448,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
     @endif
 
     // ============================================================
-    // ✅ BULK SELECT + BULK TEXT (uses POST /contacts/messages/bulk)
+    // ✅ BULK SELECT + BULK TEXT + BULK TEMPLATES (SMS)
     // ============================================================
     const selectedIds = new Set();
 
@@ -492,13 +505,84 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // open bulk modal
+    // ---- Template helpers (SMS) ----
+    const tplSelect = document.getElementById('service-bulk-template');
+    const tplBody   = document.getElementById('service-bulk-body');
+
+    function clearTemplateOptions() {
+        if (!tplSelect) return;
+        while (tplSelect.options.length > 1) tplSelect.remove(1);
+        tplSelect.value = '';
+    }
+
+    function populateTemplates(items) {
+        if (!tplSelect) return;
+        clearTemplateOptions();
+        (items || []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = String(t.id);
+            opt.textContent = t.name || ('Template #' + t.id);
+            tplSelect.appendChild(opt);
+        });
+    }
+
+    function loadSmsTemplates() {
+        return fetch('/settings/messaging/templates/json?channel=sms', {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json().catch(() => ({})).then(d => {
+            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load templates.');
+            return d.items || [];
+        }))
+        .catch(err => {
+            console.error(err);
+            return [];
+        });
+    }
+
+    function loadTemplateById(id) {
+        return fetch(`/settings/messaging/templates/${encodeURIComponent(id)}/json`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json().catch(() => ({})).then(d => {
+            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load template.');
+            return d.item;
+        }));
+    }
+
+    // open bulk modal (and load templates)
     const bulkBtn = document.getElementById('service-bulk-text-btn');
     if (bulkBtn) {
-        bulkBtn.addEventListener('click', () => {
+        bulkBtn.addEventListener('click', async () => {
             document.getElementById('service-bulk-count').textContent = String(selectedIds.size);
-            document.getElementById('service-bulk-body').value = '';
+            if (tplBody) tplBody.value = '';
+
+            clearTemplateOptions();
+            const items = await loadSmsTemplates();
+            populateTemplates(items);
+
             new bootstrap.Modal(document.getElementById('serviceBulkTextModal')).show();
+        });
+    }
+
+    // apply template -> fill textarea
+    if (tplSelect) {
+        tplSelect.addEventListener('change', async () => {
+            const id = String(tplSelect.value || '');
+            if (!id) return;
+
+            try {
+                const item = await loadTemplateById(id);
+                if (!item || item.channel !== 'sms') {
+                    alert('That template does not match SMS.');
+                    tplSelect.value = '';
+                    return;
+                }
+                if (tplBody) tplBody.value = String(item.body || '');
+            } catch (e) {
+                console.error(e);
+                alert(e.message || 'Failed to load template.');
+            }
         });
     }
 
@@ -506,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bulkSendBtn = document.getElementById('service-bulk-send-btn');
     if (bulkSendBtn) {
         bulkSendBtn.addEventListener('click', () => {
-            const body = (document.getElementById('service-bulk-body').value || '').trim();
+            const body = (tplBody?.value || '').trim();
             if (!body) return alert('Message is empty.');
 
             fetch('/contacts/messages/bulk', {
@@ -531,9 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedIds.clear();
                 document.querySelectorAll('.service-row-checkbox').forEach(cb => cb.checked = false);
 
-                const selAll = document.getElementById('service-select-all');
-                if (selAll) selAll.checked = false;
-
+                if (selectAll) selectAll.checked = false;
                 refreshBulkUi();
 
                 const inst = bootstrap.Modal.getInstance(document.getElementById('serviceBulkTextModal'));
