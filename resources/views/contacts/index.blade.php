@@ -269,6 +269,12 @@
                 <!-- Contact List -->
                 <div class="contacts-list-scroll">
                     @forelse ($contacts as $contact)
+                        @php
+                            $name = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+                            // If your contacts use a different phone column, add it here:
+                            $phone = $contact->phone ?? $contact->mobile ?? $contact->cell ?? '';
+                        @endphp
+
                         <div
                             class="contact-list-item js-contact-row"
                             data-contact-url="{{ route('contacts.show', $contact->id) }}"
@@ -277,9 +283,11 @@
                             <input type="checkbox"
                                    class="contacts-row-checkbox"
                                    data-id="{{ $contact->id }}"
+                                   data-name="{{ $name }}"
+                                   data-phone="{{ $phone }}"
                                    onclick="event.stopPropagation();">
 
-                            <span>{{ $contact->full_name }}</span>
+                            <span>{{ $name ?: '(No Name)' }}</span>
                         </div>
                     @empty
                         <p class="contact-list-empty">No contacts found.</p>
@@ -337,7 +345,7 @@
     </div>
 </div>
 
-{{-- ✅ Bulk Text Modal (NOW WITH TEMPLATE SELECTOR) --}}
+{{-- ✅ Bulk Text Modal (Templates + phone-aware selection) --}}
 <div class="modal fade" id="contactsBulkTextModal" tabindex="-1">
     <div class="modal-dialog">
         <form class="modal-content" onsubmit="return false;">
@@ -349,6 +357,7 @@
             <div class="modal-body">
                 <div class="small text-muted mb-2">
                     Sending to <strong><span id="contacts-bulk-count">0</span></strong> selected contacts.
+                    <span class="ms-2">Valid phones: <strong><span id="contacts-bulk-valid-phones">0</span></strong></span>
                 </div>
 
                 {{-- ✅ Template dropdown (SMS templates) --}}
@@ -431,21 +440,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------
-    // ✅ Bulk select + bulk text
+    // ✅ Bulk select + bulk text (PHONE-AWARE like Service)
     // ------------------------------------------------------------
-    const selected = new Set();
+    const selectedIds = new Set();
+    const selectedMeta = new Map(); // id -> {name, phone}
+
+    function normalizePhone(p) {
+        return String(p || '').trim();
+    }
 
     function refreshBulkUi() {
-        document.getElementById('contacts-selected-count').textContent = String(selected.size);
+        document.getElementById('contacts-selected-count').textContent = String(selectedIds.size);
+
         const btn = document.getElementById('contacts-bulk-text-btn');
-        if (btn) btn.disabled = selected.size === 0;
+        if (btn) btn.disabled = selectedIds.size === 0;
+    }
+
+    function updateValidPhonesCountInModal() {
+        const el = document.getElementById('contacts-bulk-valid-phones');
+        if (!el) return;
+
+        let valid = 0;
+        selectedMeta.forEach(meta => {
+            if (normalizePhone(meta.phone)) valid++;
+        });
+        el.textContent = String(valid);
     }
 
     document.querySelectorAll('.contacts-row-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
             const id = String(cb.dataset.id);
-            if (cb.checked) selected.add(id);
-            else selected.delete(id);
+            const name = String(cb.dataset.name || '');
+            const phone = String(cb.dataset.phone || '');
+
+            if (cb.checked) {
+                selectedIds.add(id);
+                selectedMeta.set(id, { name, phone });
+            } else {
+                selectedIds.delete(id);
+                selectedMeta.delete(id);
+            }
+
             refreshBulkUi();
         });
     });
@@ -454,12 +489,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectAll) {
         selectAll.addEventListener('change', () => {
             const checked = !!selectAll.checked;
+
             document.querySelectorAll('.contacts-row-checkbox').forEach(cb => {
                 cb.checked = checked;
+
                 const id = String(cb.dataset.id);
-                if (checked) selected.add(id);
-                else selected.delete(id);
+                const name = String(cb.dataset.name || '');
+                const phone = String(cb.dataset.phone || '');
+
+                if (checked) {
+                    selectedIds.add(id);
+                    selectedMeta.set(id, { name, phone });
+                } else {
+                    selectedIds.delete(id);
+                    selectedMeta.delete(id);
+                }
             });
+
             refreshBulkUi();
         });
     }
@@ -523,7 +569,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const bulkBtn = document.getElementById('contacts-bulk-text-btn');
     if (bulkBtn) {
         bulkBtn.addEventListener('click', async () => {
-            document.getElementById('contacts-bulk-count').textContent = String(selected.size);
+            document.getElementById('contacts-bulk-count').textContent = String(selectedIds.size);
+            updateValidPhonesCountInModal();
+
             document.getElementById('contacts-bulk-body').value = '';
 
             // reset template select
@@ -566,7 +614,16 @@ document.addEventListener('DOMContentLoaded', () => {
         bulkSendBtn.addEventListener('click', () => {
             const body = (document.getElementById('contacts-bulk-body').value || '').trim();
             if (!body) return alert('Message is empty.');
-            if (selected.size < 1) return alert('No contacts selected.');
+            if (selectedIds.size < 1) return alert('No contacts selected.');
+
+            // ✅ require at least one selected contact with a phone
+            let validPhones = 0;
+            selectedMeta.forEach(meta => {
+                if (normalizePhone(meta.phone)) validPhones++;
+            });
+            if (validPhones < 1) {
+                return alert('None of the selected contacts have a phone number.');
+            }
 
             fetch('/contacts/messages/bulk', {
                 method: 'POST',
@@ -576,7 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'X-CSRF-TOKEN': CSRF_TOKEN,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ contact_ids: Array.from(selected), body })
+                body: JSON.stringify({ contact_ids: Array.from(selectedIds), body })
             })
             .then(r => r.json().catch(() => ({})).then(data => {
                 if (!r.ok) throw new Error(data.message || 'Bulk send failed.');
@@ -585,10 +642,13 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 alert(`Queued ${data.queued || 0} texts. Skipped (no phone): ${(data.skipped && data.skipped.no_phone) ? data.skipped.no_phone : 0}`);
 
-                selected.clear();
+                selectedIds.clear();
+                selectedMeta.clear();
+
                 document.querySelectorAll('.contacts-row-checkbox').forEach(cb => cb.checked = false);
                 const selAll = document.getElementById('contacts-select-all');
                 if (selAll) selAll.checked = false;
+
                 refreshBulkUi();
 
                 const inst = bootstrap.Modal.getInstance(document.getElementById('contactsBulkTextModal'));
