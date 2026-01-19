@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
+// ✅ Option A: server-side variable replacement for {{first_name}}, etc.
+use App\Services\Messaging\TemplateVariableResolver;
+
 class ContactMessageController extends Controller
 {
     /**
@@ -88,8 +91,7 @@ class ContactMessageController extends Controller
         $channel  = $request->query('channel');
         $beforeId = $request->query('before_id');
 
-        $q = Message::query()
-            ->where('contact_id', $contact->id);
+        $q = Message::query()->where('contact_id', $contact->id);
 
         if (in_array($channel, ['sms', 'email'], true)) {
             $q->where('channel', $channel);
@@ -165,7 +167,6 @@ class ContactMessageController extends Controller
         ]);
 
         $channel = $data['channel'];
-        $body    = trim((string) $data['body']);
 
         $toAddress = null;
 
@@ -186,6 +187,16 @@ class ContactMessageController extends Controller
             }
         }
 
+        // ✅ Option A: Resolve template variables at SEND time (saved history shows real values)
+        $rawBody = trim((string) ($data['body'] ?? ''));
+        $resolvedBody = TemplateVariableResolver::resolve($rawBody, $contact, $user);
+
+        $resolvedSubject = null;
+        if ($channel === 'email') {
+            $rawSubject = trim((string) ($data['subject'] ?? ''));
+            $resolvedSubject = TemplateVariableResolver::resolve($rawSubject, $contact, $user);
+        }
+
         $message = Message::create([
             'agency_id'  => $contact->agency_id ?? ($user->agency_id ?? null),
             'tenant_id'  => $contact->tenant_id ?? ($user->tenant_id ?? null),
@@ -197,8 +208,8 @@ class ContactMessageController extends Controller
             'status'     => 'queued',
 
             'to_address' => $toAddress,
-            'subject'    => $channel === 'email' ? trim((string) ($data['subject'] ?? '')) : null,
-            'body'       => $body,
+            'subject'    => $resolvedSubject,
+            'body'       => $resolvedBody,
         ]);
 
         return response()->json([
@@ -229,7 +240,7 @@ class ContactMessageController extends Controller
         ]);
 
         $ids  = array_values(array_unique(array_map('intval', $data['contact_ids'])));
-        $body = trim((string) $data['body']);
+        $rawBody = trim((string) ($data['body'] ?? ''));
 
         // Pull contacts (best-effort scoping in SQL when possible)
         $contactsQ = Contact::query()->whereIn('id', $ids);
@@ -248,7 +259,17 @@ class ContactMessageController extends Controller
             });
         }
 
-        $contacts = $contactsQ->get(['id', 'phone', 'agency_id', 'tenant_id']);
+        // We need names for per-contact variable resolution
+        $contacts = $contactsQ->get([
+            'id',
+            'first_name',
+            'last_name',
+            'full_name',
+            'phone',
+            'email',
+            'agency_id',
+            'tenant_id',
+        ]);
 
         $queued = 0;
         $skippedNoPhone = 0;
@@ -270,6 +291,9 @@ class ContactMessageController extends Controller
                 continue;
             }
 
+            // ✅ Option A for Bulk: resolve variables per-contact at SEND time
+            $resolvedBody = TemplateVariableResolver::resolve($rawBody, $contact, $user);
+
             Message::create([
                 'agency_id'  => $contact->agency_id ?? ($user->agency_id ?? null),
                 'tenant_id'  => $contact->tenant_id ?? ($user->tenant_id ?? null),
@@ -282,7 +306,7 @@ class ContactMessageController extends Controller
 
                 'to_address' => $to,
                 'subject'    => null,
-                'body'       => $body,
+                'body'       => $resolvedBody,
             ]);
 
             $queued++;
