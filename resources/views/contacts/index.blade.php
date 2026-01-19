@@ -234,6 +234,7 @@
                         id="add-contact-btn"
                         class="btn-gold"
                         data-create-url="{{ route('contacts.create.panel') }}"
+                        type="button"
                     >
                         Add Contact
                     </button>
@@ -242,6 +243,7 @@
                         class="btn-gold"
                         data-bs-toggle="modal"
                         data-bs-target="#uploadModal"
+                        type="button"
                     >
                         Upload File
                     </button>
@@ -335,7 +337,7 @@
     </div>
 </div>
 
-{{-- ✅ Bulk Text Modal --}}
+{{-- ✅ Bulk Text Modal (NOW WITH TEMPLATE SELECTOR) --}}
 <div class="modal fade" id="contactsBulkTextModal" tabindex="-1">
     <div class="modal-dialog">
         <form class="modal-content" onsubmit="return false;">
@@ -348,6 +350,18 @@
                 <div class="small text-muted mb-2">
                     Sending to <strong><span id="contacts-bulk-count">0</span></strong> selected contacts.
                 </div>
+
+                {{-- ✅ Template dropdown (SMS templates) --}}
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-1">Template</label>
+                    <select id="contacts-bulk-template-id" class="form-select">
+                        <option value="">— Select a template —</option>
+                    </select>
+                    <div class="small text-muted mt-1">
+                        Selecting a template will fill the message. You can still edit before sending.
+                    </div>
+                </div>
+
                 <textarea id="contacts-bulk-body" class="form-control" rows="4" placeholder="Type message..."></textarea>
                 <div class="small text-muted mt-2">
                     This will queue outbound SMS messages in the database (Phase 2/3).
@@ -370,6 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('contact-details-container');
     const CSRF_TOKEN = @json(csrf_token());
 
+    // ------------------------------------------------------------
+    // Right panel loader
+    // ------------------------------------------------------------
     function loadPanel(url) {
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
@@ -379,16 +396,16 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
-        .then(res => res.text())
-        .then(html => { container.innerHTML = html; })
-        .catch(err => {
-            console.error(err);
-            container.innerHTML = `
-                <div style="padding:40px; text-align:center; color:red;">
-                    Failed to load.
-                </div>
-            `;
-        });
+            .then(res => res.text())
+            .then(html => { container.innerHTML = html; })
+            .catch(err => {
+                console.error(err);
+                container.innerHTML = `
+                    <div style="padding:40px; text-align:center; color:red;">
+                        Failed to load.
+                    </div>
+                `;
+            });
     }
 
     // Contact row click handler
@@ -404,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add Contact button
     const addBtn = document.getElementById('add-contact-btn');
-    addBtn.addEventListener('click', () => loadPanel(addBtn.dataset.createUrl));
+    if (addBtn) addBtn.addEventListener('click', () => loadPanel(addBtn.dataset.createUrl));
 
     // Auto-load selected contact after edit
     const selectedId = @json($selected ?? '');
@@ -413,9 +430,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target) target.click();
     }
 
-    // ============================================================
-    // ✅ BULK SELECT + BULK TEXT
-    // ============================================================
+    // ------------------------------------------------------------
+    // ✅ Bulk select + bulk text
+    // ------------------------------------------------------------
     const selected = new Set();
 
     function refreshBulkUi() {
@@ -436,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectAll = document.getElementById('contacts-select-all');
     if (selectAll) {
         selectAll.addEventListener('change', () => {
-            const checked = selectAll.checked;
+            const checked = !!selectAll.checked;
             document.querySelectorAll('.contacts-row-checkbox').forEach(cb => {
                 cb.checked = checked;
                 const id = String(cb.dataset.id);
@@ -447,12 +464,100 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ------------------------------------------------------------
+    // ✅ Bulk Templates (SMS) for Contacts page
+    // Uses:
+    //   GET /settings/messaging/templates/json?channel=sms
+    //   GET /settings/messaging/templates/{id}/json
+    // ------------------------------------------------------------
+    const TEMPLATE_ROUTES = {
+        list: '/settings/messaging/templates/json',
+        show: '/settings/messaging/templates'
+    };
+
+    let smsTemplateListCache = null;
+
+    function setTemplateOptions(selectEl, items) {
+        if (!selectEl) return;
+        while (selectEl.options.length > 1) selectEl.remove(1);
+
+        (items || []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = String(t.id);
+            opt.textContent = t.name || ('Template #' + t.id);
+            selectEl.appendChild(opt);
+        });
+    }
+
+    function loadSmsTemplatesList() {
+        if (smsTemplateListCache) return Promise.resolve(smsTemplateListCache);
+
+        return fetch(`${TEMPLATE_ROUTES.list}?channel=sms`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json().catch(() => ({})).then(d => {
+            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load templates.');
+            return d.items || [];
+        }))
+        .then(items => {
+            smsTemplateListCache = items;
+            return items;
+        })
+        .catch(err => {
+            console.error(err);
+            smsTemplateListCache = [];
+            return [];
+        });
+    }
+
+    function loadTemplateById(id) {
+        return fetch(`${TEMPLATE_ROUTES.show}/${encodeURIComponent(id)}/json`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json().catch(() => ({})).then(d => {
+            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load template.');
+            return d.item;
+        }));
+    }
+
     const bulkBtn = document.getElementById('contacts-bulk-text-btn');
     if (bulkBtn) {
-        bulkBtn.addEventListener('click', () => {
+        bulkBtn.addEventListener('click', async () => {
             document.getElementById('contacts-bulk-count').textContent = String(selected.size);
             document.getElementById('contacts-bulk-body').value = '';
+
+            // reset template select
+            const sel = document.getElementById('contacts-bulk-template-id');
+            if (sel) {
+                sel.value = '';
+                const items = await loadSmsTemplatesList();
+                setTemplateOptions(sel, items);
+            }
+
             new bootstrap.Modal(document.getElementById('contactsBulkTextModal')).show();
+        });
+    }
+
+    // apply template on selection
+    const tplSelect = document.getElementById('contacts-bulk-template-id');
+    if (tplSelect) {
+        tplSelect.addEventListener('change', () => {
+            const tplId = String(tplSelect.value || '');
+            if (!tplId) return;
+
+            loadTemplateById(tplId)
+                .then(item => {
+                    if (!item || item.channel !== 'sms') {
+                        alert('That template does not match SMS.');
+                        tplSelect.value = '';
+                        return;
+                    }
+                    document.getElementById('contacts-bulk-body').value = String(item.body || '');
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert(err.message || 'Failed to load template.');
+                });
         });
     }
 
@@ -461,6 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bulkSendBtn.addEventListener('click', () => {
             const body = (document.getElementById('contacts-bulk-body').value || '').trim();
             if (!body) return alert('Message is empty.');
+            if (selected.size < 1) return alert('No contacts selected.');
 
             fetch('/contacts/messages/bulk', {
                 method: 'POST',
@@ -477,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return data;
             }))
             .then(data => {
-                alert(`Queued ${data.queued || 0} texts. Skipped (no phone): ${data.skipped?.no_phone || 0}`);
+                alert(`Queued ${data.queued || 0} texts. Skipped (no phone): ${(data.skipped && data.skipped.no_phone) ? data.skipped.no_phone : 0}`);
 
                 selected.clear();
                 document.querySelectorAll('.contacts-row-checkbox').forEach(cb => cb.checked = false);
@@ -485,7 +591,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selAll) selAll.checked = false;
                 refreshBulkUi();
 
-                bootstrap.Modal.getInstance(document.getElementById('contactsBulkTextModal'))?.hide();
+                const inst = bootstrap.Modal.getInstance(document.getElementById('contactsBulkTextModal'));
+                if (inst) inst.hide();
             })
             .catch(err => {
                 console.error(err);
