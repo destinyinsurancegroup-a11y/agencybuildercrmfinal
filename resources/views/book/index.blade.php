@@ -226,6 +226,7 @@
                         @php
                             $isServiceUrgent = $client->contact_type === 'service' && is_null($client->service_archived_at);
                             $name = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+                            $phone = $client->phone ?? $client->mobile ?? $client->cell ?? $client->phone_number ?? '';
                         @endphp
 
                         <div
@@ -240,7 +241,8 @@
                                 type="checkbox"
                                 class="form-check-input js-bulk-check mt-1"
                                 data-id="{{ $client->id }}"
-                                data-phone="{{ $client->phone }}"
+                                data-name="{{ $name }}"
+                                data-phone="{{ $phone }}"
                                 onclick="event.stopPropagation();"
                             >
 
@@ -365,8 +367,13 @@
     var SHOULD_REOPEN_UPLOAD = @json((bool)(session('import_error') || $errors->any()));
     var BOOK_BASE_URL = @json(url('/book'));
 
-    // Bulk selected IDs
-    var bulkSelected = new Set();
+    // Bulk selected IDs + metadata (phone-aware)
+    var bulkSelected = new Set(); // ids
+    var bulkMeta = new Map();     // id -> {name, phone}
+
+    function normalizePhone(p) {
+        return String(p || '').trim();
+    }
 
     function hasBootstrapModal() {
         return !!(window.bootstrap && window.bootstrap.Modal);
@@ -396,17 +403,33 @@
     function setAllVisibleChecks(checked) {
         var checks = document.querySelectorAll('#book-list .js-bulk-check');
         for (var i = 0; i < checks.length; i++) {
-            // Only toggle visible rows (search filter hides via display:none on the row container)
             var row = checks[i].closest('.contact-list-item');
             var visible = row && row.style.display !== 'none';
             if (!visible) continue;
 
             checks[i].checked = checked;
-            var id = checks[i].getAttribute('data-id');
-            if (checked) bulkSelected.add(String(id));
-            else bulkSelected.delete(String(id));
+
+            var id = String(checks[i].getAttribute('data-id'));
+            var name = String(checks[i].getAttribute('data-name') || '');
+            var phone = String(checks[i].getAttribute('data-phone') || '');
+
+            if (checked) {
+                bulkSelected.add(id);
+                bulkMeta.set(id, { name: name, phone: phone });
+            } else {
+                bulkSelected.delete(id);
+                bulkMeta.delete(id);
+            }
         }
         updateBulkUI();
+    }
+
+    function countValidPhones() {
+        var valid = 0;
+        bulkMeta.forEach(function (meta) {
+            if (normalizePhone(meta.phone)) valid++;
+        });
+        return valid;
     }
 
     // ============================================================
@@ -481,6 +504,12 @@
         if (!body) return alert('Message is empty.');
         if (bulkSelected.size < 1) return alert('No contacts selected.');
 
+        // ✅ Phone-aware gate (same behavior as your other tabs)
+        var validPhones = countValidPhones();
+        if (validPhones < 1) {
+            return alert('None of the selected contacts have a phone number.');
+        }
+
         fetch('/contacts/messages/bulk', {
             method: 'POST',
             headers: {
@@ -505,6 +534,8 @@
 
             // Clear selection
             bulkSelected.clear();
+            bulkMeta.clear();
+
             var checks = document.querySelectorAll('#book-list .js-bulk-check');
             for (var i = 0; i < checks.length; i++) checks[i].checked = false;
 
@@ -561,13 +592,21 @@
             });
         }
 
-        // ✅ Checkbox selection handling
+        // ✅ Checkbox selection handling (phone-aware meta capture)
         var checks = document.querySelectorAll('.js-bulk-check');
         for (var c = 0; c < checks.length; c++) {
             checks[c].addEventListener('change', function () {
                 var id = String(this.getAttribute('data-id'));
-                if (this.checked) bulkSelected.add(id);
-                else bulkSelected.delete(id);
+                var name = String(this.getAttribute('data-name') || '');
+                var phone = String(this.getAttribute('data-phone') || '');
+
+                if (this.checked) {
+                    bulkSelected.add(id);
+                    bulkMeta.set(id, { name: name, phone: phone });
+                } else {
+                    bulkSelected.delete(id);
+                    bulkMeta.delete(id);
+                }
                 updateBulkUI();
             });
         }
