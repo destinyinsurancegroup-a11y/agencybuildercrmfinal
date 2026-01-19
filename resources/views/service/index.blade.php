@@ -157,6 +157,36 @@
         font-size: 13px;
         color: #6b7280;
     }
+
+    /* Recipient list inside modal */
+    .bulk-recipients {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px;
+        max-height: 160px;
+        overflow-y: auto;
+        font-size: 13px;
+    }
+    .bulk-recipient {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 6px 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .bulk-recipient:last-child { border-bottom: none; }
+    .bulk-recipient .phone { color: #6b7280; }
+    .bulk-warning {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+        padding: 8px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+        margin-top: 10px;
+        display: none;
+    }
 </style>
 
 <div class="dashboard-page">
@@ -257,6 +287,7 @@
                     @forelse ($clients as $client)
                         @php
                             $name = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+                            $phone = $client->phone ?? null;
                         @endphp
 
                         <div
@@ -264,10 +295,12 @@
                             data-id="{{ $client->id }}"
                             data-show-url="{{ route('service.show', $client->id) }}"
                         >
-                            {{-- ✅ Per-row checkbox --}}
+                            {{-- ✅ Per-row checkbox (NOW includes phone + name for bulk UI) --}}
                             <input type="checkbox"
                                    class="service-row-checkbox"
                                    data-id="{{ $client->id }}"
+                                   data-name="{{ $name }}"
+                                   data-phone="{{ $phone }}"
                                    onclick="event.stopPropagation();">
 
                             <div>
@@ -334,7 +367,7 @@
     </div>
 </div>
 
-{{-- ✅ BULK TEXT MODAL (UPGRADED WITH TEMPLATES) --}}
+{{-- ✅ BULK TEXT MODAL (now shows recipients + phones) --}}
 <div class="modal fade" id="serviceBulkTextModal" tabindex="-1">
     <div class="modal-dialog">
         <form class="modal-content" onsubmit="return false;">
@@ -348,19 +381,10 @@
                     Sending to <strong><span id="service-bulk-count">0</span></strong> selected contacts.
                 </div>
 
-                {{-- ✅ Template selector --}}
-                <div class="mb-2">
-                    <label class="form-label small text-muted mb-1">Template</label>
-                    <select id="service-bulk-template" class="form-select">
-                        <option value="">— Select a template —</option>
-                    </select>
-                    <div class="small text-muted mt-1">
-                        Selecting a template will fill the message. You can still edit before sending.
-                    </div>
-                </div>
+                <div class="bulk-recipients" id="service-bulk-recipients"></div>
+                <div class="bulk-warning" id="service-bulk-warning"></div>
 
-                <textarea id="service-bulk-body" class="form-control" rows="4" placeholder="Type message..."></textarea>
-
+                <textarea id="service-bulk-body" class="form-control mt-3" rows="4" placeholder="Type message..."></textarea>
                 <div class="small text-muted mt-2">
                     This will queue outbound SMS messages in the database (Phase 2/3).
                 </div>
@@ -461,9 +485,10 @@ document.addEventListener('DOMContentLoaded', () => {
     @endif
 
     // ============================================================
-    // ✅ BULK SELECT + BULK TEXT + BULK TEMPLATES (SMS)
+    // ✅ BULK SELECT + BULK TEXT (tracks ids + phones for UI)
     // ============================================================
     const selectedIds = new Set();
+    const selectedMeta = new Map(); // id -> {name, phone}
 
     function refreshBulkUi() {
         const count = selectedIds.size;
@@ -474,12 +499,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.disabled = count === 0;
     }
 
+    function addSelectionFromCheckbox(cb) {
+        const id = String(cb.dataset.id || '');
+        if (!id) return;
+
+        const name = String(cb.dataset.name || '').trim();
+        const phone = String(cb.dataset.phone || '').trim();
+
+        selectedIds.add(id);
+        selectedMeta.set(id, { name, phone });
+    }
+
+    function removeSelectionFromCheckbox(cb) {
+        const id = String(cb.dataset.id || '');
+        if (!id) return;
+        selectedIds.delete(id);
+        selectedMeta.delete(id);
+    }
+
     // per-row checkbox
     document.querySelectorAll('.service-row-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
-            const id = String(cb.dataset.id);
-            if (cb.checked) selectedIds.add(id);
-            else selectedIds.delete(id);
+            if (cb.checked) addSelectionFromCheckbox(cb);
+            else removeSelectionFromCheckbox(cb);
             refreshBulkUi();
         });
     });
@@ -496,93 +538,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!cb) return;
 
                 cb.checked = checked;
-                const id = String(cb.dataset.id);
-                if (checked) selectedIds.add(id);
-                else selectedIds.delete(id);
+                if (checked) addSelectionFromCheckbox(cb);
+                else removeSelectionFromCheckbox(cb);
             });
 
             refreshBulkUi();
         });
     }
 
-    // ---- Template helpers (SMS) ----
-    const tplSelect = document.getElementById('service-bulk-template');
-    const tplBody   = document.getElementById('service-bulk-body');
+    function renderBulkRecipients() {
+        const box = document.getElementById('service-bulk-recipients');
+        const warn = document.getElementById('service-bulk-warning');
+        if (!box || !warn) return;
 
-    function clearTemplateOptions() {
-        if (!tplSelect) return;
-        while (tplSelect.options.length > 1) tplSelect.remove(1);
-        tplSelect.value = '';
-    }
+        box.innerHTML = '';
+        warn.style.display = 'none';
+        warn.textContent = '';
 
-    function populateTemplates(items) {
-        if (!tplSelect) return;
-        clearTemplateOptions();
-        (items || []).forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = String(t.id);
-            opt.textContent = t.name || ('Template #' + t.id);
-            tplSelect.appendChild(opt);
+        let missingPhones = 0;
+
+        Array.from(selectedIds).forEach(id => {
+            const meta = selectedMeta.get(id) || { name: '', phone: '' };
+            const name = meta.name || ('Contact #' + id);
+            const phone = meta.phone || '';
+
+            if (!phone) missingPhones++;
+
+            const div = document.createElement('div');
+            div.className = 'bulk-recipient';
+            div.innerHTML = `
+                <div>${name.replaceAll('<','&lt;').replaceAll('>','&gt;')}</div>
+                <div class="phone">${(phone || 'NO PHONE').replaceAll('<','&lt;').replaceAll('>','&gt;')}</div>
+            `;
+            box.appendChild(div);
         });
+
+        if (missingPhones > 0) {
+            warn.style.display = 'block';
+            warn.textContent = `Warning: ${missingPhones} selected contact(s) have no phone number. They will be skipped.`;
+        }
     }
 
-    function loadSmsTemplates() {
-        return fetch('/settings/messaging/templates/json?channel=sms', {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(r => r.json().catch(() => ({})).then(d => {
-            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load templates.');
-            return d.items || [];
-        }))
-        .catch(err => {
-            console.error(err);
-            return [];
-        });
-    }
-
-    function loadTemplateById(id) {
-        return fetch(`/settings/messaging/templates/${encodeURIComponent(id)}/json`, {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(r => r.json().catch(() => ({})).then(d => {
-            if (!r.ok || !d.success) throw new Error(d.message || 'Failed to load template.');
-            return d.item;
-        }));
-    }
-
-    // open bulk modal (and load templates)
+    // open bulk modal
     const bulkBtn = document.getElementById('service-bulk-text-btn');
     if (bulkBtn) {
-        bulkBtn.addEventListener('click', async () => {
+        bulkBtn.addEventListener('click', () => {
             document.getElementById('service-bulk-count').textContent = String(selectedIds.size);
-            if (tplBody) tplBody.value = '';
-
-            clearTemplateOptions();
-            const items = await loadSmsTemplates();
-            populateTemplates(items);
-
+            document.getElementById('service-bulk-body').value = '';
+            renderBulkRecipients();
             new bootstrap.Modal(document.getElementById('serviceBulkTextModal')).show();
-        });
-    }
-
-    // apply template -> fill textarea
-    if (tplSelect) {
-        tplSelect.addEventListener('change', async () => {
-            const id = String(tplSelect.value || '');
-            if (!id) return;
-
-            try {
-                const item = await loadTemplateById(id);
-                if (!item || item.channel !== 'sms') {
-                    alert('That template does not match SMS.');
-                    tplSelect.value = '';
-                    return;
-                }
-                if (tplBody) tplBody.value = String(item.body || '');
-            } catch (e) {
-                console.error(e);
-                alert(e.message || 'Failed to load template.');
-            }
         });
     }
 
@@ -590,8 +594,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const bulkSendBtn = document.getElementById('service-bulk-send-btn');
     if (bulkSendBtn) {
         bulkSendBtn.addEventListener('click', () => {
-            const body = (tplBody?.value || '').trim();
+            const body = (document.getElementById('service-bulk-body').value || '').trim();
             if (!body) return alert('Message is empty.');
+
+            // If NONE have phone, stop early (this matches what you're expecting)
+            const idsWithPhone = Array.from(selectedIds).filter(id => {
+                const meta = selectedMeta.get(id);
+                return meta && String(meta.phone || '').trim() !== '';
+            });
+            if (idsWithPhone.length === 0) {
+                return alert('None of the selected contacts have phone numbers. Add phone numbers first, or select different contacts.');
+            }
 
             fetch('/contacts/messages/bulk', {
                 method: 'POST',
@@ -601,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'X-CSRF-TOKEN': CSRF_TOKEN,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ contact_ids: Array.from(selectedIds), body })
+                body: JSON.stringify({ contact_ids: idsWithPhone, body })
             })
             .then(r => r.json().catch(() => ({})).then(data => {
                 if (!r.ok) throw new Error(data.message || 'Bulk send failed.');
@@ -613,9 +626,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(`Queued ${queued} texts. Skipped (no phone): ${skippedNoPhone}`);
 
                 selectedIds.clear();
+                selectedMeta.clear();
                 document.querySelectorAll('.service-row-checkbox').forEach(cb => cb.checked = false);
 
-                if (selectAll) selectAll.checked = false;
+                const selAll = document.getElementById('service-select-all');
+                if (selAll) selAll.checked = false;
+
                 refreshBulkUi();
 
                 const inst = bootstrap.Modal.getInstance(document.getElementById('serviceBulkTextModal'));
