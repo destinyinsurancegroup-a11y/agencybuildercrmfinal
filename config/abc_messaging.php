@@ -19,6 +19,10 @@ return [
         'birthday'     => 'birthday',        // date or nullable
         'client_since' => 'client_since',    // date or nullable
 
+        // ✅ Policy Anniversary source (Book of Business)
+        // We are using "Initial Draft Date" as the policy issue date.
+        'policy_issue_date' => 'initial_draft_date', // date or nullable
+
         /*
          * How to tell if a contact is a "client":
          * - mode: 'boolean' uses field true/false
