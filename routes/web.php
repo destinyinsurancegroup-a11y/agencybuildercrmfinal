@@ -41,6 +41,9 @@ use App\Http\Controllers\Settings\SmsProvidersController;
 // ✅ Message Templates Controller
 use App\Http\Controllers\Settings\MessageTemplateController;
 
+// ✅ DRIPS Enrollment Controller (Step 4C)
+use App\Http\Controllers\Drips\EnrollmentController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION
@@ -196,6 +199,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/messaging/drips', function () {
         return view('settings.messaging.drips.index');
     })->name('settings.messaging.drips.index');
+
+    /*
+    |--------------------------------------------------------------------------
+    | ✅ DRIPS (Step 4C): Enrollment endpoints (single + bulk)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('drips')->group(function () {
+        Route::post('/enroll', [EnrollmentController::class, 'enroll'])
+            ->name('drips.enroll');
+
+        Route::post('/enroll/bulk', [EnrollmentController::class, 'enrollBulk'])
+            ->name('drips.enroll.bulk');
+    });
 
     Route::get('/settings/billing', [SettingsController::class, 'billing'])
         ->name('settings.billing');
