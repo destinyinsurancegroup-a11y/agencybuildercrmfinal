@@ -120,11 +120,10 @@
                                         Edit
                                     </a>
 
-                                    {{-- Steps builder comes next phase (route not created yet) --}}
-                                    <button class="btn btn-sm btn-outline-secondary" disabled
-                                            title="Steps builder coming next">
+                                    <a href="{{ route('settings.messaging.drips.steps', $c->id) }}"
+                                       class="btn btn-sm btn-outline-secondary">
                                         Steps
-                                    </button>
+                                    </a>
                                 </td>
                             </tr>
                         @endforeach
