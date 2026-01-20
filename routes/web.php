@@ -90,8 +90,7 @@ Route::get('/gideon-test', function (GideonLlmClient $client) {
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATED APPLICATION ROUTES
-|--------------------------------------------------------------------------
-*/
+|--------------------------------------------------------------------------*/
 Route::middleware('auth')->group(function () {
 
     /*
@@ -216,6 +215,29 @@ Route::middleware('auth')->group(function () {
     Route::put('/settings/messaging/drips/{dripCampaign}', [DripCampaignController::class, 'update'])
         ->whereNumber('dripCampaign')
         ->name('settings.messaging.drips.update');
+
+    /*
+    |--------------------------------------------------------------------------
+    | ✅ SETTINGS -> MESSAGING -> DRIP CAMPAIGNS -> STEPS (Step Builder)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/settings/messaging/drips/{dripCampaign}/steps', [DripCampaignController::class, 'steps'])
+        ->whereNumber('dripCampaign')
+        ->name('settings.messaging.drips.steps');
+
+    Route::post('/settings/messaging/drips/{dripCampaign}/steps', [DripCampaignController::class, 'storeStep'])
+        ->whereNumber('dripCampaign')
+        ->name('settings.messaging.drips.steps.store');
+
+    Route::put('/settings/messaging/drips/{dripCampaign}/steps/{dripStep}', [DripCampaignController::class, 'updateStep'])
+        ->whereNumber('dripCampaign')
+        ->whereNumber('dripStep')
+        ->name('settings.messaging.drips.steps.update');
+
+    Route::delete('/settings/messaging/drips/{dripCampaign}/steps/{dripStep}', [DripCampaignController::class, 'destroyStep'])
+        ->whereNumber('dripCampaign')
+        ->whereNumber('dripStep')
+        ->name('settings.messaging.drips.steps.destroy');
 
     /*
     |--------------------------------------------------------------------------
