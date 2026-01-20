@@ -41,6 +41,9 @@ use App\Http\Controllers\Settings\SmsProvidersController;
 // ✅ Message Templates Controller
 use App\Http\Controllers\Settings\MessageTemplateController;
 
+// ✅ SETTINGS Drip Campaigns Controller (CRUD)
+use App\Http\Controllers\Settings\DripCampaignController;
+
 // ✅ DRIPS Enrollment Controller (Step 4C)
 use App\Http\Controllers\Drips\EnrollmentController;
 
@@ -138,6 +141,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+
     | ✅ MESSAGE TEMPLATES (Chooser + Email Library + SMS Library + JSON)
     |--------------------------------------------------------------------------
     | IMPORTANT ORDER:
@@ -193,12 +197,25 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (placeholder view for now)
+    | ✅ SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (CRUD, not placeholder)
     |--------------------------------------------------------------------------
     */
-    Route::get('/settings/messaging/drips', function () {
-        return view('settings.messaging.drips.index');
-    })->name('settings.messaging.drips.index');
+    Route::get('/settings/messaging/drips', [DripCampaignController::class, 'index'])
+        ->name('settings.messaging.drips.index');
+
+    Route::get('/settings/messaging/drips/create', [DripCampaignController::class, 'create'])
+        ->name('settings.messaging.drips.create');
+
+    Route::post('/settings/messaging/drips', [DripCampaignController::class, 'store'])
+        ->name('settings.messaging.drips.store');
+
+    Route::get('/settings/messaging/drips/{dripCampaign}/edit', [DripCampaignController::class, 'edit'])
+        ->whereNumber('dripCampaign')
+        ->name('settings.messaging.drips.edit');
+
+    Route::put('/settings/messaging/drips/{dripCampaign}', [DripCampaignController::class, 'update'])
+        ->whereNumber('dripCampaign')
+        ->name('settings.messaging.drips.update');
 
     /*
     |--------------------------------------------------------------------------
