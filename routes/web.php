@@ -47,6 +47,9 @@ use App\Http\Controllers\Settings\DripCampaignController;
 // ✅ DRIPS Enrollment Controller (Step 4C)
 use App\Http\Controllers\Drips\EnrollmentController;
 
+// ✅ ATTACHMENTS (Contacts / Book / Service share same Contact model)
+use App\Http\Controllers\ContactAttachmentController;
+
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATION
@@ -112,13 +115,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/profile', [SettingsController::class, 'profile'])
         ->name('settings.profile');
 
-    // Profile actions (disabled because ProfileSettingsController.php does not exist)
-    // Route::patch('/settings/profile/email', [ProfileSettingsController::class, 'updateEmail'])
-    //     ->name('settings.profile.email.update');
-
-    // Route::patch('/settings/profile/password', [ProfileSettingsController::class, 'updatePassword'])
-    //     ->name('settings.profile.password.update');
-
     /*
     |--------------------------------------------------------------------------
     | SETTINGS -> MESSAGING LANDING
@@ -148,39 +144,31 @@ Route::middleware('auth')->group(function () {
     | - /create must be ABOVE /{messageTemplate}/... routes
     */
 
-    // ✅ Main entry (what sidebar usually links to)
     Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'choose'])
         ->name('settings.messaging.templates.index');
 
-    // ✅ Explicit chooser route (your Back buttons use this)
     Route::get('/settings/messaging/templates/choose', [MessageTemplateController::class, 'choose'])
         ->name('settings.messaging.templates.choose');
 
-    // ✅ Libraries
     Route::get('/settings/messaging/templates/email', [MessageTemplateController::class, 'emailIndex'])
         ->name('settings.messaging.templates.email');
 
     Route::get('/settings/messaging/templates/sms', [MessageTemplateController::class, 'smsIndex'])
         ->name('settings.messaging.templates.sms');
 
-    // ✅ JSON endpoints used by the send modals template dropdowns
-    // List: GET /settings/messaging/templates/json?channel=sms|email
     Route::get('/settings/messaging/templates/json', [MessageTemplateController::class, 'jsonIndex'])
         ->name('settings.messaging.templates.json');
 
-    // Show one: GET /settings/messaging/templates/{messageTemplate}/json
     Route::get('/settings/messaging/templates/{messageTemplate}/json', [MessageTemplateController::class, 'jsonShow'])
         ->whereNumber('messageTemplate')
         ->name('settings.messaging.templates.json.show');
 
-    // ✅ Create/store (supports ?channel=email or ?channel=sms)
     Route::get('/settings/messaging/templates/create', [MessageTemplateController::class, 'create'])
         ->name('settings.messaging.templates.create');
 
     Route::post('/settings/messaging/templates', [MessageTemplateController::class, 'store'])
         ->name('settings.messaging.templates.store');
 
-    // ✅ Edit/update
     Route::get('/settings/messaging/templates/{messageTemplate}/edit', [MessageTemplateController::class, 'edit'])
         ->whereNumber('messageTemplate')
         ->name('settings.messaging.templates.edit');
@@ -189,7 +177,6 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('messageTemplate')
         ->name('settings.messaging.templates.update');
 
-    // ✅ Optional delete
     Route::delete('/settings/messaging/templates/{messageTemplate}', [MessageTemplateController::class, 'destroy'])
         ->whereNumber('messageTemplate')
         ->name('settings.messaging.templates.destroy');
@@ -275,6 +262,30 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/contacts/messages/bulk', [ContactMessageController::class, 'bulkStore'])
         ->name('contacts.messages.bulk-store');
+
+    /*
+    |--------------------------------------------------------------------------
+    | ✅ ATTACHMENTS (Contacts / Book / Service)
+    |--------------------------------------------------------------------------
+    | Option A: Attachments belong to the Contact record.
+    | Book + Service are just views of the same Contact, so files appear everywhere.
+    |
+    | Upload is a standard form submit (Option 1).
+    */
+    Route::post('/contacts/{contact}/attachments', [ContactAttachmentController::class, 'store'])
+        ->name('contacts.attachments.store');
+
+    Route::get('/attachments/{attachment}', [ContactAttachmentController::class, 'show'])
+        ->whereNumber('attachment')
+        ->name('attachments.show');
+
+    Route::get('/attachments/{attachment}/download', [ContactAttachmentController::class, 'download'])
+        ->whereNumber('attachment')
+        ->name('attachments.download');
+
+    Route::delete('/attachments/{attachment}', [ContactAttachmentController::class, 'destroy'])
+        ->whereNumber('attachment')
+        ->name('attachments.destroy');
 
     /*
     |--------------------------------------------------------------------------
