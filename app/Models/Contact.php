@@ -55,7 +55,16 @@ class Contact extends Model
         'premium_amount',
         'premium_due_date',
         'premium_due_text',
+
+        // Legacy naming: keep both, don't break existing DB/UI
         'policy_issue_date',
+
+        /**
+         * IMPORTANT:
+         * Going forward, we will treat `anniversary` as the POLICY ANNIVERSARY DATE
+         * derived from "Initial Draft Date" (or whichever policy milestone you choose).
+         * We are NOT using wedding anniversaries.
+         */
         'anniversary',
 
         // Legacy free-text notes column
@@ -73,6 +82,8 @@ class Contact extends Model
         'date_of_birth'      => 'date',
         'premium_due_date'   => 'date',
         'policy_issue_date'  => 'date',
+
+        // Treated as POLICY anniversary date
         'anniversary'        => 'date',
 
         'face_amount'        => 'decimal:2',
@@ -180,6 +191,16 @@ class Contact extends Model
             : null;
     }
 
+    /**
+     * ✅ Policy anniversary date accessor.
+     * Right now we store it in `anniversary` (MVP).
+     * Later, if you move to policy table(s), only this method needs updating.
+     */
+    public function getPolicyAnniversaryDateAttribute()
+    {
+        return $this->anniversary;
+    }
+
     /* ============================================================
      |  UPCOMING DATE CHECKERS for Dashboard Insights
      * ============================================================ */
@@ -196,15 +217,30 @@ class Contact extends Model
         return now()->diffInDays($next) <= 7;
     }
 
-    public function anniversaryIsSoon(): bool
+    /**
+     * ✅ New explicit method (preferred):
+     * This is the POLICY anniversary (Initial Draft Date).
+     */
+    public function policyAnniversaryIsSoon(): bool
     {
-        if (!$this->anniversary) return false;
+        $date = $this->policy_anniversary_date; // uses accessor above
+        if (!$date) return false;
 
-        $ann = $this->anniversary->copy();
-        $next = Carbon::create(now()->year, $ann->month, $ann->day);
+        $d = $date->copy();
+        $next = Carbon::create(now()->year, $d->month, $d->day);
 
         if ($next->isPast()) $next->addYear();
 
         return now()->diffInDays($next) <= 7;
+    }
+
+    /**
+     * Backwards compatibility:
+     * Keep old method name so dashboard code doesn't break,
+     * but it now maps to POLICY anniversary behavior.
+     */
+    public function anniversaryIsSoon(): bool
+    {
+        return $this->policyAnniversaryIsSoon();
     }
 }
