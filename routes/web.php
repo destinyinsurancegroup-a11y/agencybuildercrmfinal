@@ -33,7 +33,7 @@ use App\Http\Controllers\BillingController;
 
 // ✅ SETTINGS (Tier 1 tabs + Profile actions)
 use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\Settings\ProfileSettingsController;
+// use App\Http\Controllers\Settings\ProfileSettingsController; // ❌ File does not exist (disabled for now)
 
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
@@ -90,7 +90,8 @@ Route::get('/gideon-test', function (GideonLlmClient $client) {
 /*
 |--------------------------------------------------------------------------
 | AUTHENTICATED APPLICATION ROUTES
-|--------------------------------------------------------------------------*/
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
 
     /*
@@ -111,12 +112,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/profile', [SettingsController::class, 'profile'])
         ->name('settings.profile');
 
-    // Profile actions
-    Route::patch('/settings/profile/email', [ProfileSettingsController::class, 'updateEmail'])
-        ->name('settings.profile.email.update');
+    // Profile actions (disabled because ProfileSettingsController.php does not exist)
+    // Route::patch('/settings/profile/email', [ProfileSettingsController::class, 'updateEmail'])
+    //     ->name('settings.profile.email.update');
 
-    Route::patch('/settings/profile/password', [ProfileSettingsController::class, 'updatePassword'])
-        ->name('settings.profile.password.update');
+    // Route::patch('/settings/profile/password', [ProfileSettingsController::class, 'updatePassword'])
+    //     ->name('settings.profile.password.update');
 
     /*
     |--------------------------------------------------------------------------
@@ -140,7 +141,6 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-
     | ✅ MESSAGE TEMPLATES (Chooser + Email Library + SMS Library + JSON)
     |--------------------------------------------------------------------------
     | IMPORTANT ORDER:
@@ -196,7 +196,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (CRUD, not placeholder)
+    | ✅ SETTINGS -> MESSAGING -> DRIP CAMPAIGNS (CRUD)
     |--------------------------------------------------------------------------
     */
     Route::get('/settings/messaging/drips', [DripCampaignController::class, 'index'])
@@ -241,7 +241,7 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ DRIPS (Step 4C): Enrollment endpoints (single + bulk)
+    | ✅ DRIPS: Enrollment endpoints (single + bulk)
     |--------------------------------------------------------------------------
     */
     Route::prefix('drips')->group(function () {
