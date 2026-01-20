@@ -10,6 +10,7 @@ use App\Models\Message;            // ✅ ADD
 use App\Models\ContactRelation;    // Destiny unified relations
 use App\Models\ServiceEvent;
 use App\Models\Event;              // Calendar events / follow-ups
+use App\Models\Attachment;         // ✅ ADD (new)
 use App\Models\Concerns\TenantScoped;
 use Carbon\Carbon;
 
@@ -142,6 +143,15 @@ class Contact extends Model
     public function messages()
     {
         return $this->hasMany(Message::class, 'contact_id')->latest();
+    }
+
+    /**
+     * ✅ Attachments (Option A)
+     * Attachments belong to the Contact record, so Book + Service + Contacts share the same files.
+     */
+    public function attachments()
+    {
+        return $this->morphMany(Attachment::class, 'attachable')->latest();
     }
 
     /* ============================================================
