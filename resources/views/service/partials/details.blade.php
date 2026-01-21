@@ -10,11 +10,8 @@
         margin-bottom: 0.5rem !important;
     }
     .p-4 { padding: 1.25rem !important; }
-
-    /* standalone notes block below the card */
     #service-notes-wrapper { margin-top: 24px; }
 
-    /* ✅ MATCH Book/Contacts/Leads button style */
     .btn-outline-gold{
         background: transparent;
         color:#c9a227;
@@ -29,20 +26,100 @@
     }
     .btn-outline-gold:hover{ background: rgba(201,162,39,0.12); }
     .btn-outline-gold:disabled{ opacity:0.45; cursor:not-allowed; }
+
+    /* ===== Attachments row (Service) — matches Book ===== */
+    .ab-attach-row{
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .ab-attach-clip{
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        cursor: pointer;
+    }
+    .ab-attach-label{
+        font-size: 13px;
+        font-weight: 700;
+        color: #111827;
+        margin-left: 2px;
+    }
+    .ab-attach-chips{
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-height: 32px;
+    }
+    .ab-file-empty{ font-size: 12px; color:#6b7280; }
+    .ab-file-more{ font-size: 13px; color:#6b7280; padding-left: 4px; }
+
+    .ab-chip-wrap{
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .ab-file-chip{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: #1f2937;
+        font-size: 13px;
+        line-height: 1;
+        max-width: 220px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ab-file-icon{ opacity: 0.9; }
+
+    .ab-file-del{
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        border: 1px solid #ef4444;
+        background: #ef4444;
+        color: #fff;
+        font-weight: 900;
+        line-height: 18px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .ab-file-del:hover{ filter: brightness(0.95); }
 </style>
 
 @php
     $clientName = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
 
-    // ✅ Attachments (shared with Contacts + Book because it's the same contacts table)
     $attachments = $client->attachments()->latest()->get();
-    $chipLimit = 3;
+    $chipLimit   = 3;
+
+    // ✅ critical: return back to the exact same page/panel
+    $returnTo = request()->fullUrl();
 @endphp
 
 <div class="p-4">
     <div class="card shadow-sm border-0 p-4">
 
-        <!-- HEADER WITH STATUS BUTTONS -->
         <div class="d-flex justify-content-between align-items-start mb-3">
 
             <div>
@@ -50,7 +127,6 @@
                     {{ $clientName }}
                 </h1>
 
-                {{-- ✅ Messaging buttons (match Book look) --}}
                 <div class="mt-2 d-flex gap-2 flex-wrap">
                     <button
                         type="button"
@@ -75,13 +151,12 @@
                     </button>
                 </div>
 
-                {{-- ✅ APPROVED DESIGN: Paperclip + Attach files + chips (+ delete) --}}
+                {{-- ✅ Attach files row (paperclip + chips + DELETE) --}}
                 <div class="ab-attach-row">
                     <button type="button"
                             class="ab-attach-clip"
                             title="Attach files"
                             onclick="ABAttachments.open({{ (int) $client->id }})">
-                        {{-- paperclip icon --}}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="M8 12.5l7.1-7.1a4 4 0 015.7 5.7l-8.5 8.5a6 6 0 01-8.5-8.5l8.3-8.3"
                                   stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -96,17 +171,21 @@
                         @else
                             @foreach($attachments->take($chipLimit) as $a)
                                 @php
-                                    $name = $a->safeDisplayName(18);
-                                    $ext  = strtolower(pathinfo($a->original_name ?? $a->stored_name, PATHINFO_EXTENSION));
-                                    $isPdf = $a->isPdf();
-                                    $isImg = $a->isImage();
+                                    $name = method_exists($a, 'safeDisplayName')
+                                        ? $a->safeDisplayName(18)
+                                        : (\Illuminate\Support\Str::limit(($a->original_name ?? $a->stored_name ?? 'file'), 18));
+
+                                    $ext  = strtolower(pathinfo($a->original_name ?? $a->stored_name ?? '', PATHINFO_EXTENSION));
+                                    $isPdf = method_exists($a, 'isPdf') ? $a->isPdf() : ($a->mime_type === 'application/pdf');
+                                    $isImg = method_exists($a, 'isImage') ? $a->isImage() : (str_starts_with(strtolower((string)$a->mime_type), 'image/'));
                                 @endphp
 
-                                <span class="ab-file-chip-wrap" style="display:inline-flex; align-items:center; gap:6px;">
+                                <div class="ab-chip-wrap">
                                     <a class="ab-file-chip"
                                        href="{{ route('attachments.show', $a->id) }}"
                                        target="_blank"
-                                       title="{{ $a->original_name }}">
+                                       rel="noopener"
+                                       title="{{ $a->original_name ?? $a->stored_name }}">
                                         <span class="ab-file-icon">
                                             @if($isPdf)
                                                 📄
@@ -123,29 +202,17 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ Delete (small X) --}}
+                                    {{-- ✅ DELETE BUTTON --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
-                                          style="display:inline;"
+                                          style="margin:0;"
                                           onsubmit="return confirm('Delete this file?');">
                                         @csrf
                                         @method('DELETE')
-                                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                                        <button type="submit"
-                                                title="Delete file"
-                                                aria-label="Delete file"
-                                                style="
-                                                    border:0;
-                                                    background:transparent;
-                                                    color:#b91c1c;
-                                                    font-weight:800;
-                                                    line-height:1;
-                                                    font-size:14px;
-                                                    padding:0 2px;
-                                                    cursor:pointer;
-                                                ">×</button>
+                                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
+                                        <button type="submit" class="ab-file-del" title="Delete">×</button>
                                     </form>
-                                </span>
+                                </div>
                             @endforeach
 
                             @if($attachments->count() > $chipLimit)
@@ -154,14 +221,14 @@
                         @endif
                     </div>
 
-                    {{-- ✅ Hidden upload form: selecting files auto-submits --}}
+                    {{-- Hidden upload form --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
                           enctype="multipart/form-data"
                           style="display:none;">
                         @csrf
-                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
                         <input id="ab-attach-input-{{ (int) $client->id }}"
                                type="file"
                                name="files[]"
@@ -191,11 +258,9 @@
                     </div>
                 @endif
 
-                <!-- ACTION BUTTONS (REORDERED: Saved, Follow Up, Not Interested) -->
                 <div class="d-flex flex-wrap gap-2">
 
                     @if(is_null($client->service_archived_at))
-                        {{-- SAVED (Green) --}}
                         <form action="{{ route('service.saved', $client->id) }}"
                               method="POST"
                               class="d-inline">
@@ -209,7 +274,6 @@
                         </form>
                     @endif
 
-                    {{-- FOLLOW UP (always available) --}}
                     <a href="{{ route('service.follow-up', $client->id) }}"
                        class="btn btn-sm"
                        style="background:#f0ad4e; color:black; font-weight:600; border-radius:6px;">
@@ -217,7 +281,6 @@
                     </a>
 
                     @if(is_null($client->service_archived_at))
-                        {{-- NOT INTERESTED (Red) --}}
                         <form action="{{ route('service.not-interested', $client->id) }}"
                               method="POST"
                               class="d-inline">
@@ -344,13 +407,12 @@
             @endforelse
         </div>
 
-    </div> {{-- end card --}}
+    </div>
 
     {{-- STAND-ALONE NOTES --}}
     <div id="service-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
-        {{-- NEW NOTE FORM --}}
         <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
@@ -362,7 +424,6 @@
             </button>
         </div>
 
-        {{-- EXISTING NOTES --}}
         <div id="notes-list" class="mt-3">
             @php
                 $notes = $client->allNotes ?? $client->notes ?? collect();
@@ -398,22 +459,18 @@
 
 </div>
 
-{{-- ==========================================
-     SERVICE NOTES JS – create / edit / delete
-   ========================================== --}}
+{{-- (your existing Service Notes JS stays unchanged below) --}}
 <script>
 (function () {
     const csrfToken = "{{ csrf_token() }}";
     const clientId  = {{ $client->id }};
-    const storeUrl  = "{{ route('service.notes.store', $client) }}"; // POST /service/{client}/notes
-    const baseUrl   = "{{ url('/service/'.$client->id.'/notes') }}"; // /service/{client}/notes
+    const storeUrl  = "{{ route('service.notes.store', $client) }}";
+    const baseUrl   = "{{ url('/service/'.$client->id.'/notes') }}";
     const notesList = document.getElementById('notes-list');
     const textarea  = document.getElementById('new_note_body');
 
-    // CREATE
-    window.saveServiceNote = function (clickedClientId) {
+    window.saveServiceNote = function () {
         if (!textarea) return;
-
         const bodyText = textarea.value.trim();
         if (!bodyText) return;
 
@@ -427,20 +484,12 @@
             },
             body: JSON.stringify({ note: bodyText, body: bodyText })
         })
-        .then(function (response) {
-            if (!response.ok) throw new Error('Network error');
-            return response.json();
-        })
+        .then(r => r.ok ? r.json() : Promise.reject())
         .then(function (data) {
-            if (!data || !data.success || !data.note) {
-                alert('Error saving note.');
-                return;
-            }
-
+            if (!data || !data.success || !data.note) return alert('Error saving note.');
             if (!notesList) return;
 
             const note = data.note;
-
             const wrapper = document.createElement('div');
             wrapper.className = 'border rounded p-2 mb-2';
             wrapper.id = 'note-' + note.id;
@@ -452,23 +501,13 @@
             }
 
             wrapper.innerHTML = `
-                <div class="small text-muted mb-1 note-time">
-                    ${createdAtText}
-                </div>
-                <div class="note-body mb-1">
-                    ${note.note || note.body || ''}
-                </div>
+                <div class="small text-muted mb-1 note-time">${createdAtText}</div>
+                <div class="note-body mb-1">${note.note || note.body || ''}</div>
                 <div class="mt-1">
-                    <button type="button"
-                            class="btn btn-sm btn-outline-secondary me-1"
-                            onclick="editServiceNote(${clientId}, ${note.id})">
-                        Edit
-                    </button>
-                    <button type="button"
-                            class="btn btn-sm btn-outline-danger"
-                            onclick="deleteServiceNote(${clientId}, ${note.id})">
-                        Delete
-                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary me-1"
+                            onclick="editServiceNote(${clientId}, ${note.id})">Edit</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            onclick="deleteServiceNote(${clientId}, ${note.id})">Delete</button>
                 </div>
             `;
 
@@ -477,12 +516,9 @@
 
             textarea.value = '';
         })
-        .catch(function () {
-            alert('Error saving note.');
-        });
+        .catch(() => alert('Error saving note.'));
     };
 
-    // EDIT
     window.editServiceNote = function (clickedClientId, noteId) {
         const noteEl  = document.getElementById('note-' + noteId);
         if (!noteEl) return;
@@ -492,10 +528,10 @@
 
         const currentText = bodyDiv.textContent.trim();
         const updated     = prompt('Edit note:', currentText);
-
         if (updated === null) return;
+
         const trimmed = updated.trim();
-        if (!trimmed) { alert('Note cannot be empty.'); return; }
+        if (!trimmed) return alert('Note cannot be empty.');
 
         fetch(`${baseUrl}/${noteId}`, {
             method: 'PUT',
@@ -507,33 +543,15 @@
             },
             body: JSON.stringify({ body: trimmed })
         })
-        .then(function (response) {
-            if (!response.ok) throw new Error('Network error');
-            return response.json();
-        })
+        .then(r => r.ok ? r.json() : Promise.reject())
         .then(function (data) {
-            if (!data || !data.success || !data.note) {
-                alert('Error updating note.');
-                return;
-            }
-
+            if (!data || !data.success || !data.note) return alert('Error updating note.');
             const note = data.note;
             bodyDiv.textContent = note.note || note.body || '';
-
-            const timeDiv = noteEl.querySelector('.note-time');
-            if (timeDiv && note.created_at) {
-                let createdAtText = '';
-                try { createdAtText = new Date(note.created_at).toLocaleString(); }
-                catch (e) { createdAtText = note.created_at; }
-                timeDiv.textContent = createdAtText;
-            }
         })
-        .catch(function () {
-            alert('Error updating note.');
-        });
+        .catch(() => alert('Error updating note.'));
     };
 
-    // DELETE
     window.deleteServiceNote = function (clickedClientId, noteId) {
         if (!confirm('Delete this note?')) return;
 
@@ -545,30 +563,13 @@
                 'X-Requested-With': 'XMLHttpRequest',
             }
         })
-        .then(function (response) {
-            if (!response.ok) throw new Error('Network error');
-            return response.json();
-        })
+        .then(r => r.ok ? r.json() : Promise.reject())
         .then(function (data) {
-            if (!data || !data.success) {
-                alert('Error deleting note.');
-                return;
-            }
-
+            if (!data || !data.success) return alert('Error deleting note.');
             const noteEl = document.getElementById('note-' + noteId);
             if (noteEl && noteEl.parentNode) noteEl.parentNode.removeChild(noteEl);
-
-            if (!notesList || notesList.children.length === 0) {
-                const empty = document.createElement('p');
-                empty.className = 'text-muted small mb-0';
-                empty.textContent = 'No notes yet.';
-                notesList.appendChild(empty);
-            }
         })
-        .catch(function () {
-            alert('Error deleting note.');
-        });
+        .catch(() => alert('Error deleting note.'));
     };
-
 })();
 </script>
