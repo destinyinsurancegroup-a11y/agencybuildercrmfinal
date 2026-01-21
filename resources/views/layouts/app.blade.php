@@ -75,6 +75,76 @@
             background: transparent;
             text-align: left;
         }
+
+        /* =========================================================
+           ✅ ATTACHMENTS UI (paperclip + chips) — matches your design
+           ========================================================= */
+        .ab-attach-row{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin-top:14px;
+            flex-wrap:wrap;
+        }
+        .ab-attach-clip{
+            width:34px;
+            height:34px;
+            border-radius:10px;
+            border:1px solid rgba(201,162,39,0.65);
+            background: #fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            cursor:pointer;
+            box-shadow:0 6px 14px rgba(0,0,0,0.08);
+        }
+        .ab-attach-clip:hover{
+            background: rgba(201,162,39,0.08);
+        }
+        .ab-attach-label{
+            font-weight:700;
+            color:#111827;
+            font-size:14px;
+        }
+        .ab-attach-chips{
+            display:flex;
+            gap:8px;
+            align-items:center;
+            flex-wrap:wrap;
+        }
+        .ab-file-chip{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            padding:6px 10px;
+            border-radius:10px;
+            border:1px solid #e5e7eb;
+            background:#f9fafb;
+            text-decoration:none;
+            color:#111827;
+            font-size:13px;
+            box-shadow:0 4px 10px rgba(0,0,0,0.06);
+        }
+        .ab-file-chip:hover{
+            background:#f3f4f6;
+        }
+        .ab-file-icon{
+            width:18px;
+            height:18px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+        }
+        .ab-file-more{
+            font-weight:700;
+            color:#6b7280;
+            font-size:13px;
+            padding:6px 6px;
+        }
+        .ab-file-empty{
+            color:#6b7280;
+            font-size:13px;
+        }
     </style>
 
     {{-- ✅ OPTIONAL: page/partial CSS hooks --}}
@@ -95,27 +165,14 @@
         <a class="nav-item {{ request()->routeIs('leads.*') ? 'active' : '' }}" href="{{ route('leads.index') }}">Leads</a>
         <a class="nav-item {{ request()->routeIs('service.*') ? 'active' : '' }}" href="{{ route('service.index') }}">Service</a>
 
-        {{-- ✅ Activity removed from sidebar.
-            Activity logging still exists and is accessed via the "Log Production" button on the dashboard.
-            Do NOT delete backend routes or popup view.
-        --}}
-
         <a class="nav-item {{ request()->is('calendar') ? 'active' : '' }}" href="/calendar">Calendar</a>
 
-        <!-- Gideon -->
         <a class="nav-item {{ request()->routeIs('gideon.second_brain') ? 'active' : '' }}" href="{{ route('gideon.second_brain') }}">Gideon Second Brain</a>
-
-        {{-- ❌ REMOVED: Gideon Opportunities should NOT be a sidebar tab.
-            All opportunity groups (BEC + Notes) should display in the Gideon Opportunities card on the dashboard.
-            The /gideon/opportunities page can still exist, but it is not linked in the sidebar.
-        --}}
 
         <a class="nav-item {{ request()->is('settings') ? 'active' : '' }}" href="/settings">Settings</a>
 
-        <!-- ✅ Billing now uses a real named route (stops 404) -->
         <a class="nav-item {{ request()->routeIs('billing') ? 'active' : '' }}" href="{{ route('billing') }}">Billing</a>
 
-        <!-- ✅ Logout must be POST (secure + matches web.php) -->
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" class="nav-item nav-button">Logout</button>
@@ -132,18 +189,14 @@
     {{-- ✅ GLOBAL MESSAGING MODALS + JS (included ONCE for entire app) --}}
     @include('partials.messaging')
 
-    {{-- ✅ GLOBAL ATTACHMENTS MODAL + JS (included ONCE for entire app) --}}
-    @include('partials.attachments_modal')
-
     <!-- BOOTSTRAP JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- TIME DISPLAY SUPPORT (handles both legacy and ms-based attributes safely) -->
+    <!-- TIME DISPLAY SUPPORT -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const elements = document.querySelectorAll(".local-time");
             elements.forEach(el => {
-                // Preferred (your dashboard): epoch milliseconds
                 const ms = el.getAttribute("data-server-time-ms");
                 if (ms) {
                     const n = parseInt(ms, 10);
@@ -154,7 +207,6 @@
                     }
                 }
 
-                // Legacy fallback: data-server-time string
                 const serverTime = el.getAttribute("data-server-time");
                 if (serverTime) {
                     const localDate = new Date(serverTime + " UTC");
@@ -222,7 +274,6 @@
                     bootstrap.Modal.getInstance(modalEl).hide();
                 }
 
-                // Broadcast "activity saved" so any page that cares can refresh itself.
                 window.dispatchEvent(new CustomEvent('activity:saved'));
             })
             .catch(() => {
@@ -231,7 +282,32 @@
         });
     </script>
 
-    {{-- ✅ REQUIRED: renders @push('scripts') from partials/pages (Gideon wiring lives here) --}}
+    <!-- =========================================================
+         ✅ ATTACHMENTS JS (paperclip -> file picker -> auto upload)
+         ========================================================= -->
+    <script>
+        window.ABAttachments = {
+            open: function (contactId) {
+                const input = document.getElementById('ab-attach-input-' + contactId);
+                if (!input) return;
+                input.click();
+            },
+
+            submitIfSelected: function (contactId) {
+                const form  = document.getElementById('ab-attach-form-' + contactId);
+                const input = document.getElementById('ab-attach-input-' + contactId);
+                if (!form || !input) return;
+
+                if (!input.files || input.files.length === 0) return;
+
+                // Simple + reliable: standard form submit (will refresh the page)
+                // Controller redirects back via return_to so user lands on the same screen.
+                form.submit();
+            }
+        };
+    </script>
+
+    {{-- ✅ REQUIRED --}}
     @stack('scripts')
 
 </body>
