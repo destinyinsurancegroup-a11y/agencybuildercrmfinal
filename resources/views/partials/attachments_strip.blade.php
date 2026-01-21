@@ -5,13 +5,14 @@
     $attachments = $contact->attachments()->latest()->get();
     $returnTo = request()->fullUrl();
 
-    // quick icon per type (simple + safe)
     $iconFor = function ($a) {
-        if ($a->isPdf()) return '📄';
-        if ($a->isImage()) return '🖼️';
-        $m = strtolower((string) $a->mime_type);
+        if (method_exists($a, 'isPdf') && $a->isPdf()) return '📄';
+        if (method_exists($a, 'isImage') && $a->isImage()) return '🖼️';
+
+        $m = strtolower((string) ($a->mime_type ?? ''));
         if (str_contains($m, 'spreadsheet') || str_contains($m, 'excel')) return '📊';
         if (str_contains($m, 'word')) return '📝';
+
         return '📎';
     };
 @endphp
@@ -35,6 +36,7 @@
         background:#fff;
         cursor:pointer;
         box-shadow:0 2px 6px rgba(0,0,0,0.06);
+        flex:0 0 auto;
     }
     .ab-paperclip:hover{ background:#f9fafb; }
 
@@ -43,6 +45,7 @@
         color:#111827;
         font-size:13px;
         margin-right:2px;
+        flex:0 0 auto;
     }
 
     .ab-file-pill{
@@ -56,7 +59,7 @@
         font-size:12px;
         color:#111827;
         box-shadow:0 2px 6px rgba(0,0,0,0.06);
-        max-width:260px;
+        max-width:280px;
     }
     .ab-file-pill a{
         color:#111827;
@@ -64,7 +67,7 @@
         white-space:nowrap;
         overflow:hidden;
         text-overflow:ellipsis;
-        max-width:170px;
+        max-width:190px;
         display:inline-block;
     }
     .ab-file-pill a:hover{ text-decoration:underline; }
@@ -74,17 +77,22 @@
         align-items:center;
         gap:6px;
         margin-left:2px;
+        flex:0 0 auto;
     }
-    .ab-file-btn{
+
+    /* Visible delete “x” that stays clean */
+    .ab-del-btn{
         border:0;
         background:transparent;
-        padding:0 4px;
         cursor:pointer;
         color:#6b7280;
-        font-size:14px;
+        font-size:16px;
         line-height:1;
+        padding:0 2px;
     }
-    .ab-file-btn:hover{ color:#111827; }
+    .ab-del-btn:hover{ color:#111827; }
+
+    .ab-muted{ color:#6b7280; font-size:12px; }
 </style>
 
 <div class="ab-attach-row">
@@ -115,26 +123,19 @@
 
     {{-- Existing files --}}
     @if($attachments->isEmpty())
-        <div class="text-muted small">No files yet</div>
+        <div class="ab-muted">No files yet</div>
     @else
         @foreach($attachments->take(3) as $a)
             <div class="ab-file-pill" title="{{ $a->original_name }}">
                 <span>{{ $iconFor($a) }}</span>
 
-                {{-- Click opens inline view --}}
-                <a href="{{ route('attachments.show', $a) }}" target="_blank" rel="noopener">
-                    {{ $a->safeDisplayName(26) }}
+                {{-- ✅ Use DOWNLOAD route to avoid inline show() 404 issues --}}
+                <a href="{{ route('attachments.download', $a) }}">
+                    {{ method_exists($a, 'safeDisplayName') ? $a->safeDisplayName(26) : ($a->original_name ?? 'File') }}
                 </a>
 
                 <div class="ab-file-actions">
-                    {{-- Download --}}
-                    <a class="ab-file-btn"
-                       href="{{ route('attachments.download', $a) }}"
-                       title="Download">
-                        ⬇️
-                    </a>
-
-                    {{-- ✅ DELETE (REAL DELETE REQUEST WITH CSRF) --}}
+                    {{-- ✅ DELETE --}}
                     <form method="POST"
                           action="{{ route('attachments.destroy', $a) }}"
                           style="display:inline;"
@@ -142,14 +143,14 @@
                         @csrf
                         @method('DELETE')
                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
-                        <button type="submit" class="ab-file-btn" title="Delete">🗑️</button>
+                        <button type="submit" class="ab-del-btn" title="Delete">✕</button>
                     </form>
                 </div>
             </div>
         @endforeach
 
         @if($attachments->count() > 3)
-            <div class="text-muted small">+{{ $attachments->count() - 3 }}</div>
+            <div class="ab-muted">+{{ $attachments->count() - 3 }}</div>
         @endif
     @endif
 
