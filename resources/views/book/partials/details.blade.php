@@ -8,17 +8,101 @@
     .card p { margin-bottom: 0.25rem !important; }
     .p-4 { padding: 1.25rem !important; }
     #book-notes-wrapper { margin-top: 24px; }
+
+    /* ===== Attachments row (Book) ===== */
+    .ab-attach-row{
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .ab-attach-clip{
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        cursor: pointer;
+    }
+    .ab-attach-label{
+        font-size: 13px;
+        font-weight: 700;
+        color: #111827;
+        margin-left: 2px;
+    }
+    .ab-attach-chips{
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-height: 32px;
+    }
+    .ab-file-empty{ font-size: 12px; color:#6b7280; }
+    .ab-file-more{ font-size: 13px; color:#6b7280; padding-left: 4px; }
+
+    /* chip container so we can place a delete button beside it */
+    .ab-chip-wrap{
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .ab-file-chip{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: #1f2937;
+        font-size: 13px;
+        line-height: 1;
+        max-width: 220px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ab-file-icon{ opacity: 0.9; }
+
+    /* ✅ delete button */
+    .ab-file-del{
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        border: 1px solid #ef4444;
+        background: #ef4444;
+        color: #fff;
+        font-weight: 900;
+        line-height: 18px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .ab-file-del:hover{ filter: brightness(0.95); }
 </style>
 
 @php
     $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
 
-    $clientName = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
+    $clientName  = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
     $clientPhone = $client->phone ?? null;
     $clientEmail = $client->email ?? null;
 
     $attachments = $client->attachments()->latest()->get();
-    $chipLimit = 3;
+    $chipLimit   = 3;
+
+    // important for returning back to the exact right panel state
+    $returnTo = request()->fullUrl();
 @endphp
 
 <div class="p-4">
@@ -66,7 +150,7 @@
                     </button>
                 </div>
 
-                {{-- ✅ Attach files row (paperclip + chips) --}}
+                {{-- ✅ Attach files row (paperclip + chips + DELETE) --}}
                 <div class="ab-attach-row">
                     <button type="button"
                             class="ab-attach-clip"
@@ -86,31 +170,48 @@
                         @else
                             @foreach($attachments->take($chipLimit) as $a)
                                 @php
-                                    $name = $a->safeDisplayName(18);
-                                    $ext  = strtolower(pathinfo($a->original_name ?? $a->stored_name, PATHINFO_EXTENSION));
-                                    $isPdf = $a->isPdf();
-                                    $isImg = $a->isImage();
+                                    $name = method_exists($a, 'safeDisplayName')
+                                        ? $a->safeDisplayName(18)
+                                        : (\Illuminate\Support\Str::limit(($a->original_name ?? $a->stored_name ?? 'file'), 18));
+
+                                    $ext  = strtolower(pathinfo($a->original_name ?? $a->stored_name ?? '', PATHINFO_EXTENSION));
+                                    $isPdf = method_exists($a, 'isPdf') ? $a->isPdf() : ($a->mime_type === 'application/pdf');
+                                    $isImg = method_exists($a, 'isImage') ? $a->isImage() : (str_starts_with(strtolower((string)$a->mime_type), 'image/'));
                                 @endphp
 
-                                <a class="ab-file-chip"
-                                   href="{{ route('attachments.show', $a->id) }}"
-                                   target="_blank"
-                                   title="{{ $a->original_name }}">
-                                    <span class="ab-file-icon">
-                                        @if($isPdf)
-                                            📄
-                                        @elseif($isImg)
-                                            🖼️
-                                        @elseif(in_array($ext, ['xls','xlsx','csv']))
-                                            📊
-                                        @elseif(in_array($ext, ['doc','docx']))
-                                            📝
-                                        @else
-                                            📎
-                                        @endif
-                                    </span>
-                                    <span>{{ $name }}</span>
-                                </a>
+                                <div class="ab-chip-wrap">
+                                    <a class="ab-file-chip"
+                                       href="{{ route('attachments.show', $a->id) }}"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="{{ $a->original_name ?? $a->stored_name }}">
+                                        <span class="ab-file-icon">
+                                            @if($isPdf)
+                                                📄
+                                            @elseif($isImg)
+                                                🖼️
+                                            @elseif(in_array($ext, ['xls','xlsx','csv']))
+                                                📊
+                                            @elseif(in_array($ext, ['doc','docx']))
+                                                📝
+                                            @else
+                                                📎
+                                            @endif
+                                        </span>
+                                        <span>{{ $name }}</span>
+                                    </a>
+
+                                    {{-- ✅ DELETE BUTTON --}}
+                                    <form method="POST"
+                                          action="{{ route('attachments.destroy', $a->id) }}"
+                                          style="margin:0;"
+                                          onsubmit="return confirm('Delete this file?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
+                                        <button type="submit" class="ab-file-del" title="Delete">×</button>
+                                    </form>
+                                </div>
                             @endforeach
 
                             @if($attachments->count() > $chipLimit)
@@ -119,13 +220,14 @@
                         @endif
                     </div>
 
+                    {{-- hidden upload form (paperclip triggers file input) --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
                           enctype="multipart/form-data"
                           style="display:none;">
                         @csrf
-                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
                         <input id="ab-attach-input-{{ (int) $client->id }}"
                                type="file"
                                name="files[]"
