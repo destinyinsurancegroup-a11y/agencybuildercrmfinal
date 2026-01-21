@@ -2,6 +2,8 @@
 
 @php
     $contactName = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+    $attachments = $contact->attachments()->latest()->get();
+    $chipLimit = 3;
 @endphp
 
 <div class="card shadow-sm border-0"
@@ -20,7 +22,7 @@
                 {{ $contactName }}
             </div>
 
-            {{-- ✅ Messaging buttons (same UX as Book) --}}
+            {{-- ✅ Messaging buttons --}}
             <div class="mt-2 d-flex gap-2 flex-wrap">
                 <button
                     type="button"
@@ -55,13 +57,77 @@
                 </button>
             </div>
 
-            {{-- ✅ Attachments strip (top-left, unassuming) --}}
-            @include('partials.attachments_strip', ['contact' => $contact])
+            {{-- ✅ Attach files row (paperclip + chips) --}}
+            @if(strtolower((string) $contact->contact_type) !== 'lead')
+                <div class="ab-attach-row">
+                    <button type="button"
+                            class="ab-attach-clip"
+                            title="Attach files"
+                            onclick="ABAttachments.open({{ (int) $contact->id }})">
+                        {{-- paperclip icon (inline svg) --}}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M8 12.5l7.1-7.1a4 4 0 015.7 5.7l-8.5 8.5a6 6 0 01-8.5-8.5l8.3-8.3"
+                                  stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
 
-            {{-- 🚫 REMOVED CONTACT ID --}}
-            {{-- <div style="font-size:13px; color:#6b7280; margin-top:4px;">
-                Contact ID: {{ $contact->id }}
-            </div> --}}
+                    <div class="ab-attach-label">Attach files:</div>
+
+                    <div class="ab-attach-chips">
+                        @if($attachments->count() === 0)
+                            <div class="ab-file-empty">No files yet</div>
+                        @else
+                            @foreach($attachments->take($chipLimit) as $a)
+                                @php
+                                    $name = $a->safeDisplayName(18);
+                                    $ext  = strtolower(pathinfo($a->original_name ?? $a->stored_name, PATHINFO_EXTENSION));
+                                    $isPdf = $a->isPdf();
+                                    $isImg = $a->isImage();
+                                @endphp
+
+                                <a class="ab-file-chip"
+                                   href="{{ route('attachments.show', $a->id) }}"
+                                   target="_blank"
+                                   title="{{ $a->original_name }}">
+                                    <span class="ab-file-icon">
+                                        @if($isPdf)
+                                            📄
+                                        @elseif($isImg)
+                                            🖼️
+                                        @elseif(in_array($ext, ['xls','xlsx','csv']))
+                                            📊
+                                        @elseif(in_array($ext, ['doc','docx']))
+                                            📝
+                                        @else
+                                            📎
+                                        @endif
+                                    </span>
+                                    <span>{{ $name }}</span>
+                                </a>
+                            @endforeach
+
+                            @if($attachments->count() > $chipLimit)
+                                <span class="ab-file-more">+{{ $attachments->count() - $chipLimit }}</span>
+                            @endif
+                        @endif
+                    </div>
+
+                    {{-- Hidden upload form --}}
+                    <form id="ab-attach-form-{{ (int) $contact->id }}"
+                          action="{{ route('contacts.attachments.store', $contact->id) }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          style="display:none;">
+                        @csrf
+                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                        <input id="ab-attach-input-{{ (int) $contact->id }}"
+                               type="file"
+                               name="files[]"
+                               multiple
+                               onchange="ABAttachments.submitIfSelected({{ (int) $contact->id }})">
+                    </form>
+                </div>
+            @endif
         </div>
 
         <a href="{{ route('contacts.edit', $contact->id) }}"
@@ -107,7 +173,6 @@
                 </span>
             </div>
 
-            {{-- DATE OF BIRTH --}}
             <div class="col-md-6 mb-3">
                 <label class="text-muted small fw-semibold">Date of Birth</label>
                 <div class="fw-bold">
@@ -115,7 +180,6 @@
                 </div>
             </div>
 
-            {{-- ANNIVERSARY --}}
             <div class="col-md-6 mb-3">
                 <label class="text-muted small fw-semibold">Anniversary</label>
                 <div class="fw-bold">
@@ -139,24 +203,19 @@
 
         <hr class="my-4">
 
-        {{-- ADDITIONAL DETAILS --}}
         <h5 class="fw-bold mb-2">Additional Details</h5>
         <p class="text-muted small mb-4">
             More custom contact details or policy information can be stored here.
         </p>
 
-    </div> {{-- /card-body --}}
-</div> {{-- /card --}}
+    </div>
+</div>
 
-{{-- =========================================================
-     STAND-ALONE NOTES SECTION (OUTSIDE CARD)
-   ========================================================= --}}
+{{-- NOTES --}}
 <div class="mt-4">
 
-    {{-- NOTES HEADER --}}
     <h5 class="fw-bold mb-3">Notes</h5>
 
-    {{-- NEW NOTE FORM --}}
     <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
         @csrf
 
@@ -187,7 +246,6 @@
         </button>
     </form>
 
-    {{-- EXISTING NOTES --}}
     <div class="mt-4">
         @php
             $notes = $contact->notes()->latest()->get();
