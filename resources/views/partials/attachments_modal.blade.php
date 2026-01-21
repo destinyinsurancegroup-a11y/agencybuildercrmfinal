@@ -1,151 +1,395 @@
 {{-- resources/views/partials/attachments_modal.blade.php --}}
 
-<div class="modal fade" id="abAttachmentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
+<style>
+    .ab-att-row {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:10px 0;
+        border-bottom:1px solid #eee;
+    }
+    .ab-att-left {
+        display:flex;
+        align-items:center;
+        gap:10px;
+        min-width:0;
+    }
+    .ab-att-thumb {
+        width:44px;
+        height:44px;
+        border-radius:10px;
+        border:1px solid rgba(0,0,0,0.10);
+        overflow:hidden;
+        background:#fff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        flex:0 0 auto;
+        cursor:pointer;
+    }
+    .ab-att-thumb img {
+        width:100%;
+        height:100%;
+        object-fit:cover;
+        display:block;
+    }
+    .ab-att-meta {
+        min-width:0;
+    }
+    .ab-att-name {
+        font-weight:700;
+        font-size:14px;
+        color:#111827;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        max-width:440px;
+    }
+    .ab-att-sub {
+        font-size:12px;
+        color:#6b7280;
+    }
+    .ab-att-actions {
+        display:flex;
+        gap:8px;
+        flex:0 0 auto;
+    }
+    .ab-att-empty {
+        padding:18px;
+        background:#fafafa;
+        border:1px dashed #ddd;
+        border-radius:12px;
+        color:#6b7280;
+        font-size:13px;
+    }
+</style>
 
-            <div class="modal-header">
+<!-- Attachments Modal -->
+<div class="modal fade" id="attachmentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+            <div class="modal-header" style="background:#111; color:#D4AF37;">
                 <div>
-                    <h5 class="modal-title mb-0" id="abAttTitle">Attachment</h5>
-                    <div class="small text-muted" id="abAttMeta"></div>
+                    <div class="fw-bold" style="font-size:16px;">Attachments</div>
+                    <div class="text-white-50" style="font-size:12px;" id="abAttContactLine">—</div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
 
-            <div class="modal-body" style="background:#f4f4f4;">
-                <div id="abAttPreviewWrap"
-                     style="
-                        width:100%;
-                        background:white;
-                        border:1px solid #e5e7eb;
-                        border-radius:10px;
-                        overflow:hidden;
-                        min-height:420px;
-                     ">
-                    <div class="p-4 text-muted" id="abAttPreviewFallback">
-                        Preview will appear here.
+            <div class="modal-body">
+
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                    <div class="text-muted" style="font-size:13px;">
+                        Upload PDFs, images, or any files you want attached to this contact.
+                    </div>
+
+                    <div class="d-flex gap-2 align-items-center">
+                        <input type="file"
+                               id="abAttFileInput"
+                               class="form-control form-control-sm"
+                               multiple
+                               style="max-width:320px;" />
+
+                        <button type="button"
+                                class="btn btn-sm"
+                                style="background:#c9a227; color:#111827; font-weight:800; border-radius:10px;"
+                                onclick="ABAttachments.uploadSelected()">
+                            Upload
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <div class="modal-footer d-flex justify-content-between">
-                <div class="d-flex gap-2">
-                    <a class="btn btn-outline-secondary btn-sm" id="abAttViewBtn" href="#" target="_blank" rel="noopener">
-                        View
-                    </a>
-                    <a class="btn btn-outline-secondary btn-sm" id="abAttDownloadBtn" href="#">
-                        Download
-                    </a>
+                <div id="abAttStatus" class="text-muted" style="font-size:12px;"></div>
+
+                <div id="abAttList" class="mt-2">
+                    <div class="ab-att-empty">Loading…</div>
                 </div>
 
-                <form method="POST" id="abAttDeleteForm" action="#" style="margin:0;">
-                    @csrf
-                    @method('DELETE')
-                    <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                    <button type="submit" class="btn btn-outline-danger btn-sm"
-                            onclick="return confirm('Delete this attachment?');">
-                        Delete
-                    </button>
-                </form>
             </div>
 
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>
 
-@push('scripts')
 <script>
 (function () {
-    'use strict';
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    let modalInstance = null;
 
-    function getCsrfToken() {
-        var el = document.querySelector('meta[name="csrf-token"]');
-        return el ? el.getAttribute('content') : '';
+    const els = {
+        modal: document.getElementById('attachmentsModal'),
+        list: document.getElementById('abAttList'),
+        status: document.getElementById('abAttStatus'),
+        contactLine: document.getElementById('abAttContactLine'),
+        fileInput: document.getElementById('abAttFileInput')
+    };
+
+    // Holds current contact context while modal is open
+    const state = {
+        contactId: null,
+        contactName: null
+    };
+
+    function setStatus(msg) {
+        if (els.status) els.status.textContent = msg || '';
     }
 
-    function openModal() {
-        if (!window.bootstrap || !window.bootstrap.Modal) return alert('Bootstrap modal JS missing.');
-        var el = document.getElementById('abAttachmentModal');
-        if (!el) return alert('Attachment modal missing.');
-        new bootstrap.Modal(el).show();
+    function escapeHtml(str) {
+        return String(str || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
     }
 
-    function setPreview(mime, viewUrl) {
-        var wrap = document.getElementById('abAttPreviewWrap');
-        if (!wrap) return;
+    function isImage(mime) {
+        return (mime || '').toLowerCase().startsWith('image/');
+    }
 
-        // Clear
-        wrap.innerHTML = '';
+    function formatBytes(bytes) {
+        const n = Number(bytes || 0);
+        if (!n) return '';
+        const units = ['B','KB','MB','GB'];
+        let i = 0, v = n;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+        return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+    }
 
-        mime = String(mime || '').toLowerCase();
+    function renderEmpty() {
+        if (!els.list) return;
+        els.list.innerHTML = `<div class="ab-att-empty">No attachments yet.</div>`;
+    }
 
-        // Image
-        if (mime.startsWith('image/')) {
-            var img = document.createElement('img');
-            img.src = viewUrl;
-            img.alt = 'Attachment preview';
-            img.style.width = '100%';
-            img.style.height = 'auto';
-            img.style.display = 'block';
-            wrap.appendChild(img);
+    function renderList(items) {
+        if (!els.list) return;
+
+        if (!items || !items.length) {
+            renderEmpty();
             return;
         }
 
-        // PDF
-        if (mime === 'application/pdf') {
-            var iframe = document.createElement('iframe');
-            iframe.src = viewUrl;
-            iframe.style.width = '100%';
-            iframe.style.height = '520px';
-            iframe.style.border = '0';
-            wrap.appendChild(iframe);
+        els.list.innerHTML = items.map(a => {
+            const name = escapeHtml(a.original_name || a.name || 'Attachment');
+            const mime = escapeHtml(a.mime || '');
+            const size = formatBytes(a.size_bytes || a.size || 0);
+            const created = escapeHtml(a.created_at_local || a.created_at || '');
+
+            const thumbUrl = a.thumb_url || a.url || null;
+            const viewUrl  = a.url || a.view_url || null;
+
+            const thumb = isImage(a.mime) && thumbUrl
+                ? `<img src="${escapeHtml(thumbUrl)}" alt="">`
+                : `<span style="font-size:10px; color:#6b7280;">FILE</span>`;
+
+            return `
+                <div class="ab-att-row" id="ab-att-${a.id}">
+                    <div class="ab-att-left">
+                        <div class="ab-att-thumb" onclick="ABAttachments.view(${a.id})" title="Open">
+                            ${thumb}
+                        </div>
+                        <div class="ab-att-meta">
+                            <div class="ab-att-name" title="${name}">${name}</div>
+                            <div class="ab-att-sub">
+                                ${mime ? mime : ''} ${size ? ' • ' + size : ''} ${created ? ' • ' + created : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ab-att-actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="ABAttachments.view(${a.id})">
+                            View
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="ABAttachments.remove(${a.id})">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function apiGetList(contactId) {
+        // We will create this route next:
+        // GET /contacts/{contact}/attachments  (returns JSON)
+        const res = await fetch(`/contacts/${contactId}/attachments`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            cache: 'no-store'
+        });
+
+        if (!res.ok) throw new Error('Failed to load attachments');
+        return await res.json();
+    }
+
+    async function apiUpload(contactId, files) {
+        // We will create this route next:
+        // POST /contacts/{contact}/attachments  (multipart)
+        const fd = new FormData();
+        for (const f of files) fd.append('files[]', f);
+
+        const res = await fetch(`/contacts/${contactId}/attachments`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: fd
+        });
+
+        if (!res.ok) {
+            let msg = 'Upload failed';
+            try {
+                const j = await res.json();
+                if (j && j.message) msg = j.message;
+            } catch (e) {}
+            throw new Error(msg);
+        }
+
+        return await res.json();
+    }
+
+    async function apiDelete(contactId, attachmentId) {
+        // We will create this route next:
+        // DELETE /contacts/{contact}/attachments/{attachment}
+        const res = await fetch(`/contacts/${contactId}/attachments/${attachmentId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            let msg = 'Delete failed';
+            try {
+                const j = await res.json();
+                if (j && j.message) msg = j.message;
+            } catch (e) {}
+            throw new Error(msg);
+        }
+
+        return await res.json();
+    }
+
+    async function apiGetOne(contactId, attachmentId) {
+        // Optional helper for view url (if you want JSON per item later):
+        // GET /contacts/{contact}/attachments/{attachment}
+        const res = await fetch(`/contacts/${contactId}/attachments/${attachmentId}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            cache: 'no-store'
+        });
+
+        // If we haven't built this yet, we'll just fallback to opening /download endpoint later.
+        if (!res.ok) return null;
+
+        try { return await res.json(); }
+        catch (e) { return null; }
+    }
+
+    async function refresh() {
+        if (!state.contactId) return;
+
+        setStatus('Loading…');
+        try {
+            const data = await apiGetList(state.contactId);
+            const items = data.attachments || data.data || [];
+            renderList(items);
+            setStatus('');
+        } catch (e) {
+            renderEmpty();
+            setStatus(e.message || 'Could not load attachments.');
+        }
+    }
+
+    window.ABAttachments = window.ABAttachments || {};
+
+    window.ABAttachments.open = function (contactId, contactName) {
+        state.contactId = contactId;
+        state.contactName = contactName || '';
+
+        if (els.contactLine) {
+            els.contactLine.textContent = state.contactName ? `${state.contactName} (ID: ${state.contactId})` : `Contact ID: ${state.contactId}`;
+        }
+
+        if (!modalInstance) {
+            modalInstance = new bootstrap.Modal(els.modal);
+        }
+
+        // Clear UI first
+        if (els.list) els.list.innerHTML = `<div class="ab-att-empty">Loading…</div>`;
+        setStatus('');
+
+        modalInstance.show();
+        refresh();
+    };
+
+    window.ABAttachments.uploadSelected = async function () {
+        if (!state.contactId) return;
+
+        const files = els.fileInput?.files ? Array.from(els.fileInput.files) : [];
+        if (!files.length) {
+            alert('Choose one or more files first.');
             return;
         }
 
-        // Unknown: show message
-        var div = document.createElement('div');
-        div.className = 'p-4 text-muted';
-        div.textContent = 'No preview available for this file type. Use View or Download.';
-        wrap.appendChild(div);
-    }
+        setStatus('Uploading…');
+        try {
+            await apiUpload(state.contactId, files);
+            if (els.fileInput) els.fileInput.value = '';
+            await refresh();
+            setStatus('Upload complete.');
+            setTimeout(() => setStatus(''), 1200);
+        } catch (e) {
+            setStatus('');
+            alert(e.message || 'Upload failed.');
+        }
+    };
 
-    // ✅ Event delegation so this works for AJAX-injected panels (Book/Service)
-    document.addEventListener('click', function (e) {
-        var btn = e.target && e.target.closest ? e.target.closest('[data-attachment-id]') : null;
-        if (!btn) return;
+    window.ABAttachments.remove = async function (attachmentId) {
+        if (!state.contactId) return;
+        if (!confirm('Delete this attachment?')) return;
 
-        e.preventDefault();
+        try {
+            setStatus('Deleting…');
+            await apiDelete(state.contactId, attachmentId);
+            await refresh();
+            setStatus('');
+        } catch (e) {
+            setStatus('');
+            alert(e.message || 'Delete failed.');
+        }
+    };
 
-        var id = btn.getAttribute('data-attachment-id');
-        var name = btn.getAttribute('data-attachment-name') || 'Attachment';
-        var mime = btn.getAttribute('data-attachment-mime') || '';
-        var date = btn.getAttribute('data-attachment-date') || '';
+    window.ABAttachments.view = async function (attachmentId) {
+        if (!state.contactId) return;
 
-        var viewUrl = '/attachments/' + encodeURIComponent(id);
-        var downloadUrl = '/attachments/' + encodeURIComponent(id) + '/download';
-        var deleteUrl = '/attachments/' + encodeURIComponent(id);
+        // If later we implement JSON show, we’ll use it.
+        const data = await apiGetOne(state.contactId, attachmentId);
+        const url = data?.attachment?.url || data?.url || null;
 
-        var titleEl = document.getElementById('abAttTitle');
-        var metaEl  = document.getElementById('abAttMeta');
-        if (titleEl) titleEl.textContent = name;
-        if (metaEl) metaEl.textContent = (mime ? mime : 'file') + (date ? (' • ' + date) : '');
+        // Fallback: open a conventional download/view endpoint
+        // We will create this route next:
+        // GET /contacts/{contact}/attachments/{attachment}/download
+        const finalUrl = url || `/contacts/${state.contactId}/attachments/${attachmentId}/download`;
 
-        var viewBtn = document.getElementById('abAttViewBtn');
-        var dlBtn   = document.getElementById('abAttDownloadBtn');
-        if (viewBtn) viewBtn.setAttribute('href', viewUrl);
-        if (dlBtn) dlBtn.setAttribute('href', downloadUrl);
-
-        var delForm = document.getElementById('abAttDeleteForm');
-        if (delForm) delForm.setAttribute('action', deleteUrl);
-
-        // Ensure return_to always matches current URL at click time
-        var rt = delForm ? delForm.querySelector('input[name="return_to"]') : null;
-        if (rt) rt.value = window.location.href;
-
-        setPreview(mime, viewUrl);
-        openModal();
-    });
+        window.open(finalUrl, '_blank');
+    };
 
 })();
 </script>
-@endpush
