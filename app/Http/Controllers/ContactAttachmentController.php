@@ -13,6 +13,58 @@ use Illuminate\Support\Str;
 class ContactAttachmentController extends Controller
 {
     /**
+     * ✅ LIST attachments for a Contact (used by the modal).
+     * GET /contacts/{contact}/attachments
+     * Returns JSON: { success: true, attachments: [...] }
+     */
+    public function index(Contact $contact)
+    {
+        $user = Auth::user();
+        if (!$user) abort(403);
+
+        $this->assertSameAgency($contact);
+
+        // 🚫 No attachments for leads
+        if (strtolower((string) $contact->contact_type) === 'lead') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attachments are not enabled for leads.',
+                'attachments' => [],
+            ], 403);
+        }
+
+        $agencyId = $this->agencyIdFor($contact, $user);
+
+        $attachments = Attachment::query()
+            ->where('agency_id', $agencyId)
+            ->where('attachable_type', Contact::class)
+            ->where('attachable_id', $contact->id)
+            ->latest()
+            ->get()
+            ->map(function (Attachment $a) {
+                return [
+                    'id'            => $a->id,
+                    'name'          => $a->original_name ?: $a->stored_name,
+                    'original_name' => $a->original_name ?: $a->stored_name,
+                    'mime'          => $a->mime_type,
+                    'size_bytes'    => (int) ($a->size_bytes ?? 0),
+                    'created_at'    => optional($a->created_at)->toIso8601String(),
+                    'created_at_local' => optional($a->created_at)->format('m/d/Y g:i A'),
+
+                    // These routes are GLOBAL (not nested) — see web.php changes next.
+                    'view_url'      => route('attachments.show', $a->id),
+                    'download_url'  => route('attachments.download', $a->id),
+                    'delete_url'    => route('attachments.destroy', $a->id),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'attachments' => $attachments,
+        ]);
+    }
+
+    /**
      * Upload one or more files to a Contact (Option A).
      * POST /contacts/{contact}/attachments
      */
@@ -33,7 +85,6 @@ class ContactAttachmentController extends Controller
             'files.*' => [
                 'file',
                 'max:51200', // 50MB per file
-                // common business file types (expand later safely)
                 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt',
             ],
             'return_to' => 'nullable|string|max:2000',
@@ -44,6 +95,8 @@ class ContactAttachmentController extends Controller
         $baseDir = "private/agencies/{$agencyId}/contacts/{$contact->id}/attachments";
         Storage::disk('local')->makeDirectory($baseDir);
 
+        $createdIds = [];
+
         foreach ($request->file('files', []) as $file) {
             if (!$file || !$file->isValid()) continue;
 
@@ -52,7 +105,7 @@ class ContactAttachmentController extends Controller
             $stored = (string) Str::uuid() . ($ext ? ".{$ext}" : '');
             $path = $file->storeAs($baseDir, $stored, 'local');
 
-            Attachment::create([
+            $att = Attachment::create([
                 'agency_id'       => $agencyId,
                 'attachable_type' => Contact::class,
                 'attachable_id'   => $contact->id,
@@ -64,8 +117,19 @@ class ContactAttachmentController extends Controller
                 'storage_path'    => $path,
                 'created_by'      => $user->id,
             ]);
+
+            $createdIds[] = $att->id;
         }
 
+        // ✅ If modal (AJAX), return JSON so UI can refresh without a full reload.
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'created_ids' => $createdIds,
+            ], 201);
+        }
+
+        // Normal form submit fallback
         return redirect()->to($this->safeReturnTo($request->input('return_to')));
     }
 
@@ -88,7 +152,6 @@ class ContactAttachmentController extends Controller
         $abs = Storage::disk($attachment->storage_disk)->path($path);
         $mime = $attachment->mime_type ?: 'application/octet-stream';
 
-        // Inline view
         return response()->file($abs, [
             'Content-Type'        => $mime,
             'Content-Disposition' => 'inline; filename="' . $this->asciiFallbackName($attachment->original_name) . '"',
@@ -130,14 +193,18 @@ class ContactAttachmentController extends Controller
 
         $this->assertAttachmentAgency($attachment, $user);
 
-        // delete file first (best effort)
         try {
             Storage::disk($attachment->storage_disk)->delete($attachment->storage_path);
         } catch (\Throwable $e) {
-            // ignore; still delete DB row to prevent UI leaks
+            // ignore
         }
 
         $attachment->delete();
+
+        // ✅ If modal (AJAX), return JSON so UI can remove it instantly.
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['success' => true]);
+        }
 
         return redirect()->to($this->safeReturnTo($request->input('return_to')));
     }
@@ -151,8 +218,6 @@ class ContactAttachmentController extends Controller
         $user = Auth::user();
         if (!$user) abort(403);
 
-        // Your app mainly uses agency_id; Contact has TenantScoped too.
-        // This is extra safety.
         if (Schema::hasColumn('contacts', 'agency_id')) {
             $c = (int) ($contact->agency_id ?? 0);
             $u = (int) ($user->agency_id ?? 0);
@@ -166,14 +231,12 @@ class ContactAttachmentController extends Controller
 
     private function assertAttachmentAgency(Attachment $attachment, $user): void
     {
-        // Defense-in-depth: agency_id is stored on attachments.
         if (!empty($attachment->agency_id) && !empty($user->agency_id)) {
             if ((int) $attachment->agency_id !== (int) $user->agency_id) {
                 abort(403, 'Unauthorized');
             }
         }
 
-        // Also ensure the attachable itself is scoped
         if ($attachment->attachable_type === Contact::class) {
             $contact = Contact::findOrFail($attachment->attachable_id);
             $this->assertSameAgency($contact);
@@ -182,7 +245,6 @@ class ContactAttachmentController extends Controller
 
     private function agencyIdFor(Contact $contact, $user): int
     {
-        // prefer contact->agency_id, fallback to user->agency_id, then 1
         $agency = (int) ($contact->agency_id ?? ($user->agency_id ?? 1));
         return $agency > 0 ? $agency : 1;
     }
@@ -192,7 +254,6 @@ class ContactAttachmentController extends Controller
         $fallback = url()->previous() ?: route('dashboard');
         if (!$returnTo) return $fallback;
 
-        // prevent open redirect (only allow same-host URLs)
         $appHost = parse_url(config('app.url'), PHP_URL_HOST);
         $targetHost = parse_url($returnTo, PHP_URL_HOST);
 
@@ -208,7 +269,6 @@ class ContactAttachmentController extends Controller
         $name = trim($name);
         if ($name === '') return 'file';
 
-        // Basic ASCII fallback for headers
         $safe = preg_replace('/[^A-Za-z0-9\.\-\_ ]/', '', $name) ?? 'file';
         $safe = trim($safe);
         return $safe !== '' ? $safe : 'file';
