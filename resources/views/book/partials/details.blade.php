@@ -35,12 +35,8 @@
 </style>
 
 @php
-    // Consider this client "in active service" if:
-    // - they are a service contact AND
-    // - their service has not been archived yet
     $inActiveService = $client->contact_type === 'service' && is_null($client->service_archived_at);
 
-    // Build display name (consistent with other views)
     $clientName = $client->full_name
         ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
 
@@ -93,8 +89,10 @@
                     </button>
                 </div>
 
+                {{-- ✅ Attachments strip (top-left, unassuming) --}}
+                @include('partials.attachments_strip', ['contact' => $client])
+
                 @if($inActiveService)
-                    {{-- Clickable badge: goes to Service tab with this client selected --}}
                     <a href="{{ route('service.index', ['selected' => $client->id]) }}"
                        class="badge bg-danger mt-1 text-decoration-none"
                        style="cursor:pointer;">
@@ -117,9 +115,7 @@
 
         <hr>
 
-        <!-- ================================ -->
-        <!-- BASIC INFORMATION SECTION        -->
-        <!-- ================================ -->
+        <!-- BASIC INFORMATION SECTION -->
         <h4 class="text-gold fw-bold mb-3">Basic Information</h4>
 
         <div class="row mb-4">
@@ -146,9 +142,7 @@
 
         <hr>
 
-        <!-- ================================ -->
-        <!-- POLICY INFORMATION SECTION       -->
-        <!-- ================================ -->
+        <!-- POLICY INFORMATION SECTION -->
         <h4 class="text-gold fw-bold mb-3">Policy Information</h4>
 
         <div class="row mb-4">
@@ -171,9 +165,7 @@
 
         <hr>
 
-        <!-- ================================ -->
         <!-- BENEFICIARIES & EMERGENCY CONTACTS -->
-        <!-- ================================ -->
         <h4 class="text-gold fw-bold mb-3">Beneficiaries &amp; Emergency Contacts</h4>
 
         @php
@@ -226,9 +218,7 @@
 
     </div> {{-- end main card --}}
 
-    {{-- =========================================
-         STAND-ALONE NOTES SECTION (LIKE SERVICE)
-       ========================================= --}}
+    {{-- STAND-ALONE NOTES SECTION (LIKE SERVICE) --}}
     <div id="book-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
