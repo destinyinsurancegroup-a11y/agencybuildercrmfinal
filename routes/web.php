@@ -19,6 +19,9 @@ use App\Http\Controllers\ServiceController;
 // ✅ CONTACT MESSAGES (Phase 2 + Phase 3 + Bulk)
 use App\Http\Controllers\ContactMessageController;
 
+// ✅ CONTACT ATTACHMENTS
+use App\Http\Controllers\ContactAttachmentController;
+
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
@@ -33,7 +36,6 @@ use App\Http\Controllers\BillingController;
 
 // ✅ SETTINGS (Tier 1 tabs + Profile actions)
 use App\Http\Controllers\SettingsController;
-// use App\Http\Controllers\Settings\ProfileSettingsController; // ❌ File does not exist (disabled for now)
 
 // ✅ SETTINGS (Messaging - Universal SMS Providers)
 use App\Http\Controllers\Settings\SmsProvidersController;
@@ -46,9 +48,6 @@ use App\Http\Controllers\Settings\DripCampaignController;
 
 // ✅ DRIPS Enrollment Controller (Step 4C)
 use App\Http\Controllers\Drips\EnrollmentController;
-
-// ✅ ATTACHMENTS (Contacts / Book / Service share same Contact model)
-use App\Http\Controllers\ContactAttachmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -139,11 +138,7 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     | ✅ MESSAGE TEMPLATES (Chooser + Email Library + SMS Library + JSON)
     |--------------------------------------------------------------------------
-    | IMPORTANT ORDER:
-    | - /json routes must be ABOVE /{messageTemplate}/... routes
-    | - /create must be ABOVE /{messageTemplate}/... routes
     */
-
     Route::get('/settings/messaging/templates', [MessageTemplateController::class, 'choose'])
         ->name('settings.messaging.templates.index');
 
@@ -203,11 +198,6 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('dripCampaign')
         ->name('settings.messaging.drips.update');
 
-    /*
-    |--------------------------------------------------------------------------
-    | ✅ SETTINGS -> MESSAGING -> DRIP CAMPAIGNS -> STEPS (Step Builder)
-    |--------------------------------------------------------------------------
-    */
     Route::get('/settings/messaging/drips/{dripCampaign}/steps', [DripCampaignController::class, 'steps'])
         ->whereNumber('dripCampaign')
         ->name('settings.messaging.drips.steps');
@@ -226,11 +216,6 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('dripStep')
         ->name('settings.messaging.drips.steps.destroy');
 
-    /*
-    |--------------------------------------------------------------------------
-    | ✅ DRIPS: Enrollment endpoints (single + bulk)
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('drips')->group(function () {
         Route::post('/enroll', [EnrollmentController::class, 'enroll'])
             ->name('drips.enroll');
@@ -265,27 +250,30 @@ Route::middleware('auth')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | ✅ ATTACHMENTS (Contacts / Book / Service)
+    | ✅ CONTACT ATTACHMENTS
     |--------------------------------------------------------------------------
-    | Option A: Attachments belong to the Contact record.
-    | Book + Service are just views of the same Contact, so files appear everywhere.
-    |
-    | Upload is a standard form submit (Option 1).
+    | Attachments are for Contacts + Book + Service (same Contact record).
+    | Leads: not used (UI won't show it there).
     */
-    Route::post('/contacts/{contact}/attachments', [ContactAttachmentController::class, 'store'])
-        ->name('contacts.attachments.store');
+    Route::prefix('contacts/{contact}')->group(function () {
+        Route::get('/attachments', [ContactAttachmentController::class, 'index'])
+            ->name('contacts.attachments.index');
 
-    Route::get('/attachments/{attachment}', [ContactAttachmentController::class, 'show'])
-        ->whereNumber('attachment')
-        ->name('attachments.show');
+        Route::post('/attachments', [ContactAttachmentController::class, 'store'])
+            ->name('contacts.attachments.store');
 
-    Route::get('/attachments/{attachment}/download', [ContactAttachmentController::class, 'download'])
-        ->whereNumber('attachment')
-        ->name('attachments.download');
+        Route::get('/attachments/{attachment}', [ContactAttachmentController::class, 'show'])
+            ->whereNumber('attachment')
+            ->name('contacts.attachments.show');
 
-    Route::delete('/attachments/{attachment}', [ContactAttachmentController::class, 'destroy'])
-        ->whereNumber('attachment')
-        ->name('attachments.destroy');
+        Route::get('/attachments/{attachment}/download', [ContactAttachmentController::class, 'download'])
+            ->whereNumber('attachment')
+            ->name('contacts.attachments.download');
+
+        Route::delete('/attachments/{attachment}', [ContactAttachmentController::class, 'destroy'])
+            ->whereNumber('attachment')
+            ->name('contacts.attachments.destroy');
+    });
 
     /*
     |--------------------------------------------------------------------------
