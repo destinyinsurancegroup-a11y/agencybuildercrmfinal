@@ -1,157 +1,108 @@
 {{-- resources/views/partials/attachments_strip.blade.php --}}
-
 @php
-    /** @var \App\Models\Contact $contact */
-    $attachments = $contact->attachments()->latest()->get();
-    $returnTo = request()->fullUrl();
+    $c = $contact ?? $client ?? null;
+    if (!$c) { return; }
 
-    $iconFor = function ($a) {
-        if (method_exists($a, 'isPdf') && $a->isPdf()) return '📄';
-        if (method_exists($a, 'isImage') && $a->isImage()) return '🖼️';
-
-        $m = strtolower((string) ($a->mime_type ?? ''));
-        if (str_contains($m, 'spreadsheet') || str_contains($m, 'excel')) return '📊';
-        if (str_contains($m, 'word')) return '📝';
-
-        return '📎';
-    };
+    $attachments = $c->attachments()->latest()->get();
+    $isLead = strtolower((string) ($c->contact_type ?? '')) === 'lead';
+    $returnTo = url()->current();
 @endphp
 
-<style>
-    .ab-attach-row{
-        display:flex;
-        align-items:center;
-        gap:10px;
-        margin-top:10px;
-        flex-wrap:wrap;
-    }
-    .ab-paperclip{
-        width:30px;
-        height:30px;
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        border:1px solid #e5e7eb;
-        border-radius:8px;
-        background:#fff;
-        cursor:pointer;
-        box-shadow:0 2px 6px rgba(0,0,0,0.06);
-        flex:0 0 auto;
-    }
-    .ab-paperclip:hover{ background:#f9fafb; }
+<div class="mt-2 d-flex align-items-center flex-wrap gap-2" style="min-height:32px;">
 
-    .ab-attach-label{
-        font-weight:700;
-        color:#111827;
-        font-size:13px;
-        margin-right:2px;
-        flex:0 0 auto;
-    }
+    {{-- Paperclip upload trigger --}}
+    @if(!$isLead)
+        <form id="attach-form-{{ (int) $c->id }}"
+              method="POST"
+              action="{{ route('contacts.attachments.store', $c->id) }}"
+              enctype="multipart/form-data"
+              style="display:inline;">
+            @csrf
+            <input type="hidden" name="return_to" value="{{ $returnTo }}">
 
-    .ab-file-pill{
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-        border:1px solid #e5e7eb;
-        background:#fff;
-        border-radius:10px;
-        padding:6px 10px;
-        font-size:12px;
-        color:#111827;
-        box-shadow:0 2px 6px rgba(0,0,0,0.06);
-        max-width:280px;
-    }
-    .ab-file-pill a{
-        color:#111827;
-        text-decoration:none;
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
-        max-width:190px;
-        display:inline-block;
-    }
-    .ab-file-pill a:hover{ text-decoration:underline; }
+            <input id="attach-input-{{ (int) $c->id }}"
+                   type="file"
+                   name="files[]"
+                   multiple
+                   style="display:none;"
+                   onchange="(function(){
+                        const f = document.getElementById('attach-form-{{ (int) $c->id }}');
+                        const inp = document.getElementById('attach-input-{{ (int) $c->id }}');
+                        if(!f || !inp || !inp.files || inp.files.length === 0) return;
+                        f.submit();
+                   })();"
+            >
 
-    .ab-file-actions{
-        display:inline-flex;
-        align-items:center;
-        gap:6px;
-        margin-left:2px;
-        flex:0 0 auto;
-    }
+            <button type="button"
+                    title="Attach files"
+                    onclick="document.getElementById('attach-input-{{ (int) $c->id }}').click();"
+                    style="
+                        display:inline-flex;align-items:center;justify-content:center;
+                        width:32px;height:32px;border-radius:8px;
+                        border:1px solid #e5e7eb;background:#fff;
+                        box-shadow:0 2px 6px rgba(0,0,0,0.06);padding:0;
+                    ">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#6b7280" viewBox="0 0 16 16">
+                    <path d="M4.5 8.5l5.147-5.146a2.5 2.5 0 113.536 3.536l-6.2 6.2a3.5 3.5 0 01-4.95-4.95l6.2-6.2.708.707-6.2 6.2a2.5 2.5 0 103.536 3.536l6.2-6.2a1.5 1.5 0 10-2.122-2.122L5.207 9.207l-.707-.707z"/>
+                </svg>
+            </button>
+        </form>
 
-    /* Visible delete “x” that stays clean */
-    .ab-del-btn{
-        border:0;
-        background:transparent;
-        cursor:pointer;
-        color:#6b7280;
-        font-size:16px;
-        line-height:1;
-        padding:0 2px;
-    }
-    .ab-del-btn:hover{ color:#111827; }
-
-    .ab-muted{ color:#6b7280; font-size:12px; }
-</style>
-
-<div class="ab-attach-row">
-
-    {{-- Paperclip opens file picker --}}
-    <button type="button"
-            class="ab-paperclip"
-            title="Attach files"
-            onclick="document.getElementById('abAttachInput-{{ (int) $contact->id }}')?.click();">
-        📎
-    </button>
-
-    <div class="ab-attach-label">Attach files:</div>
-
-    {{-- Hidden upload form --}}
-    <form method="POST"
-          action="{{ route('contacts.attachments.store', $contact) }}"
-          enctype="multipart/form-data"
-          style="display:none;">
-        @csrf
-        <input id="abAttachInput-{{ (int) $contact->id }}"
-               type="file"
-               name="files[]"
-               multiple
-               onchange="this.form.submit();">
-        <input type="hidden" name="return_to" value="{{ $returnTo }}">
-    </form>
-
-    {{-- Existing files --}}
-    @if($attachments->isEmpty())
-        <div class="ab-muted">No files yet</div>
+        <div class="ms-1 fw-semibold" style="font-size:13px; color:#111827;">
+            Attach files:
+        </div>
     @else
-        @foreach($attachments->take(3) as $a)
-            <div class="ab-file-pill" title="{{ $a->original_name }}">
-                <span>{{ $iconFor($a) }}</span>
-
-                {{-- ✅ Use DOWNLOAD route to avoid inline show() 404 issues --}}
-                <a href="{{ route('attachments.download', $a) }}">
-                    {{ method_exists($a, 'safeDisplayName') ? $a->safeDisplayName(26) : ($a->original_name ?? 'File') }}
-                </a>
-
-                <div class="ab-file-actions">
-                    {{-- ✅ DELETE --}}
-                    <form method="POST"
-                          action="{{ route('attachments.destroy', $a) }}"
-                          style="display:inline;"
-                          onsubmit="return confirm('Delete this file?');">
-                        @csrf
-                        @method('DELETE')
-                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
-                        <button type="submit" class="ab-del-btn" title="Delete">✕</button>
-                    </form>
-                </div>
-            </div>
-        @endforeach
-
-        @if($attachments->count() > 3)
-            <div class="ab-muted">+{{ $attachments->count() - 3 }}</div>
-        @endif
+        <div class="ms-1 text-muted small">Attachments disabled for leads.</div>
     @endif
 
+    {{-- Existing attachments as “pills” --}}
+    @if($attachments->isEmpty())
+        <div class="text-muted small ms-2">No files yet</div>
+    @else
+        @foreach($attachments as $a)
+            @php
+                $name = method_exists($a, 'safeDisplayName') ? $a->safeDisplayName(22) : ($a->original_name ?? 'file');
+                $full = $a->original_name ?? $a->stored_name ?? 'file';
+                $viewUrl = route('attachments.show', $a->id);
+            @endphp
+
+            <span class="d-inline-flex align-items-center"
+                  style="
+                    border:1px solid #e5e7eb;background:#fff;border-radius:10px;
+                    padding:5px 8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
+                    gap:8px;
+                  ">
+
+                <a href="{{ $viewUrl }}"
+                   target="_blank"
+                   rel="noopener"
+                   title="{{ $full }}"
+                   style="font-size:13px; text-decoration:none;">
+                    {{ $name }}
+                </a>
+
+                {{-- ✅ DELETE “×” --}}
+                <form method="POST"
+                      action="{{ route('attachments.destroy', $a->id) }}"
+                      style="display:inline; margin:0;"
+                      onsubmit="return confirm('Delete this file?');">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="return_to" value="{{ $returnTo }}">
+
+                    <button type="submit"
+                            title="Delete"
+                            style="
+                                border:0;background:transparent;
+                                color:#9ca3af;font-weight:700;
+                                line-height:1;padding:0 2px;cursor:pointer;
+                            "
+                            onmouseover="this.style.color='#ef4444'"
+                            onmouseout="this.style.color='#9ca3af'">
+                        ×
+                    </button>
+                </form>
+            </span>
+        @endforeach
+    @endif
 </div>
