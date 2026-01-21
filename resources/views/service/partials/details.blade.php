@@ -71,6 +71,9 @@
                     </button>
                 </div>
 
+                {{-- ✅ Attachments strip (top-left, unassuming) --}}
+                @include('partials.attachments_strip', ['contact' => $client])
+
                 {{-- CURRENT SERVICE STATUS BADGE (if any) --}}
                 @if($client->service_status || $client->service_archived_at)
                     <div class="mb-2 mt-2">
@@ -247,9 +250,7 @@
 
     </div> {{-- end card --}}
 
-    {{-- =========================
-         STAND-ALONE NOTES
-       ========================= --}}
+    {{-- STAND-ALONE NOTES --}}
     <div id="service-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
