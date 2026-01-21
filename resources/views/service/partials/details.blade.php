@@ -75,7 +75,7 @@
                     </button>
                 </div>
 
-                {{-- ✅ APPROVED DESIGN: Paperclip + Attach files + chips --}}
+                {{-- ✅ APPROVED DESIGN: Paperclip + Attach files + chips (+ delete) --}}
                 <div class="ab-attach-row">
                     <button type="button"
                             class="ab-attach-clip"
@@ -102,25 +102,50 @@
                                     $isImg = $a->isImage();
                                 @endphp
 
-                                <a class="ab-file-chip"
-                                   href="{{ route('attachments.show', $a->id) }}"
-                                   target="_blank"
-                                   title="{{ $a->original_name }}">
-                                    <span class="ab-file-icon">
-                                        @if($isPdf)
-                                            📄
-                                        @elseif($isImg)
-                                            🖼️
-                                        @elseif(in_array($ext, ['xls','xlsx','csv']))
-                                            📊
-                                        @elseif(in_array($ext, ['doc','docx']))
-                                            📝
-                                        @else
-                                            📎
-                                        @endif
-                                    </span>
-                                    <span>{{ $name }}</span>
-                                </a>
+                                <span class="ab-file-chip-wrap" style="display:inline-flex; align-items:center; gap:6px;">
+                                    <a class="ab-file-chip"
+                                       href="{{ route('attachments.show', $a->id) }}"
+                                       target="_blank"
+                                       title="{{ $a->original_name }}">
+                                        <span class="ab-file-icon">
+                                            @if($isPdf)
+                                                📄
+                                            @elseif($isImg)
+                                                🖼️
+                                            @elseif(in_array($ext, ['xls','xlsx','csv']))
+                                                📊
+                                            @elseif(in_array($ext, ['doc','docx']))
+                                                📝
+                                            @else
+                                                📎
+                                            @endif
+                                        </span>
+                                        <span>{{ $name }}</span>
+                                    </a>
+
+                                    {{-- ✅ Delete (small X) --}}
+                                    <form method="POST"
+                                          action="{{ route('attachments.destroy', $a->id) }}"
+                                          style="display:inline;"
+                                          onsubmit="return confirm('Delete this file?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                                        <button type="submit"
+                                                title="Delete file"
+                                                aria-label="Delete file"
+                                                style="
+                                                    border:0;
+                                                    background:transparent;
+                                                    color:#b91c1c;
+                                                    font-weight:800;
+                                                    line-height:1;
+                                                    font-size:14px;
+                                                    padding:0 2px;
+                                                    cursor:pointer;
+                                                ">×</button>
+                                    </form>
+                                </span>
                             @endforeach
 
                             @if($attachments->count() > $chipLimit)
