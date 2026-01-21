@@ -1,9 +1,96 @@
 {{-- resources/views/contacts/partials/details.blade.php --}}
 
+<style>
+    /* ===== Attachments row (Contacts) — matches Book ===== */
+    .ab-attach-row{
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .ab-attach-clip{
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        cursor: pointer;
+    }
+    .ab-attach-label{
+        font-size: 13px;
+        font-weight: 700;
+        color: #111827;
+        margin-left: 2px;
+    }
+    .ab-attach-chips{
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-height: 32px;
+    }
+    .ab-file-empty{ font-size: 12px; color:#6b7280; }
+    .ab-file-more{ font-size: 13px; color:#6b7280; padding-left: 4px; }
+
+    /* chip container so we can place a delete button beside it */
+    .ab-chip-wrap{
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .ab-file-chip{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: #1f2937;
+        font-size: 13px;
+        line-height: 1;
+        max-width: 220px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ab-file-icon{ opacity: 0.9; }
+
+    /* ✅ delete button */
+    .ab-file-del{
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        border: 1px solid #ef4444;
+        background: #ef4444;
+        color: #fff;
+        font-weight: 900;
+        line-height: 18px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .ab-file-del:hover{ filter: brightness(0.95); }
+</style>
+
 @php
     $contactName = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+
     $attachments = $contact->attachments()->latest()->get();
-    $chipLimit = 3;
+    $chipLimit   = 3;
+
+    // ✅ critical: return back to the exact same page
+    $returnTo = request()->fullUrl();
 @endphp
 
 <div class="card shadow-sm border-0"
@@ -57,14 +144,13 @@
                 </button>
             </div>
 
-            {{-- ✅ Attach files row (paperclip + chips + delete) --}}
+            {{-- ✅ Attach files row (paperclip + chips + DELETE) --}}
             @if(strtolower((string) $contact->contact_type) !== 'lead')
                 <div class="ab-attach-row">
                     <button type="button"
                             class="ab-attach-clip"
                             title="Attach files"
                             onclick="ABAttachments.open({{ (int) $contact->id }})">
-                        {{-- paperclip icon (inline svg) --}}
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="M8 12.5l7.1-7.1a4 4 0 015.7 5.7l-8.5 8.5a6 6 0 01-8.5-8.5l8.3-8.3"
                                   stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -79,17 +165,21 @@
                         @else
                             @foreach($attachments->take($chipLimit) as $a)
                                 @php
-                                    $name = $a->safeDisplayName(18);
-                                    $ext  = strtolower(pathinfo($a->original_name ?? $a->stored_name, PATHINFO_EXTENSION));
-                                    $isPdf = $a->isPdf();
-                                    $isImg = $a->isImage();
+                                    $name = method_exists($a, 'safeDisplayName')
+                                        ? $a->safeDisplayName(18)
+                                        : (\Illuminate\Support\Str::limit(($a->original_name ?? $a->stored_name ?? 'file'), 18));
+
+                                    $ext  = strtolower(pathinfo($a->original_name ?? $a->stored_name ?? '', PATHINFO_EXTENSION));
+                                    $isPdf = method_exists($a, 'isPdf') ? $a->isPdf() : ($a->mime_type === 'application/pdf');
+                                    $isImg = method_exists($a, 'isImage') ? $a->isImage() : (str_starts_with(strtolower((string)$a->mime_type), 'image/'));
                                 @endphp
 
-                                <span class="ab-file-chip-wrap" style="display:inline-flex; align-items:center; gap:6px;">
+                                <div class="ab-chip-wrap">
                                     <a class="ab-file-chip"
                                        href="{{ route('attachments.show', $a->id) }}"
                                        target="_blank"
-                                       title="{{ $a->original_name }}">
+                                       rel="noopener"
+                                       title="{{ $a->original_name ?? $a->stored_name }}">
                                         <span class="ab-file-icon">
                                             @if($isPdf)
                                                 📄
@@ -106,29 +196,17 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ Delete (small X) --}}
+                                    {{-- ✅ DELETE BUTTON --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
-                                          style="display:inline;"
+                                          style="margin:0;"
                                           onsubmit="return confirm('Delete this file?');">
                                         @csrf
                                         @method('DELETE')
-                                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                                        <button type="submit"
-                                                title="Delete file"
-                                                aria-label="Delete file"
-                                                style="
-                                                    border:0;
-                                                    background:transparent;
-                                                    color:#b91c1c;
-                                                    font-weight:800;
-                                                    line-height:1;
-                                                    font-size:14px;
-                                                    padding:0 2px;
-                                                    cursor:pointer;
-                                                ">×</button>
+                                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
+                                        <button type="submit" class="ab-file-del" title="Delete">×</button>
                                     </form>
-                                </span>
+                                </div>
                             @endforeach
 
                             @if($attachments->count() > $chipLimit)
@@ -144,7 +222,7 @@
                           enctype="multipart/form-data"
                           style="display:none;">
                         @csrf
-                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
                         <input id="ab-attach-input-{{ (int) $contact->id }}"
                                type="file"
                                name="files[]"
