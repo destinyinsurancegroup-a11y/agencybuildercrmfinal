@@ -57,7 +57,7 @@
                 </button>
             </div>
 
-            {{-- ✅ Attach files row (paperclip + chips) --}}
+            {{-- ✅ Attach files row (paperclip + chips + delete) --}}
             @if(strtolower((string) $contact->contact_type) !== 'lead')
                 <div class="ab-attach-row">
                     <button type="button"
@@ -65,7 +65,7 @@
                             title="Attach files"
                             onclick="ABAttachments.open({{ (int) $contact->id }})">
                         {{-- paperclip icon (inline svg) --}}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="M8 12.5l7.1-7.1a4 4 0 015.7 5.7l-8.5 8.5a6 6 0 01-8.5-8.5l8.3-8.3"
                                   stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
@@ -85,25 +85,50 @@
                                     $isImg = $a->isImage();
                                 @endphp
 
-                                <a class="ab-file-chip"
-                                   href="{{ route('attachments.show', $a->id) }}"
-                                   target="_blank"
-                                   title="{{ $a->original_name }}">
-                                    <span class="ab-file-icon">
-                                        @if($isPdf)
-                                            📄
-                                        @elseif($isImg)
-                                            🖼️
-                                        @elseif(in_array($ext, ['xls','xlsx','csv']))
-                                            📊
-                                        @elseif(in_array($ext, ['doc','docx']))
-                                            📝
-                                        @else
-                                            📎
-                                        @endif
-                                    </span>
-                                    <span>{{ $name }}</span>
-                                </a>
+                                <span class="ab-file-chip-wrap" style="display:inline-flex; align-items:center; gap:6px;">
+                                    <a class="ab-file-chip"
+                                       href="{{ route('attachments.show', $a->id) }}"
+                                       target="_blank"
+                                       title="{{ $a->original_name }}">
+                                        <span class="ab-file-icon">
+                                            @if($isPdf)
+                                                📄
+                                            @elseif($isImg)
+                                                🖼️
+                                            @elseif(in_array($ext, ['xls','xlsx','csv']))
+                                                📊
+                                            @elseif(in_array($ext, ['doc','docx']))
+                                                📝
+                                            @else
+                                                📎
+                                            @endif
+                                        </span>
+                                        <span>{{ $name }}</span>
+                                    </a>
+
+                                    {{-- ✅ Delete (small X) --}}
+                                    <form method="POST"
+                                          action="{{ route('attachments.destroy', $a->id) }}"
+                                          style="display:inline;"
+                                          onsubmit="return confirm('Delete this file?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                                        <button type="submit"
+                                                title="Delete file"
+                                                aria-label="Delete file"
+                                                style="
+                                                    border:0;
+                                                    background:transparent;
+                                                    color:#b91c1c;
+                                                    font-weight:800;
+                                                    line-height:1;
+                                                    font-size:14px;
+                                                    padding:0 2px;
+                                                    cursor:pointer;
+                                                ">×</button>
+                                    </form>
+                                </span>
                             @endforeach
 
                             @if($attachments->count() > $chipLimit)
