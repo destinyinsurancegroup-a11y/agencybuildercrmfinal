@@ -55,6 +55,9 @@
                 </button>
             </div>
 
+            {{-- ✅ Attachments strip (top-left, unassuming) --}}
+            @include('partials.attachments_strip', ['contact' => $contact])
+
             {{-- 🚫 REMOVED CONTACT ID --}}
             {{-- <div style="font-size:13px; color:#6b7280; margin-top:4px;">
                 Contact ID: {{ $contact->id }}
