@@ -116,28 +116,24 @@
 @php
     $clientName = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
 
-    // ✅ Attachments (shared with Contacts + Book because it's the same contacts table)
     $attachments = $client->attachments()->latest()->get();
     $chipLimit   = 3;
 
-    /**
-     * ✅ Keep your working redirect target (prevents 404 when requests are not iframe)
-     */
+    // keep your working redirect target (prevents 404 when not in iframe)
     $returnTo = route('service.index', ['open' => $client->id]);
 
-    /**
-     * ✅ Panel refresh URL (reload this card without closing it)
-     * If your card loads from service.show, this is correct.
-     */
-    $refreshPanelUrl = route('service.show', $client->id);
+    // ✅ INSTANT UPDATE FIX:
+    // Fetch this URL after upload/delete to re-render only the attachments row.
+    $refreshUrl = route('service.show', $client->id);
 
-    /**
-     * ✅ Unique iframe name per client (avoid collisions if multiple panels exist)
-     */
+    // hidden iframe target name (unique per client)
     $iframeName = 'abAttachFrameService_' . (int) $client->id;
+
+    // stable DOM id so we can replace the row in-place
+    $rowId = 'ab-attach-row-service-' . (int) $client->id;
 @endphp
 
-{{-- ✅ Hidden iframe target: forms submit here so the MAIN PAGE DOES NOT NAVIGATE --}}
+{{-- ✅ Hidden iframe: keeps card open (no navigation) --}}
 <iframe
     name="{{ $iframeName }}"
     src="about:blank"
@@ -145,9 +141,19 @@
     onload="
         if (window.__abAttachPendingService{{ (int) $client->id }}) {
             window.__abAttachPendingService{{ (int) $client->id }} = false;
-            if (typeof window.loadServicePanel === 'function') {
-                window.loadServicePanel(@json($refreshPanelUrl));
-            }
+            try {
+                fetch(@json($refreshUrl), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, 'text/html');
+                        var fresh = doc.getElementById(@json($rowId));
+                        var current = document.getElementById(@json($rowId));
+                        if (fresh && current) {
+                            current.outerHTML = fresh.outerHTML;
+                        }
+                    });
+            } catch (e) {}
         }
     "
 ></iframe>
@@ -189,11 +195,12 @@
                 </div>
 
                 {{-- ✅ APPROVED DESIGN: Paperclip + Attach files + chips + DELETE --}}
-                <div class="ab-attach-row">
+                {{-- ✅ INSTANT UPDATE FIX: give this row a stable id --}}
+                <div class="ab-attach-row" id="{{ $rowId }}">
                     <button type="button"
                             class="ab-attach-clip"
                             title="Attach files"
-                            onclick="if(window.ABAttachments && typeof window.ABAttachments.open==='function'){ABAttachments.open({{ (int) $client->id }});} else { document.getElementById('ab-attach-input-{{ (int) $client->id }}').click(); }">
+                            onclick="ABAttachments.open({{ (int) $client->id }})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="M8 12.5l7.1-7.1a4 4 0 015.7 5.7l-8.5 8.5a6 6 0 01-8.5-8.5l8.3-8.3"
                                   stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -239,7 +246,7 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ DELETE BUTTON (submits to iframe so card stays open) --}}
+                                    {{-- ✅ DELETE BUTTON (submit to iframe + trigger instant refresh) --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
                                           target="{{ $iframeName }}"
@@ -259,7 +266,7 @@
                         @endif
                     </div>
 
-                    {{-- ✅ Hidden upload form (submits to iframe so card stays open) --}}
+                    {{-- ✅ Hidden upload form (submit to iframe + trigger instant refresh) --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
@@ -272,7 +279,7 @@
                                type="file"
                                name="files[]"
                                multiple
-                               onchange="window.__abAttachPendingService{{ (int) $client->id }}=true; this.form.submit();">
+                               onchange="window.__abAttachPendingService{{ (int) $client->id }}=true; this.form.submit(); this.value='';">
                     </form>
                 </div>
 
