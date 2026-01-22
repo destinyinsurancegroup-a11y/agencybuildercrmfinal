@@ -461,10 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!el.files || el.files.length === 0) return;
 
             try {
-                const fd = new FormData(form);
-                // Ensure chosen files are included (some browsers require explicit set)
-                // form already includes files[] but this keeps it safe:
-                for (const f of el.files) fd.append('files[]', f);
+                const fd = new FormData(form); // ✅ includes files[] already — DO NOT append again
 
                 const resp = await fetch(form.action, {
                     method: 'POST',
@@ -476,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: fd,
                 });
 
-                // Whether controller returns redirect HTML or not, refresh the open panel.
                 if (!resp.ok) throw new Error('Upload failed');
                 if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
 
@@ -505,9 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
 
-            // keep your confirm() behavior:
-            // if user cancelled, browser would not submit; we must emulate that:
-            // Note: your form already had onsubmit confirm; but since we intercept, run confirm here too.
+            // keep confirm behavior
             if (!confirm('Delete this file?')) return;
 
             try {
