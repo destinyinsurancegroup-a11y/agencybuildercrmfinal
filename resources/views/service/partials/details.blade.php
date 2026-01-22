@@ -1,3 +1,5 @@
+{{-- resources/views/service/partials/details.blade.php --}}
+
 <style>
     .card.p-4 { padding: 1.25rem !important; }
     h4.text-gold { margin-top: 0.5rem !important; margin-bottom: 0.5rem !important; }
@@ -114,14 +116,15 @@
 @php
     $clientName = $client->full_name ?? trim(($client->first_name ?? '') . ' ' . ($client->last_name ?? ''));
 
+    // ✅ Attachments (shared with Contacts + Book because it's the same contacts table)
     $attachments = $client->attachments()->latest()->get();
     $chipLimit   = 3;
 
-    // keep this as-is (works for you)
-    $returnTo = route('service.index', ['open' => $client->id]);
+    // IMPORTANT: keep return_to as the current panel URL (so server redirects never dump you elsewhere)
+    $returnTo = request()->fullUrl();
 
-    // ✅ We'll refresh the panel using your existing right-panel loader
-    $refreshUrl = route('service.show', $client->id);
+    // We will re-load THIS exact panel after upload/delete (keeps card open + updates instantly)
+    $panelRefreshUrl = $returnTo;
 @endphp
 
 <div class="p-4">
@@ -211,12 +214,11 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ DELETE BUTTON --}}
+                                    {{-- ✅ DELETE BUTTON (now AJAX + refreshes card) --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
                                           class="ab-attach-delete"
-                                          style="margin:0;"
-                                          onsubmit="return confirm('Delete this file?');">
+                                          style="margin:0;">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
@@ -231,7 +233,7 @@
                         @endif
                     </div>
 
-                    {{-- ✅ Hidden upload form --}}
+                    {{-- ✅ Hidden upload form: selecting files auto-submits (now AJAX + refreshes card) --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
@@ -242,8 +244,8 @@
                         <input id="ab-attach-input-{{ (int) $client->id }}"
                                type="file"
                                name="files[]"
-                               multiple>
-                        {{-- ✅ removed inline onchange submit (prevents closing) --}}
+                               multiple
+                               onchange="ABAttachments.submitIfSelected({{ (int) $client->id }})">
                     </form>
                 </div>
 
@@ -268,7 +270,7 @@
                     </div>
                 @endif
 
-                <!-- ACTION BUTTONS -->
+                <!-- ACTION BUTTONS (REORDERED: Saved, Follow Up, Not Interested) -->
                 <div class="d-flex flex-wrap gap-2">
                     @if(is_null($client->service_archived_at))
                         <form action="{{ route('service.saved', $client->id) }}"
@@ -468,76 +470,87 @@
 
 </div>
 
-{{-- ✅ ONLY NEW SCRIPT: keep card open for upload/delete --}}
+{{-- =========================================================
+   ✅ ONLY PURPOSE OF THIS SCRIPT:
+   - Make paperclip open file picker (even if ABAttachments isn't loaded)
+   - Upload via fetch, then reload THIS service card in-place (no closing)
+   - Delete via fetch, then reload THIS service card in-place (no closing)
+   NOTHING ELSE.
+========================================================= --}}
 <script>
 (function () {
-    const clientId = {{ (int) $client->id }};
     const csrf = @json(csrf_token());
-    const refreshUrl = @json($refreshUrl);
+    const refreshUrl = @json($panelRefreshUrl);
 
-    function refreshPanel() {
-        if (typeof loadServicePanel === 'function') {
-            loadServicePanel(refreshUrl);
+    function refreshCard() {
+        // This keeps the panel open and redraws it with updated attachments.
+        if (typeof window.loadServicePanel === 'function') {
+            window.loadServicePanel(refreshUrl);
         } else {
-            // last resort (should not happen in your app)
+            // fallback (shouldn't happen in your UIP setup)
             window.location.href = refreshUrl;
         }
     }
 
-    // UPLOAD via fetch (prevents full-page navigation)
-    const form = document.getElementById('ab-attach-form-' + clientId);
-    const input = document.getElementById('ab-attach-input-' + clientId);
+    // Ensure ABAttachments exists and works on Service
+    if (!window.ABAttachments) window.ABAttachments = {};
 
-    if (form && input) {
-        input.addEventListener('change', async function () {
-            if (!input.files || input.files.length === 0) return;
+    // Click paperclip -> open file picker
+    window.ABAttachments.open = function (contactId) {
+        const input = document.getElementById('ab-attach-input-' + contactId);
+        if (input) input.click();
+    };
 
-            const fd = new FormData(form);
+    // After selecting files -> upload via fetch -> refresh card
+    window.ABAttachments.submitIfSelected = async function (contactId) {
+        const form  = document.getElementById('ab-attach-form-' + contactId);
+        const input = document.getElementById('ab-attach-input-' + contactId);
+        if (!form || !input) return;
 
-            // ensure all selected files are included
-            // (FormData(form) may not include them reliably in some setups)
-            fd.delete('files[]');
-            for (const f of input.files) fd.append('files[]', f);
+        if (!input.files || input.files.length === 0) return;
 
-            try {
-                const res = await fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: fd
-                });
+        const fd = new FormData(form);
 
-                // reset so same file can be selected again
-                input.value = '';
+        try {
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: fd
+            });
 
-                if (!res.ok) {
-                    alert('Upload failed.');
-                    return;
-                }
+            // reset so user can select same file again later
+            input.value = '';
 
-                refreshPanel();
-            } catch (e) {
-                input.value = '';
+            if (!res.ok) {
                 alert('Upload failed.');
+                return;
             }
-        });
-    }
 
-    // DELETE via fetch (prevents full-page navigation)
-    document.querySelectorAll('form.ab-attach-delete').forEach(function (delForm) {
-        delForm.addEventListener('submit', async function (e) {
+            refreshCard();
+        } catch (e) {
+            input.value = '';
+            alert('Upload failed.');
+        }
+    };
+
+    // Intercept delete forms -> fetch -> refresh card
+    document.querySelectorAll('form.ab-attach-delete').forEach(function (f) {
+        if (f.dataset.bound === '1') return;
+        f.dataset.bound = '1';
+
+        f.addEventListener('submit', async function (e) {
             e.preventDefault();
 
-            // keep your confirm() behavior
             if (!confirm('Delete this file?')) return;
 
-            const fd = new FormData(delForm);
+            const fd = new FormData(f); // includes _method=DELETE
 
             try {
-                const res = await fetch(delForm.action, {
-                    method: 'POST', // Laravel spoofed DELETE
+                const res = await fetch(f.action, {
+                    method: 'POST', // Laravel method spoofing uses POST + _method
                     headers: {
                         'X-CSRF-TOKEN': csrf,
                         'X-Requested-With': 'XMLHttpRequest'
@@ -550,8 +563,8 @@
                     return;
                 }
 
-                refreshPanel();
-            } catch (e2) {
+                refreshCard();
+            } catch (err) {
                 alert('Delete failed.');
             }
         });
@@ -560,3 +573,4 @@
 </script>
 
 {{-- keep your existing notes JS below (unchanged) --}}
+
