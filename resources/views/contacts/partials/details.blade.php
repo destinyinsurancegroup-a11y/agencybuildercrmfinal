@@ -1,7 +1,7 @@
 {{-- resources/views/contacts/partials/details.blade.php --}}
 
 <style>
-    /* ===== Attachments row (Contacts) — matches Book ===== */
+    /* ===== Attachments row (same as Book) ===== */
     .ab-attach-row{
         margin-top: 10px;
         display: flex;
@@ -38,7 +38,6 @@
     .ab-file-empty{ font-size: 12px; color:#6b7280; }
     .ab-file-more{ font-size: 13px; color:#6b7280; padding-left: 4px; }
 
-    /* chip container so we can place a delete button beside it */
     .ab-chip-wrap{
         display: inline-flex;
         align-items: center;
@@ -64,7 +63,6 @@
     }
     .ab-file-icon{ opacity: 0.9; }
 
-    /* ✅ delete button */
     .ab-file-del{
         width: 20px;
         height: 20px;
@@ -85,11 +83,10 @@
 
 @php
     $contactName = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
-
     $attachments = $contact->attachments()->latest()->get();
     $chipLimit   = 3;
 
-    // ✅ critical: return back to the exact same page
+    // ✅ critical: always return to the exact URL that rendered this view
     $returnTo = request()->fullUrl();
 @endphp
 
@@ -98,11 +95,7 @@
 
     {{-- HEADER --}}
     <div class="d-flex justify-content-between align-items-center"
-         style="
-            padding:22px 28px;
-            border-radius:18px 18px 0 0;
-            border-bottom:1px solid #e5e7eb;
-         ">
+         style="padding:22px 28px; border-radius:18px 18px 0 0; border-bottom:1px solid #e5e7eb;">
 
         <div>
             <div style="font-size:34px; font-weight:800; color:#111827; line-height:1;">
@@ -215,7 +208,7 @@
                         @endif
                     </div>
 
-                    {{-- Hidden upload form --}}
+                    {{-- ✅ Hidden upload form (paperclip triggers file input) --}}
                     <form id="ab-attach-form-{{ (int) $contact->id }}"
                           action="{{ route('contacts.attachments.store', $contact->id) }}"
                           method="POST"
@@ -235,15 +228,7 @@
 
         <a href="{{ route('contacts.edit', $contact->id) }}"
            class="btn btn-sm"
-           style="
-                background:#c9a227;
-                color:#111827;
-                font-weight:700;
-                padding:8px 18px;
-                border-radius:10px;
-                text-transform:uppercase;
-                font-size:12px;
-            ">
+           style="background:#c9a227; color:#111827; font-weight:700; padding:8px 18px; border-radius:10px; text-transform:uppercase; font-size:12px;">
             Edit
         </a>
     </div>
@@ -270,8 +255,7 @@
 
             <div class="col-md-6 mb-3">
                 <label class="text-muted small fw-semibold">Status</label>
-                <span class="badge bg-secondary"
-                      style="font-size:12px; padding:6px 10px; border-radius:8px;">
+                <span class="badge bg-secondary" style="font-size:12px; padding:6px 10px; border-radius:8px;">
                     {{ $contact->status ?: '—' }}
                 </span>
             </div>
@@ -316,7 +300,6 @@
 
 {{-- NOTES --}}
 <div class="mt-4">
-
     <h5 class="fw-bold mb-3">Notes</h5>
 
     <form method="POST" action="{{ route('contacts.notes.store', $contact->id) }}">
@@ -337,22 +320,13 @@
 
         <button type="submit"
                 class="btn mt-3"
-                style="
-                    background:#c9a227;
-                    color:#111827;
-                    padding:8px 22px;
-                    border-radius:10px;
-                    font-size:13px;
-                    font-weight:700;
-                ">
+                style="background:#c9a227; color:#111827; padding:8px 22px; border-radius:10px; font-size:13px; font-weight:700;">
             Add Note
         </button>
     </form>
 
     <div class="mt-4">
-        @php
-            $notes = $contact->notes()->latest()->get();
-        @endphp
+        @php $notes = $contact->notes()->latest()->get(); @endphp
 
         @forelse($notes as $note)
             <div class="border rounded p-2 mb-2">
@@ -368,5 +342,4 @@
             <p class="text-muted small mb-0">No notes yet for this contact.</p>
         @endforelse
     </div>
-
 </div>
