@@ -121,20 +121,36 @@
     $chipLimit   = 3;
 
     /**
-     * ✅ KEEP YOUR WORKING BEHAVIOR:
-     * This avoids 404 after POST/DELETE, because controller redirects here.
+     * ✅ Keep your working redirect target (prevents 404 when requests are not iframe)
      */
     $returnTo = route('service.index', ['open' => $client->id]);
 
     /**
-     * ✅ NEW (ONLY FOR KEEPING CARD OPEN):
-     * When upload/delete succeeds, re-render the service details panel in-place.
-     * This is the URL your right panel should load for THIS client.
-     *
-     * If your panel loads details via service.show, this will work:
+     * ✅ Panel refresh URL (reload this card without closing it)
+     * If your card loads from service.show, this is correct.
      */
     $refreshPanelUrl = route('service.show', $client->id);
+
+    /**
+     * ✅ Unique iframe name per client (avoid collisions if multiple panels exist)
+     */
+    $iframeName = 'abAttachFrameService_' . (int) $client->id;
 @endphp
+
+{{-- ✅ Hidden iframe target: forms submit here so the MAIN PAGE DOES NOT NAVIGATE --}}
+<iframe
+    name="{{ $iframeName }}"
+    src="about:blank"
+    style="display:none;"
+    onload="
+        if (window.__abAttachPendingService{{ (int) $client->id }}) {
+            window.__abAttachPendingService{{ (int) $client->id }} = false;
+            if (typeof window.loadServicePanel === 'function') {
+                window.loadServicePanel(@json($refreshPanelUrl));
+            }
+        }
+    "
+></iframe>
 
 <div class="p-4">
     <div class="card shadow-sm border-0 p-4">
@@ -177,7 +193,7 @@
                     <button type="button"
                             class="ab-attach-clip"
                             title="Attach files"
-                            onclick="ABAttachments.open({{ (int) $client->id }})">
+                            onclick="if(window.ABAttachments && typeof window.ABAttachments.open==='function'){ABAttachments.open({{ (int) $client->id }});} else { document.getElementById('ab-attach-input-{{ (int) $client->id }}').click(); }">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="M8 12.5l7.1-7.1a4 4 0 015.7 5.7l-8.5 8.5a6 6 0 01-8.5-8.5l8.3-8.3"
                                   stroke="#c9a227" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -223,12 +239,12 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ DELETE BUTTON (unchanged server behavior) --}}
+                                    {{-- ✅ DELETE BUTTON (submits to iframe so card stays open) --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
+                                          target="{{ $iframeName }}"
                                           style="margin:0;"
-                                          class="ab-delete-form"
-                                          onsubmit="return confirm('Delete this file?');">
+                                          onsubmit="window.__abAttachPendingService{{ (int) $client->id }}=true; return confirm('Delete this file?');">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
@@ -243,11 +259,12 @@
                         @endif
                     </div>
 
-                    {{-- ✅ Hidden upload form: selecting files auto-submits (unchanged server behavior) --}}
+                    {{-- ✅ Hidden upload form (submits to iframe so card stays open) --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
                           enctype="multipart/form-data"
+                          target="{{ $iframeName }}"
                           style="display:none;">
                         @csrf
                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
@@ -255,7 +272,7 @@
                                type="file"
                                name="files[]"
                                multiple
-                               onchange="ABAttachments.submitIfSelected({{ (int) $client->id }})">
+                               onchange="window.__abAttachPendingService{{ (int) $client->id }}=true; this.form.submit();">
                     </form>
                 </div>
 
@@ -280,7 +297,7 @@
                     </div>
                 @endif
 
-                <!-- ACTION BUTTONS (REORDERED: Saved, Follow Up, Not Interested) -->
+                <!-- ACTION BUTTONS -->
                 <div class="d-flex flex-wrap gap-2">
                     @if(is_null($client->service_archived_at))
                         <form action="{{ route('service.saved', $client->id) }}"
@@ -479,109 +496,5 @@
     </div>
 
 </div>
-
-{{-- ==========================================================
-   ✅ ONLY ADDITION:
-   Intercept upload + delete so browser DOES NOT NAVIGATE.
-   - Upload still hits SAME route and still succeeds.
-   - Delete still hits SAME route and still succeeds.
-   Then we reload this same Service card in-place so it stays open.
-========================================================== --}}
-<script>
-(function () {
-    const refreshUrl = @json($refreshPanelUrl);
-    const csrf = @json(csrf_token());
-
-    function refreshServiceCardInPlace() {
-        if (typeof window.loadServicePanel === 'function') {
-            window.loadServicePanel(refreshUrl);
-        } else {
-            // fallback: if panel loader isn't present, just go to the correct page
-            window.location.href = @json($returnTo);
-        }
-    }
-
-    // Ensure ABAttachments exists (do not break your existing global)
-    window.ABAttachments = window.ABAttachments || {};
-
-    // Paperclip opens file picker (safe)
-    const clientId = {{ (int) $client->id }};
-    const fileInput = document.getElementById('ab-attach-input-' + clientId);
-    const uploadForm = document.getElementById('ab-attach-form-' + clientId);
-
-    window.ABAttachments.open = function (id) {
-        const input = document.getElementById('ab-attach-input-' + id);
-        if (input) input.click();
-    };
-
-    // Upload via fetch so the card doesn't close
-    window.ABAttachments.submitIfSelected = async function (id) {
-        const form = document.getElementById('ab-attach-form-' + id);
-        const input = document.getElementById('ab-attach-input-' + id);
-        if (!form || !input) return;
-        if (!input.files || input.files.length === 0) return;
-
-        const fd = new FormData(form);
-
-        try {
-            const res = await fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrf,
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: fd,
-                redirect: 'follow'
-            });
-
-            // reset so selecting same file again triggers change
-            input.value = '';
-
-            if (!res.ok) {
-                alert('Upload failed.');
-                return;
-            }
-
-            refreshServiceCardInPlace();
-        } catch (e) {
-            input.value = '';
-            alert('Upload failed.');
-        }
-    };
-
-    // Delete via fetch so the card doesn't close
-    document.querySelectorAll('form.ab-delete-form').forEach(function (form) {
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-
-            // keep your confirm behavior (your HTML already calls confirm, but we re-check safely)
-            if (!confirm('Delete this file?')) return;
-
-            const fd = new FormData(form); // contains _method=DELETE
-
-            try {
-                const res = await fetch(form.action, {
-                    method: 'POST', // method spoofing
-                    headers: {
-                        'X-CSRF-TOKEN': csrf,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: fd,
-                    redirect: 'follow'
-                });
-
-                if (!res.ok) {
-                    alert('Delete failed.');
-                    return;
-                }
-
-                refreshServiceCardInPlace();
-            } catch (err) {
-                alert('Delete failed.');
-            }
-        });
-    });
-})();
-</script>
 
 {{-- keep your existing notes JS below (unchanged) --}}
