@@ -160,7 +160,7 @@
 
     /* Optional: we build a selected list with phone numbers, but keep it hidden */
     .bulk-selected-list {
-        display: none; /* <- you said you don't need to see them */
+        display: none;
         border: 1px solid #e5e7eb;
         border-radius: 10px;
         padding: 10px;
@@ -285,7 +285,6 @@
                             data-id="{{ $client->id }}"
                             data-show-url="{{ route('service.show', $client->id) }}"
                         >
-                            {{-- ✅ Per-row checkbox (includes phone + name for bulk validation) --}}
                             <input type="checkbox"
                                    class="service-row-checkbox"
                                    data-id="{{ $client->id }}"
@@ -357,7 +356,7 @@
     </div>
 </div>
 
-{{-- ✅ BULK TEXT MODAL (Templates + phone tracking) --}}
+{{-- ✅ BULK TEXT MODAL --}}
 <div class="modal fade" id="serviceBulkTextModal" tabindex="-1">
     <div class="modal-dialog">
         <form class="modal-content" onsubmit="return false;">
@@ -372,7 +371,6 @@
                     <span class="ms-2">Valid phones: <strong><span id="service-bulk-valid-phones">0</span></strong></span>
                 </div>
 
-                {{-- ✅ Template selector --}}
                 <div class="mb-2">
                     <label class="form-label small text-muted mb-1">Template</label>
                     <select id="service-bulk-template" class="form-select">
@@ -383,7 +381,6 @@
                     </div>
                 </div>
 
-                {{-- (Hidden) selected list with phone numbers (built so validation is correct) --}}
                 <div id="service-bulk-selected-list" class="bulk-selected-list mb-2"></div>
 
                 <textarea id="service-bulk-body" class="form-control" rows="4" placeholder="Type message..."></textarea>
@@ -401,7 +398,6 @@
     </div>
 </div>
 
-{{-- ✅ REQUIRED for Service Text/Email: includes modals + ABMessaging global --}}
 @include('partials.messaging')
 
 @endsection
@@ -412,9 +408,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('service-details-container');
     const CSRF_TOKEN = @json(csrf_token());
 
+    // ✅ Track which panel is currently open so we can refresh it after upload/delete
+    window.__servicePanelUrl = window.__servicePanelUrl || null;
+
     /* ===== LOAD RIGHT PANEL ===== */
     window.loadServicePanel = function (url) {
         if (!container) return;
+
+        window.__servicePanelUrl = url; // ✅ remember current open card URL
 
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
@@ -434,6 +435,102 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             });
     };
+
+    // ============================================================
+    // ✅ CRITICAL FIX (INSTANT UPDATE + CARD STAYS OPEN)
+    // Intercept attachment UPLOAD and DELETE inside the right panel
+    // and run them via fetch(), then reload the panel in-place.
+    // ============================================================
+
+    // 1) Intercept file input change (prevents inline onchange form.submit navigation)
+    document.addEventListener('change', async (e) => {
+        const el = e.target;
+        if (!el) return;
+
+        // matches: <input id="ab-attach-input-123" type="file" ...>
+        if (el.matches('input[type="file"][id^="ab-attach-input-"]')) {
+            // stop the inline onchange handler from running (prevents navigation)
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+
+            const formId = el.id.replace('ab-attach-input-', 'ab-attach-form-');
+            const form = document.getElementById(formId);
+            if (!form) return;
+
+            if (!el.files || el.files.length === 0) return;
+
+            try {
+                const fd = new FormData(form);
+                // Ensure chosen files are included (some browsers require explicit set)
+                // form already includes files[] but this keeps it safe:
+                for (const f of el.files) fd.append('files[]', f);
+
+                const resp = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    },
+                    body: fd,
+                });
+
+                // Whether controller returns redirect HTML or not, refresh the open panel.
+                if (!resp.ok) throw new Error('Upload failed');
+                if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
+
+                // reset the input so selecting same file again still triggers change
+                el.value = '';
+            } catch (err) {
+                console.error(err);
+                alert('Upload failed.');
+            }
+        }
+    }, true); // ✅ capture phase so we beat inline handlers
+
+    // 2) Intercept delete form submit for attachments (the "x" button)
+    document.addEventListener('submit', async (e) => {
+        const form = e.target;
+        if (!form) return;
+
+        // delete forms in your chips are:
+        // action="/attachments/{id}" + hidden _method=DELETE
+        const methodSpoof = form.querySelector('input[name="_method"]');
+        const isDelete = methodSpoof && String(methodSpoof.value || '').toUpperCase() === 'DELETE';
+        const isAttachmentDelete = isDelete && (form.action || '').includes('/attachments/');
+
+        if (isAttachmentDelete) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+
+            // keep your confirm() behavior:
+            // if user cancelled, browser would not submit; we must emulate that:
+            // Note: your form already had onsubmit confirm; but since we intercept, run confirm here too.
+            if (!confirm('Delete this file?')) return;
+
+            try {
+                const fd = new FormData(form);
+
+                const resp = await fetch(form.action, {
+                    method: 'POST', // method spoof via _method=DELETE
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    },
+                    body: fd
+                });
+
+                if (!resp.ok) throw new Error('Delete failed');
+                if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
+            } catch (err) {
+                console.error(err);
+                alert('Delete failed.');
+            }
+        }
+    }, true); // ✅ capture phase
 
     /* ===== CLICK A CLIENT ===== */
     document.querySelectorAll('.js-service-row').forEach(row => {
@@ -486,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ============================================================
     // ✅ BULK SELECT + BULK TEXT + BULK TEMPLATES (SMS)
+    // (unchanged)
     // ============================================================
     const selectedIds = new Set();
     const selectedMeta = new Map(); // id -> {name, phone}
@@ -540,7 +638,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#039;');
     }
 
-    // per-row checkbox
     document.querySelectorAll('.service-row-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
             const id = String(cb.dataset.id);
@@ -559,7 +656,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // select all (only visible rows)
     const selectAll = document.getElementById('service-select-all');
     if (selectAll) {
         selectAll.addEventListener('change', () => {
@@ -590,7 +686,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ---- Template helpers (SMS) ----
     const tplSelect = document.getElementById('service-bulk-template');
     const tplBody   = document.getElementById('service-bulk-body');
 
@@ -635,7 +730,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     }
 
-    // open bulk modal (and load templates)
     const bulkBtn = document.getElementById('service-bulk-text-btn');
     if (bulkBtn) {
         bulkBtn.addEventListener('click', async () => {
@@ -644,7 +738,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (tplBody) tplBody.value = '';
             clearTemplateOptions();
 
-            // rebuild phone list (hidden, but used to compute valid phones)
             rebuildSelectedListInModal();
 
             const items = await loadSmsTemplates();
@@ -654,7 +747,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // apply template -> fill textarea
     if (tplSelect) {
         tplSelect.addEventListener('change', async () => {
             const id = String(tplSelect.value || '');
@@ -675,7 +767,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // send bulk
     const bulkSendBtn = document.getElementById('service-bulk-send-btn');
     if (bulkSendBtn) {
         bulkSendBtn.addEventListener('click', () => {
@@ -683,7 +774,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!body) return alert('Message is empty.');
             if (selectedIds.size < 1) return alert('No contacts selected.');
 
-            // client-side sanity: make sure at least one selected has a phone
             let validPhones = 0;
             selectedMeta.forEach(meta => {
                 if (normalizePhone(meta.phone)) validPhones++;
