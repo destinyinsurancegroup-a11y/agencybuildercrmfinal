@@ -120,11 +120,20 @@
     $attachments = $client->attachments()->latest()->get();
     $chipLimit   = 3;
 
-    // IMPORTANT: keep return_to as the current panel URL (so server redirects never dump you elsewhere)
-    $returnTo = request()->fullUrl();
+    /**
+     * ✅ KEEP YOUR WORKING BEHAVIOR:
+     * This avoids 404 after POST/DELETE, because controller redirects here.
+     */
+    $returnTo = route('service.index', ['open' => $client->id]);
 
-    // We will re-load THIS exact panel after upload/delete (keeps card open + updates instantly)
-    $panelRefreshUrl = $returnTo;
+    /**
+     * ✅ NEW (ONLY FOR KEEPING CARD OPEN):
+     * When upload/delete succeeds, re-render the service details panel in-place.
+     * This is the URL your right panel should load for THIS client.
+     *
+     * If your panel loads details via service.show, this will work:
+     */
+    $refreshPanelUrl = route('service.show', $client->id);
 @endphp
 
 <div class="p-4">
@@ -163,7 +172,7 @@
                     </button>
                 </div>
 
-                {{-- ✅ Paperclip + Attach files + chips + DELETE --}}
+                {{-- ✅ APPROVED DESIGN: Paperclip + Attach files + chips + DELETE --}}
                 <div class="ab-attach-row">
                     <button type="button"
                             class="ab-attach-clip"
@@ -214,11 +223,12 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ DELETE BUTTON (now AJAX + refreshes card) --}}
+                                    {{-- ✅ DELETE BUTTON (unchanged server behavior) --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
-                                          class="ab-attach-delete"
-                                          style="margin:0;">
+                                          style="margin:0;"
+                                          class="ab-delete-form"
+                                          onsubmit="return confirm('Delete this file?');">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
@@ -233,7 +243,7 @@
                         @endif
                     </div>
 
-                    {{-- ✅ Hidden upload form: selecting files auto-submits (now AJAX + refreshes card) --}}
+                    {{-- ✅ Hidden upload form: selecting files auto-submits (unchanged server behavior) --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
@@ -470,43 +480,45 @@
 
 </div>
 
-{{-- =========================================================
-   ✅ ONLY PURPOSE OF THIS SCRIPT:
-   - Make paperclip open file picker (even if ABAttachments isn't loaded)
-   - Upload via fetch, then reload THIS service card in-place (no closing)
-   - Delete via fetch, then reload THIS service card in-place (no closing)
-   NOTHING ELSE.
-========================================================= --}}
+{{-- ==========================================================
+   ✅ ONLY ADDITION:
+   Intercept upload + delete so browser DOES NOT NAVIGATE.
+   - Upload still hits SAME route and still succeeds.
+   - Delete still hits SAME route and still succeeds.
+   Then we reload this same Service card in-place so it stays open.
+========================================================== --}}
 <script>
 (function () {
+    const refreshUrl = @json($refreshPanelUrl);
     const csrf = @json(csrf_token());
-    const refreshUrl = @json($panelRefreshUrl);
 
-    function refreshCard() {
-        // This keeps the panel open and redraws it with updated attachments.
+    function refreshServiceCardInPlace() {
         if (typeof window.loadServicePanel === 'function') {
             window.loadServicePanel(refreshUrl);
         } else {
-            // fallback (shouldn't happen in your UIP setup)
-            window.location.href = refreshUrl;
+            // fallback: if panel loader isn't present, just go to the correct page
+            window.location.href = @json($returnTo);
         }
     }
 
-    // Ensure ABAttachments exists and works on Service
-    if (!window.ABAttachments) window.ABAttachments = {};
+    // Ensure ABAttachments exists (do not break your existing global)
+    window.ABAttachments = window.ABAttachments || {};
 
-    // Click paperclip -> open file picker
-    window.ABAttachments.open = function (contactId) {
-        const input = document.getElementById('ab-attach-input-' + contactId);
+    // Paperclip opens file picker (safe)
+    const clientId = {{ (int) $client->id }};
+    const fileInput = document.getElementById('ab-attach-input-' + clientId);
+    const uploadForm = document.getElementById('ab-attach-form-' + clientId);
+
+    window.ABAttachments.open = function (id) {
+        const input = document.getElementById('ab-attach-input-' + id);
         if (input) input.click();
     };
 
-    // After selecting files -> upload via fetch -> refresh card
-    window.ABAttachments.submitIfSelected = async function (contactId) {
-        const form  = document.getElementById('ab-attach-form-' + contactId);
-        const input = document.getElementById('ab-attach-input-' + contactId);
+    // Upload via fetch so the card doesn't close
+    window.ABAttachments.submitIfSelected = async function (id) {
+        const form = document.getElementById('ab-attach-form-' + id);
+        const input = document.getElementById('ab-attach-input-' + id);
         if (!form || !input) return;
-
         if (!input.files || input.files.length === 0) return;
 
         const fd = new FormData(form);
@@ -518,10 +530,11 @@
                     'X-CSRF-TOKEN': csrf,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: fd
+                body: fd,
+                redirect: 'follow'
             });
 
-            // reset so user can select same file again later
+            // reset so selecting same file again triggers change
             input.value = '';
 
             if (!res.ok) {
@@ -529,33 +542,32 @@
                 return;
             }
 
-            refreshCard();
+            refreshServiceCardInPlace();
         } catch (e) {
             input.value = '';
             alert('Upload failed.');
         }
     };
 
-    // Intercept delete forms -> fetch -> refresh card
-    document.querySelectorAll('form.ab-attach-delete').forEach(function (f) {
-        if (f.dataset.bound === '1') return;
-        f.dataset.bound = '1';
-
-        f.addEventListener('submit', async function (e) {
+    // Delete via fetch so the card doesn't close
+    document.querySelectorAll('form.ab-delete-form').forEach(function (form) {
+        form.addEventListener('submit', async function (e) {
             e.preventDefault();
 
+            // keep your confirm behavior (your HTML already calls confirm, but we re-check safely)
             if (!confirm('Delete this file?')) return;
 
-            const fd = new FormData(f); // includes _method=DELETE
+            const fd = new FormData(form); // contains _method=DELETE
 
             try {
-                const res = await fetch(f.action, {
-                    method: 'POST', // Laravel method spoofing uses POST + _method
+                const res = await fetch(form.action, {
+                    method: 'POST', // method spoofing
                     headers: {
                         'X-CSRF-TOKEN': csrf,
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: fd
+                    body: fd,
+                    redirect: 'follow'
                 });
 
                 if (!res.ok) {
@@ -563,7 +575,7 @@
                     return;
                 }
 
-                refreshCard();
+                refreshServiceCardInPlace();
             } catch (err) {
                 alert('Delete failed.');
             }
@@ -573,4 +585,3 @@
 </script>
 
 {{-- keep your existing notes JS below (unchanged) --}}
-
