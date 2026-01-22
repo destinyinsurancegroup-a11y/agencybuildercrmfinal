@@ -30,7 +30,7 @@
     .btn-outline-gold:hover{ background: rgba(201,162,39,0.12); }
     .btn-outline-gold:disabled{ opacity:0.45; cursor:not-allowed; }
 
-    /* ===== Attachments row (same as Book) ===== */
+    /* ===== Attachments row (Service) — match Book ===== */
     .ab-attach-row{
         margin-top: 10px;
         display: flex;
@@ -67,6 +67,7 @@
     .ab-file-empty{ font-size: 12px; color:#6b7280; }
     .ab-file-more{ font-size: 13px; color:#6b7280; padding-left: 4px; }
 
+    /* chip container so we can place a delete button beside it */
     .ab-chip-wrap{
         display: inline-flex;
         align-items: center;
@@ -116,14 +117,10 @@
 
     // ✅ Attachments (shared with Contacts + Book because it's the same contacts table)
     $attachments = $client->attachments()->latest()->get();
-    $chipLimit   = 3;
+    $chipLimit = 3;
 
-    /**
-     * ✅ CRITICAL FIX:
-     * Always redirect back to a real full-page Service route after upload/delete.
-     * This prevents the post-submit 404 (even though the action succeeded).
-     */
-    $returnTo = route('service.index', ['open' => $client->id]);
+    // IMPORTANT: return to exact same service page (prevents “closing” when controller redirects)
+    $returnTo = request()->fullUrl();
 @endphp
 
 <div class="p-4">
@@ -162,8 +159,8 @@
                     </button>
                 </div>
 
-                {{-- ✅ APPROVED DESIGN: Paperclip + Attach files + chips + DELETE --}}
-                <div class="ab-attach-row">
+                {{-- ✅ Attach files row (paperclip + chips + DELETE) --}}
+                <div class="ab-attach-row" data-ab-return-to="{{ $returnTo }}">
                     <button type="button"
                             class="ab-attach-clip"
                             title="Attach files"
@@ -213,11 +210,12 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ DELETE BUTTON --}}
+                                    {{-- ✅ DELETE BUTTON (AJAX) --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
+                                          class="ab-attach-delete-form"
                                           style="margin:0;"
-                                          onsubmit="return confirm('Delete this file?');">
+                                          data-attachment-id="{{ (int) $a->id }}">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
@@ -232,19 +230,19 @@
                         @endif
                     </div>
 
-                    {{-- ✅ Hidden upload form: selecting files auto-submits --}}
+                    {{-- Hidden upload form: selecting files auto-submits (AJAX) --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
                           enctype="multipart/form-data"
-                          style="display:none;">
+                          style="display:none;"
+                          data-ab-upload-form="1">
                         @csrf
                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
                         <input id="ab-attach-input-{{ (int) $client->id }}"
                                type="file"
                                name="files[]"
-                               multiple
-                               onchange="ABAttachments.submitIfSelected({{ (int) $client->id }})">
+                               multiple>
                     </form>
                 </div>
 
@@ -269,8 +267,9 @@
                     </div>
                 @endif
 
-                <!-- ACTION BUTTONS (REORDERED: Saved, Follow Up, Not Interested) -->
+                <!-- ACTION BUTTONS -->
                 <div class="d-flex flex-wrap gap-2">
+
                     @if(is_null($client->service_archived_at))
                         <form action="{{ route('service.saved', $client->id) }}"
                               method="POST"
@@ -304,6 +303,7 @@
                             </button>
                         </form>
                     @endif
+
                 </div>
             </div>
 
@@ -423,6 +423,7 @@
     <div id="service-notes-wrapper">
         <h4 class="text-gold fw-bold mb-3">Notes</h4>
 
+        {{-- NEW NOTE FORM --}}
         <div class="mb-3">
             <textarea id="new_note_body"
                       class="form-control"
@@ -434,6 +435,7 @@
             </button>
         </div>
 
+        {{-- EXISTING NOTES --}}
         <div id="notes-list" class="mt-3">
             @php
                 $notes = $client->allNotes ?? $client->notes ?? collect();
@@ -469,4 +471,294 @@
 
 </div>
 
-{{-- keep your existing notes JS below (unchanged) --}}
+{{-- ==========================================
+     ✅ SERVICE ATTACHMENTS JS (NO CARD CLOSE)
+     - Upload + Delete via fetch
+     - Replace ONLY the .ab-attach-row instantly
+   ========================================== --}}
+<script>
+(function () {
+    const csrfToken = @json(csrf_token());
+
+    function findAttachRow() {
+        return document.querySelector('.ab-attach-row');
+    }
+
+    async function refreshAttachRow() {
+        const row = findAttachRow();
+        if (!row) return;
+
+        const returnTo = row.getAttribute('data-ab-return-to') || window.location.href;
+
+        // pull fresh HTML from server (full page or partial), then extract the updated row
+        const res = await fetch(returnTo, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!res.ok) return;
+
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const newRow = doc.querySelector('.ab-attach-row');
+        if (!newRow) return;
+
+        row.replaceWith(newRow);
+
+        // re-bind events since we replaced DOM
+        bindAttachmentEvents();
+    }
+
+    async function ajaxUploadFiles(fileInput) {
+        const form = fileInput.closest('form');
+        if (!form) return;
+
+        const fd = new FormData(form);
+
+        const res = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: fd
+        });
+
+        // clear input so selecting same file again works
+        fileInput.value = '';
+
+        if (!res.ok) {
+            alert('Upload failed.');
+            return;
+        }
+
+        await refreshAttachRow();
+    }
+
+    async function ajaxDelete(form) {
+        const ok = confirm('Delete this file?');
+        if (!ok) return;
+
+        const fd = new FormData(form);
+
+        const res = await fetch(form.action, {
+            method: 'POST', // Laravel spoofed DELETE via _method
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: fd
+        });
+
+        if (!res.ok) {
+            alert('Delete failed.');
+            return;
+        }
+
+        await refreshAttachRow();
+    }
+
+    function bindAttachmentEvents() {
+        // Upload: hook into the hidden file input
+        const uploadForm = document.querySelector('form[data-ab-upload-form="1"]');
+        if (uploadForm) {
+            const input = uploadForm.querySelector('input[type="file"]');
+            if (input && !input.dataset.abBound) {
+                input.dataset.abBound = '1';
+                input.addEventListener('change', function () {
+                    if (!input.files || input.files.length === 0) return;
+                    ajaxUploadFiles(input);
+                });
+            }
+        }
+
+        // Delete: intercept delete form submissions
+        document.querySelectorAll('form.ab-attach-delete-form').forEach(function (f) {
+            if (f.dataset.abBound) return;
+            f.dataset.abBound = '1';
+            f.addEventListener('submit', function (e) {
+                e.preventDefault();
+                ajaxDelete(f);
+            });
+        });
+    }
+
+    // bind once on load
+    bindAttachmentEvents();
+})();
+</script>
+
+{{-- ==========================================
+     SERVICE NOTES JS – create / edit / delete
+   ========================================== --}}
+<script>
+(function () {
+    const csrfToken = "{{ csrf_token() }}";
+    const clientId  = {{ $client->id }};
+    const storeUrl  = "{{ route('service.notes.store', $client) }}"; // POST /service/{client}/notes
+    const baseUrl   = "{{ url('/service/'.$client->id.'/notes') }}"; // /service/{client}/notes
+    const notesList = document.getElementById('notes-list');
+    const textarea  = document.getElementById('new_note_body');
+
+    // CREATE
+    window.saveServiceNote = function (clickedClientId) {
+        if (!textarea) return;
+
+        const bodyText = textarea.value.trim();
+        if (!bodyText) return;
+
+        fetch(storeUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ note: bodyText, body: bodyText })
+        })
+        .then(function (response) {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data || !data.success || !data.note) {
+                alert('Error saving note.');
+                return;
+            }
+
+            if (!notesList) return;
+
+            const note = data.note;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'border rounded p-2 mb-2';
+            wrapper.id = 'note-' + note.id;
+
+            let createdAtText = '';
+            if (note.created_at) {
+                try { createdAtText = new Date(note.created_at).toLocaleString(); }
+                catch (e) { createdAtText = note.created_at; }
+            }
+
+            wrapper.innerHTML = `
+                <div class="small text-muted mb-1 note-time">
+                    ${createdAtText}
+                </div>
+                <div class="note-body mb-1">
+                    ${note.note || note.body || ''}
+                </div>
+                <div class="mt-1">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary me-1"
+                            onclick="editServiceNote(${clientId}, ${note.id})">
+                        Edit
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            onclick="deleteServiceNote(${clientId}, ${note.id})">
+                        Delete
+                    </button>
+                </div>
+            `;
+
+            if (notesList.firstChild) notesList.insertBefore(wrapper, notesList.firstChild);
+            else notesList.appendChild(wrapper);
+
+            textarea.value = '';
+        })
+        .catch(function () {
+            alert('Error saving note.');
+        });
+    };
+
+    // EDIT
+    window.editServiceNote = function (clickedClientId, noteId) {
+        const noteEl  = document.getElementById('note-' + noteId);
+        if (!noteEl) return;
+
+        const bodyDiv = noteEl.querySelector('.note-body');
+        if (!bodyDiv) return;
+
+        const currentText = bodyDiv.textContent.trim();
+        const updated     = prompt('Edit note:', currentText);
+
+        if (updated === null) return;
+        const trimmed = updated.trim();
+        if (!trimmed) { alert('Note cannot be empty.'); return; }
+
+        fetch(`${baseUrl}/${noteId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ body: trimmed })
+        })
+        .then(function (response) {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data || !data.success || !data.note) {
+                alert('Error updating note.');
+                return;
+            }
+
+            const note = data.note;
+            bodyDiv.textContent = note.note || note.body || '';
+
+            const timeDiv = noteEl.querySelector('.note-time');
+            if (timeDiv && note.created_at) {
+                let createdAtText = '';
+                try { createdAtText = new Date(note.created_at).toLocaleString(); }
+                catch (e) { createdAtText = note.created_at; }
+                timeDiv.textContent = createdAtText;
+            }
+        })
+        .catch(function () {
+            alert('Error updating note.');
+        });
+    };
+
+    // DELETE
+    window.deleteServiceNote = function (clickedClientId, noteId) {
+        if (!confirm('Delete this note?')) return;
+
+        fetch(`${baseUrl}/${noteId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(function (response) {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data || !data.success) {
+                alert('Error deleting note.');
+                return;
+            }
+
+            const noteEl = document.getElementById('note-' + noteId);
+            if (noteEl && noteEl.parentNode) noteEl.parentNode.removeChild(noteEl);
+
+            if (!notesList || notesList.children.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'text-muted small mb-0';
+                empty.textContent = 'No notes yet.';
+                notesList.appendChild(empty);
+            }
+        })
+        .catch(function () {
+            alert('Error deleting note.');
+        });
+    };
+
+})();
+</script>
