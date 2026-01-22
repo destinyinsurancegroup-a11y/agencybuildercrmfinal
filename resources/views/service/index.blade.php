@@ -440,7 +440,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // ✅ CRITICAL FIX (INSTANT UPDATE + CARD STAYS OPEN)
     // Intercept attachment UPLOAD and DELETE inside the right panel
     // and run them via fetch(), then reload the panel in-place.
+    //
+    // ✅ ALSO FIXES "some files upload, some don't" by detecting
+    // server-side validation/size/mime failures that come back as HTML.
     // ============================================================
+
+    function extractFirstHelpfulErrorText(html) {
+        try {
+            const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+
+            // Try common Laravel error blocks
+            const alert = doc.querySelector('.alert.alert-danger, .alert-danger');
+            if (alert && alert.textContent) return alert.textContent.trim();
+
+            const li = doc.querySelector('.alert.alert-danger li, .alert-danger li');
+            if (li && li.textContent) return li.textContent.trim();
+
+            // fallback: look for "The given data was invalid"
+            const t = (doc.body && doc.body.textContent) ? doc.body.textContent : '';
+            if (/The given data was invalid/i.test(t)) return 'Upload failed: validation rejected that file.';
+
+            return '';
+        } catch (e) {
+            return '';
+        }
+    }
 
     // 1) Intercept file input change (prevents inline onchange form.submit navigation)
     document.addEventListener('change', async (e) => {
@@ -461,7 +485,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!el.files || el.files.length === 0) return;
 
             try {
-                const fd = new FormData(form); // ✅ includes files[] already — DO NOT append again
+                // ✅ includes files[] already — DO NOT append again (prevents double uploads)
+                const fd = new FormData(form);
 
                 const resp = await fetch(form.action, {
                     method: 'POST',
@@ -473,7 +498,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: fd,
                 });
 
-                if (!resp.ok) throw new Error('Upload failed');
+                const bodyText = await resp.text().catch(() => '');
+
+                // Hard failures (size/mime)
+                if (!resp.ok) {
+                    if (resp.status === 413) {
+                        alert('Upload failed: file is too large (server rejected it).');
+                    } else if (resp.status === 422) {
+                        alert('Upload failed: file validation/type rejected.');
+                    } else {
+                        alert('Upload failed.');
+                    }
+                    return;
+                }
+
+                // Soft failures: Laravel often returns HTML with errors after redirect
+                const errMsg = extractFirstHelpfulErrorText(bodyText);
+                if (errMsg) {
+                    alert(errMsg);
+                    return;
+                }
+
+                // Success -> refresh the open card so chips update instantly
                 if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
 
                 // reset the input so selecting same file again still triggers change
@@ -490,8 +536,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = e.target;
         if (!form) return;
 
-        // delete forms in your chips are:
-        // action="/attachments/{id}" + hidden _method=DELETE
         const methodSpoof = form.querySelector('input[name="_method"]');
         const isDelete = methodSpoof && String(methodSpoof.value || '').toUpperCase() === 'DELETE';
         const isAttachmentDelete = isDelete && (form.action || '').includes('/attachments/');
@@ -501,7 +545,6 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
 
-            // keep confirm behavior
             if (!confirm('Delete this file?')) return;
 
             try {
@@ -517,7 +560,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: fd
                 });
 
+                const bodyText = await resp.text().catch(() => '');
+
                 if (!resp.ok) throw new Error('Delete failed');
+
+                // If server returned an error page, surface it
+                const errMsg = extractFirstHelpfulErrorText(bodyText);
+                if (errMsg) {
+                    alert(errMsg);
+                    return;
+                }
+
                 if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
             } catch (err) {
                 console.error(err);
