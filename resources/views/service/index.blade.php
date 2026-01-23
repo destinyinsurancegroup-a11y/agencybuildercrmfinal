@@ -76,7 +76,7 @@
         background: #b5901f;
     }
 
-    /* ✅ Matches Book/Contacts/Leads outline buttons */
+    /* ✅ Matches निजी outline buttons */
     .btn-outline-gold {
         background: transparent;
         color:#c9a227;
@@ -426,7 +426,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
             .then(res => res.text())
-            .then(html => container.innerHTML = html)
+            .then(html => {
+                // ✅ Guard: prevent DOMException "Unexpected end of input" from killing the panel
+                try {
+                    container.innerHTML = html;
+                } catch (err) {
+                    console.error(err);
+                    container.innerHTML = `
+                        <div style="padding:40px; color:#b91c1c;">
+                            Failed to render panel HTML. Check server response / file size limits.
+                        </div>
+                    `;
+                }
+            })
             .catch(() => {
                 container.innerHTML = `
                     <div style="padding:40px; text-align:center; color:red;">
@@ -441,29 +453,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // Intercept attachment UPLOAD and DELETE inside the right panel
     // and run them via fetch(), then reload the panel in-place.
     //
-    // ✅ ALSO FIXES "some files upload, some don't" by detecting
-    // server-side validation/size/mime failures that come back as HTML.
+    // ✅ IMPORTANT FIX FOR "some files won't upload":
+    // - Do NOT force HTML accept; request JSON first so Laravel returns 422 JSON errors
+    // - Show the real error message when upload fails (files.0 failed to upload, too large, etc.)
+    // - Do NOT append files[] again (avoids duplicates)
     // ============================================================
 
-    function extractFirstHelpfulErrorText(html) {
-        try {
-            const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+    async function parseErrorMessage(resp) {
+        const status = resp.status;
 
-            // Try common Laravel error blocks
-            const alert = doc.querySelector('.alert.alert-danger, .alert-danger');
-            if (alert && alert.textContent) return alert.textContent.trim();
-
-            const li = doc.querySelector('.alert.alert-danger li, .alert-danger li');
-            if (li && li.textContent) return li.textContent.trim();
-
-            // fallback: look for "The given data was invalid"
-            const t = (doc.body && doc.body.textContent) ? doc.body.textContent : '';
-            if (/The given data was invalid/i.test(t)) return 'Upload failed: validation rejected that file.';
-
-            return '';
-        } catch (e) {
-            return '';
+        // nginx / php limits often return 413 with non-json
+        if (status === 413) {
+            return 'Upload failed: file is too large for the server (413 Payload Too Large). Increase server/PHP upload limits.';
         }
+
+        const ctype = (resp.headers.get('content-type') || '').toLowerCase();
+
+        // try json (Laravel validation with Accept: application/json)
+        if (ctype.includes('application/json')) {
+            const data = await resp.json().catch(() => null);
+            if (data && data.message) return data.message;
+            if (data && data.errors) {
+                // show first validation error
+                const firstKey = Object.keys(data.errors)[0];
+                if (firstKey && data.errors[firstKey] && data.errors[firstKey][0]) {
+                    return data.errors[firstKey][0];
+                }
+            }
+            return 'Upload failed.';
+        }
+
+        // fallback to text
+        const text = await resp.text().catch(() => '');
+        // try to extract a friendly message from common Laravel error HTML/text
+        if (text.includes('files.0')) return 'The files.0 failed to upload.';
+        if (text.trim().length) return 'Upload failed.';
+        return 'Upload failed.';
     }
 
     // 1) Intercept file input change (prevents inline onchange form.submit navigation)
@@ -485,7 +510,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!el.files || el.files.length === 0) return;
 
             try {
-                // ✅ includes files[] already — DO NOT append again (prevents double uploads)
+                // ✅ FormData(form) already includes the file input value.
+                // ✅ DO NOT append files[] again (that caused duplicates).
                 const fd = new FormData(form);
 
                 const resp = await fetch(form.action, {
@@ -493,36 +519,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: {
                         'X-CSRF-TOKEN': CSRF_TOKEN,
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
+                        // ✅ prefer JSON error responses on validation failures
+                        'Accept': 'application/json'
                     },
                     body: fd,
                 });
 
-                const bodyText = await resp.text().catch(() => '');
-
-                // Hard failures (size/mime)
                 if (!resp.ok) {
-                    if (resp.status === 413) {
-                        alert('Upload failed: file is too large (server rejected it).');
-                    } else if (resp.status === 422) {
-                        alert('Upload failed: file validation/type rejected.');
-                    } else {
-                        alert('Upload failed.');
-                    }
+                    const msg = await parseErrorMessage(resp);
+                    alert(`Upload error:\n${msg}`);
                     return;
                 }
 
-                // Soft failures: Laravel often returns HTML with errors after redirect
-                const errMsg = extractFirstHelpfulErrorText(bodyText);
-                if (errMsg) {
-                    alert(errMsg);
-                    return;
-                }
-
-                // Success -> refresh the open card so chips update instantly
                 if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
 
-                // reset the input so selecting same file again still triggers change
+                // reset input so selecting same file again triggers change
                 el.value = '';
             } catch (err) {
                 console.error(err);
@@ -555,19 +566,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: {
                         'X-CSRF-TOKEN': CSRF_TOKEN,
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'text/html'
+                        'Accept': 'application/json'
                     },
                     body: fd
                 });
 
-                const bodyText = await resp.text().catch(() => '');
-
-                if (!resp.ok) throw new Error('Delete failed');
-
-                // If server returned an error page, surface it
-                const errMsg = extractFirstHelpfulErrorText(bodyText);
-                if (errMsg) {
-                    alert(errMsg);
+                if (!resp.ok) {
+                    const msg = await parseErrorMessage(resp);
+                    alert(`Delete error:\n${msg}`);
                     return;
                 }
 
