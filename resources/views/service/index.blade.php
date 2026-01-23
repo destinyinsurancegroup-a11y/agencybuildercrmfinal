@@ -411,11 +411,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // ✅ Track which panel is currently open so we can refresh it after upload/delete
     window.__servicePanelUrl = window.__servicePanelUrl || null;
 
+    async function readResponseError(resp) {
+        // Try JSON (Laravel validation), else text
+        const ct = (resp.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('application/json')) {
+            const data = await resp.json().catch(() => null);
+            if (data) {
+                // common Laravel validation shape
+                if (data.message) return data.message;
+                if (data.errors) {
+                    const firstKey = Object.keys(data.errors)[0];
+                    if (firstKey && data.errors[firstKey] && data.errors[firstKey][0]) {
+                        return data.errors[firstKey][0];
+                    }
+                }
+                return 'Request failed.';
+            }
+        }
+        const t = await resp.text().catch(() => '');
+        return (t || 'Request failed.').slice(0, 3000);
+    }
+
     /* ===== LOAD RIGHT PANEL ===== */
     window.loadServicePanel = function (url) {
         if (!container) return;
+        if (!url) return;
 
-        window.__servicePanelUrl = url;
+        window.__servicePanelUrl = url; // ✅ remember current open card URL
 
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
@@ -426,20 +448,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
             .then(async (res) => {
-                // ✅ IMPORTANT: do not inject HTML if response is not OK
                 if (!res.ok) {
-                    const t = await res.text().catch(() => '');
-                    throw new Error(t || `Failed to load (${res.status})`);
+                    const msg = await readResponseError(res);
+                    throw new Error(msg || 'Failed to load.');
                 }
                 return res.text();
             })
             .then(html => {
+                // Guard against weird non-string / empty cases
+                if (typeof html !== 'string') html = '';
                 container.innerHTML = html;
             })
             .catch((err) => {
                 console.error(err);
                 container.innerHTML = `
-                    <div style="padding:40px; color:#b91c1c;">
+                    <div style="padding:40px; text-align:center; color:red;">
                         Failed to load.
                     </div>
                 `;
@@ -447,41 +470,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ============================================================
-    // ✅ Attachments: AJAX upload + AJAX delete + refresh open panel
+    // ✅ INSTANT UPDATE + CARD STAYS OPEN
+    // Intercept attachment UPLOAD and DELETE inside the right panel
+    // and run them via fetch(), then reload the panel in-place.
     // ============================================================
 
-    async function readLaravelError(resp) {
-        // Try JSON first
-        const ct = (resp.headers.get('content-type') || '').toLowerCase();
-        if (ct.includes('application/json')) {
-            const data = await resp.json().catch(() => ({}));
-            if (data?.message) return data.message;
-            if (data?.errors) {
-                // flatten first error
-                const firstKey = Object.keys(data.errors)[0];
-                const firstMsg = firstKey ? data.errors[firstKey]?.[0] : null;
-                if (firstMsg) return firstMsg;
-            }
-            return 'Upload error.';
-        }
-
-        // Otherwise HTML/text (Laravel validation page, etc.)
-        const text = await resp.text().catch(() => '');
-        // crude but effective: pull first <li>...</li> if present
-        const m = text.match(/<li>\s*([^<]+)\s*<\/li>/i);
-        if (m && m[1]) return m[1].trim();
-
-        // fallback: generic
-        return 'Upload error.';
-    }
-
-    // 1) Upload: intercept file input change
+    // 1) Upload (file input change)
     document.addEventListener('change', async (e) => {
         const el = e.target;
         if (!el) return;
 
         if (el.matches('input[type="file"][id^="ab-attach-input-"]')) {
-            // stop the inline onchange handler from navigating
+            // beat inline onchange
             e.preventDefault();
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
@@ -492,45 +492,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!el.files || el.files.length === 0) return;
 
-            // ✅ guard against double-fire
-            if (el.dataset.abUploading === '1') return;
-            el.dataset.abUploading = '1';
-
             try {
-                // ✅ DO NOT append files again. FormData(form) already includes the file input.
-                const fd = new FormData(form);
+                // ✅ Build FormData manually (fixes “some files” not sending correctly + avoids duplication)
+                const fd = new FormData();
+
+                // copy all named inputs EXCEPT file inputs
+                form.querySelectorAll('input, textarea, select').forEach((i) => {
+                    if (!i.name) return;
+                    const type = (i.type || '').toLowerCase();
+                    if (type === 'file') return;
+                    if ((type === 'checkbox' || type === 'radio') && !i.checked) return;
+                    fd.append(i.name, i.value);
+                });
+
+                // append selected files exactly once
+                for (const f of el.files) {
+                    fd.append('files[]', f);
+                }
 
                 const resp = await fetch(form.action, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': CSRF_TOKEN,
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json, text/html'
+                        // ask for JSON so Laravel validation (422) is readable
+                        'Accept': 'application/json'
                     },
                     body: fd,
                 });
 
                 if (!resp.ok) {
-                    const msg = await readLaravelError(resp);
-                    alert(`Upload error:\n${msg}`);
-                    return;
+                    const msg = await readResponseError(resp);
+                    throw new Error(msg || 'Upload failed.');
                 }
 
-                // success: refresh open panel so chips update instantly
+                // refresh panel so chips update instantly
                 if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
 
-                // reset input so same file can be selected again
+                // reset so selecting same file again triggers change
                 el.value = '';
             } catch (err) {
                 console.error(err);
-                alert('Upload failed.');
-            } finally {
-                el.dataset.abUploading = '0';
+                alert(`Upload error:\n${err.message || 'The file failed to upload.'}`);
             }
         }
     }, true);
 
-    // 2) Delete: intercept delete form submit
+    // 2) Delete attachment (x button)
     document.addEventListener('submit', async (e) => {
         const form = e.target;
         if (!form) return;
@@ -550,25 +558,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fd = new FormData(form);
 
                 const resp = await fetch(form.action, {
-                    method: 'POST', // spoofed DELETE
+                    method: 'POST', // method spoof via _method=DELETE
                     headers: {
                         'X-CSRF-TOKEN': CSRF_TOKEN,
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json, text/html'
+                        'Accept': 'application/json'
                     },
                     body: fd
                 });
 
                 if (!resp.ok) {
-                    const msg = await readLaravelError(resp);
-                    alert(`Delete error:\n${msg}`);
-                    return;
+                    const msg = await readResponseError(resp);
+                    throw new Error(msg || 'Delete failed.');
                 }
 
                 if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
             } catch (err) {
                 console.error(err);
-                alert('Delete failed.');
+                alert(`Delete error:\n${err.message || 'Delete failed.'}`);
             }
         }
     }, true);
@@ -576,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ===== CLICK A CLIENT ===== */
     document.querySelectorAll('.js-service-row').forEach(row => {
         row.addEventListener('click', (e) => {
-            if (e?.target?.classList?.contains('service-row-checkbox')) return;
+            if (e && e.target && e.target.classList && e.target.classList.contains('service-row-checkbox')) return;
 
             document.querySelectorAll('.js-service-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
