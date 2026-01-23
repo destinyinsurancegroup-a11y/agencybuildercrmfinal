@@ -76,7 +76,7 @@
         background: #b5901f;
     }
 
-    /* ✅ Matches निजी outline buttons */
+    /* ✅ Matches Book/Contacts/Leads outline buttons */
     .btn-outline-gold {
         background: transparent;
         color:#c9a227;
@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadServicePanel = function (url) {
         if (!container) return;
 
-        window.__servicePanelUrl = url; // ✅ remember current open card URL
+        window.__servicePanelUrl = url;
 
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
@@ -425,23 +425,21 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
-            .then(res => res.text())
-            .then(html => {
-                // ✅ Guard: prevent DOMException "Unexpected end of input" from killing the panel
-                try {
-                    container.innerHTML = html;
-                } catch (err) {
-                    console.error(err);
-                    container.innerHTML = `
-                        <div style="padding:40px; color:#b91c1c;">
-                            Failed to render panel HTML. Check server response / file size limits.
-                        </div>
-                    `;
+            .then(async (res) => {
+                // ✅ IMPORTANT: do not inject HTML if response is not OK
+                if (!res.ok) {
+                    const t = await res.text().catch(() => '');
+                    throw new Error(t || `Failed to load (${res.status})`);
                 }
+                return res.text();
             })
-            .catch(() => {
+            .then(html => {
+                container.innerHTML = html;
+            })
+            .catch((err) => {
+                console.error(err);
                 container.innerHTML = `
-                    <div style="padding:40px; text-align:center; color:red;">
+                    <div style="padding:40px; color:#b91c1c;">
                         Failed to load.
                     </div>
                 `;
@@ -449,56 +447,41 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ============================================================
-    // ✅ CRITICAL FIX (INSTANT UPDATE + CARD STAYS OPEN)
-    // Intercept attachment UPLOAD and DELETE inside the right panel
-    // and run them via fetch(), then reload the panel in-place.
-    //
-    // ✅ IMPORTANT FIX FOR "some files won't upload":
-    // - Do NOT force HTML accept; request JSON first so Laravel returns 422 JSON errors
-    // - Show the real error message when upload fails (files.0 failed to upload, too large, etc.)
-    // - Do NOT append files[] again (avoids duplicates)
+    // ✅ Attachments: AJAX upload + AJAX delete + refresh open panel
     // ============================================================
 
-    async function parseErrorMessage(resp) {
-        const status = resp.status;
-
-        // nginx / php limits often return 413 with non-json
-        if (status === 413) {
-            return 'Upload failed: file is too large for the server (413 Payload Too Large). Increase server/PHP upload limits.';
-        }
-
-        const ctype = (resp.headers.get('content-type') || '').toLowerCase();
-
-        // try json (Laravel validation with Accept: application/json)
-        if (ctype.includes('application/json')) {
-            const data = await resp.json().catch(() => null);
-            if (data && data.message) return data.message;
-            if (data && data.errors) {
-                // show first validation error
+    async function readLaravelError(resp) {
+        // Try JSON first
+        const ct = (resp.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('application/json')) {
+            const data = await resp.json().catch(() => ({}));
+            if (data?.message) return data.message;
+            if (data?.errors) {
+                // flatten first error
                 const firstKey = Object.keys(data.errors)[0];
-                if (firstKey && data.errors[firstKey] && data.errors[firstKey][0]) {
-                    return data.errors[firstKey][0];
-                }
+                const firstMsg = firstKey ? data.errors[firstKey]?.[0] : null;
+                if (firstMsg) return firstMsg;
             }
-            return 'Upload failed.';
+            return 'Upload error.';
         }
 
-        // fallback to text
+        // Otherwise HTML/text (Laravel validation page, etc.)
         const text = await resp.text().catch(() => '');
-        // try to extract a friendly message from common Laravel error HTML/text
-        if (text.includes('files.0')) return 'The files.0 failed to upload.';
-        if (text.trim().length) return 'Upload failed.';
-        return 'Upload failed.';
+        // crude but effective: pull first <li>...</li> if present
+        const m = text.match(/<li>\s*([^<]+)\s*<\/li>/i);
+        if (m && m[1]) return m[1].trim();
+
+        // fallback: generic
+        return 'Upload error.';
     }
 
-    // 1) Intercept file input change (prevents inline onchange form.submit navigation)
+    // 1) Upload: intercept file input change
     document.addEventListener('change', async (e) => {
         const el = e.target;
         if (!el) return;
 
-        // matches: <input id="ab-attach-input-123" type="file" ...>
         if (el.matches('input[type="file"][id^="ab-attach-input-"]')) {
-            // stop the inline onchange handler from running (prevents navigation)
+            // stop the inline onchange handler from navigating
             e.preventDefault();
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
@@ -509,9 +492,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!el.files || el.files.length === 0) return;
 
+            // ✅ guard against double-fire
+            if (el.dataset.abUploading === '1') return;
+            el.dataset.abUploading = '1';
+
             try {
-                // ✅ FormData(form) already includes the file input value.
-                // ✅ DO NOT append files[] again (that caused duplicates).
+                // ✅ DO NOT append files again. FormData(form) already includes the file input.
                 const fd = new FormData(form);
 
                 const resp = await fetch(form.action, {
@@ -519,30 +505,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: {
                         'X-CSRF-TOKEN': CSRF_TOKEN,
                         'X-Requested-With': 'XMLHttpRequest',
-                        // ✅ prefer JSON error responses on validation failures
-                        'Accept': 'application/json'
+                        'Accept': 'application/json, text/html'
                     },
                     body: fd,
                 });
 
                 if (!resp.ok) {
-                    const msg = await parseErrorMessage(resp);
+                    const msg = await readLaravelError(resp);
                     alert(`Upload error:\n${msg}`);
                     return;
                 }
 
+                // success: refresh open panel so chips update instantly
                 if (window.__servicePanelUrl) window.loadServicePanel(window.__servicePanelUrl);
 
-                // reset input so selecting same file again triggers change
+                // reset input so same file can be selected again
                 el.value = '';
             } catch (err) {
                 console.error(err);
                 alert('Upload failed.');
+            } finally {
+                el.dataset.abUploading = '0';
             }
         }
-    }, true); // ✅ capture phase so we beat inline handlers
+    }, true);
 
-    // 2) Intercept delete form submit for attachments (the "x" button)
+    // 2) Delete: intercept delete form submit
     document.addEventListener('submit', async (e) => {
         const form = e.target;
         if (!form) return;
@@ -562,17 +550,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fd = new FormData(form);
 
                 const resp = await fetch(form.action, {
-                    method: 'POST', // method spoof via _method=DELETE
+                    method: 'POST', // spoofed DELETE
                     headers: {
                         'X-CSRF-TOKEN': CSRF_TOKEN,
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json, text/html'
                     },
                     body: fd
                 });
 
                 if (!resp.ok) {
-                    const msg = await parseErrorMessage(resp);
+                    const msg = await readLaravelError(resp);
                     alert(`Delete error:\n${msg}`);
                     return;
                 }
@@ -583,12 +571,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Delete failed.');
             }
         }
-    }, true); // ✅ capture phase
+    }, true);
 
     /* ===== CLICK A CLIENT ===== */
     document.querySelectorAll('.js-service-row').forEach(row => {
         row.addEventListener('click', (e) => {
-            if (e && e.target && e.target.classList && e.target.classList.contains('service-row-checkbox')) return;
+            if (e?.target?.classList?.contains('service-row-checkbox')) return;
 
             document.querySelectorAll('.js-service-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
