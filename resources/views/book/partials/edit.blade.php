@@ -36,7 +36,8 @@
         }
 
         .beneficiary-row,
-        .emergency-row {
+        .emergency-row,
+        .policy-row {
             border: 1px solid #ddd;
             padding: .45rem .5rem !important;
             margin-bottom: .45rem !important;
@@ -55,6 +56,12 @@
             padding: 6px 12px !important;
             font-size: .85rem !important;
         }
+
+        .btn-mini {
+            padding: 5px 10px !important;
+            font-size: .82rem !important;
+            border-radius: 6px !important;
+        }
     </style>
 
     <div class="card shadow-sm border-0">
@@ -62,6 +69,17 @@
         <form method="POST" action="{{ route('book.update', $client->id) }}">
             @csrf
             @method('PUT')
+
+            <!-- TOP ACTIONS -->
+            <div class="d-flex justify-content-end gap-2 mb-2">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary btn-mini"
+                    onclick="loadBookPanel('{{ route('book.show', $client->id) }}')"
+                >
+                    ← Back
+                </button>
+            </div>
 
             <!-- BASIC INFORMATION -->
             <h5 class="text-gold fw-bold">Basic Information</h5>
@@ -82,7 +100,7 @@
                 <div class="field">
                     <label class="form-label">Date of Birth</label>
                     <input type="date" name="date_of_birth" class="form-control"
-                           value="{{ old('date_of_birth', $client->date_of_birth) }}">
+                           value="{{ old('date_of_birth', optional($client->date_of_birth)->format('Y-m-d')) }}">
                 </div>
 
                 <div class="field">
@@ -93,7 +111,7 @@
                 <div class="field">
                     <label class="form-label">Anniversary</label>
                     <input type="date" name="anniversary" class="form-control"
-                           value="{{ old('anniversary', $client->anniversary) }}">
+                           value="{{ old('anniversary', optional($client->anniversary)->format('Y-m-d')) }}">
                 </div>
             </div>
 
@@ -142,8 +160,8 @@
 
             <hr>
 
-            <!-- POLICY INFORMATION -->
-            <h5 class="text-gold fw-bold">Policy Information</h5>
+            <!-- POLICY INFORMATION (LEGACY SINGLE FIELDS - KEEP FOR COMPATIBILITY) -->
+            <h5 class="text-gold fw-bold">Policy Information (Primary / Legacy)</h5>
 
             <div class="form-grid">
 
@@ -174,7 +192,7 @@
                 <div class="field">
                     <label class="form-label">Initial Draft Date</label>
                     <input type="date" name="policy_issue_date" class="form-control"
-                           value="{{ old('policy_issue_date', $client->policy_issue_date) }}">
+                           value="{{ old('policy_issue_date', optional($client->policy_issue_date)->format('Y-m-d')) }}">
                 </div>
 
                 <div class="field">
@@ -184,6 +202,230 @@
                 </div>
 
             </div>
+
+            <hr>
+
+            <!-- MULTI-POLICY SECTION (THIS IS THE NEW WORKING FEATURE) -->
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="text-gold fw-bold mb-0">Policies (Multiple)</h5>
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary btn-mini"
+                        onclick="
+                            (function(){
+                                var wrapper = document.getElementById('policies-wrapper');
+                                if (!wrapper) return;
+
+                                var rows = wrapper.querySelectorAll('.policy-row');
+                                var index = rows.length;
+
+                                var tpl = document.getElementById('policy-row-template');
+                                if (!tpl) return;
+
+                                var html = tpl.innerHTML.replaceAll('__INDEX__', index);
+                                var holder = document.createElement('div');
+                                holder.innerHTML = html.trim();
+                                wrapper.appendChild(holder.firstElementChild);
+                            })();
+                        ">
+                    + Add Policy
+                </button>
+            </div>
+
+            @php
+                // Prefer validation old input if present
+                $oldPolicies = old('policies');
+
+                if (is_array($oldPolicies)) {
+                    $policies = collect($oldPolicies);
+                } else {
+                    // Pull from DB relationship if present; fallback to empty
+                    try {
+                        $policies = $client->policies()->orderBy('id')->get();
+                    } catch (\Throwable $e) {
+                        $policies = collect();
+                    }
+                }
+
+                if ($policies->isEmpty()) {
+                    // show one empty row by default
+                    $policies = collect([null]);
+                }
+            @endphp
+
+            <div id="policies-wrapper" class="mt-2">
+                @foreach($policies as $index => $p)
+                    @php
+                        $pid = is_array($p) ? ($p['id'] ?? null) : ($p->id ?? null);
+
+                        $carrier = is_array($p) ? ($p['carrier'] ?? '') : ($p->carrier ?? '');
+                        $policyType = is_array($p) ? ($p['policy_type'] ?? '') : ($p->policy_type ?? '');
+                        $faceAmount = is_array($p) ? ($p['face_amount'] ?? '') : ($p->face_amount ?? '');
+                        $premiumAmount = is_array($p) ? ($p['premium_amount'] ?? '') : ($p->premium_amount ?? '');
+                        $issueDate = is_array($p) ? ($p['policy_issue_date'] ?? '') : (optional($p->policy_issue_date)->format('Y-m-d') ?? '');
+                        $dueDate = is_array($p) ? ($p['premium_due_date'] ?? '') : (optional($p->premium_due_date)->format('Y-m-d') ?? '');
+                        $dueText = is_array($p) ? ($p['premium_due_text'] ?? '') : ($p->premium_due_text ?? '');
+                    @endphp
+
+                    <div class="row g-2 align-items-end mb-2 policy-row">
+
+                        @if($pid)
+                            <input type="hidden" name="policies[{{ $index }}][id]" value="{{ $pid }}">
+                        @endif
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Carrier</label>
+                            <input type="text"
+                                   name="policies[{{ $index }}][carrier]"
+                                   class="form-control"
+                                   value="{{ $carrier }}">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Policy Type</label>
+                            <input type="text"
+                                   name="policies[{{ $index }}][policy_type]"
+                                   class="form-control"
+                                   value="{{ $policyType }}">
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Face Amount</label>
+                            <input type="number" step="0.01"
+                                   name="policies[{{ $index }}][face_amount]"
+                                   class="form-control"
+                                   value="{{ $faceAmount }}">
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Monthly Premium</label>
+                            <input type="number" step="0.01"
+                                   name="policies[{{ $index }}][premium_amount]"
+                                   class="form-control"
+                                   value="{{ $premiumAmount }}">
+                        </div>
+
+                        <div class="col-md-2 text-end">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger btn-mini ab-remove-policy">
+                                Remove
+                            </button>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Initial Draft Date</label>
+                            <input type="date"
+                                   name="policies[{{ $index }}][policy_issue_date]"
+                                   class="form-control"
+                                   value="{{ $issueDate }}">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Premium Due Date</label>
+                            <input type="date"
+                                   name="policies[{{ $index }}][premium_due_date]"
+                                   class="form-control"
+                                   value="{{ $dueDate }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Monthly Due (Text)</label>
+                            <input type="text"
+                                   name="policies[{{ $index }}][premium_due_text]"
+                                   class="form-control"
+                                   value="{{ $dueText }}">
+                        </div>
+
+                    </div>
+                @endforeach
+            </div>
+
+            <template id="policy-row-template">
+                <div class="row g-2 align-items-end mb-2 policy-row">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Carrier</label>
+                        <input type="text"
+                               name="policies[__INDEX__][carrier]"
+                               class="form-control"
+                               value="">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Policy Type</label>
+                        <input type="text"
+                               name="policies[__INDEX__][policy_type]"
+                               class="form-control"
+                               value="">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Face Amount</label>
+                        <input type="number" step="0.01"
+                               name="policies[__INDEX__][face_amount]"
+                               class="form-control"
+                               value="">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Monthly Premium</label>
+                        <input type="number" step="0.01"
+                               name="policies[__INDEX__][premium_amount]"
+                               class="form-control"
+                               value="">
+                    </div>
+
+                    <div class="col-md-2 text-end">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger btn-mini ab-remove-policy">
+                            Remove
+                        </button>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Initial Draft Date</label>
+                        <input type="date"
+                               name="policies[__INDEX__][policy_issue_date]"
+                               class="form-control"
+                               value="">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Premium Due Date</label>
+                        <input type="date"
+                               name="policies[__INDEX__][premium_due_date]"
+                               class="form-control"
+                               value="">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Monthly Due (Text)</label>
+                        <input type="text"
+                               name="policies[__INDEX__][premium_due_text]"
+                               class="form-control"
+                               value="">
+                    </div>
+                </div>
+            </template>
+
+            <script>
+                (function(){
+                    var wrapper = document.getElementById('policies-wrapper');
+                    if (!wrapper) return;
+
+                    if (wrapper.dataset.bound === '1') return;
+                    wrapper.dataset.bound = '1';
+
+                    wrapper.addEventListener('click', function(e){
+                        var btn = e.target.closest('.ab-remove-policy');
+                        if (!btn) return;
+
+                        var row = btn.closest('.policy-row');
+                        if (!row) return;
+
+                        row.parentNode.removeChild(row);
+                    });
+                })();
+            </script>
 
             <hr>
 
@@ -241,13 +483,12 @@
                                 <option value="1" {{ $b && $b->contacted ? 'selected' : '' }}>Yes</option>
                             </select>
                         </div>
-                        {{-- optional delete button for existing could go here later --}}
                     </div>
                 @endforeach
             </div>
 
             <button type="button"
-                    class="btn btn-sm btn-outline-secondary mb-4"
+                    class="btn btn-sm btn-outline-secondary mb-4 btn-mini"
                     onclick="
                         (function(){
                             var wrapper   = document.getElementById('beneficiaries-wrapper');
@@ -264,16 +505,13 @@
                             clone.querySelectorAll('input, select').forEach(function(input){
                                 if (!input.name) return;
 
-                                // remove hidden id from clone so it's a NEW record
                                 if (input.type === 'hidden' || input.name.indexOf('[id]') !== -1) {
                                     input.parentNode.removeChild(input);
                                     return;
                                 }
 
-                                // bump index in name: [0] -> [1], [1] -> [2], etc.
                                 input.name = input.name.replace(/\[\d+]/, '[' + index + ']');
 
-                                // clear values for new row
                                 if (input.tagName === 'SELECT') {
                                     input.value = '0';
                                 } else {
@@ -339,13 +577,12 @@
                                 <option value="1" {{ $e && $e->contacted ? 'selected' : '' }}>Yes</option>
                             </select>
                         </div>
-                        {{-- optional delete button for existing could go here later --}}
                     </div>
                 @endforeach
             </div>
 
             <button type="button"
-                    class="btn btn-sm btn-outline-secondary mb-4"
+                    class="btn btn-sm btn-outline-secondary mb-4 btn-mini"
                     onclick="
                         (function(){
                             var wrapper   = document.getElementById('emergency-wrapper');
@@ -384,7 +621,13 @@
 
             <hr>
 
-            <div class="text-end">
+            <div class="text-end d-flex justify-content-end gap-2">
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary btn-mini"
+                        onclick="loadBookPanel('{{ route('book.show', $client->id) }}')">
+                    ← Back
+                </button>
+
                 <button class="btn-gold btn-lg">Save Client</button>
             </div>
 
