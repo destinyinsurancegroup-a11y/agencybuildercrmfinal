@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Note;
 use App\Models\Message;            // ✅ ADD
 use App\Models\ContactRelation;    // Destiny unified relations
+use App\Models\ContactPolicy;      // ✅ ADD (multi-policy rows)
 use App\Models\ServiceEvent;
 use App\Models\Event;              // Calendar events / follow-ups
 use App\Models\Attachment;         // ✅ ADD (new)
@@ -50,7 +51,7 @@ class Contact extends Model
 
         'date_of_birth',
 
-        // POLICY FIELDS
+        // POLICY FIELDS (legacy single-policy fields on contact)
         'policy_type',
         'face_amount',
         'premium_amount',
@@ -171,6 +172,19 @@ class Contact extends Model
     public function emergencyContacts()
     {
         return $this->relations()->where('type', 'emergency');
+    }
+
+    /* ============================================================
+     |  POLICIES (Multi-Policy rows) — Tier 1 B4 Upgrade
+     * ============================================================ */
+
+    /**
+     * ✅ Policies (multiple) attached to this contact.
+     * This enables "Add policy (+)" behavior like beneficiaries/emergency contacts.
+     */
+    public function policies()
+    {
+        return $this->hasMany(ContactPolicy::class, 'contact_id')->orderBy('id');
     }
 
     /* ============================================================
