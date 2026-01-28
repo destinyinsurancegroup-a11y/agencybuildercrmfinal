@@ -88,20 +88,19 @@
     }
     .ab-file-del:hover{ filter: brightness(0.95); }
 
-    .policy-list-item{
+    /* Optional subtle separator for each extra policy */
+    .ab-policy-block{
         border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        padding: 10px 12px;
-        margin-bottom: 10px;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-top: 10px;
         background: #fff;
     }
-    .policy-meta{
-        display:flex;
-        flex-wrap:wrap;
-        gap: 10px 18px;
-        font-size: 14px;
+    .ab-policy-title{
+        font-weight: 800;
+        margin-bottom: 8px;
+        color: #111827;
     }
-    .policy-meta div strong{ color:#111827; }
 </style>
 
 @php
@@ -116,7 +115,7 @@
 
     $returnTo = request()->fullUrl();
 
-    // ✅ Multi policies (from contact_policies)
+    // ✅ Load additional policies (excluding legacy fields on contacts table)
     try {
         $policies = $client->policies()->orderBy('id')->get();
     } catch (\Throwable $e) {
@@ -169,7 +168,7 @@
                     </button>
                 </div>
 
-                {{-- ✅ Attach files row (paperclip + chips + DELETE) --}}
+                {{-- ✅ Attach files row --}}
                 <div class="ab-attach-row">
                     <button type="button"
                             class="ab-attach-clip"
@@ -302,10 +301,12 @@
 
         <hr>
 
+        {{-- ============================= --}}
+        {{-- Primary / Legacy Policy block --}}
+        {{-- ============================= --}}
         <h4 class="text-gold fw-bold mb-3">Policy Information</h4>
 
-        {{-- Legacy single policy display --}}
-        <div class="row mb-3">
+        <div class="row mb-4">
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
@@ -323,30 +324,44 @@
             </div>
         </div>
 
-        {{-- ✅ Multi-policy display --}}
-        @if($policies->isNotEmpty())
-            <div class="mt-2">
-                <div class="text-muted small mb-2">Additional Policies</div>
+        {{-- ===================================== --}}
+        {{-- Additional Policies (same display UI) --}}
+        {{-- ===================================== --}}
+        @php
+            $hasAdditional = $policies->isNotEmpty();
+        @endphp
 
-                @foreach($policies as $p)
-                    <div class="policy-list-item">
-                        <div class="policy-meta">
-                            <div><strong>Carrier:</strong> {{ $p->carrier ?: '—' }}</div>
-                            <div><strong>Type:</strong> {{ $p->policy_type ?: '—' }}</div>
-                            <div><strong>Face:</strong> {{ $p->face_amount ? '$'.number_format($p->face_amount, 2) : '—' }}</div>
-                            <div><strong>Premium:</strong> {{ $p->premium_amount ? '$'.number_format($p->premium_amount, 2) : '—' }}</div>
-                            <div><strong>Draft Date:</strong> {{ $p->policy_issue_date?->format('m/d/Y') ?: '—' }}</div>
-                            <div><strong>Due Date:</strong> {{ $p->premium_due_date?->format('m/d/Y') ?: '—' }}</div>
-                            <div><strong>Monthly Due (Text):</strong> {{ $p->premium_due_text ?: '—' }}</div>
+        @if($hasAdditional)
+            <h4 class="text-gold fw-bold mb-3">Additional Policies</h4>
+
+            @foreach($policies as $i => $p)
+                <div class="ab-policy-block">
+                    <div class="ab-policy-title">
+                        Policy #{{ $i + 1 }}
+                    </div>
+
+                    <div class="row mb-0">
+                        <div class="col-md-6">
+                            <p><strong>Carrier:</strong> {{ $p->carrier ?: '—' }}</p>
+                            <p><strong>Policy Type:</strong> {{ $p->policy_type ?: '—' }}</p>
+                            <p><strong>Face Amount:</strong>
+                                {{ $p->face_amount ? '$'.number_format($p->face_amount, 2) : '—' }}
+                            </p>
+                            <p><strong>Monthly Premium:</strong>
+                                {{ $p->premium_amount ? '$'.number_format($p->premium_amount, 2) : '—' }}
+                            </p>
+                        </div>
+
+                        <div class="col-md-6">
+                            <p><strong>Initial Draft Date:</strong> {{ $p->policy_issue_date?->format('m/d/Y') ?: '—' }}</p>
+                            <p><strong>Monthly Due (Text):</strong> {{ $p->premium_due_text ?: '—' }}</p>
                         </div>
                     </div>
-                @endforeach
-            </div>
-        @else
-            <p class="text-muted mb-0">No additional policies added.</p>
-        @endif
+                </div>
+            @endforeach
 
-        <hr>
+            <hr>
+        @endif
 
         <h4 class="text-gold fw-bold mb-3">Beneficiaries &amp; Emergency Contacts</h4>
 
