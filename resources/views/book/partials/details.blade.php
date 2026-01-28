@@ -46,7 +46,6 @@
     .ab-file-empty{ font-size: 12px; color:#6b7280; }
     .ab-file-more{ font-size: 13px; color:#6b7280; padding-left: 4px; }
 
-    /* chip container so we can place a delete button beside it */
     .ab-chip-wrap{
         display: inline-flex;
         align-items: center;
@@ -72,7 +71,6 @@
     }
     .ab-file-icon{ opacity: 0.9; }
 
-    /* ✅ delete button */
     .ab-file-del{
         width: 20px;
         height: 20px;
@@ -89,6 +87,21 @@
         cursor: pointer;
     }
     .ab-file-del:hover{ filter: brightness(0.95); }
+
+    .policy-list-item{
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: #fff;
+    }
+    .policy-meta{
+        display:flex;
+        flex-wrap:wrap;
+        gap: 10px 18px;
+        font-size: 14px;
+    }
+    .policy-meta div strong{ color:#111827; }
 </style>
 
 @php
@@ -101,8 +114,14 @@
     $attachments = $client->attachments()->latest()->get();
     $chipLimit   = 3;
 
-    // important for returning back to the exact right panel state
     $returnTo = request()->fullUrl();
+
+    // ✅ Multi policies (from contact_policies)
+    try {
+        $policies = $client->policies()->orderBy('id')->get();
+    } catch (\Throwable $e) {
+        $policies = collect();
+    }
 @endphp
 
 <div class="p-4">
@@ -201,7 +220,6 @@
                                         <span>{{ $name }}</span>
                                     </a>
 
-                                    {{-- ✅ DELETE BUTTON --}}
                                     <form method="POST"
                                           action="{{ route('attachments.destroy', $a->id) }}"
                                           style="margin:0;"
@@ -220,7 +238,6 @@
                         @endif
                     </div>
 
-                    {{-- hidden upload form (paperclip triggers file input) --}}
                     <form id="ab-attach-form-{{ (int) $client->id }}"
                           action="{{ route('contacts.attachments.store', $client->id) }}"
                           method="POST"
@@ -287,7 +304,8 @@
 
         <h4 class="text-gold fw-bold mb-3">Policy Information</h4>
 
-        <div class="row mb-4">
+        {{-- Legacy single policy display --}}
+        <div class="row mb-3">
             <div class="col-md-6">
                 <p><strong>Carrier:</strong> {{ $client->carrier ?: '—' }}</p>
                 <p><strong>Policy Type:</strong> {{ $client->policy_type ?: '—' }}</p>
@@ -304,6 +322,29 @@
                 <p><strong>Monthly Due (Text):</strong> {{ $client->premium_due_text ?: '—' }}</p>
             </div>
         </div>
+
+        {{-- ✅ Multi-policy display --}}
+        @if($policies->isNotEmpty())
+            <div class="mt-2">
+                <div class="text-muted small mb-2">Additional Policies</div>
+
+                @foreach($policies as $p)
+                    <div class="policy-list-item">
+                        <div class="policy-meta">
+                            <div><strong>Carrier:</strong> {{ $p->carrier ?: '—' }}</div>
+                            <div><strong>Type:</strong> {{ $p->policy_type ?: '—' }}</div>
+                            <div><strong>Face:</strong> {{ $p->face_amount ? '$'.number_format($p->face_amount, 2) : '—' }}</div>
+                            <div><strong>Premium:</strong> {{ $p->premium_amount ? '$'.number_format($p->premium_amount, 2) : '—' }}</div>
+                            <div><strong>Draft Date:</strong> {{ $p->policy_issue_date?->format('m/d/Y') ?: '—' }}</div>
+                            <div><strong>Due Date:</strong> {{ $p->premium_due_date?->format('m/d/Y') ?: '—' }}</div>
+                            <div><strong>Monthly Due (Text):</strong> {{ $p->premium_due_text ?: '—' }}</div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p class="text-muted mb-0">No additional policies added.</p>
+        @endif
 
         <hr>
 
