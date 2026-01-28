@@ -205,7 +205,7 @@
 
             <hr>
 
-            <!-- MULTI-POLICY SECTION (THIS IS THE NEW WORKING FEATURE) -->
+            <!-- MULTI-POLICY SECTION (NEW FEATURE) -->
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="text-gold fw-bold mb-0">Policies (Multiple)</h5>
 
@@ -260,14 +260,11 @@
                         $faceAmount    = is_array($p) ? ($p['face_amount'] ?? '')    : ($p?->face_amount ?? '');
                         $premiumAmount = is_array($p) ? ($p['premium_amount'] ?? '') : ($p?->premium_amount ?? '');
 
-                        // ✅ FIX: must guard null policy object
                         $issueDate = is_array($p)
                             ? ($p['policy_issue_date'] ?? '')
                             : (optional($p?->policy_issue_date)->format('Y-m-d') ?? '');
 
-                        $dueDate = is_array($p)
-                            ? ($p['premium_due_date'] ?? '')
-                            : (optional($p?->premium_due_date)->format('Y-m-d') ?? '');
+                        // ✅ Removed premium_due_date (no longer shown/collected)
 
                         $dueText = is_array($p) ? ($p['premium_due_text'] ?? '') : ($p?->premium_due_text ?? '');
                     @endphp
@@ -325,15 +322,7 @@
                                    value="{{ $issueDate }}">
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Premium Due Date</label>
-                            <input type="date"
-                                   name="policies[{{ $index }}][premium_due_date]"
-                                   class="form-control"
-                                   value="{{ $dueDate }}">
-                        </div>
-
-                        <div class="col-md-6">
+                        <div class="col-md-9">
                             <label class="form-label small fw-semibold">Monthly Due (Text)</label>
                             <input type="text"
                                    name="policies[{{ $index }}][premium_due_text]"
@@ -394,15 +383,7 @@
                                value="">
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold">Premium Due Date</label>
-                        <input type="date"
-                               name="policies[__INDEX__][premium_due_date]"
-                               class="form-control"
-                               value="">
-                    </div>
-
-                    <div class="col-md-6">
+                    <div class="col-md-9">
                         <label class="form-label small fw-semibold">Monthly Due (Text)</label>
                         <input type="text"
                                name="policies[__INDEX__][premium_due_text]"
