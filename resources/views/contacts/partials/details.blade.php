@@ -86,6 +86,9 @@
     $attachments = $contact->attachments()->latest()->get();
     $chipLimit   = 3;
 
+    // ✅ NEW: load multi-policies (read-only display)
+    $policies = $contact->policies()->orderBy('id')->get();
+
     // ✅ critical: always return to the exact URL that rendered this view
     $returnTo = request()->fullUrl();
 @endphp
@@ -287,6 +290,99 @@
                 @endif
             </div>
         </div>
+
+        <hr class="my-4">
+
+        {{-- ✅ NEW: POLICY INFORMATION (Read-only) --}}
+        <h5 class="fw-bold mb-2">Policy Information</h5>
+        <p class="text-muted small mb-3">
+            Policies linked to this contact (view-only). Edit to add/remove policies.
+        </p>
+
+        @if($policies->count() > 0)
+            @foreach($policies as $p)
+                <div class="border rounded p-3 mb-3" style="border-color:#e5e7eb;">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="text-muted small fw-semibold">Carrier</label>
+                            <div class="fw-bold">{{ $p->carrier ?: '—' }}</div>
+                        </div>
+
+                        <div class="col-md-6 mb-2">
+                            <label class="text-muted small fw-semibold">Policy Type</label>
+                            <div class="fw-bold">{{ $p->policy_type ?: '—' }}</div>
+                        </div>
+
+                        <div class="col-md-6 mb-2">
+                            <label class="text-muted small fw-semibold">Face Amount</label>
+                            <div class="fw-bold">
+                                {{ $p->face_amount !== null && $p->face_amount !== '' ? '$' . number_format((float)$p->face_amount, 2) : '—' }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-2">
+                            <label class="text-muted small fw-semibold">Monthly Premium</label>
+                            <div class="fw-bold">
+                                {{ $p->premium_amount !== null && $p->premium_amount !== '' ? '$' . number_format((float)$p->premium_amount, 2) : '—' }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-2">
+                            <label class="text-muted small fw-semibold">Initial Draft Date</label>
+                            <div class="fw-bold">
+                                {{ $p->policy_issue_date ? $p->policy_issue_date->format('m/d/Y') : '—' }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-2">
+                            <label class="text-muted small fw-semibold">Monthly Due (Text)</label>
+                            <div class="fw-bold">{{ $p->premium_due_text ?: '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        @else
+            {{-- Backward-compatible fallback to legacy single-policy fields on contacts --}}
+            <div class="border rounded p-3 mb-3" style="border-color:#e5e7eb;">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="text-muted small fw-semibold">Carrier</label>
+                        <div class="fw-bold">{{ $contact->carrier ?: '—' }}</div>
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="text-muted small fw-semibold">Policy Type</label>
+                        <div class="fw-bold">{{ $contact->policy_type ?: '—' }}</div>
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="text-muted small fw-semibold">Face Amount</label>
+                        <div class="fw-bold">
+                            {{ $contact->face_amount !== null && $contact->face_amount !== '' ? '$' . number_format((float)$contact->face_amount, 2) : '—' }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="text-muted small fw-semibold">Monthly Premium</label>
+                        <div class="fw-bold">
+                            {{ $contact->premium_amount !== null && $contact->premium_amount !== '' ? '$' . number_format((float)$contact->premium_amount, 2) : '—' }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="text-muted small fw-semibold">Initial Draft Date</label>
+                        <div class="fw-bold">
+                            {{ $contact->policy_issue_date ? $contact->policy_issue_date->format('m/d/Y') : '—' }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="text-muted small fw-semibold">Monthly Due (Text)</label>
+                        <div class="fw-bold">{{ $contact->premium_due_text ?: '—' }}</div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <hr class="my-4">
 
