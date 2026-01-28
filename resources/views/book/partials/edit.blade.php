@@ -75,7 +75,7 @@
                 <button
                     type="button"
                     class="btn btn-sm btn-outline-secondary btn-mini"
-                    onclick="loadBookPanel('{{ route('book.show', $client->id) }}')"
+                    onclick="loadBookPanel('{{ url('/book/' . $client->id) }}')"
                 >
                     ← Back
                 </button>
@@ -233,13 +233,11 @@
             </div>
 
             @php
-                // Prefer validation old input if present
                 $oldPolicies = old('policies');
 
                 if (is_array($oldPolicies)) {
                     $policies = collect($oldPolicies);
                 } else {
-                    // Pull from DB relationship if present; fallback to empty
                     try {
                         $policies = $client->policies()->orderBy('id')->get();
                     } catch (\Throwable $e) {
@@ -248,7 +246,6 @@
                 }
 
                 if ($policies->isEmpty()) {
-                    // show one empty row by default
                     $policies = collect([null]);
                 }
             @endphp
@@ -256,15 +253,23 @@
             <div id="policies-wrapper" class="mt-2">
                 @foreach($policies as $index => $p)
                     @php
-                        $pid = is_array($p) ? ($p['id'] ?? null) : ($p->id ?? null);
+                        $pid = is_array($p) ? ($p['id'] ?? null) : ($p?->id ?? null);
 
-                        $carrier = is_array($p) ? ($p['carrier'] ?? '') : ($p->carrier ?? '');
-                        $policyType = is_array($p) ? ($p['policy_type'] ?? '') : ($p->policy_type ?? '');
-                        $faceAmount = is_array($p) ? ($p['face_amount'] ?? '') : ($p->face_amount ?? '');
-                        $premiumAmount = is_array($p) ? ($p['premium_amount'] ?? '') : ($p->premium_amount ?? '');
-                        $issueDate = is_array($p) ? ($p['policy_issue_date'] ?? '') : (optional($p->policy_issue_date)->format('Y-m-d') ?? '');
-                        $dueDate = is_array($p) ? ($p['premium_due_date'] ?? '') : (optional($p->premium_due_date)->format('Y-m-d') ?? '');
-                        $dueText = is_array($p) ? ($p['premium_due_text'] ?? '') : ($p->premium_due_text ?? '');
+                        $carrier       = is_array($p) ? ($p['carrier'] ?? '')        : ($p?->carrier ?? '');
+                        $policyType    = is_array($p) ? ($p['policy_type'] ?? '')    : ($p?->policy_type ?? '');
+                        $faceAmount    = is_array($p) ? ($p['face_amount'] ?? '')    : ($p?->face_amount ?? '');
+                        $premiumAmount = is_array($p) ? ($p['premium_amount'] ?? '') : ($p?->premium_amount ?? '');
+
+                        // ✅ FIX: must guard null policy object
+                        $issueDate = is_array($p)
+                            ? ($p['policy_issue_date'] ?? '')
+                            : (optional($p?->policy_issue_date)->format('Y-m-d') ?? '');
+
+                        $dueDate = is_array($p)
+                            ? ($p['premium_due_date'] ?? '')
+                            : (optional($p?->premium_due_date)->format('Y-m-d') ?? '');
+
+                        $dueText = is_array($p) ? ($p['premium_due_text'] ?? '') : ($p?->premium_due_text ?? '');
                     @endphp
 
                     <div class="row g-2 align-items-end mb-2 policy-row">
@@ -440,7 +445,7 @@
             @php
                 $beneficiaries = $client->beneficiaries ?? collect();
                 if ($beneficiaries->isEmpty()) {
-                    $beneficiaries = collect([null]); // one empty row if none exist
+                    $beneficiaries = collect([null]);
                 }
             @endphp
 
@@ -448,7 +453,6 @@
                 @foreach($beneficiaries as $index => $b)
                     <div class="row g-2 align-items-end mb-2 beneficiary-row">
 
-                        {{-- hidden ID for existing beneficiaries --}}
                         @if($b)
                             <input type="hidden"
                                    name="beneficiaries[{{ $index }}][id]"
@@ -624,7 +628,7 @@
             <div class="text-end d-flex justify-content-end gap-2">
                 <button type="button"
                         class="btn btn-sm btn-outline-secondary btn-mini"
-                        onclick="loadBookPanel('{{ route('book.show', $client->id) }}')">
+                        onclick="loadBookPanel('{{ url('/book/' . $client->id) }}')">
                     ← Back
                 </button>
 
