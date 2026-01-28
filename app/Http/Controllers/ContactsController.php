@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\ContactPolicy; // ✅ ADD
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -10,25 +11,16 @@ class ContactsController extends Controller
 {
     /**
      * Display the contacts index page (master-detail layout).
-     * NOTE: Leads (contact_type = 'lead') and Service cases (contact_type = 'service')
-     *       are EXCLUDED from this view to avoid duplicates with Leads/Service tabs.
-     *
-     * Multi-tenancy:
-     *  - Contact model uses TenantScoped, so all queries are automatically filtered
-     *    by agency_id for the currently logged-in user.
      */
     public function index(Request $request)
     {
         $contacts = Contact::query()
-            // 👇 do NOT treat leads or service cases as generic contacts
             ->where(function ($q) {
                 $q->whereNull('contact_type')
                   ->orWhereNotIn('contact_type', ['lead', 'service']);
             })
             ->when($request->search, function ($query) use ($request) {
                 $search = $request->search;
-
-                // group the OR conditions so they don't break filters
                 $query->where(function ($q) use ($search) {
                     $q->where('full_name', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%")
@@ -41,7 +33,7 @@ class ContactsController extends Controller
 
         return view('contacts.index', [
             'contacts' => $contacts,
-            'selected' => $request->selected, // Auto-open after create/update
+            'selected' => $request->selected,
         ]);
     }
 
@@ -50,23 +42,15 @@ class ContactsController extends Controller
      */
     public function show(Request $request, $id)
     {
-        // TenantScoped on Contact ensures only current agency's contact can be found
         $contact = Contact::findOrFail($id);
-
         return view('contacts.partials.details', compact('contact'));
     }
 
-    /**
-     * AJAX "create contact" panel loader.
-     */
     public function createAjax(Request $request)
     {
         return view('contacts.partials.create');
     }
 
-    /**
-     * Standalone full-page create (legacy)
-     */
     public function create()
     {
         return view('contacts.create');
@@ -74,14 +58,6 @@ class ContactsController extends Controller
 
     /**
      * Store a newly created contact OR lead.
-     *
-     * Multi-tenancy:
-     *  - agency_id is automatically set by TenantScoped::creating()
-     *  - created_by is set to the current user
-     *
-     * Redirect behavior:
-     *  - If contact_type = 'lead'  → go back to Leads tab with that lead selected
-     *  - Otherwise                → go back to Contacts tab with that contact selected
      */
     public function store(Request $request)
     {
@@ -103,23 +79,18 @@ class ContactsController extends Controller
             'notes'          => 'nullable|string',
         ]);
 
-        // Multi-tenant: created_by is the current user
         $validated['created_by'] = Auth::id();
 
-        // agency_id will be auto-filled by TenantScoped creating hook
         $contact = Contact::create($validated);
 
-        // Decide where to send the user based on contact type
         $type = strtolower($contact->contact_type ?? '');
 
         if ($type === 'lead') {
-            // This is a LEAD → go back to Leads tab with this lead selected
             return redirect()
                 ->route('leads.index', ['selected' => $contact->id])
                 ->with('success', 'Lead created successfully.');
         }
 
-        // All other contacts → stay on Contacts tab
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact created successfully.');
@@ -130,15 +101,11 @@ class ContactsController extends Controller
      */
     public function edit(Contact $contact)
     {
-        // Route model binding + TenantScoped ensure this contact
-        // already belongs to the current agency.
         return view('contacts.partials.edit', compact('contact'));
     }
 
     /**
-     * Update contact and return to the correct tab:
-     *  - If this contact is a LEAD -> go back to Leads tab
-     *  - Otherwise -> go back to Contacts tab
+     * Update contact AND policies.
      */
     public function update(Request $request, Contact $contact)
     {
@@ -162,17 +129,17 @@ class ContactsController extends Controller
 
         $contact->update($validated);
 
-        // Decide where to send the user based on contact type
+        // ✅ SAVE POLICIES (like beneficiaries/emergency contacts)
+        $this->savePolicies($contact, $request);
+
         $type = strtolower($contact->contact_type ?? '');
 
         if ($type === 'lead') {
-            // This is a lead → go back to Leads tab with this lead selected
             return redirect()
                 ->route('leads.index', ['selected' => $contact->id])
                 ->with('success', 'Lead updated successfully.');
         }
 
-        // All other contacts → stay on Contacts tab
         return redirect()
             ->route('contacts.index', ['selected' => $contact->id])
             ->with('success', 'Contact updated successfully.');
@@ -183,7 +150,6 @@ class ContactsController extends Controller
      */
     public function destroy(Contact $contact)
     {
-        // TenantScoped already ensures this belongs to the current agency
         $contact->delete();
 
         return redirect()
@@ -191,11 +157,57 @@ class ContactsController extends Controller
             ->with('success', 'Contact deleted.');
     }
 
-    /**
-     * CSV/Excel Import placeholder.
-     */
     public function import(Request $request)
     {
         return back()->with('success', 'Import placeholder working.');
+    }
+
+    /* ============================================================
+     |  POLICY SAVE LOGIC (mirrors beneficiary behavior)
+     * ============================================================ */
+
+    private function savePolicies(Contact $contact, Request $request): void
+    {
+        $policies = $request->input('policies', []);
+
+        // Remove empty rows
+        $policies = array_values(array_filter($policies, function ($p) {
+            return !empty(array_filter($p));
+        }));
+
+        $keepIds = collect($policies)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        // Delete removed policies
+        ContactPolicy::where('contact_id', $contact->id)
+            ->where('agency_id', $contact->agency_id)
+            ->when($keepIds, fn ($q) => $q->whereNotIn('id', $keepIds))
+            ->delete();
+
+        foreach ($policies as $p) {
+            $data = [
+                'agency_id'         => $contact->agency_id,
+                'contact_id'        => $contact->id,
+                'carrier'           => $p['carrier'] ?? null,
+                'policy_type'       => $p['policy_type'] ?? null,
+                'face_amount'       => $p['face_amount'] ?? null,
+                'premium_amount'    => $p['premium_amount'] ?? null,
+                'policy_issue_date' => $p['policy_issue_date'] ?? null,
+                'premium_due_date'  => $p['premium_due_date'] ?? null,
+                'premium_due_text'  => $p['premium_due_text'] ?? null,
+            ];
+
+            if (!empty($p['id'])) {
+                ContactPolicy::where('id', $p['id'])
+                    ->where('contact_id', $contact->id)
+                    ->where('agency_id', $contact->agency_id)
+                    ->update($data);
+            } else {
+                ContactPolicy::create($data);
+            }
+        }
     }
 }
