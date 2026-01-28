@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\Note;
 use App\Models\ContactRelation;
+use App\Models\ContactPolicy; // ✅ ADD (multi-policy rows)
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +77,7 @@ class BookController extends Controller
             'date_of_birth'     => 'nullable|date',
             'anniversary'       => 'nullable|date',
 
+            // Legacy single-policy fields (keep for backward compatibility)
             'carrier'           => 'nullable|string|max:255',
             'policy_type'       => 'nullable|string|max:255',
             'face_amount'       => 'nullable|numeric',
@@ -85,6 +87,17 @@ class BookController extends Controller
             'premium_due_text'  => 'nullable|string|max:255',
 
             'notes'             => 'nullable|string',
+
+            // ✅ NEW: multi-policy array from Book edit UI (not required)
+            'policies'                      => 'nullable|array',
+            'policies.*.id'                 => 'nullable|integer',
+            'policies.*.carrier'            => 'nullable|string|max:255',
+            'policies.*.policy_type'        => 'nullable|string|max:255',
+            'policies.*.face_amount'        => 'nullable|numeric',
+            'policies.*.premium_amount'     => 'nullable|numeric',
+            'policies.*.premium_due_date'   => 'nullable|date',
+            'policies.*.policy_issue_date'  => 'nullable|date',
+            'policies.*.premium_due_text'   => 'nullable|string|max:255',
         ]);
 
         $user = Auth::user();
@@ -99,6 +112,9 @@ class BookController extends Controller
 
         $this->saveRelations($request, $client, 'beneficiary');
         $this->saveRelations($request, $client, 'emergency');
+
+        // ✅ NEW: Save multi policies ONLY for Book of Business
+        $this->savePolicies($request, $client);
 
         if (!empty($validated['notes'])) {
             $tenantId = $client->tenant_id ?? ($user?->tenant_id ?? 1);
@@ -115,14 +131,10 @@ class BookController extends Controller
 
     public function show(Contact $client)
     {
-        // ✅ FIX: Clicking "Open Client" from Gideon should NOT 404.
-        // The Book page UI loads the right panel via AJAX, but the initial navigation is a normal request.
-        // So for non-AJAX requests, redirect to /book?selected={id} which makes the UI load that client.
         if (!request()->ajax()) {
             return redirect()->route('book.index', ['selected' => $client->id]);
         }
 
-        // AJAX request: return the details partial for the right panel
         return view('book.partials.details', compact('client'));
     }
 
@@ -153,6 +165,7 @@ class BookController extends Controller
             'date_of_birth'     => 'nullable|date',
             'anniversary'       => 'nullable|date',
 
+            // Legacy single-policy fields (keep for backward compatibility)
             'carrier'           => 'nullable|string|max:255',
             'policy_type'       => 'nullable|string|max:255',
             'face_amount'       => 'nullable|numeric',
@@ -160,9 +173,25 @@ class BookController extends Controller
             'premium_due_date'  => 'nullable|date',
             'policy_issue_date' => 'nullable|date',
             'premium_due_text'  => 'nullable|string|max:255',
+
+            // ✅ NEW: multi-policy array from Book edit UI (not required)
+            'policies'                      => 'nullable|array',
+            'policies.*.id'                 => 'nullable|integer',
+            'policies.*.carrier'            => 'nullable|string|max:255',
+            'policies.*.policy_type'        => 'nullable|string|max:255',
+            'policies.*.face_amount'        => 'nullable|numeric',
+            'policies.*.premium_amount'     => 'nullable|numeric',
+            'policies.*.premium_due_date'   => 'nullable|date',
+            'policies.*.policy_issue_date'  => 'nullable|date',
+            'policies.*.premium_due_text'   => 'nullable|string|max:255',
         ]);
 
         foreach ($validated as $key => $value) {
+            // Important: policies is handled separately
+            if ($key === 'policies') {
+                continue;
+            }
+
             if ($value !== null && $value !== '') {
                 $client->{$key} = $value;
             }
@@ -175,20 +204,15 @@ class BookController extends Controller
         $this->saveRelations($request, $client, 'beneficiary');
         $this->saveRelations($request, $client, 'emergency');
 
+        // ✅ NEW: Save multi policies ONLY for Book of Business
+        $this->savePolicies($request, $client);
+
         return redirect()->route('book.index', ['selected' => $client->id]);
     }
 
     /**
      * ==========================================================
      * PHASE 2 — MESSAGE QUEUE (DB STORAGE ONLY)
-     * Endpoint used by Book UI:
-     *   POST /contacts/{contact}/messages
-     * Body:
-     *   { channel: "sms"|"email", subject?: string, body: string }
-     *
-     * IMPORTANT:
-     * - This does NOT send to Twilio/Email provider yet.
-     * - It only stores a queued message in the database.
      * ==========================================================
      */
     public function storeContactMessage(Request $request, Contact $contact)
@@ -196,12 +220,10 @@ class BookController extends Controller
         $user = Auth::user();
         if (!$user) abort(403);
 
-        // Agency isolation (minimum). If you have tenant middleware, keep this anyway.
         if (!empty($contact->agency_id) && !empty($user->agency_id) && (int)$contact->agency_id !== (int)$user->agency_id) {
             abort(403, 'Unauthorized');
         }
 
-        // If the messages table isn't created yet, fail loudly (prevents silent "success")
         if (!Schema::hasTable('messages')) {
             return response()->json([
                 'message' => 'Messages table not found. Run Phase 2 migration to create message storage.',
@@ -214,11 +236,9 @@ class BookController extends Controller
             'body'    => 'required|string|max:5000',
         ]);
 
-        // Enforce subject rules
         if ($data['channel'] === 'sms') {
             $data['subject'] = null;
         } else {
-            // email
             if (empty($data['subject'])) {
                 return response()->json(['message' => 'Subject is required for email.'], 422);
             }
@@ -227,7 +247,6 @@ class BookController extends Controller
         $tenantId = $contact->tenant_id ?? ($user->tenant_id ?? 1);
         $agencyId = $contact->agency_id ?? ($user->agency_id ?? null);
 
-        // Minimal, provider-agnostic queue record
         $id = DB::table('messages')->insertGetId([
             'contact_id'   => $contact->id,
             'tenant_id'    => $tenantId,
@@ -236,9 +255,9 @@ class BookController extends Controller
             'to_address'   => $data['channel'] === 'sms' ? ($contact->phone ?? null) : ($contact->email ?? null),
             'subject'      => $data['subject'],
             'body'         => trim($data['body']),
-            'status'       => 'queued',          // queued -> sent/failed later
-            'provider'     => null,              // twilio/postmark/etc later
-            'provider_ref' => null,              // sid/message-id later
+            'status'       => 'queued',
+            'provider'     => null,
+            'provider_ref' => null,
             'created_by'   => $user->id,
             'sent_at'      => null,
             'created_at'   => now(),
@@ -268,7 +287,6 @@ class BookController extends Controller
         $file = $request->file('file');
         $ext  = strtolower((string)$file->getClientOriginalExtension());
 
-        // If they upload XLSX/XLS and PhpSpreadsheet isn't installed, we must fail loudly.
         if (in_array($ext, ['xlsx', 'xls'], true) && !class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
             return redirect()
                 ->route('book.index')
@@ -289,7 +307,6 @@ class BookController extends Controller
         $firstId = null;
 
         foreach ($rows as $row) {
-            // IDENTIFIERS (any one is enough)
             $first = $this->getRowVal($row, ['first_name','first name','firstname','fname']);
             $last  = $this->getRowVal($row, ['last_name','last name','lastname','lname']);
             $email = $this->getRowVal($row, ['email','e-mail','email_address']);
@@ -300,7 +317,6 @@ class BookController extends Controller
                 continue;
             }
 
-            // Map your exact spreadsheet headers + existing CRM fields
             $payload = [
                 'first_name'  => $this->cleanStr($first),
                 'last_name'   => $this->cleanStr($last),
@@ -314,10 +330,8 @@ class BookController extends Controller
                 'created_by'          => $user->id,
             ];
 
-            // Optional: last contacted mapping if your contacts table has a suitable column
             $lastContacted = $this->toDate($this->getRowVal($row, ['last_contacted', 'last contacted']));
             if ($lastContacted) {
-                // set whichever exists
                 if (Schema::hasColumn('contacts', 'last_contacted_at')) {
                     $payload['last_contacted_at'] = $lastContacted;
                 } elseif (Schema::hasColumn('contacts', 'last_contacted')) {
@@ -325,16 +339,13 @@ class BookController extends Controller
                 }
             }
 
-            // Set agency/tenant if those columns exist
             $this->setIfHasColumn($payload, 'agency_id', $user->agency_id ?? null);
             $this->setIfHasColumn($payload, 'tenant_id', $user->tenant_id ?? null);
 
-            // Remove null/empty
             foreach ($payload as $k => $v) {
                 if ($v === '' || $v === null) unset($payload[$k]);
             }
 
-            // Dedupe: prefer email, else phone
             $client = null;
             if (!empty($payload['email'])) {
                 $client = Contact::query()->where('email', $payload['email'])->first();
@@ -357,7 +368,6 @@ class BookController extends Controller
 
             if (!$firstId) $firstId = $client->id;
 
-            // Notes (from your sheet)
             $noteText = $this->getRowVal($row, ['notes']);
             if ($noteText) {
                 $tenantId = $client->tenant_id ?? ($user->tenant_id ?? 1);
@@ -368,9 +378,6 @@ class BookController extends Controller
                     'tenant_id'  => $tenantId,
                 ]);
             }
-
-            // Your sheet has Beneficiary Count / Emergency Contacts (counts only).
-            // We do NOT create relations from counts (no names/phones). Safe to ignore.
         }
 
         $processed = $created + $updated;
@@ -494,6 +501,83 @@ class BookController extends Controller
                 'created_by'   => $user?->id ?? $client->created_by,
                 'agency_id'    => $client->agency_id,
             ]);
+        }
+    }
+
+    /**
+     * ✅ NEW: Save multiple policies for Book of Business ONLY.
+     * Input name must be policies[INDEX][field].
+     */
+    private function savePolicies(Request $request, Contact $client): void
+    {
+        if (!Schema::hasTable('contact_policies')) {
+            // Fail loudly in logs; UI will still save the contact.
+            \Log::warning('contact_policies table missing. Policies not saved.');
+            return;
+        }
+
+        $items = $request->input('policies', []);
+        if (!is_array($items)) $items = [];
+
+        // Drop empty rows (all fields empty)
+        $items = array_values(array_filter($items, function ($p) {
+            if (!is_array($p)) return false;
+            $copy = $p;
+            unset($copy['id']);
+            foreach ($copy as $v) {
+                if (is_string($v) && trim($v) !== '') return true;
+                if (is_numeric($v)) return true;
+                if ($v instanceof \DateTimeInterface) return true;
+                if (!empty($v)) return true;
+            }
+            return false;
+        }));
+
+        $keepIds = collect($items)
+            ->pluck('id')
+            ->filter()
+            ->map(fn($id) => (int)$id)
+            ->all();
+
+        // Delete policies removed in UI
+        ContactPolicy::query()
+            ->where('contact_id', $client->id)
+            ->where('agency_id', $client->agency_id)
+            ->when(!empty($keepIds), fn($q) => $q->whereNotIn('id', $keepIds))
+            ->delete();
+
+        $user = Auth::user();
+
+        foreach ($items as $p) {
+            $payload = [
+                'agency_id'         => $client->agency_id,
+                'contact_id'        => $client->id,
+                'carrier'           => $p['carrier'] ?? null,
+                'policy_type'       => $p['policy_type'] ?? null,
+                'face_amount'       => $p['face_amount'] ?? null,
+                'premium_amount'    => $p['premium_amount'] ?? null,
+                'premium_due_date'  => $p['premium_due_date'] ?? null,
+                'policy_issue_date' => $p['policy_issue_date'] ?? null,
+                'premium_due_text'  => $p['premium_due_text'] ?? null,
+            ];
+
+            // If your table has tenant_id/created_by, set them safely:
+            if (Schema::hasColumn('contact_policies', 'tenant_id')) {
+                $payload['tenant_id'] = $client->tenant_id ?? ($user?->tenant_id ?? 1);
+            }
+            if (Schema::hasColumn('contact_policies', 'created_by') && empty($p['id'])) {
+                $payload['created_by'] = $user?->id ?? $client->created_by;
+            }
+
+            if (!empty($p['id'])) {
+                ContactPolicy::query()
+                    ->where('id', (int)$p['id'])
+                    ->where('contact_id', $client->id)
+                    ->where('agency_id', $client->agency_id)
+                    ->update($payload);
+            } else {
+                ContactPolicy::create($payload);
+            }
         }
     }
 
