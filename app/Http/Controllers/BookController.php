@@ -5,12 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\Note;
 use App\Models\ContactRelation;
-use App\Models\ContactPolicy; // ✅ ADD (multi-policy rows)
+use App\Models\ContactPolicy; // ✅ multi-policy rows
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
 
 class BookController extends Controller
 {
@@ -46,11 +47,8 @@ class BookController extends Controller
 
         $clients = $query->get();
 
-        // ✅ FIX: allow both ?selected= and ?contact_id= (backwards/forwards compatible)
-        $selected = $request->get('selected');
-        if (!$selected) {
-            $selected = $request->get('contact_id');
-        }
+        // ✅ allow both ?selected= and ?contact_id=
+        $selected = $request->get('selected') ?: $request->get('contact_id');
 
         return view('book.index', compact('clients', 'selected'));
     }
@@ -82,38 +80,40 @@ class BookController extends Controller
             'policy_type'       => 'nullable|string|max:255',
             'face_amount'       => 'nullable|numeric',
             'premium_amount'    => 'nullable|numeric',
-            'premium_due_date'  => 'nullable|date',
+            'premium_due_date'  => 'nullable|date', // legacy field on contacts table (if you still use it)
             'policy_issue_date' => 'nullable|date',
             'premium_due_text'  => 'nullable|string|max:255',
 
             'notes'             => 'nullable|string',
 
-            // ✅ NEW: multi-policy array from Book edit UI (not required)
+            // ✅ multi-policy array from Book edit UI (NOT required)
             'policies'                      => 'nullable|array',
             'policies.*.id'                 => 'nullable|integer',
             'policies.*.carrier'            => 'nullable|string|max:255',
             'policies.*.policy_type'        => 'nullable|string|max:255',
             'policies.*.face_amount'        => 'nullable|numeric',
             'policies.*.premium_amount'     => 'nullable|numeric',
-            'policies.*.premium_due_date'   => 'nullable|date',
+            // ✅ REMOVED: policies.*.premium_due_date (you removed it from UI)
             'policies.*.policy_issue_date'  => 'nullable|date',
             'policies.*.premium_due_text'   => 'nullable|string|max:255',
         ]);
 
         $user = Auth::user();
 
-        $validated['contact_type'] = 'book';
-        $validated['created_by']   = $user?->id;
+        // ✅ NEVER pass policies/notes into Contact::create()
+        $contactData = Arr::except($validated, ['policies', 'notes']);
 
-        $client = Contact::create($validated);
+        $contactData['contact_type'] = 'book';
+        $contactData['created_by']   = $user?->id;
 
+        $client = Contact::create($contactData);
         $client->in_book_of_business = true;
         $client->save();
 
         $this->saveRelations($request, $client, 'beneficiary');
         $this->saveRelations($request, $client, 'emergency');
 
-        // ✅ NEW: Save multi policies ONLY for Book of Business
+        // ✅ Save multi policies ONLY for Book of Business
         $this->savePolicies($request, $client);
 
         if (!empty($validated['notes'])) {
@@ -170,27 +170,24 @@ class BookController extends Controller
             'policy_type'       => 'nullable|string|max:255',
             'face_amount'       => 'nullable|numeric',
             'premium_amount'    => 'nullable|numeric',
-            'premium_due_date'  => 'nullable|date',
+            'premium_due_date'  => 'nullable|date', // legacy field on contacts table (if you still use it)
             'policy_issue_date' => 'nullable|date',
             'premium_due_text'  => 'nullable|string|max:255',
 
-            // ✅ NEW: multi-policy array from Book edit UI (not required)
+            // ✅ multi-policy array from Book edit UI (NOT required)
             'policies'                      => 'nullable|array',
             'policies.*.id'                 => 'nullable|integer',
             'policies.*.carrier'            => 'nullable|string|max:255',
             'policies.*.policy_type'        => 'nullable|string|max:255',
             'policies.*.face_amount'        => 'nullable|numeric',
             'policies.*.premium_amount'     => 'nullable|numeric',
-            'policies.*.premium_due_date'   => 'nullable|date',
+            // ✅ REMOVED: policies.*.premium_due_date
             'policies.*.policy_issue_date'  => 'nullable|date',
             'policies.*.premium_due_text'   => 'nullable|string|max:255',
         ]);
 
         foreach ($validated as $key => $value) {
-            // Important: policies is handled separately
-            if ($key === 'policies') {
-                continue;
-            }
+            if ($key === 'policies') continue;
 
             if ($value !== null && $value !== '') {
                 $client->{$key} = $value;
@@ -204,7 +201,7 @@ class BookController extends Controller
         $this->saveRelations($request, $client, 'beneficiary');
         $this->saveRelations($request, $client, 'emergency');
 
-        // ✅ NEW: Save multi policies ONLY for Book of Business
+        // ✅ Save multi policies ONLY for Book of Business
         $this->savePolicies($request, $client);
 
         return redirect()->route('book.index', ['selected' => $client->id]);
@@ -272,8 +269,7 @@ class BookController extends Controller
     }
 
     /**
-     * ✅ BULK IMPORT: creates 1 contact card per row.
-     * Optional/blank columns DO NOT fail import.
+     * ✅ BULK IMPORT
      */
     public function import(Request $request)
     {
@@ -424,47 +420,8 @@ class BookController extends Controller
         }
     }
 
-    private function importRelationsFromRow(Contact $client, array $row, $user): void
-    {
-        // (unchanged)
-        for ($i = 1; $i <= 4; $i++) {
-            $name = $this->getRowVal($row, ["beneficiary_{$i}_name", "beneficiary {$i} name", "beneficiary{$i} name"]);
-            if ($name) {
-                ContactRelation::create([
-                    'contact_id'   => $client->id,
-                    'type'         => 'beneficiary',
-                    'name'         => $name,
-                    'relationship' => $this->getRowVal($row, ["beneficiary_{$i}_relationship", "beneficiary {$i} relationship"]),
-                    'phone'        => $this->getRowVal($row, ["beneficiary_{$i}_phone", "beneficiary {$i} phone"]),
-                    'contacted'    => 0,
-                    'tenant_id'    => $client->tenant_id ?? ($user?->tenant_id),
-                    'created_by'   => $user?->id ?? $client->created_by,
-                    'agency_id'    => $client->agency_id,
-                ]);
-            }
-        }
-
-        for ($i = 1; $i <= 3; $i++) {
-            $name = $this->getRowVal($row, ["emergency_{$i}_name", "emergency {$i} name", "emergency{$i} name"]);
-            if ($name) {
-                ContactRelation::create([
-                    'contact_id'   => $client->id,
-                    'type'         => 'emergency',
-                    'name'         => $name,
-                    'relationship' => $this->getRowVal($row, ["emergency_{$i}_relationship", "emergency {$i} relationship"]),
-                    'phone'        => $this->getRowVal($row, ["emergency_{$i}_phone", "emergency {$i} phone"]),
-                    'contacted'    => 0,
-                    'tenant_id'    => $client->tenant_id ?? ($user?->tenant_id),
-                    'created_by'   => $user?->id ?? $client->created_by,
-                    'agency_id'    => $client->agency_id,
-                ]);
-            }
-        }
-    }
-
     private function saveRelations(Request $request, Contact $client, string $type)
     {
-        // (unchanged)
         $key  = $type === 'beneficiary' ? 'beneficiaries' : 'emergency_contacts';
         $user = Auth::user();
 
@@ -505,13 +462,12 @@ class BookController extends Controller
     }
 
     /**
-     * ✅ NEW: Save multiple policies for Book of Business ONLY.
-     * Input name must be policies[INDEX][field].
+     * ✅ Save multiple policies for Book of Business ONLY.
+     * NOTE: premium_due_date has been removed from UI and is NOT processed here.
      */
     private function savePolicies(Request $request, Contact $client): void
     {
         if (!Schema::hasTable('contact_policies')) {
-            // Fail loudly in logs; UI will still save the contact.
             \Log::warning('contact_policies table missing. Policies not saved.');
             return;
         }
@@ -519,7 +475,7 @@ class BookController extends Controller
         $items = $request->input('policies', []);
         if (!is_array($items)) $items = [];
 
-        // Drop empty rows (all fields empty)
+        // Drop empty rows
         $items = array_values(array_filter($items, function ($p) {
             if (!is_array($p)) return false;
             $copy = $p;
@@ -539,42 +495,55 @@ class BookController extends Controller
             ->map(fn($id) => (int)$id)
             ->all();
 
-        // Delete policies removed in UI
-        ContactPolicy::query()
-            ->where('contact_id', $client->id)
-            ->where('agency_id', $client->agency_id)
-            ->when(!empty($keepIds), fn($q) => $q->whereNotIn('id', $keepIds))
-            ->delete();
+        // Delete removed policies
+        $del = ContactPolicy::query()->where('contact_id', $client->id);
+
+        // only add agency_id filter if column exists AND client has agency_id
+        if (Schema::hasColumn('contact_policies', 'agency_id') && !empty($client->agency_id)) {
+            $del->where('agency_id', $client->agency_id);
+        }
+
+        if (!empty($keepIds)) {
+            $del->whereNotIn('id', $keepIds);
+        }
+
+        $del->delete();
 
         $user = Auth::user();
 
         foreach ($items as $p) {
             $payload = [
-                'agency_id'         => $client->agency_id,
                 'contact_id'        => $client->id,
                 'carrier'           => $p['carrier'] ?? null,
                 'policy_type'       => $p['policy_type'] ?? null,
                 'face_amount'       => $p['face_amount'] ?? null,
                 'premium_amount'    => $p['premium_amount'] ?? null,
-                'premium_due_date'  => $p['premium_due_date'] ?? null,
                 'policy_issue_date' => $p['policy_issue_date'] ?? null,
                 'premium_due_text'  => $p['premium_due_text'] ?? null,
             ];
 
-            // If your table has tenant_id/created_by, set them safely:
+            if (Schema::hasColumn('contact_policies', 'agency_id') && !empty($client->agency_id)) {
+                $payload['agency_id'] = $client->agency_id;
+            }
+
             if (Schema::hasColumn('contact_policies', 'tenant_id')) {
                 $payload['tenant_id'] = $client->tenant_id ?? ($user?->tenant_id ?? 1);
             }
+
             if (Schema::hasColumn('contact_policies', 'created_by') && empty($p['id'])) {
                 $payload['created_by'] = $user?->id ?? $client->created_by;
             }
 
             if (!empty($p['id'])) {
-                ContactPolicy::query()
+                $upd = ContactPolicy::query()
                     ->where('id', (int)$p['id'])
-                    ->where('contact_id', $client->id)
-                    ->where('agency_id', $client->agency_id)
-                    ->update($payload);
+                    ->where('contact_id', $client->id);
+
+                if (Schema::hasColumn('contact_policies', 'agency_id') && !empty($client->agency_id)) {
+                    $upd->where('agency_id', $client->agency_id);
+                }
+
+                $upd->update($payload);
             } else {
                 ContactPolicy::create($payload);
             }
