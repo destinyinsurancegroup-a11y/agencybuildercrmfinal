@@ -271,7 +271,6 @@
                     @forelse ($contacts as $contact)
                         @php
                             $name = $contact->full_name ?? trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
-                            // If your contacts use a different phone column, add it here:
                             $phone = $contact->phone ?? $contact->mobile ?? $contact->cell ?? '';
                         @endphp
 
@@ -345,7 +344,7 @@
     </div>
 </div>
 
-{{-- ✅ Bulk Text Modal (Templates + phone-aware selection) --}}
+{{-- ✅ Bulk Text Modal --}}
 <div class="modal fade" id="contactsBulkTextModal" tabindex="-1">
     <div class="modal-dialog">
         <form class="modal-content" onsubmit="return false;">
@@ -360,7 +359,6 @@
                     <span class="ms-2">Valid phones: <strong><span id="contacts-bulk-valid-phones">0</span></strong></span>
                 </div>
 
-                {{-- ✅ Template dropdown (SMS templates) --}}
                 <div class="mb-2">
                     <label class="form-label small text-muted mb-1">Template</label>
                     <select id="contacts-bulk-template-id" class="form-select">
@@ -393,10 +391,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('contact-details-container');
     const CSRF_TOKEN = @json(csrf_token());
 
+    // ✅ Track current open contact card URL so we can refresh it after upload/delete
+    window.__contactsPanelUrl = window.__contactsPanelUrl || null;
+
     // ------------------------------------------------------------
-    // Right panel loader
+    // Right panel loader (GLOBAL like Service)
     // ------------------------------------------------------------
-    function loadPanel(url) {
+    window.loadContactPanel = function (url) {
+        if (!container) return;
+
+        window.__contactsPanelUrl = url;
+
         container.innerHTML = `
             <div style="padding:40px; text-align:center;">
                 <div class="spinner-border text-warning" role="status"></div>
@@ -404,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        fetch(url, { headers: {'X-Requested-With': 'XMLHttpRequest'} })
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(res => res.text())
             .then(html => { container.innerHTML = html; })
             .catch(err => {
@@ -415,22 +420,146 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             });
+    };
+
+    // ============================================================
+    // ✅ CRITICAL FIX (All Contacts)
+    // Intercept attachment UPLOAD and DELETE inside right panel
+    // and run via fetch(), then reload the open contact card.
+    // ============================================================
+
+    function showUploadErrorFromResponse(resp, fallbackMsg) {
+        // Try JSON first (Laravel 422 validation usually returns JSON if Accept is application/json)
+        return resp.clone().json()
+            .then(data => {
+                if (data && data.message) return data.message;
+                // Laravel validation errors often like { errors: { "files.0": ["..."] } }
+                if (data && data.errors) {
+                    const firstKey = Object.keys(data.errors)[0];
+                    if (firstKey && Array.isArray(data.errors[firstKey]) && data.errors[firstKey][0]) {
+                        return data.errors[firstKey][0];
+                    }
+                }
+                return fallbackMsg;
+            })
+            .catch(() => resp.text().then(() => fallbackMsg).catch(() => fallbackMsg));
     }
 
+    // 1) Upload intercept: input[id^=ab-attach-input-]
+    //    This prevents the inline onchange="ABAttachments.submitIfSelected()" from navigating away.
+    document.addEventListener('change', async (e) => {
+        const el = e.target;
+        if (!el) return;
+
+        if (el.matches('input[type="file"][id^="ab-attach-input-"]')) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+
+            const formId = el.id.replace('ab-attach-input-', 'ab-attach-form-');
+            const form = document.getElementById(formId);
+            if (!form) return;
+
+            if (!el.files || el.files.length === 0) return;
+
+            try {
+                // ✅ IMPORTANT: FormData(form) already includes the selected file(s)
+                // Do NOT append files again or you can get duplicates / weird behavior.
+                const fd = new FormData(form);
+
+                const resp = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': CSRF_TOKEN,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        // ✅ request JSON so we can read validation errors cleanly (422)
+                        'Accept': 'application/json'
+                    },
+                    body: fd
+                });
+
+                if (!resp.ok) {
+                    const msg = await showUploadErrorFromResponse(resp, 'Upload error. The file failed to upload.');
+                    alert(msg);
+                    // reset so user can reselect same file and re-trigger change
+                    el.value = '';
+                    return;
+                }
+
+                // ✅ refresh the currently open contact card
+                if (window.__contactsPanelUrl) window.loadContactPanel(window.__contactsPanelUrl);
+
+                // reset input so selecting same file again triggers change
+                el.value = '';
+            } catch (err) {
+                console.error(err);
+                alert('Upload error. The file failed to upload.');
+                el.value = '';
+            }
+        }
+    }, true);
+
+    // 2) Delete intercept: attachment delete forms (method spoof DELETE + /attachments/)
+    document.addEventListener('submit', async (e) => {
+        const form = e.target;
+        if (!form) return;
+
+        const methodSpoof = form.querySelector('input[name="_method"]');
+        const isDelete = methodSpoof && String(methodSpoof.value || '').toUpperCase() === 'DELETE';
+        const isAttachmentDelete = isDelete && (form.action || '').includes('/attachments/');
+
+        if (!isAttachmentDelete) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+
+        if (!confirm('Delete this file?')) return;
+
+        try {
+            const fd = new FormData(form);
+
+            const resp = await fetch(form.action, {
+                method: 'POST', // method spoof via _method=DELETE
+                headers: {
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: fd
+            });
+
+            if (!resp.ok) {
+                const msg = await showUploadErrorFromResponse(resp, 'Delete failed.');
+                alert(msg);
+                return;
+            }
+
+            if (window.__contactsPanelUrl) window.loadContactPanel(window.__contactsPanelUrl);
+        } catch (err) {
+            console.error(err);
+            alert('Delete failed.');
+        }
+    }, true);
+
+    // ------------------------------------------------------------
     // Contact row click handler
+    // ------------------------------------------------------------
     document.querySelectorAll('.js-contact-row').forEach(row => {
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (e) => {
+            if (e && e.target && e.target.classList && e.target.classList.contains('contacts-row-checkbox')) return;
+
             document.querySelectorAll('.js-contact-row')
                 .forEach(r => r.classList.remove('active-contact-row'));
 
             row.classList.add('active-contact-row');
-            loadPanel(row.dataset.contactUrl);
+            window.loadContactPanel(row.dataset.contactUrl);
         });
     });
 
     // Add Contact button
     const addBtn = document.getElementById('add-contact-btn');
-    if (addBtn) addBtn.addEventListener('click', () => loadPanel(addBtn.dataset.createUrl));
+    if (addBtn) addBtn.addEventListener('click', () => window.loadContactPanel(addBtn.dataset.createUrl));
 
     // Auto-load selected contact after edit
     const selectedId = @json($selected ?? '');
@@ -440,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------
-    // ✅ Bulk select + bulk text (PHONE-AWARE like Service)
+    // ✅ Bulk select + bulk text (unchanged)
     // ------------------------------------------------------------
     const selectedIds = new Set();
     const selectedMeta = new Map(); // id -> {name, phone}
@@ -511,10 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------
-    // ✅ Bulk Templates (SMS) for Contacts page
-    // Uses:
-    //   GET /settings/messaging/templates/json?channel=sms
-    //   GET /settings/messaging/templates/{id}/json
+    // ✅ Bulk Templates (SMS)
     // ------------------------------------------------------------
     const TEMPLATE_ROUTES = {
         list: '/settings/messaging/templates/json',
@@ -574,7 +700,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('contacts-bulk-body').value = '';
 
-            // reset template select
             const sel = document.getElementById('contacts-bulk-template-id');
             if (sel) {
                 sel.value = '';
@@ -586,7 +711,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // apply template on selection
     const tplSelect = document.getElementById('contacts-bulk-template-id');
     if (tplSelect) {
         tplSelect.addEventListener('change', () => {
@@ -616,7 +740,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!body) return alert('Message is empty.');
             if (selectedIds.size < 1) return alert('No contacts selected.');
 
-            // ✅ require at least one selected contact with a phone
             let validPhones = 0;
             selectedMeta.forEach(meta => {
                 if (normalizePhone(meta.phone)) validPhones++;
