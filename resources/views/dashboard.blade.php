@@ -1013,12 +1013,38 @@ document.addEventListener("DOMContentLoaded", function () {
     // =========================================================
     // ✅ Log Production wiring (opens the Track Daily Activity modal)
     // =========================================================
+
+    function attachActivityModalHandlers() {
+        const form = document.getElementById("activityForm");
+        const saveBtn = document.getElementById("saveActivityBtn");
+        if (!form || !saveBtn) return;
+
+        if (form.dataset.abcBound === "1") return;
+        form.dataset.abcBound = "1";
+
+        form.addEventListener("submit", function(ev) {
+            ev.preventDefault();
+            if (typeof window.ABC_activitySaveClick === "function") {
+                window.ABC_activitySaveClick(ev);
+            }
+        });
+
+        saveBtn.addEventListener("click", function(ev) {
+            ev.preventDefault();
+            if (typeof window.ABC_activitySaveClick === "function") {
+                window.ABC_activitySaveClick(ev);
+            }
+        });
+    }
+
     async function openActivityModal() {
         if (typeof bootstrap === "undefined") return;
 
         let modalEl = document.getElementById("activityModal");
         if (modalEl) {
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            // bind handlers in case modal HTML already exists
+            attachActivityModalHandlers();
             return;
         }
 
@@ -1026,6 +1052,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (existingWrap) {
             modalEl = document.getElementById("activityModal");
             if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            attachActivityModalHandlers();
             return;
         }
 
@@ -1044,6 +1071,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!modalEl) return;
 
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            attachActivityModalHandlers();
         } catch (err) {
             console.error(err);
         }
@@ -1069,10 +1097,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<!-- =========================================================
-     ✅ FIX: DEFINE SAVE HANDLER EXPECTED BY activity/popup.blade.php
-     This is the ONLY functional change you asked for.
-     ========================================================= -->
+<!-- ✅ Robust SAVE handler that ALWAYS refreshes the goal card after success -->
 <script>
 window.ABC_activitySaveClick = async function (e) {
     try {
@@ -1080,18 +1105,12 @@ window.ABC_activitySaveClick = async function (e) {
 
         const form = document.getElementById("activityForm");
         const saveBtn = document.getElementById("saveActivityBtn");
-        if (!form || !saveBtn) {
-            console.warn("activityForm or saveActivityBtn not found. Popup may not be injected yet.");
-            return;
-        }
+        if (!form || !saveBtn) return;
 
-        // Prevent double-submit
         if (saveBtn.dataset.abcBusy === "1") return;
         saveBtn.dataset.abcBusy = "1";
 
-        const csrf =
-            document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
         const url = form.getAttribute("action") || "/activity";
         const formData = new FormData(form);
 
@@ -1106,31 +1125,44 @@ window.ABC_activitySaveClick = async function (e) {
             cache: "no-store"
         });
 
-        const payload = await res.json().catch(() => null);
+        // Some Laravel controllers return redirects/HTML unless explicitly coded for JSON.
+        // We tolerate that and still refresh the card if the POST succeeded.
+        let payload = null;
+        const ct = (res.headers.get("content-type") || "").toLowerCase();
+        if (ct.includes("application/json")) {
+            payload = await res.json().catch(() => null);
+        }
 
-        if (!res.ok || !payload || payload.success !== true) {
-            const msg =
-                payload?.message ||
-                "Could not save production. Please try again.";
+        if (!res.ok) {
+            const msg = payload?.message || "Could not save production. Please try again.";
             throw new Error(msg);
         }
 
-        // Close the modal (if bootstrap is present)
+        if (payload && payload.success === false) {
+            throw new Error(payload?.message || "Could not save production. Please try again.");
+        }
+
+        // Close modal
         const modalEl = document.getElementById("activityModal");
         if (modalEl && typeof bootstrap !== "undefined") {
             bootstrap.Modal.getOrCreateInstance(modalEl).hide();
         }
 
-        // Remove injected markup so next open is fresh (prevents stale event bindings)
+        // Remove injected wrapper so next open is clean
         const wrap = document.getElementById("activity-modal-injected");
         if (wrap) wrap.remove();
 
-        // Refresh goal card totals
-        if (typeof window.refreshGoalCard === "function") {
+        // Refresh goal card: use month_totals if backend provides it, else re-fetch totals.
+        if (payload?.month_totals && typeof window.applyGoalCardFromTotals === "function") {
+            window.applyGoalCardFromTotals(
+                Number(payload.month_totals.premium_collected || 0),
+                Number(payload.month_totals.ap || 0)
+            );
+        } else if (typeof window.refreshGoalCard === "function") {
             await window.refreshGoalCard(true);
         }
 
-        // If breakdown modal is open, refresh it too
+        // Refresh breakdown if modal is open
         const breakdownEl = document.getElementById("productionBreakdownModal");
         if (breakdownEl && breakdownEl.classList.contains("show")) {
             if (typeof window.refreshProductionBreakdownModal === "function") {
