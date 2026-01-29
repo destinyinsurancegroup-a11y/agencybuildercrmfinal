@@ -336,9 +336,7 @@
 
             @foreach($policies as $i => $p)
                 <div class="ab-policy-block">
-                    <div class="ab-policy-title">
-                        Policy #{{ $i + 1 }}
-                    </div>
+                    {{-- ✅ REMOVED: Policy #{{ $i + 1 }} --}}
 
                     <div class="row mb-0">
                         <div class="col-md-6">
