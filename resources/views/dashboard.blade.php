@@ -1069,6 +1069,84 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+<!-- =========================================================
+     ✅ FIX: DEFINE SAVE HANDLER EXPECTED BY activity/popup.blade.php
+     This is the ONLY functional change you asked for.
+     ========================================================= -->
+<script>
+window.ABC_activitySaveClick = async function (e) {
+    try {
+        if (e && typeof e.preventDefault === "function") e.preventDefault();
+
+        const form = document.getElementById("activityForm");
+        const saveBtn = document.getElementById("saveActivityBtn");
+        if (!form || !saveBtn) {
+            console.warn("activityForm or saveActivityBtn not found. Popup may not be injected yet.");
+            return;
+        }
+
+        // Prevent double-submit
+        if (saveBtn.dataset.abcBusy === "1") return;
+        saveBtn.dataset.abcBusy = "1";
+
+        const csrf =
+            document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+
+        const url = form.getAttribute("action") || "/activity";
+        const formData = new FormData(form);
+
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "X-CSRF-TOKEN": csrf,
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: formData,
+            cache: "no-store"
+        });
+
+        const payload = await res.json().catch(() => null);
+
+        if (!res.ok || !payload || payload.success !== true) {
+            const msg =
+                payload?.message ||
+                "Could not save production. Please try again.";
+            throw new Error(msg);
+        }
+
+        // Close the modal (if bootstrap is present)
+        const modalEl = document.getElementById("activityModal");
+        if (modalEl && typeof bootstrap !== "undefined") {
+            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        }
+
+        // Remove injected markup so next open is fresh (prevents stale event bindings)
+        const wrap = document.getElementById("activity-modal-injected");
+        if (wrap) wrap.remove();
+
+        // Refresh goal card totals
+        if (typeof window.refreshGoalCard === "function") {
+            await window.refreshGoalCard(true);
+        }
+
+        // If breakdown modal is open, refresh it too
+        const breakdownEl = document.getElementById("productionBreakdownModal");
+        if (breakdownEl && breakdownEl.classList.contains("show")) {
+            if (typeof window.refreshProductionBreakdownModal === "function") {
+                await window.refreshProductionBreakdownModal(true);
+            }
+        }
+    } catch (err) {
+        console.error(err);
+        alert(err?.message || "Could not save production. Please try again.");
+    } finally {
+        const saveBtn = document.getElementById("saveActivityBtn");
+        if (saveBtn) saveBtn.dataset.abcBusy = "0";
+    }
+};
+</script>
+
 <!-- TAB LOGIC (Production Breakdown Modal) -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
