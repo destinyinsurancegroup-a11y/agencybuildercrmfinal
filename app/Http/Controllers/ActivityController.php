@@ -28,11 +28,11 @@ class ActivityController extends Controller
     /**
      * Store a new activity entry.
      *
-     * FIXES:
-     * - AP is ALWAYS computed server-side: premium_collected * 12
-     * - Prevent double-inserts WITHOUT migrations by blocking identical submits
-     *   that occur within a short window (e.g., accidental double POST).
-     * - Return month_totals so dashboard can update instantly.
+     * Guarantees:
+     * - Tenant isolation (tenant_id) is enforced explicitly.
+     * - AP is computed server-side: premium_collected * 12
+     * - Prevents accidental double POSTs (same payload within 3 seconds).
+     * - Returns month_totals so dashboard can update instantly.
      */
     public function store(Request $request)
     {
@@ -46,64 +46,81 @@ class ActivityController extends Controller
             'activity_date'      => 'nullable|date',
         ]);
 
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        $userId = (int) $user->id;
+
+        // ✅ Canonical tenant key used by TenantScoped (tenant_id column)
+        // Tenant::id() maps to $user->agency_id, so this stays consistent everywhere.
+        $tenantId = (int) ($user->agency_id ?? 0);
+        if ($tenantId <= 0) {
+            // Hard fail: activities table tenant_id is NOT NULL in migrations
+            return response()->json(['success' => false, 'message' => 'Tenant not set for user'], 403);
+        }
+
         // Normalize empty to 0
-        $data['leads_worked']      = (int)($data['leads_worked'] ?? 0);
-        $data['calls']             = (int)($data['calls'] ?? 0);
-        $data['stops']             = (int)($data['stops'] ?? 0);
-        $data['presentations']     = (int)($data['presentations'] ?? 0);
-        $data['apps_written']      = (int)($data['apps_written'] ?? 0);
-        $data['premium_collected'] = (float)($data['premium_collected'] ?? 0);
+        $leadsWorked      = (int)($data['leads_worked'] ?? 0);
+        $calls            = (int)($data['calls'] ?? 0);
+        $stops            = (int)($data['stops'] ?? 0);
+        $presentations    = (int)($data['presentations'] ?? 0);
+        $appsWritten      = (int)($data['apps_written'] ?? 0);
+        $premiumCollected = (float)($data['premium_collected'] ?? 0);
 
         // ✅ ALWAYS compute AP from premium (Premium * 12)
-        $data['ap'] = round($data['premium_collected'] * 12, 2);
-
-        // Auth + tenant
-        $user = Auth::user();
-        $userId = Auth::id() ?? 1;
-        $agencyId = $user->agency_id ?? 1;
+        $ap = round($premiumCollected * 12, 2);
 
         /**
-         * ✅ IMPORTANT:
-         * This is the "no-migration" dedupe fix.
-         * If the same exact activity payload arrives twice within 3 seconds,
-         * do NOT create a 2nd row.
+         * Optional: If you want the "Date" field in the modal to affect reporting,
+         * you can set created_at to that day.
+         * Keeping time "now" so you can still see the exact save time.
          */
+        $createdAt = now();
+        if (!empty($data['activity_date'])) {
+            $d = Carbon::parse($data['activity_date']);
+            $createdAt = $d->setTimeFromTimeString(now()->format('H:i:s'));
+        }
+
+        // ✅ "No migration" dedupe: same payload within 3 seconds
         $recentWindowStart = now()->subSeconds(3);
 
-        $duplicate = Activity::where('user_id', $userId)
-            ->where('agency_id', $agencyId)
+        $duplicate = Activity::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
             ->where('created_at', '>=', $recentWindowStart)
-            ->where('leads_worked', $data['leads_worked'])
-            ->where('calls', $data['calls'])
-            ->where('stops', $data['stops'])
-            ->where('presentations', $data['presentations'])
-            ->where('apps_written', $data['apps_written'])
-            ->where('premium_collected', $data['premium_collected'])
+            ->where('leads_worked', $leadsWorked)
+            ->where('calls', $calls)
+            ->where('stops', $stops)
+            ->where('presentations', $presentations)
+            ->where('apps_written', $appsWritten)
+            ->where('premium_collected', $premiumCollected)
             ->exists();
 
         if (!$duplicate) {
             Activity::create([
-                'leads_worked'      => $data['leads_worked'],
-                'calls'             => $data['calls'],
-                'stops'             => $data['stops'],
-                'presentations'     => $data['presentations'],
-                'apps_written'      => $data['apps_written'],
-                'premium_collected' => $data['premium_collected'],
-                'ap'                => $data['ap'],
-                'user_id'           => $userId,
-                'agency_id'         => $agencyId,
+                'tenant_id'          => $tenantId,
+                'user_id'            => $userId,
+                'leads_worked'       => $leadsWorked,
+                'calls'              => $calls,
+                'stops'              => $stops,
+                'presentations'      => $presentations,
+                'apps_written'       => $appsWritten,
+                'premium_collected'  => $premiumCollected,
+                'ap'                 => $ap,
+                'created_at'         => $createdAt,
             ]);
         }
 
-        // ✅ Return month totals for instant UI update (the dashboard uses this)
-        $monthTotals = $this->computeTotalsForUserRange($userId, 'month');
+        $monthTotals = $this->computeTotalsForUserRange($tenantId, $userId, 'month');
 
         return response()->json([
             'success' => true,
             'deduped' => $duplicate,
             'saved' => [
-                'premium_collected' => (float)$data['premium_collected'],
-                'ap' => (float)$data['ap'],
+                'premium_collected' => $premiumCollected,
+                'ap' => $ap,
             ],
             'month_totals' => $monthTotals,
         ]);
@@ -112,15 +129,26 @@ class ActivityController extends Controller
     /**
      * Dashboard production totals.
      *
-     * FIX:
-     * - AP totals should be SUM(premium_collected) * 12
-     *   so old/wrong stored ap values do NOT pollute totals.
+     * NOTE:
+     * - Explicit tenant_id scoping to guarantee isolation and correct totals.
+     * - AP totals computed as SUM(premium_collected) * 12
+     *   so stored ap values never pollute totals.
      */
     public function totals($range)
     {
-        $userId = Auth::id() ?? 1;
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
 
-        $totals = $this->computeTotalsForUserRange($userId, $range);
+        $tenantId = (int) ($user->agency_id ?? 0);
+        if ($tenantId <= 0) {
+            return response()->json(['error' => 'Tenant not set for user'], 403);
+        }
+
+        $userId = (int) $user->id;
+
+        $totals = $this->computeTotalsForUserRange($tenantId, $userId, (string)$range);
         if (isset($totals['error'])) {
             return response()->json($totals, 400);
         }
@@ -128,9 +156,13 @@ class ActivityController extends Controller
         return response()->json($totals);
     }
 
-    private function computeTotalsForUserRange(int $userId, string $range): array
+    private function computeTotalsForUserRange(int $tenantId, int $userId, string $range): array
     {
-        $query = Activity::where('user_id', $userId);
+        // Use withoutGlobalScopes + explicit tenant filter to avoid any scope/middleware weirdness.
+        $query = Activity::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId);
+
         $now = Carbon::now();
 
         switch ($range) {
